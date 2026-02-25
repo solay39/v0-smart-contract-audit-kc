@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   PUB_EMAIL,
   TG_URL,
@@ -213,7 +215,61 @@ function CheckRow({ label, value, danger }: { label: string; value: string | boo
   )
 }
 
-function ProjectDetail({ p, onBack, isLive }: { p: PortfolioProject; onBack: () => void; isLive?: boolean }) {
+// ── Share Button ────────────────────────────────────────────────
+function ShareButton({ auditId, name }: { auditId: string; name: string }) {
+  const [copied, setCopied] = useState(false)
+  const shareUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/audit/${auditId}`
+    : `https://www.solay39.eu/audit/${auditId}`
+
+  const handleShare = async () => {
+    // Try native share API (mobile)
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({
+          title: `${name} Security Audit | Solay39`,
+          text: `Check out the ${name} smart contract security audit by Solay39`,
+          url: shareUrl,
+        })
+        return
+      } catch {
+        // User cancelled or share API not supported — fall through to clipboard
+      }
+    }
+    // Fallback: copy to clipboard
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    } catch {
+      // Last resort
+      const input = document.createElement("input")
+      input.value = shareUrl
+      document.body.appendChild(input)
+      input.select()
+      document.execCommand("copy")
+      document.body.removeChild(input)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    }
+  }
+
+  return (
+    <button
+      onClick={handleShare}
+      className="flex items-center gap-1.5 text-[8px] text-s39-cyan bg-s39-cyan/5 border border-s39-cyan/20 px-2.5 py-1 tracking-wider hover:bg-s39-cyan/10 transition-colors cursor-pointer font-mono"
+    >
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
+        <polyline points="16 6 12 2 8 6" />
+        <line x1="12" y1="2" x2="12" y2="15" />
+      </svg>
+      {copied ? "LINK COPIED!" : "SHARE AUDIT"}
+    </button>
+  )
+}
+
+export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioProject; onBack?: () => void; isLive?: boolean; backHref?: string }) {
   const sc = scoreColor(p.score)
   const bd = p.scoreBreakdown
   const totalFindings = p.criticals + p.highs + p.mediums + p.lows + p.infos
@@ -226,10 +282,17 @@ function ProjectDetail({ p, onBack, isLive }: { p: PortfolioProject; onBack: () 
       {/* ── Top Header ── */}
       <div className="bg-s39-bg1 border-b border-s39-border">
         <div className="max-w-[1060px] mx-auto px-4 sm:px-6 py-5">
-          <button onClick={onBack}
-            className="bg-transparent border-none text-s39-mid font-mono text-[10px] cursor-pointer mb-5 tracking-widest hover:text-s39-green transition-colors">
-            {"<- BACK TO PORTFOLIO"}
-          </button>
+          {backHref ? (
+            <a href={backHref}
+              className="text-s39-mid font-mono text-[10px] mb-5 tracking-widest hover:text-s39-green transition-colors block no-underline">
+              {"<- BACK TO PORTFOLIO"}
+            </a>
+          ) : onBack ? (
+            <button onClick={onBack}
+              className="bg-transparent border-none text-s39-mid font-mono text-[10px] cursor-pointer mb-5 tracking-widest hover:text-s39-green transition-colors">
+              {"<- BACK TO PORTFOLIO"}
+            </button>
+          ) : null}
 
           {/* Hero: Logo + Name + Badges + Score arc */}
           <div className="flex gap-6 sm:gap-10 items-start flex-col sm:flex-row">
@@ -263,6 +326,8 @@ function ProjectDetail({ p, onBack, isLive }: { p: PortfolioProject; onBack: () 
                 {p.tags?.map((t) => (
                   <span key={t} className="text-[8px] text-s39-dim border border-s39-border px-2 py-1">{t}</span>
                 ))}
+                {/* Share Button */}
+                <ShareButton auditId={p.id} name={p.name} />
               </div>
 
               {/* Price + Market Cap row */}
@@ -772,11 +837,17 @@ interface LivePriceData {
 }
 
 export function SkynetPublic({ onBack }: { onBack: () => void }) {
+  const router = useRouter()
   const [tab, setTab] = useState<"portfolio" | "methodology">("portfolio")
   const [search, setSearch] = useState("")
   const [net, setNet] = useState("all")
   const [sortBy, setSortBy] = useState("score")
   const [detail, setDetail] = useState<PortfolioProject | null>(null)
+
+  // Navigate to the shareable audit URL
+  const goToAudit = useCallback((p: PortfolioProject) => {
+    router.push(`/audit/${p.id}`)
+  }, [router])
   const [livePrices, setLivePrices] = useState<Record<string, LivePriceData>>({})
   const [priceLoading, setPriceLoading] = useState(true)
 
@@ -872,7 +943,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 6)
 
-  if (detail) return <ProjectDetail p={detail} onBack={() => setDetail(null)} isLive={!!livePrices[detail.ticker || ""]} />
+  if (detail) return <ProjectDetail p={detail} onBack={() => setDetail(null)} backHref="/" isLive={!!livePrices[detail.ticker || ""]} />
 
   return (
     <div className="min-h-dvh bg-s39-bg0">
@@ -995,7 +1066,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                 return (
                   <div
                     key={p.id}
-                    onClick={() => setDetail(p)}
+                    onClick={() => goToAudit(p)}
                     className="bg-s39-bg1 border border-s39-border p-4 cursor-pointer hover:border-s39-green/30 transition-all group"
                   >
                     <div className="flex items-center gap-3 mb-3">
@@ -1048,7 +1119,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
               {recentProjects.map((p) => (
                 <div
                   key={p.id}
-                  onClick={() => setDetail(p)}
+                  onClick={() => goToAudit(p)}
                   className="bg-s39-bg1 border border-s39-border p-3 min-w-[140px] cursor-pointer hover:border-s39-green/30 transition-colors shrink-0"
                 >
                   <div className="flex items-center gap-2 mb-2">
@@ -1102,7 +1173,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
               return (
                 <div
                   key={p.id}
-                  onClick={() => setDetail(p)}
+                  onClick={() => goToAudit(p)}
                   className="grid grid-cols-[32px_2fr_70px_60px_1fr_90px_80px] px-4 py-3 border-b border-s39-border items-center transition-colors hover:bg-s39-bg2 cursor-pointer"
                 >
                   <div className={`text-[10px] font-bold ${rankColor}`}>#{i + 1}</div>
@@ -1169,7 +1240,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
               return (
                 <div
                   key={p.id}
-                  onClick={() => setDetail(p)}
+                  onClick={() => goToAudit(p)}
                   className="bg-s39-bg1 border border-s39-border p-4 cursor-pointer hover:border-s39-muted transition-colors"
                 >
                   <div className="flex items-center justify-between mb-3">

@@ -13,6 +13,19 @@ export const metadata: Metadata = {
   title: 'SOLAY39 — Smart Contract Security Audit Platform',
   description: 'Enterprise-grade smart contract security audits. Manual-first audit framework with AI-powered verification. Securing protocols through deep human review.',
   generator: 'v0.app',
+  metadataBase: new URL('https://www.solay39.eu'),
+  openGraph: {
+    title: 'SOLAY39 — Smart Contract Security Audit Platform',
+    description: 'Enterprise-grade smart contract security audits. Manual-first audit framework with AI-powered verification.',
+    url: 'https://www.solay39.eu',
+    siteName: 'Solay39 Skynet',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'SOLAY39 — Smart Contract Security Audit Platform',
+    description: 'Enterprise-grade smart contract security audits. Manual-first audit framework with AI-powered verification.',
+  },
   icons: {
     icon: [
       {
