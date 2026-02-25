@@ -25,11 +25,15 @@ function staticAnalysis(code: string): Finding[] {
 
   const hasConstructorOnlyMint = (() => {
     if (!/_mint|mint/.test(code)) return false
-    const mintOutsideConstructor = code.replace(
-      /constructor\s*\([^)]*\)\s*(public|internal)?\s*[^{]*\{[^}]*\}/gs,
-      ""
-    )
-    return !(/function\s+\w*[Mm]int\s*\(/.test(mintOutsideConstructor))
+    // Remove constructor block (including multi-line constructors with inheritance)
+    const mintOutsideConstructor = code
+      .replace(/constructor\s*\([^)]*\)[^{]*\{[^}]*\}/gs, "")  // Solidity >=0.4.22
+      .replace(/function\s+\w+\s*\([^)]*\)[^{]*\{[^}]*_mint[^}]*\}/gs, "") // named constructor pattern
+    // Check if there's still a publicly callable mint function after removing constructors
+    const hasPublicMint = /function\s+\w*[Mm]int\s*\([^)]*\)\s*(public|external)/.test(mintOutsideConstructor)
+    const hasInternalMintCall = /function\s+\w*[Mm]int\s*\(/.test(mintOutsideConstructor)
+    // If there's no public/external mint outside constructor, it's constructor-only
+    return !hasPublicMint && (!hasInternalMintCall || /function\s+_mint\s*\(.*internal/.test(code))
   })()
 
   const hasExternalCall = /\.call\{value|\.call\(|address\(.*\)\.call/.test(code)
@@ -39,8 +43,20 @@ function staticAnalysis(code: string): Finding[] {
     return false
   })()
 
-  const hasDangerousFunctions = /pause|blacklist|setTax|setFee|forceTrans|rescue|withdraw.*only/.test(code)
-  const hasOwnable = /onlyOwner|Ownable|AccessControl|onlyRole|onlyAdmin/.test(code)
+  // Detect OpenZeppelin standard modules (these have BUILT-IN access control)
+  const hasOZPausable = /ERC20Pausable|PausableUpgradeable|import.*Pausable/.test(code)
+  const hasOZAccessControl = /Ownable|AccessControl|Roles\s*for|MinterRole|PauserRole/.test(code)
+
+  // Only flag "dangerous functions" if they are CUSTOM implementations, not OZ modules
+  const hasDangerousFunctions = (() => {
+    // If using OZ Pausable, "pause" in code is NOT a missing access control issue
+    if (hasOZPausable || hasOZAccessControl) return false
+    // Check for CUSTOM dangerous functions without any access control framework
+    return /function\s+(pause|blacklist|setTax|setFee|forceTrans|rescue)\s*\(/.test(code) ||
+           /function\s+withdraw\s*\([^)]*\)\s*(public|external)/.test(code)
+  })()
+
+  const hasOwnable = /onlyOwner|Ownable|AccessControl|onlyRole|onlyAdmin|onlyPauser|onlyMinter/.test(code)
   const hasRequireSender = /require\s*\(\s*msg\.sender/.test(code)
 
   /* ── 1. Reentrancy ── */
@@ -109,12 +125,12 @@ function staticAnalysis(code: string): Finding[] {
 
   /* ── 5. Access control — context-aware ── */
   if (!isERC20 || hasDangerousFunctions) {
-    // For standard ERC-20 tokens without admin functions, access control is NOT needed
-    // Only flag if there are dangerous owner-style functions without modifiers
-    const publicStateFns = code.match(
-      /function\s+\w+[^)]*\)\s*(public|external)(?!\s+view)(?!\s+pure)/g
-    )
-    if (hasDangerousFunctions && !hasOwnable && !hasRequireSender) {
+    // For standard ERC-20 tokens (especially those using OZ), access control is ALREADY handled
+    // Only flag if there are truly unprotected dangerous functions
+    if (hasOZPausable || hasOZAccessControl) {
+      // OpenZeppelin modules have built-in role-based access control
+      // Do NOT flag access control issues for OZ-based contracts
+    } else if (hasDangerousFunctions && !hasOwnable && !hasRequireSender) {
       findings.push({
         title: "Missing Access Control on Sensitive Functions",
         severity: "HIGH",
@@ -123,15 +139,20 @@ function staticAnalysis(code: string): Finding[] {
         impact: "Any address can call these privileged functions, potentially allowing unauthorized pausing, blacklisting, or fee manipulation.",
         recommendation: "Implement access control using OpenZeppelin's Ownable or AccessControl. Add modifiers like onlyOwner to all sensitive functions.",
       })
-    } else if (!isERC20 && publicStateFns && publicStateFns.length > 3 && !hasOwnable && !hasRequireSender) {
-      findings.push({
-        title: "Consider Adding Access Control",
-        severity: "MEDIUM",
-        location: "Public/external state-changing functions",
-        description: `Found ${publicStateFns.length} public/external state-changing functions. Depending on the contract's purpose, some may need access restrictions.`,
-        impact: "Without access control, any address can call state-modifying functions.",
-        recommendation: "Review each public function and determine if it should be restricted. Use OpenZeppelin's Ownable or AccessControl for protected functions.",
-      })
+    } else if (!isERC20) {
+      const publicStateFns = code.match(
+        /function\s+\w+[^)]*\)\s*(public|external)(?!\s+view)(?!\s+pure)/g
+      )
+      if (publicStateFns && publicStateFns.length > 3 && !hasOwnable && !hasRequireSender) {
+        findings.push({
+          title: "Consider Adding Access Control",
+          severity: "MEDIUM",
+          location: "Public/external state-changing functions",
+          description: `Found ${publicStateFns.length} public/external state-changing functions. Depending on the contract's purpose, some may need access restrictions.`,
+          impact: "Without access control, any address can call state-modifying functions.",
+          recommendation: "Review each public function and determine if it should be restricted. Use OpenZeppelin's Ownable or AccessControl for protected functions.",
+        })
+      }
     }
   }
 
@@ -288,10 +309,12 @@ CRITICAL RULES — you MUST follow these to avoid false positives:
 
 2. DO NOT FLAG as vulnerabilities:
    - "Missing access control" on standard ERC-20 functions (transfer, approve, transferFrom) — these are SUPPOSED to be public
+   - "Missing access control" on contracts using OpenZeppelin modules (ERC20Pausable, Ownable, AccessControl, PauserRole, MinterRole) — OZ has BUILT-IN role-based access control
    - "Reentrancy" on contracts that only update mappings and emit events without external calls
-   - "Centralized minting" if _mint() is ONLY called inside the constructor (fixed supply)
+   - "Centralized minting" or "Unrestricted minting" if _mint() is ONLY called inside the constructor (fixed supply). Check: is there a function mint() that is public/external OUTSIDE the constructor? If NO, it's fixed supply.
    - "Integer overflow" if the contract uses SafeMath (look for: "library SafeMath", "using SafeMath for uint256", .add(), .sub(), .mul(), .div()) or targets Solidity >= 0.8.0. CHECK THE ENTIRE CONTRACT for SafeMath before flagging overflow risk.
    - Known ERC-20 limitations as HIGH/CRITICAL (e.g., approve race condition is LOW at most)
+   - "Missing access control on pause" if the contract inherits ERC20Pausable from OpenZeppelin — the PauserRole modifier is inherited
 
 3. Each finding MUST be unique. Never repeat the same finding twice.
 

@@ -4,9 +4,10 @@
 
 // Token contract addresses (Ethereum mainnet)
 const TOKEN_CONTRACTS: Record<string, string> = {
-  // Real audited tokens
+  // Real audited tokens — Ethereum mainnet contract addresses
   INJ: "0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30",
   FET: "0xaea46A60368A7bD060eec7DF8CBa43b7EF41Ad85",
+  CHZ: "0x3506424F91fD33084466F402d5D97f05F8e3b4AF",
 }
 
 const GECKO_BASE = "https://api.geckoterminal.com/api/v2"
