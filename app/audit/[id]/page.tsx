@@ -1,9 +1,23 @@
 import type { Metadata } from "next"
-import { DEFAULT_PROJECTS, scoreColor } from "@/lib/solay39-constants"
+import { DEFAULT_PROJECTS, type PortfolioProject } from "@/lib/solay39-constants"
+import { list } from "@vercel/blob"
 import { AuditDetailClient } from "./client"
 
 // Build a lookup map at module scope
 const projectMap = new Map(DEFAULT_PROJECTS.map((p) => [p.id, p]))
+
+// Fetch audit from Vercel Blob (server-side)
+async function fetchBlobAudit(id: string): Promise<PortfolioProject | null> {
+  try {
+    const { blobs } = await list({ prefix: `audits/${id}.json` })
+    if (blobs.length === 0) return null
+    const res = await fetch(blobs[0].url)
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
 
 type Props = {
   params: Promise<{ id: string }>
@@ -11,7 +25,8 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
-  const p = projectMap.get(id)
+  // Check default projects first, then Blob
+  const p = projectMap.get(id) || await fetchBlobAudit(id)
 
   if (!p) {
     return {
@@ -61,9 +76,15 @@ export async function generateStaticParams() {
 
 export default async function AuditPage({ params }: Props) {
   const { id } = await params
-  const project = projectMap.get(id) || null
 
-  // Always render the client component — it can find published audits in localStorage
-  // even when the server doesn't know about them (user-published audits)
+  // 1. Check hardcoded default projects
+  let project: PortfolioProject | null = projectMap.get(id) || null
+
+  // 2. If not found, fetch from Vercel Blob (server-side persistence)
+  if (!project) {
+    project = await fetchBlobAudit(id)
+  }
+
+  // 3. Always render client component — falls back to localStorage / Blob API
   return <AuditDetailClient project={project} auditId={id} />
 }

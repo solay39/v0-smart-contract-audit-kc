@@ -157,7 +157,28 @@ async function fetchGeckoTerminalInfo(netId: string, address: string) {
 // ── CoinGecko: logo, description, links, categories ──
 async function fetchCoinGeckoInfo(address: string, netId: string) {
   try {
-    const platform = netId === "eth" ? "ethereum" : netId === "bsc" ? "binance-smart-chain" : netId
+    const platformMap: Record<string, string> = {
+      eth: "ethereum",
+      bsc: "binance-smart-chain",
+      arbitrum: "arbitrum-one",
+      optimism: "optimistic-ethereum",
+      polygon_pos: "polygon-pos",
+      avax: "avalanche",
+      base: "base",
+      ftm: "fantom",
+      cro: "cronos",
+      xdai: "xdai",
+      celo: "celo",
+      mantle: "mantle",
+      linea: "linea",
+      scroll: "scroll",
+      zksync: "zksync",
+      blast: "blast",
+      solana: "solana",
+      tron: "tron",
+      near: "near-protocol",
+    }
+    const platform = platformMap[netId] || netId
     const url = `${COINGECKO_BASE}/coins/${platform}/contract/${address}`
     const res = await fetch(url)
     if (!res.ok) return null
@@ -208,17 +229,50 @@ async function fetchCoinGeckoInfo(address: string, netId: string) {
 
 function mapNetworkToGeckoId(network: string): string {
   const map: Record<string, string> = {
+    // EVM chains
     Ethereum: "eth",
     BSC: "bsc",
+    "BNB Chain": "bsc",
+    "Binance Smart Chain": "bsc",
     Arbitrum: "arbitrum",
+    "Arbitrum One": "arbitrum",
     Optimism: "optimism",
     Polygon: "polygon_pos",
+    "Polygon PoS": "polygon_pos",
     Avalanche: "avax",
+    "Avalanche C-Chain": "avax",
     Base: "base",
-    Solana: "solana",
     Fantom: "ftm",
+    Cronos: "cro",
+    Gnosis: "xdai",
+    Celo: "celo",
+    Mantle: "mantle",
+    Linea: "linea",
+    Scroll: "scroll",
+    zkSync: "zksync",
+    "zkSync Era": "zksync",
+    Blast: "blast",
+    Mode: "mode",
+    Manta: "manta-pacific",
+    Metis: "metis",
+    // Non-EVM
+    Solana: "solana",
+    Sui: "sui-network",
+    Aptos: "aptos",
+    Tron: "tron",
+    Near: "near",
+    Cosmos: "cosmos",
+    Injective: "injective",
+    Sei: "sei-network",
+    Ton: "ton",
+    Starknet: "starknet-alpha",
+    // L2s
+    "Polygon zkEVM": "polygon-zkevm",
+    "Arbitrum Nova": "arbitrum-nova",
+    Moonbeam: "moonbeam",
+    Moonriver: "moonriver",
   }
-  return map[network] || network.toLowerCase()
+  return map[network] || network.toLowerCase().replace(/\s+/g, "-")
 }
 
 function formatCompact(n: number): string {

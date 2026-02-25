@@ -1637,26 +1637,41 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
   })
 
   useEffect(() => {
-    const published = getPublishedAudits()
-    if (published.length > 0) {
-      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
-      // Remove stale published entries that now exist in DEFAULT_PROJECTS
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
+
+    async function loadAllAudits() {
+      // 1. Load from localStorage
+      const published = getPublishedAudits()
       const cleaned = published.filter((pub) => {
         const defaultMatch = DEFAULT_PROJECTS.find((dp) => norm(dp.name) === norm(pub.name))
-        if (defaultMatch) return false
-        return true
+        return !defaultMatch
       })
       if (cleaned.length !== published.length) {
         localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(cleaned))
       }
+
+      // 2. Load from Vercel Blob (server-persisted audits)
+      let blobAudits: PortfolioProject[] = []
+      try {
+        const res = await fetch("/api/audits")
+        if (res.ok) {
+          const data = await res.json()
+          blobAudits = (data.audits || []) as PortfolioProject[]
+        }
+      } catch { /* non-critical */ }
+
+      // 3. Merge: defaults + blob + localStorage (deduplicate by id/name)
       const merged = [...DEFAULT_PROJECTS]
-      for (const pub of cleaned) {
+      const allExtras = [...blobAudits, ...cleaned]
+      for (const pub of allExtras) {
         if (!merged.some((m) => m.id === pub.id || norm(m.name) === norm(pub.name))) {
           merged.push(pub)
         }
       }
       setAllProjects(merged)
     }
+
+    loadAllAudits()
   }, [])
 
   // Use live prices for all display

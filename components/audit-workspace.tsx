@@ -339,6 +339,18 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     // ── Step 3: Save to local portfolio store ──
     savePublishedAudit(portfolioEntry)
 
+    // ── Step 3.5: Save to Vercel Blob for server-side persistence ──
+    try {
+      await fetch("/api/audits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audit: portfolioEntry }),
+      })
+    } catch {
+      // Non-critical: localStorage is the primary fallback
+      console.warn("Failed to persist audit to server Blob")
+    }
+
     // ── Step 4: Upload to GitHub ──
     try {
       const fileName = `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${project.date || new Date().toISOString().slice(0, 10)}.pdf`
@@ -626,12 +638,31 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
                     onChange={(e) => setProject((p) => ({ ...p, name: e.target.value }))}
                     placeholder="ProtocolX"
                   />
-                  <S39Input
-                    label="Network"
-                    value={project.network}
-                    onChange={(e) => setProject((p) => ({ ...p, network: e.target.value }))}
-                    placeholder="Ethereum"
-                  />
+                  <div>
+                    <label className="block text-[7px] text-s39-dim tracking-[0.15em] mb-1.5">NETWORK</label>
+                    <select
+                      value={project.network}
+                      onChange={(e) => setProject((p) => ({ ...p, network: e.target.value }))}
+                      className="w-full bg-s39-bg2 border border-s39-border text-s39-white text-[11px] px-3 py-2.5 font-mono focus:border-s39-cyan/40 focus:outline-none"
+                    >
+                      <option value="">Select network...</option>
+                      <optgroup label="EVM L1">
+                        {["Ethereum", "BSC", "Avalanche", "Fantom", "Cronos", "Gnosis", "Celo"].map((n) => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="EVM L2">
+                        {["Arbitrum", "Optimism", "Base", "Polygon", "zkSync", "Linea", "Scroll", "Blast", "Mantle", "Mode", "Manta", "Metis", "Moonbeam", "Moonriver"].map((n) => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Non-EVM">
+                        {["Solana", "Sui", "Aptos", "Tron", "Near", "Cosmos", "Injective", "Sei", "Ton", "Starknet"].map((n) => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
                   <S39Input
                     label="Contract Address"
                     value={project.commit}

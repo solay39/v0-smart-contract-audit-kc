@@ -9,7 +9,7 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
   const [isLive, setIsLive] = useState(false)
   const [loading, setLoading] = useState(!project)
 
-  // If server didn't find it, check localStorage for published audits
+  // If server didn't find it, check localStorage then Blob API
   useEffect(() => {
     const published = getPublishedAudits()
 
@@ -18,8 +18,19 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
       const local = published.find((p) => p.id === auditId)
       if (local) {
         setLiveProject(local)
+        setLoading(false)
+      } else {
+        // Last resort: try Blob API (handles cross-device access)
+        fetch(`/api/audits?id=${encodeURIComponent(auditId)}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.audit) {
+              setLiveProject(data.audit)
+            }
+          })
+          .catch(() => {})
+          .finally(() => setLoading(false))
       }
-      setLoading(false)
     } else {
       // Server found it -- merge with any richer local data
       const local = published.find(
@@ -91,7 +102,7 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
           <div className="text-[9px] text-s39-red tracking-[0.15em] mb-4">AUDIT NOT FOUND</div>
           <h1 className="text-xl font-bold text-s39-white mb-4 font-mono">Report does not exist</h1>
           <p className="text-[10px] text-s39-dim mb-6 max-w-sm mx-auto leading-relaxed">
-            This audit may have been published on another device. Published audits are currently stored locally in the browser.
+            This audit report does not exist or may have been removed. Check the URL and try again.
           </p>
           <a
             href="/"
