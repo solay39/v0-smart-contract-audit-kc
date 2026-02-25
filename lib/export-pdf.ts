@@ -16,7 +16,8 @@ interface Tier1Data {
   invariantsChecked?: InvariantCheck[]
 }
 
-export function exportPDF(project: AuditProject, score: number, findings: Finding[], tier1?: Tier1Data) {
+export function exportPDF(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data) {
+  const score = Math.min(rawScore, 98) // Never 100 — security is risk reduction, not perfection
   const rat = ratingOf(score)
   const sc = score >= 90 ? "#00ff88" : score >= 70 ? "#ffd600" : "#ff6b00"
   const today = new Date().toISOString().slice(0, 10)
@@ -301,6 +302,10 @@ ${page(6, `${h1("4. Security Architecture")}
             </span>
           </div>
           <div style="padding:8px 12px"><p style="color:#8899aa;font-size:9.5px;line-height:1.6">${a.description}</p></div>
+          ${a.simulationResult ? `<div style="padding:6px 12px;border-top:1px solid #111820;border-left:3px solid #00e5ff;margin:0 0 0 -3px;background:#001118">
+            <span style="color:#00e5ff;font-size:7px;letter-spacing:.12em;margin-right:6px">SIMULATION</span>
+            <span style="color:#7a8c9e;font-size:9px;font-family:monospace">${a.simulationResult}</span>
+          </div>` : ""}
         </div>`
       }).join("")
     : p("No significant attack vectors identified. The attack surface is minimal for this contract type.")}`
@@ -319,11 +324,13 @@ ${page(7, `${h1("5. Tooling & On-Chain Validation")}
     ? `<table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:10px">
         <thead><tr>
           <th style="background:#0d1117;color:#445566;font-size:7.5px;letter-spacing:.15em;padding:8px 10px;text-align:left;border-bottom:1px solid #161e2a">CHECK</th>
-          <th style="background:#0d1117;color:#445566;font-size:7.5px;letter-spacing:.15em;padding:8px 10px;text-align:left;border-bottom:1px solid #161e2a;width:80px">STATUS</th>
+          <th style="background:#0d1117;color:#445566;font-size:7.5px;letter-spacing:.15em;padding:8px 10px;text-align:left;border-bottom:1px solid #161e2a">EVIDENCE</th>
+          <th style="background:#0d1117;color:#445566;font-size:7.5px;letter-spacing:.15em;padding:8px 10px;text-align:left;border-bottom:1px solid #161e2a;width:60px">STATUS</th>
         </tr></thead>
         <tbody>${tier1.onChainValidation.map(v => `<tr>
-          <td style="padding:8px 10px;border-bottom:1px solid #111820;color:#c8d8e8">${v.label}</td>
-          <td style="padding:8px 10px;border-bottom:1px solid #111820;color:${v.status === "pass" ? "#00ff88" : v.status === "fail" ? "#ff2d55" : "#445566"};font-weight:700">${v.status.toUpperCase()}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #111820;color:#c8d8e8;font-size:9px">${v.label}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #111820;color:#7a8c9e;font-size:8.5px;font-family:monospace">${v.detail || "-"}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #111820;color:${v.status === "pass" ? "#00ff88" : v.status === "fail" ? "#ff2d55" : "#445566"};font-weight:700;font-size:9px">${v.status.toUpperCase()}</td>
         </tr>`).join("")}</tbody>
       </table>`
     : p("On-chain validation was performed where applicable: source code verification, bytecode matching, and deployment configuration review.")}
