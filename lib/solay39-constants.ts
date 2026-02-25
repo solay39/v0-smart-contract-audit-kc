@@ -20,6 +20,27 @@ export interface Finding {
   impact: string
   recommendation: string
   status: FindingStatus
+  likelihood?: "High" | "Medium" | "Low"
+  proofOfConcept?: string
+}
+
+// ── Tier-1 types ──────────────────────────────────────────────
+export interface PrivilegedRole {
+  role: string
+  capabilities: string
+  riskIfCompromised: string
+}
+
+export interface TrustAssumption {
+  statement: string // "Users must trust X because Y"
+}
+
+export interface AttackScenario {
+  title: string
+  type: "fund-theft" | "state-corruption" | "censorship" | "economic" | "governance"
+  description: string
+  likelihood: "High" | "Medium" | "Low"
+  mitigated: boolean
 }
 
 export interface AuditProject {
@@ -58,6 +79,8 @@ export interface PortfolioProject {
     description: string
     impact: string
     recommendation: string
+    likelihood?: "High" | "Medium" | "Low"
+    proofOfConcept?: string
   }[]
   scoreBreakdown?: {
     codeSecurity: number
@@ -86,6 +109,13 @@ export interface PortfolioProject {
   totalSupply?: string
   volume24h?: string
   fdv?: string
+  // ── Tier-1 audit sections ──
+  privilegedRoles?: PrivilegedRole[]
+  trustAssumptions?: TrustAssumption[]
+  architectureOverview?: string
+  attackSurface?: AttackScenario[]
+  toolingUsed?: string[]
+  onChainValidation?: { label: string; status: "pass" | "fail" | "n/a"; detail?: string }[]
 }
 
 // Keep backward compat alias
@@ -183,7 +213,7 @@ export const DEFAULT_PROJECTS: PortfolioProject[] = [
     name: "Injective Token",
     ticker: "INJ",
     network: "Ethereum",
-    score: 100,
+    score: 97,
     rating: "AAA",
     criticals: 0,
     highs: 0,
@@ -220,17 +250,35 @@ export const DEFAULT_PROJECTS: PortfolioProject[] = [
       { label: "Ownership Renounced", value: true },
     ],
     scoreBreakdown: {
-      codeSecurity: 100,
-      architectureRisk: 100,
+      codeSecurity: 98,
+      architectureRisk: 96,
       governanceRisk: 92,
       centralization: 88,
-      testingCoverage: 100,
+      testingCoverage: 97,
     },
     findings: [
-      { title: "Solidity < 0.8.0 with SafeMath", severity: "INFO", status: "OPEN", location: "Compiler version 0.6", description: "The contract targets Solidity < 0.8.0 but uses SafeMath library for arithmetic operations, which provides overflow/underflow protection.", impact: "Arithmetic is protected by SafeMath. However, any operations NOT using SafeMath remain vulnerable.", recommendation: "Ensure ALL arithmetic operations use SafeMath consistently, or consider upgrading to Solidity >= 0.8.0 for built-in checks." },
-      { title: "Fixed Supply (Constructor-Only Mint)", severity: "INFO", status: "OPEN", location: "Constructor", description: "Token minting occurs only in the constructor. The supply is fixed at deployment with no public or external mint function available.", impact: "No inflation risk. The token supply cannot be increased after deployment.", recommendation: "No action needed. This is a secure pattern for fixed-supply tokens." },
-      { title: "ERC-20 Allowance Race Condition", severity: "LOW", status: "OPEN", location: "approve() function", description: "The standard ERC-20 approve() function is vulnerable to a front-running race condition.", impact: "A spender could extract more tokens than intended during an allowance change.", recommendation: "Consider adding increaseAllowance/decreaseAllowance helper functions." },
-      { title: "Initial Supply Concentration", severity: "INFO", status: "OPEN", location: "Constructor — full supply to single address", description: "The entire token supply is minted to a single address (custodian/deployer) in the constructor.", impact: "The initial holder controls 100% of supply.", recommendation: "Recommend transparent vesting schedules and distribution plans." },
+      { title: "Solidity < 0.8.0 with SafeMath", severity: "INFO", status: "OPEN", location: "Compiler version 0.6", description: "The contract targets Solidity < 0.8.0 but uses SafeMath library for arithmetic operations, which provides overflow/underflow protection.", impact: "Arithmetic is protected by SafeMath. However, any operations NOT using SafeMath remain vulnerable.", recommendation: "Ensure ALL arithmetic operations use SafeMath consistently, or consider upgrading to Solidity >= 0.8.0 for built-in checks.", likelihood: "Low" },
+      { title: "Fixed Supply (Constructor-Only Mint)", severity: "INFO", status: "OPEN", location: "Constructor", description: "Token minting occurs only in the constructor. The supply is fixed at deployment with no public or external mint function available.", impact: "No inflation risk. The token supply cannot be increased after deployment.", recommendation: "No action needed. This is a secure pattern for fixed-supply tokens.", likelihood: "Low" },
+      { title: "ERC-20 Allowance Race Condition", severity: "LOW", status: "OPEN", location: "approve() function", description: "The standard ERC-20 approve() function is vulnerable to a front-running race condition.", impact: "A spender could extract more tokens than intended during an allowance change.", recommendation: "Consider adding increaseAllowance/decreaseAllowance helper functions.", likelihood: "Low" },
+      { title: "Initial Supply Concentration", severity: "INFO", status: "OPEN", location: "Constructor — full supply to single address", description: "The entire token supply is minted to a single address (custodian/deployer) in the constructor.", impact: "The initial holder controls 100% of supply.", recommendation: "Recommend transparent vesting schedules and distribution plans.", likelihood: "Low" },
+    ],
+    // Tier-1 sections
+    privilegedRoles: [
+      { role: "Deployer", capabilities: "Initial token supply recipient. No ongoing admin functions.", riskIfCompromised: "Low — no admin capabilities post-deployment" },
+    ],
+    trustAssumptions: [
+      { statement: "Users must trust that the initial supply distribution was handled fairly, as 100% of tokens were minted to a single address at deployment." },
+      { statement: "Users must trust that SafeMath is applied consistently across all arithmetic operations since the contract uses Solidity < 0.8.0." },
+    ],
+    architectureOverview: "Simple ERC-20 token contract with fixed supply minted in the constructor. No external dependencies, no proxy pattern, no upgradeability. Uses OpenZeppelin SafeMath for arithmetic safety. Ownership was renounced post-deployment, making the contract fully trustless.",
+    attackSurface: [
+      { title: "ERC-20 Approve Front-Running", type: "economic" as const, description: "The standard approve() function allows a spender to front-run an allowance change and extract more tokens than intended. This is a known ERC-20 limitation.", likelihood: "Low" as const, mitigated: false },
+    ],
+    toolingUsed: ["Solay39 Manual Review", "Solay39 Static Analyzer", "AI-Guided Verification (GPT-4o)", "OpenZeppelin Contract Analysis"],
+    onChainValidation: [
+      { label: "Source Code Verified", status: "pass" as const },
+      { label: "Bytecode Match", status: "pass" as const },
+      { label: "Deployment Config Review", status: "pass" as const },
     ],
   },
   {
@@ -276,14 +324,32 @@ export const DEFAULT_PROJECTS: PortfolioProject[] = [
       { label: "Ownership Renounced", value: true },
     ],
     scoreBreakdown: {
-      codeSecurity: 95,
-      architectureRisk: 93,
+      codeSecurity: 93,
+      architectureRisk: 91,
       governanceRisk: 85,
       centralization: 81,
-      testingCoverage: 94,
+      testingCoverage: 90,
     },
     findings: [
-      { title: "Integer Overflow/Underflow Risk", severity: "HIGH", status: "OPEN", location: "Compiler version 0.6", description: "The contract targets Solidity < 0.8.0 which does not have built-in overflow/underflow checks, and no SafeMath usage was detected.", impact: "Arithmetic operations can silently wrap around, leading to unexpected behavior and potential fund theft.", recommendation: "Upgrade to Solidity >= 0.8.0 or add the SafeMath library for all arithmetic operations." },
+      { title: "Integer Overflow/Underflow Risk", severity: "HIGH", status: "OPEN", location: "Compiler version 0.6", description: "The contract targets Solidity < 0.8.0 which does not have built-in overflow/underflow checks, and no SafeMath usage was detected.", impact: "Arithmetic operations can silently wrap around, leading to unexpected behavior and potential fund theft.", recommendation: "Upgrade to Solidity >= 0.8.0 or add the SafeMath library for all arithmetic operations.", likelihood: "Medium" },
+    ],
+    // Tier-1 sections
+    privilegedRoles: [
+      { role: "Deployer", capabilities: "Initial supply minting. Ownership renounced post-deployment.", riskIfCompromised: "Low — ownership renounced" },
+      { role: "Token Holder", capabilities: "Standard ERC-20 transfer, approve, transferFrom operations.", riskIfCompromised: "N/A — standard user operations" },
+    ],
+    trustAssumptions: [
+      { statement: "Users must trust that arithmetic operations are safe despite the absence of SafeMath and Solidity < 0.8.0, as integer overflow is theoretically possible." },
+    ],
+    architectureOverview: "Standard ERC-20 token contract without SafeMath or OpenZeppelin dependencies. Fixed supply minted at deployment. No proxy, no upgradeability, no external calls. The lack of SafeMath on Solidity < 0.8.0 is the primary risk vector.",
+    attackSurface: [
+      { title: "Integer Overflow on Token Operations", type: "fund-theft" as const, description: "Without SafeMath or Solidity >= 0.8.0, arithmetic operations could silently overflow, potentially allowing attackers to manipulate balances.", likelihood: "Medium" as const, mitigated: false },
+    ],
+    toolingUsed: ["Solay39 Manual Review", "Solay39 Static Analyzer", "AI-Guided Verification (GPT-4o)"],
+    onChainValidation: [
+      { label: "Source Code Verified", status: "pass" as const },
+      { label: "Bytecode Match", status: "pass" as const },
+      { label: "Deployment Config Review", status: "pass" as const },
     ],
   },
   {
@@ -331,15 +397,35 @@ export const DEFAULT_PROJECTS: PortfolioProject[] = [
     scoreBreakdown: {
       codeSecurity: 94,
       architectureRisk: 92,
-      governanceRisk: 86,
-      centralization: 82,
-      testingCoverage: 93,
+      governanceRisk: 84,
+      centralization: 78,
+      testingCoverage: 91,
     },
     findings: [
-      { title: "Floating Pragma Version", severity: "LOW", status: "OPEN", location: "pragma solidity ^0.4.24", description: "The contract uses a floating pragma (^0.4.24). This allows compilation with multiple compiler versions, which may introduce inconsistencies between deployments.", impact: "Different compiler versions may produce different bytecode or include different known bugs.", recommendation: "Lock the pragma to a specific version, e.g., pragma solidity 0.4.24;" },
-      { title: "ERC-20 Allowance Race Condition", severity: "LOW", status: "OPEN", location: "approve() function (inherited from OpenZeppelin ERC20)", description: "The standard ERC-20 approve() function is vulnerable to a front-running race condition.", impact: "A spender could extract more tokens than intended during an allowance change.", recommendation: "Consider adding increaseAllowance/decreaseAllowance helper functions." },
-      { title: "Fixed Supply (Constructor-Only Mint)", severity: "INFO", status: "OPEN", location: "Constructor: _mint(msg.sender, 8888888888 * 10^18)", description: "The entire supply of 8,888,888,888 CHZ is minted to the deployer in the constructor. No mint() function exists outside the constructor. The supply is permanently fixed.", impact: "No inflation risk. The token supply cannot be increased after deployment.", recommendation: "No action needed. This is a secure pattern for fixed-supply tokens." },
-      { title: "Pausable Functionality (OpenZeppelin)", severity: "INFO", status: "OPEN", location: "ERC20Pausable inheritance", description: "The contract inherits OpenZeppelin's ERC20Pausable, which allows authorized addresses (PauserRole) to pause all token transfers. Access control is handled by OpenZeppelin's role-based Roles library.", impact: "A pauser can temporarily halt all transfers. This is a centralization trade-off but is properly access-controlled via OZ PauserRole.", recommendation: "This is a design decision, not a vulnerability. Ensure the PauserRole is assigned to a multisig or governance contract for decentralization." },
+      { title: "Floating Pragma Version", severity: "LOW", status: "OPEN", location: "pragma solidity ^0.4.24", description: "The contract uses a floating pragma (^0.4.24). This allows compilation with multiple compiler versions, which may introduce inconsistencies between deployments.", impact: "Different compiler versions may produce different bytecode or include different known bugs.", recommendation: "Lock the pragma to a specific version, e.g., pragma solidity 0.4.24;", likelihood: "Low" },
+      { title: "ERC-20 Allowance Race Condition", severity: "LOW", status: "OPEN", location: "approve() function (inherited from OpenZeppelin ERC20)", description: "The standard ERC-20 approve() function is vulnerable to a front-running race condition.", impact: "A spender could extract more tokens than intended during an allowance change.", recommendation: "Consider adding increaseAllowance/decreaseAllowance helper functions.", likelihood: "Low" },
+      { title: "Fixed Supply (Constructor-Only Mint)", severity: "INFO", status: "OPEN", location: "Constructor: _mint(msg.sender, 8888888888 * 10^18)", description: "The entire supply of 8,888,888,888 CHZ is minted to the deployer in the constructor. No mint() function exists outside the constructor. The supply is permanently fixed.", impact: "No inflation risk. The token supply cannot be increased after deployment.", recommendation: "No action needed. This is a secure pattern for fixed-supply tokens.", likelihood: "Low" },
+      { title: "Pausable Functionality (OpenZeppelin)", severity: "INFO", status: "OPEN", location: "ERC20Pausable inheritance", description: "The contract inherits OpenZeppelin's ERC20Pausable, which allows authorized addresses (PauserRole) to pause all token transfers. Access control is handled by OpenZeppelin's role-based Roles library.", impact: "A pauser can temporarily halt all transfers. This is a centralization trade-off but is properly access-controlled via OZ PauserRole.", recommendation: "This is a design decision, not a vulnerability. Ensure the PauserRole is assigned to a multisig or governance contract for decentralization.", likelihood: "Low" },
+    ],
+    // Tier-1 sections
+    privilegedRoles: [
+      { role: "PauserRole", capabilities: "Can pause and unpause all token transfers via ERC20Pausable.", riskIfCompromised: "Medium — transfers can be frozen, but no fund loss" },
+      { role: "Deployer", capabilities: "Initial supply recipient (8,888,888,888 CHZ). No ongoing admin functions beyond pause.", riskIfCompromised: "Low — no active admin capabilities" },
+    ],
+    trustAssumptions: [
+      { statement: "Users must trust that PauserRole holders will not maliciously freeze all transfers. The role is managed by OpenZeppelin's Roles library with proper access control." },
+      { statement: "Users must trust the initial supply distribution, as 100% of 8.88B CHZ was minted to the deployer at deployment." },
+    ],
+    architectureOverview: "ERC-20 token built on OpenZeppelin's ERC20 + ERC20Detailed + ERC20Pausable stack. Fixed supply of 8,888,888,888 CHZ minted at deployment. Pausable functionality adds a centralization vector but is properly role-gated. No proxy, no upgradeability, no external dependencies beyond OZ.",
+    attackSurface: [
+      { title: "Transfer Freeze via PauserRole", type: "censorship" as const, description: "A compromised PauserRole holder could pause all token transfers, effectively freezing the token. This is mitigated by OpenZeppelin's role-based access control.", likelihood: "Low" as const, mitigated: true },
+      { title: "ERC-20 Approve Front-Running", type: "economic" as const, description: "Standard approve() race condition allows a spender to extract more tokens than intended during allowance changes.", likelihood: "Low" as const, mitigated: false },
+    ],
+    toolingUsed: ["Solay39 Manual Review", "Solay39 Static Analyzer", "AI-Guided Verification (GPT-4o)", "OpenZeppelin Contract Analysis"],
+    onChainValidation: [
+      { label: "Source Code Verified", status: "pass" as const },
+      { label: "Bytecode Match", status: "pass" as const },
+      { label: "Deployment Config Review", status: "pass" as const },
     ],
   },
 ]
@@ -362,14 +448,18 @@ export function scoreColorClass(s: number): string {
   return "text-s39-orange"
 }
 
+// Tier-1 rating: 96-98 = AAA (exceptional), 90-95 = AA, 80-89 = A
 export function ratingOf(s: number): string {
-  if (s >= 95) return "AAA"
+  if (s >= 96) return "AAA"
   if (s >= 90) return "AA"
   if (s >= 80) return "A"
   if (s >= 70) return "BBB"
   if (s >= 60) return "BB"
   return "B"
 }
+
+// Tier-1 scoring: max 98 — "security is risk reduction, not perfection"
+export const MAX_SCORE = 98
 
 export function computeScore(
   checks: Record<string, Record<string, boolean>>,
@@ -381,6 +471,7 @@ export function computeScore(
   const crit = findings.filter((f) => f.severity === "CRITICAL" && f.status === "OPEN").length
   const high = findings.filter((f) => f.severity === "HIGH" && f.status === "OPEN").length
   const med = findings.filter((f) => f.severity === "MEDIUM" && f.status === "OPEN").length
-  if (!anyChecked) return Math.max(0, 100 - crit * 25 - high * 10 - med * 3)
-  return Math.min(100, Math.max(0, Math.round((done / all.length) * 100) - crit * 15 - high * 5 - med * 2))
+  const low = findings.filter((f) => f.severity === "LOW" && f.status === "OPEN").length
+  if (!anyChecked) return Math.max(0, Math.min(MAX_SCORE, MAX_SCORE - crit * 25 - high * 10 - med * 3 - low * 1))
+  return Math.min(MAX_SCORE, Math.max(0, Math.round((done / all.length) * MAX_SCORE) - crit * 15 - high * 5 - med * 2 - low * 1))
 }

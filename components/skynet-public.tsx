@@ -536,9 +536,16 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
           <div className="flex gap-6 flex-wrap text-[9px] text-s39-mid mb-3">
             <div>
               <span className="text-s39-dim tracking-widest">METHODS</span>
-              <span className="ml-2 text-s39-lite">Manual Review</span>
-              <span className="ml-2 text-s39-lite">Static Analysis</span>
-              <span className="ml-2 text-s39-lite">AI-Guided Verification</span>
+              {p.toolingUsed && p.toolingUsed.length > 0
+                ? p.toolingUsed.slice(0, 4).map((t, i) => (
+                    <span key={i} className="ml-2 text-s39-lite">{t}</span>
+                  ))
+                : <>
+                    <span className="ml-2 text-s39-lite">Manual Review</span>
+                    <span className="ml-2 text-s39-lite">Static Analysis</span>
+                    <span className="ml-2 text-s39-lite">AI-Guided Verification</span>
+                  </>
+              }
             </div>
           </div>
         </div>
@@ -566,7 +573,18 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                   </div>
                   {/* Finding body */}
                   <div className="px-4 py-3">
-                    <div className="text-[9px] text-s39-cyan mb-2 font-mono">{f.location}</div>
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
+                      <div className="text-[9px] text-s39-cyan font-mono">{f.location}</div>
+                      {f.likelihood && (
+                        <span className={`text-[7px] tracking-widest px-1.5 py-0.5 border ${
+                          f.likelihood === "High" ? "text-s39-red border-s39-red/30 bg-s39-red/5"
+                            : f.likelihood === "Medium" ? "text-s39-yellow border-s39-yellow/30 bg-s39-yellow/5"
+                            : "text-s39-green border-s39-green/30 bg-s39-green/5"
+                        }`}>
+                          {f.likelihood.toUpperCase()} LIKELIHOOD
+                        </span>
+                      )}
+                    </div>
                     <div className="text-[10px] text-s39-mid leading-relaxed mb-3">{f.description}</div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {f.impact && (
@@ -582,10 +600,185 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                         </div>
                       )}
                     </div>
+                    {f.proofOfConcept && (
+                      <div className="mt-3 bg-s39-bg0 border border-s39-border p-3">
+                        <div className="text-[8px] text-s39-cyan tracking-widest mb-1">PROOF OF CONCEPT</div>
+                        <pre className="text-[9px] text-s39-mid leading-relaxed font-mono whitespace-pre-wrap">{f.proofOfConcept}</pre>
+                      </div>
+                    )}
                   </div>
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {/* ── TIER-1: Security Architecture ── */}
+        {(p.privilegedRoles || p.trustAssumptions || p.architectureOverview || p.attackSurface) && (
+          <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
+            <div className="flex items-center gap-2 mb-5">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1L1 4v4l6 3 6-3V4L7 1z" stroke="#00e5ff" strokeWidth="1" strokeLinejoin="round"/><path d="M1 4l6 3m0 0l6-3M7 7v6" stroke="#00e5ff" strokeWidth="1"/></svg>
+              <span className="text-[9px] text-s39-cyan tracking-[0.15em]">SECURITY ARCHITECTURE</span>
+              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">TIER-1</span>
+            </div>
+
+            {/* Architecture Overview */}
+            {p.architectureOverview && (
+              <div className="mb-5">
+                <div className="text-[8px] text-s39-dim tracking-widest mb-2">ARCHITECTURE OVERVIEW</div>
+                <div className="bg-s39-bg2 border border-s39-border p-4">
+                  <p className="text-[10px] text-s39-mid leading-relaxed">{p.architectureOverview}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Privileged Roles Table */}
+            {p.privilegedRoles && p.privilegedRoles.length > 0 && (
+              <div className="mb-5">
+                <div className="text-[8px] text-s39-dim tracking-widest mb-2">PRIVILEGED ROLES</div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[10px]">
+                    <thead>
+                      <tr className="bg-s39-bg2">
+                        <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">ROLE</th>
+                        <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">CAPABILITIES</th>
+                        <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">RISK IF COMPROMISED</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {p.privilegedRoles.map((r, i) => (
+                        <tr key={i} className="border-b border-s39-border last:border-0">
+                          <td className="px-3 py-2.5 text-s39-cyan font-bold font-mono whitespace-nowrap">{r.role}</td>
+                          <td className="px-3 py-2.5 text-s39-mid">{r.capabilities}</td>
+                          <td className="px-3 py-2.5">
+                            <span className={`text-[9px] px-2 py-0.5 border ${
+                              r.riskIfCompromised.toLowerCase().includes("critical") || r.riskIfCompromised.toLowerCase().includes("high")
+                                ? "text-s39-red border-s39-red/30 bg-s39-red/5"
+                                : r.riskIfCompromised.toLowerCase().includes("medium")
+                                  ? "text-s39-yellow border-s39-yellow/30 bg-s39-yellow/5"
+                                  : "text-s39-green border-s39-green/30 bg-s39-green/5"
+                            }`}>
+                              {r.riskIfCompromised}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Trust Assumptions */}
+            {p.trustAssumptions && p.trustAssumptions.length > 0 && (
+              <div className="mb-5">
+                <div className="text-[8px] text-s39-dim tracking-widest mb-2">TRUST MODEL</div>
+                <div className="flex flex-col gap-2">
+                  {p.trustAssumptions.map((t, i) => (
+                    <div key={i} className="bg-s39-bg2 border-l-2 border-s39-yellow px-4 py-3">
+                      <p className="text-[10px] text-s39-mid leading-relaxed italic">{t.statement}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Attack Surface */}
+            {p.attackSurface && p.attackSurface.length > 0 && (
+              <div>
+                <div className="text-[8px] text-s39-dim tracking-widest mb-2">ATTACK SURFACE ANALYSIS</div>
+                <div className="flex flex-col gap-2">
+                  {p.attackSurface.map((a, i) => {
+                    const typeColor = a.type === "fund-theft" ? "#ff2d55"
+                      : a.type === "censorship" ? "#ff6b00"
+                      : a.type === "state-corruption" ? "#ffd600"
+                      : a.type === "governance" ? "#4488ff" : "#00e5ff"
+                    const lColor = a.likelihood === "High" ? "text-s39-red" : a.likelihood === "Medium" ? "text-s39-yellow" : "text-s39-green"
+                    return (
+                      <div key={i} className="bg-s39-bg2 border border-s39-border p-3">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <div className="w-1 h-4 shrink-0" style={{ background: typeColor }} />
+                          <span className="text-[10px] text-s39-lite font-bold flex-1">{a.title}</span>
+                          <span className="text-[7px] tracking-widest px-2 py-0.5 border" style={{ color: typeColor, borderColor: `${typeColor}40` }}>
+                            {a.type.replace("-", " ").toUpperCase()}
+                          </span>
+                          <span className={`text-[8px] ${lColor} font-bold`}>
+                            {a.likelihood} Likelihood
+                          </span>
+                          {a.mitigated && (
+                            <span className="text-[7px] text-s39-green bg-s39-green/10 border border-s39-green/20 px-1.5 py-0.5 tracking-wider">
+                              MITIGATED
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[9px] text-s39-mid leading-relaxed pl-3">{a.description}</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── TIER-1: Tooling & On-Chain Validation ── */}
+        {(p.toolingUsed || p.onChainValidation) && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            {/* Tooling Used */}
+            {p.toolingUsed && p.toolingUsed.length > 0 && (
+              <div className="bg-s39-bg1 border border-s39-border p-5">
+                <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">TOOLING & METHODOLOGY</div>
+                <div className="flex flex-col gap-2">
+                  {p.toolingUsed.map((tool, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <circle cx="5" cy="5" r="4" stroke="#00ff88" strokeWidth="1" />
+                        <path d="M3 5l1.5 1.5L7 4" stroke="#00ff88" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <span className="text-[10px] text-s39-mid">{tool}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* On-Chain Validation */}
+            {p.onChainValidation && p.onChainValidation.length > 0 && (
+              <div className="bg-s39-bg1 border border-s39-border p-5">
+                <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">ON-CHAIN VALIDATION</div>
+                <div className="flex flex-col gap-2">
+                  {p.onChainValidation.map((v, i) => {
+                    const statusIcon = v.status === "pass" ? (
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <circle cx="6" cy="6" r="5" stroke="#00ff88" strokeWidth="1" />
+                        <path d="M3.5 6l2 2L8.5 4.5" stroke="#00ff88" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    ) : v.status === "fail" ? (
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <circle cx="6" cy="6" r="5" stroke="#ff2d55" strokeWidth="1" />
+                        <path d="M4 4l4 4M8 4l-4 4" stroke="#ff2d55" strokeWidth="1" strokeLinecap="round" />
+                      </svg>
+                    ) : (
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <circle cx="6" cy="6" r="5" stroke="#445566" strokeWidth="1" />
+                        <path d="M4 6h4" stroke="#445566" strokeWidth="1" strokeLinecap="round" />
+                      </svg>
+                    )
+                    return (
+                      <div key={i} className="flex items-center gap-2 py-1">
+                        {statusIcon}
+                        <span className={`text-[10px] ${v.status === "pass" ? "text-s39-mid" : v.status === "fail" ? "text-s39-red" : "text-s39-dim"}`}>
+                          {v.label}
+                        </span>
+                        <span className={`ml-auto text-[8px] font-bold ${v.status === "pass" ? "text-s39-green" : v.status === "fail" ? "text-s39-red" : "text-s39-dim"}`}>
+                          {v.status.toUpperCase()}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -781,8 +974,11 @@ function MethodologyPage() {
       {/* Score Formula */}
       <div className="bg-s39-bg1 border border-s39-green/20 p-6 mt-8">
         <div className="text-[9px] text-s39-green tracking-[0.15em] mb-3">TRANSPARENT SCORE FORMULA</div>
-        <div className="text-[10px] sm:text-[11px] text-s39-lite font-mono mb-4 break-words">
-          {"Score = 100 - (Critical x 25) - (High x 10) - (Medium x 3) - CentralizationRisk - GovernancePenalty + CoverageBonus"}
+        <div className="text-[10px] sm:text-[11px] text-s39-lite font-mono mb-2 break-words">
+          {"Score = min(98, Base - (Critical x 25) - (High x 10) - (Medium x 3) - (Low x 1) - CentralizationRisk - GovernancePenalty)"}
+        </div>
+        <div className="text-[9px] text-s39-dim mb-4 italic">
+          {"Maximum score: 98 — security is risk reduction, not perfection."}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {([
