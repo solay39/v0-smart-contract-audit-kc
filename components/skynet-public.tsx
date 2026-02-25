@@ -27,7 +27,24 @@ export function getPublishedAudits(): PortfolioProject[] {
 
 export function savePublishedAudit(project: PortfolioProject) {
   const existing = getPublishedAudits()
-  const idx = existing.findIndex((p) => p.id === project.id)
+  // Deduplicate by id OR by normalized name
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
+  const idx = existing.findIndex(
+    (p) => p.id === project.id || norm(p.name) === norm(project.name)
+  )
+  // Inherit price/market data from DEFAULT_PROJECTS if not set
+  if (!project.price) {
+    const match = DEFAULT_PROJECTS.find((dp) => norm(dp.name) === norm(project.name))
+    if (match) {
+      project.price = match.price
+      project.change24h = match.change24h
+      project.tvl = project.tvl || match.tvl
+      project.ticker = project.ticker || match.ticker
+      project.tags = project.tags || match.tags
+      project.description = project.description || match.description
+      project.website = project.website || match.website
+    }
+  }
   if (idx >= 0) {
     existing[idx] = project
   } else {
@@ -697,9 +714,20 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     const published = getPublishedAudits()
     if (published.length > 0) {
-      const merged = [...published]
+      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
+      // Remove published entries that duplicate DEFAULT_PROJECTS by name but have less data
+      const cleaned = published.filter((pub) => {
+        const defaultMatch = DEFAULT_PROJECTS.find((dp) => norm(dp.name) === norm(pub.name))
+        if (defaultMatch && !pub.price && defaultMatch.price) return false // default has more data
+        return true
+      })
+      if (cleaned.length !== published.length) {
+        localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(cleaned))
+      }
+      const merged = [...cleaned]
       for (const dp of DEFAULT_PROJECTS) {
-        if (!merged.some((m) => m.id === dp.id)) {
+        // Deduplicate by id OR by normalized name
+        if (!merged.some((m) => m.id === dp.id || norm(m.name) === norm(dp.name))) {
           merged.push(dp)
         }
       }
