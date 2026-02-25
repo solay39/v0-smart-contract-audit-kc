@@ -133,10 +133,17 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   }
 
   const importFinding = (f: Omit<Finding, "id" | "category" | "status">) =>
-    setFindings((p) => [
-      ...p,
-      { ...f, id: Date.now(), status: "OPEN" as FindingStatus, category: "" },
-    ])
+    setFindings((p) => {
+      // Prevent duplicate imports by checking title
+      const isDuplicate = p.some(
+        (existing) => existing.title.toLowerCase().trim() === f.title.toLowerCase().trim()
+      )
+      if (isDuplicate) return p
+      return [
+        ...p,
+        { ...f, id: Date.now(), status: "OPEN" as FindingStatus, category: "" },
+      ]
+    })
 
   const TABS: [TabId, string][] = [
     ["dashboard", "Dashboard"],
@@ -608,13 +615,21 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
                             {f.title}
                           </span>
                         </div>
-                        <S39Btn
-                          small
-                          onClick={() => importFinding(f)}
-                          className="!text-s39-green !border-s39-green/30 shrink-0"
-                        >
-                          {"Import ->"}
-                        </S39Btn>
+                        {findings.some(
+                          (ex) => ex.title.toLowerCase().trim() === f.title.toLowerCase().trim()
+                        ) ? (
+                          <span className="text-[9px] text-s39-green/60 px-2 py-1 border border-s39-green/20">
+                            Imported
+                          </span>
+                        ) : (
+                          <S39Btn
+                            small
+                            onClick={() => importFinding(f)}
+                            className="!text-s39-green !border-s39-green/30 shrink-0"
+                          >
+                            {"Import ->"}
+                          </S39Btn>
+                        )}
                       </div>
                       {f.location && (
                         <div className="text-[9px] text-s39-dim mb-1.5">
