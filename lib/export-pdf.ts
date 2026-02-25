@@ -197,24 +197,27 @@ ${page(
   <table style="width:100%;border-collapse:collapse">
     ${[
       ["1.", "Audit Engagement Details"],
-      ["1.1", "Scope"],
+      ["1.2", "Scope"],
       ["2.", "Risk Classification Model"],
       ["3.", "Remediation Status"],
-      ["4.", "Found Issues"],
-      ["5.", "Security Architecture"],
-      ["5.1", "Privileged Roles & Trust Model"],
-      ["5.2", "Attack Surface Analysis"],
-      ["6.", "Tooling & On-Chain Validation"],
-      ["6.1", "Code Coverage & Testing Methodology"],
-      ["7.", "Governance Security"],
-      ["8.", "Upgradeability & Proxy Analysis"],
-      ["9.", "Economic & Game-Theory Risks"],
-      ["10.", "Integration Risks & Invariants"],
-      ["11.", "Limitations & Disclaimer"],
-      ["12.", "About the Auditor"],
-      ["13.", "Conclusion"],
+      ["4.", "Overview & Security Score"],
+      ["5.", "Found Issues"],
+      ["6.", "Security Architecture"],
+      ["6.1", "Privileged Roles & Trust Model"],
+      ["6.3", "Attack Surface Analysis"],
+      ["7.", "Tooling & On-Chain Validation"],
+      ["7.3", "Code Coverage & Testing Methodology"],
+      ["8.", "Governance Security"],
+      ["9.", "Upgradeability & Proxy Analysis"],
+      ["10.", "Economic & Game-Theory Risks"],
+      ["11.", "Integration Risks & Invariants"],
+      ["12.", "Limitations & Disclaimer"],
+      ["13.", "About the Auditor"],
+      ["14.", "Conclusion"],
       ["", "Appendix A. Issues Severity Classification"],
       ["", "Appendix B. Severity/Likelihood Matrix"],
+      ["", "Appendix C. Examined Issue Types"],
+      ["", "Appendix D. Centralization Risks"],
     ]
       .map(
         ([n, t]) =>
@@ -327,7 +330,7 @@ ${page(
     ["Commit hash", (project.commit || "N/A").slice(0, 40)],
     ["Scope", scopeDisplay],
   ])}
-  ${h2("2.2 Security Score")}
+  ${h2("4.1 Security Score")}
   <table style="width:100%;border-collapse:collapse;margin-bottom:14px">
     <thead><tr>${["METRIC", "SCORE", "WEIGHT"]
       .map(
@@ -353,14 +356,14 @@ ${page(
   </table>`
 )}
 
-${page(5, `${h1("3. Found Issues")}${findingsHtml}`)}
+${page(7, `${h1("5. Found Issues")}${findingsHtml}`)}
 
-${page(6, `${h1("4. Security Architecture")}
-  ${tier1?.architectureOverview ? `${h2("4.0 Architecture Overview")}
+${page(8, `${h1("6. Security Architecture")}
+  ${tier1?.architectureOverview ? `${h2("6.0 Architecture Overview")}
     <div style="background:#0d1117;border:1px solid #161e2a;border-left:3px solid #00e5ff;padding:14px 16px;margin-bottom:14px">
       <p style="color:#8899aa;font-size:10px;line-height:1.7">${tier1.architectureOverview}</p>
     </div>` : ""}
-  ${h2("4.1 Privileged Roles")}
+  ${h2("6.1 Privileged Roles")}
   ${tier1?.privilegedRoles && tier1.privilegedRoles.length > 0
     ? `<table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:10px">
         <thead><tr>
@@ -375,13 +378,13 @@ ${page(6, `${h1("4. Security Architecture")}
         </tr>`).join("")}</tbody>
       </table>`
     : p("No privileged roles detected. The contract operates without centralized control.")}
-  ${h2("4.2 Trust Model")}
+  ${h2("6.2 Trust Model")}
   ${tier1?.trustAssumptions && tier1.trustAssumptions.length > 0
     ? tier1.trustAssumptions.map(t => `<div style="border-left:3px solid #ffd600;background:#111820;padding:10px 14px;margin-bottom:8px">
         <p style="color:#8899aa;font-size:10px;font-style:italic;line-height:1.6">${t.statement}</p>
       </div>`).join("")
     : p("No explicit trust assumptions required. The contract is trustless by design.")}
-  ${h2("4.3 Attack Surface Analysis")}
+  ${h2("6.3 Attack Surface Analysis")}
   ${tier1?.attackSurface && tier1.attackSurface.length > 0
     ? tier1.attackSurface.map(a => {
         const tc = a.type === "fund-theft" ? "#ff2d55" : a.type === "censorship" ? "#ff6b00" : a.type === "state-corruption" ? "#ffd600" : "#00e5ff"
@@ -405,15 +408,15 @@ ${page(6, `${h1("4. Security Architecture")}
     : p("No significant attack vectors identified. The attack surface is minimal for this contract type.")}`
 )}
 
-${page(7, `${h1("5. Tooling & On-Chain Validation")}
-  ${h2("5.1 Automated & Manual Analysis Tools")}
+${page(9, `${h1("7. Tooling & On-Chain Validation")}
+  ${h2("7.1 Automated & Manual Analysis Tools")}
   ${(tier1?.toolingUsed || ["Solay39 Manual Review", "Solay39 Static Analyzer", "AI-Guided Verification"]).map(tool =>
     `<div style="display:flex;align-items:center;gap:8px;padding:6px 0">
       <span style="color:#00ff88;font-size:14px">&#10003;</span>
       <span style="color:#c8d8e8;font-size:10px">${tool}</span>
     </div>`
   ).join("")}
-  ${h2("5.2 On-Chain Validation")}
+  ${h2("7.2 On-Chain Validation")}
   ${tier1?.onChainValidation && tier1.onChainValidation.length > 0
     ? `<table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:10px">
         <thead><tr>
@@ -434,7 +437,7 @@ ${page(7, `${h1("5. Tooling & On-Chain Validation")}
 ${(() => {
   const tm = tier1?.testingMethodology as TestingMethodology | undefined
   if (!tm) return ""
-  return page(8, `${h1("5.3 Code Coverage & Testing Methodology")}
+  return page(10, `${h1("7.3 Code Coverage & Testing Methodology")}
     <div style="display:flex;gap:12px;margin-bottom:14px">
       <div style="background:#0d1117;padding:10px 16px;text-align:center;flex:1;border:1px solid #161e2a">
         <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:4px">MANUAL REVIEW</div>
@@ -499,7 +502,7 @@ ${(() => {
 
 ${(() => {
   const gov = tier1?.governanceSecurity as GovernanceSecurity | undefined
-  return gov ? page(8, `${h1("5. Governance Security")}
+  return gov ? page(11, `${h1("8. Governance Security")}
   <div style="display:flex;gap:12px;margin-bottom:14px">
     <div style="background:#0d1117;padding:10px 16px;text-align:center;flex:1;border:1px solid #161e2a">
       <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:4px">GOVERNANCE</div>
@@ -533,7 +536,7 @@ ${(() => {
 
 ${(() => {
   const up = tier1?.upgradeabilityAnalysis as UpgradeabilityAnalysis | undefined
-  return up ? page(9, `${h1("6. Upgradeability & Proxy Analysis")}
+  return up ? page(12, `${h1("9. Upgradeability & Proxy Analysis")}
   <div style="display:flex;gap:12px;margin-bottom:14px">
     <div style="background:#0d1117;padding:10px 16px;text-align:center;flex:1;border:1px solid #161e2a">
       <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:4px">UPGRADEABLE</div>
@@ -558,7 +561,7 @@ ${(() => {
 
 ${(() => {
   const econ = tier1?.economicRisks
-  return econ && econ.length > 0 ? page(10, `${h1("7. Economic & Game-Theory Risks")}
+  return econ && econ.length > 0 ? page(13, `${h1("10. Economic & Game-Theory Risks")}
   ${p("Analysis of economic incentive structures, game-theory attack vectors, and tokenomic risks that could impact the protocol or its users.")}
   ${econ.map(e => {
     const catColor = e.category === "vote-buying" ? "#4488ff" : e.category === "supply-concentration" ? "#ff6b00" : e.category === "treasury-drain" ? "#ff2d55" : e.category === "oracle-manipulation" ? "#ff2d55" : "#ffd600"
@@ -585,8 +588,8 @@ ${(() => {
   const intRisks = tier1?.integrationRisks
   const invChecks = tier1?.invariantsChecked
   const hasContent = (intRisks && intRisks.length > 0) || (invChecks && invChecks.length > 0)
-  return hasContent ? page(11, `${h1("8. Integration Risks & Invariants")}
-  ${intRisks && intRisks.length > 0 ? `${h2("8.1 Integration Risks")}
+  return hasContent ? page(14, `${h1("11. Integration Risks & Invariants")}
+  ${intRisks && intRisks.length > 0 ? `${h2("11.1 Integration Risks")}
     <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:10px">
       <thead><tr>
         <th style="background:#0d1117;color:#445566;font-size:7.5px;letter-spacing:.15em;padding:8px 10px;text-align:left;border-bottom:1px solid #161e2a">DEPENDENCY</th>
@@ -604,7 +607,7 @@ ${(() => {
         </tr>`
       }).join("")}</tbody>
     </table>` : ""}
-  ${invChecks && invChecks.length > 0 ? `${h2("8.2 Invariants Checked")}
+  ${invChecks && invChecks.length > 0 ? `${h2("11.2 Invariants Checked")}
     ${invChecks.map(inv => `<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;padding:8px 12px;background:#0d1117;border:1px solid #161e2a">
       <span style="color:${inv.holds ? "#00ff88" : "#ff2d55"};font-size:14px;flex-shrink:0;margin-top:-2px">${inv.holds ? "&#10003;" : "&#10007;"}</span>
       <div style="flex:1">
@@ -618,24 +621,12 @@ ${(() => {
   `) : ""
 })()}
 
-${page(
-  12,
-  `${h1("10. Contracts")}
-  ${p("The following contracts were included in the scope of this audit and reviewed using the Solay39 Manual-First Audit Framework across all five phases.")}
-  <table style="width:100%;border-collapse:collapse;margin-bottom:18px">
-    <thead><tr><th style="background:#0d1117;color:#445566;font-size:7.5px;letter-spacing:.15em;padding:8px 10px;text-align:left;border-bottom:1px solid #161e2a">NAME</th><th style="background:#0d1117;color:#445566;font-size:7.5px;letter-spacing:.15em;padding:8px 10px;text-align:left;border-bottom:1px solid #161e2a">ADDRESS / COMMIT</th></tr></thead>
-    <tbody><tr><td style="padding:8px 10px;border-bottom:1px solid #111820;color:#00ff88;font-weight:700;font-size:10px">${project.name || "Contract"}</td><td style="padding:8px 10px;border-bottom:1px solid #111820;font-size:8.5px;color:#7a8c9e">${(project.commit || "N/A").slice(0, 42)}</td></tr></tbody>
-  </table>
-  ${h2(project.name || "Contract")}
-  ${p(`The <strong style="color:#eef4fa">${project.name || "contract"}</strong> smart contract was reviewed for security vulnerabilities, logic errors, and compliance with best practices at commit <span style="color:#00ff88">${(project.commit || "N/A").slice(0, 20)}${(project.commit || "").length > 20 ? "..." : ""}</span> on the ${project.network || "Ethereum"} network.`)}
-  ${p(findings.length === 0 ? "No security issues were identified during the review. The contract follows best practices of secure development." : "All identified findings are documented in detail in Section 3.")}
-  ${scopeDisplay !== "—" ? `<div style="background:#0d1117;padding:8px 12px;margin-top:8px"><span style="color:#00ff88;font-size:9px">Scope: ${scopeDisplay}</span></div>` : ""}`
-)}
+
 
 ${(() => {
   const lim = tier1?.limitations as AuditLimitations | undefined
   if (!lim) return ""
-  return page(13, `${h1("11. Limitations & Disclaimer")}
+  return page(15, `${h1("12. Limitations & Disclaimer")}
     ${lim.statements.map((s, i) => `<div style="display:flex;gap:8px;padding:4px 0">
       <span style="color:#ff6b00;font-size:9px;font-family:monospace;width:16px;flex-shrink:0">${i + 1}.</span>
       <span style="color:#c8d8e8;font-size:10px;line-height:1.6">${s}</span>
@@ -648,7 +639,7 @@ ${(() => {
 ${(() => {
   const ap = tier1?.auditorProfile as AuditorProfile | undefined
   if (!ap) return ""
-  return page(14, `${h1("12. About the Auditor")}
+  return page(16, `${h1("13. About the Auditor")}
     <div style="margin-bottom:14px">
       <div style="font-size:18px;font-weight:700;color:#eef4fa;margin-bottom:4px">${ap.firmName}</div>
       <p style="color:#8899aa;font-size:10px;line-height:1.6">${ap.description}</p>
@@ -667,18 +658,18 @@ ${(() => {
 })()}
 
 ${page(
-  15,
-  `${h1("13. Conclusion")}
+  17,
+  `${h1("14. Conclusion")}
   ${
     findings.length === 0
       ? `${p(`<strong style="color:#eef4fa">No severity issues were found.</strong>`)}${p(`The ${project.name || "protocol"} contracts passed all checks of the Solay39 Manual-First Audit Framework. The codebase demonstrates secure development practices, properly inheriting from well-tested libraries.`)}`
-      : `${p(`The audit of <strong style="color:#eef4fa">${project.name || "the protocol"}</strong> identified <strong style="color:#eef4fa">${findings.length}</strong> finding(s): <span style="color:#ff2d55">${cnt.CRITICAL} Critical</span>, <span style="color:#ff6b00">${cnt.HIGH} High</span>, <span style="color:#ffd600">${cnt.MEDIUM} Medium</span>, ${cnt.LOW} Low, ${cnt.INFO} Informational.`)}${p(`<strong style="color:#eef4fa">${fix_c}</strong> resolved, <strong style="color:#ff2d55">${open_c}</strong> remain open. All Critical and High severity findings must be addressed before production deployment.`)}`
+      : `${p(`The audit of <strong style="color:#eef4fa">${project.name || "the protocol"}</strong> identified <strong style="color:#eef4fa">${findings.length}</strong> finding(s): <span style="color:#ff2d55">${cnt.CRITICAL} Critical</span>, <span style="color:#ff6b00">${cnt.HIGH} High</span>, <span style="color:#ffd600">${cnt.MEDIUM} Medium</span>, ${cnt.LOW} Low, ${cnt.INFO} Informational.`)}${p(`<strong style="color:#eef4fa">${fix_c}</strong> resolved, <strong style="color:#ff2d55">${open_c}</strong> remain open. All Critical and High severity findings must be addressed before production deployment. See Section 3 (Remediation Status) for current fix verification status.`)}`
   }
   ${p(`The final <strong style="color:${sc}">Solay39 Security Score: ${score}/98 (${rat})</strong>. Maximum possible score is 98 — security is risk reduction, not perfection.`)}`
 )}
 
 ${page(
-  14,
+  16,
   `${h1("Appendix A. Issues Severity Classification")}
   ${[
     ["Critical", "#ff2d55", "Issues that may cause unlimited loss of funds or entirely break the contract workflow. MUST be fixed before deployment."],
@@ -695,7 +686,7 @@ ${page(
 )}
 
 ${page(
-  15,
+  17,
   `${h1("Appendix B. Severity / Likelihood Matrix")}
   ${p("The risk assessment matrix combines Impact (severity of the vulnerability) with Likelihood (probability of exploitation) to determine overall risk level.")}
   <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:10px">
@@ -732,7 +723,7 @@ ${page(
 )}
 
 ${page(
-  16,
+  18,
   `${h1("Appendix C. List of Examined Issue Types")}
   <div style="columns:2;column-gap:20px">
     ${[
@@ -770,7 +761,7 @@ ${page(
 )}
 
 ${page(
-  17,
+  19,
   `${h1("Appendix D. Centralization Risks Classification")}
   ${h2("Centralization Level")}
   ${[
