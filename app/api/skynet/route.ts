@@ -11,47 +11,199 @@ interface Finding {
   recommendation: string
 }
 
-/* ───────── context-aware static analysis ───────── */
+interface ContractMeta {
+  contractType: "erc20" | "erc721" | "defi-protocol" | "proxy" | "generic"
+  isERC20: boolean
+  hasProxy: boolean
+  hasOwner: boolean
+  ownerRenounced: boolean
+  hasMintOutsideConstructor: boolean
+  hasConstructorOnlyMint: boolean
+  hasPausable: boolean
+  pausableProtected: boolean
+  hasBlacklist: boolean
+  hasSetFee: boolean
+  hasSelfDestruct: boolean
+  hasDelegatecall: boolean
+  hasExternalCalls: boolean
+  usesOZ: boolean
+  solidityVersion: string
+  hasSafeMath: boolean
+  scopeLabel: string
+  centralizationLevel: "Low" | "Medium" | "High"
+  centralizationRisk: "Low" | "Medium" | "High"
+}
 
-function staticAnalysis(code: string): Finding[] {
-  const findings: Finding[] = []
+/* ───────── contract metadata extraction ───────── */
 
-  /* ── detect contract context to avoid false positives ── */
+function extractContractMeta(code: string): ContractMeta {
   const isERC20 = /is\s+(ERC20|IERC20|BEP20)|function\s+transfer\s*\(.*address.*uint/.test(code)
     && /function\s+approve\s*\(/.test(code)
     && /balances|_balances|balanceOf/.test(code)
+
+  const isERC721 = /ERC721|function\s+ownerOf|function\s+tokenURI/.test(code)
+  const hasProxy = /delegatecall|EIP1967|TransparentUpgradeableProxy|UUPSUpgradeable|implementation\(\)/.test(code)
+  const hasDeFiLogic = /swap|liquidity|pool|vault|stake|borrow|lend|oracle|liquidat/.test(code.toLowerCase())
 
   const hasSafeMath = /library\s+SafeMath|SafeMath\s+for\s+uint|using\s+SafeMath|\.add\(|\.sub\(|\.mul\(|\.div\(/.test(code)
 
   const hasConstructorOnlyMint = (() => {
     if (!/_mint|mint/.test(code)) return false
-    // Remove constructor block (including multi-line constructors with inheritance)
     const mintOutsideConstructor = code
-      .replace(/constructor\s*\([^)]*\)[^{]*\{[^}]*\}/gs, "")  // Solidity >=0.4.22
-      .replace(/function\s+\w+\s*\([^)]*\)[^{]*\{[^}]*_mint[^}]*\}/gs, "") // named constructor pattern
-    // Check if there's still a publicly callable mint function after removing constructors
+      .replace(/constructor\s*\([^)]*\)[^{]*\{[^}]*\}/gs, "")
+      .replace(/function\s+\w+\s*\([^)]*\)[^{]*\{[^}]*_mint[^}]*\}/gs, "")
     const hasPublicMint = /function\s+\w*[Mm]int\s*\([^)]*\)\s*(public|external)/.test(mintOutsideConstructor)
     const hasInternalMintCall = /function\s+\w*[Mm]int\s*\(/.test(mintOutsideConstructor)
-    // If there's no public/external mint outside constructor, it's constructor-only
     return !hasPublicMint && (!hasInternalMintCall || /function\s+_mint\s*\(.*internal/.test(code))
   })()
 
-  const hasExternalCall = /\.call\{value|\.call\(|address\(.*\)\.call/.test(code)
-  const hasTransferETH = /\.transfer\(|\.send\(/.test(code)
-  const hasOnlyMappingOps = (() => {
-    if (!hasExternalCall && !hasTransferETH) return true
-    return false
-  })()
+  const hasMintOutsideConstructor = /_mint|mint/.test(code) && !hasConstructorOnlyMint
 
-  // Detect OpenZeppelin standard modules (these have BUILT-IN access control)
+  const hasOZPausable = /ERC20Pausable|PausableUpgradeable|import.*Pausable/.test(code)
+  const hasOZAccessControl = /Ownable|AccessControl|Roles\s*for|MinterRole|PauserRole/.test(code)
+  const usesOZ = hasOZPausable || hasOZAccessControl || /import.*@openzeppelin|OpenZeppelin/.test(code)
+
+  const hasOwner = /onlyOwner|Ownable|owner\(\)|_owner|AccessControl|onlyRole|onlyAdmin/.test(code)
+  const ownerRenounced = /renounceOwnership|ownership.*renounced/.test(code)
+  const hasPausable = /pause|unpause|Pausable/.test(code)
+  const pausableProtected = hasPausable && (hasOZPausable || /onlyOwner|onlyPauser|onlyRole/.test(code))
+  const hasBlacklist = /blacklist|blocklist|isBlocked|deny/.test(code.toLowerCase())
+  const hasSetFee = /setFee|setTax|_taxRate|_fee\s*=/.test(code)
+  const hasSelfDestruct = /selfdestruct|suicide/.test(code)
+  const hasDelegatecall = /delegatecall/.test(code)
+  const hasExternalCalls = /\.call\{value|\.call\(|\.transfer\(|\.send\(/.test(code)
+
+  // Extract Solidity version
+  const pragmaMatch = code.match(/pragma solidity\s+[\^~]?(0\.(\d+)\.?\d*)/)
+  const solidityVersion = pragmaMatch ? pragmaMatch[1] : "unknown"
+
+  // Determine contract type
+  let contractType: ContractMeta["contractType"] = "generic"
+  if (hasProxy) contractType = "proxy"
+  else if (isERC721) contractType = "erc721"
+  else if (isERC20 && !hasDeFiLogic) contractType = "erc20"
+  else if (hasDeFiLogic) contractType = "defi-protocol"
+
+  // Determine scope label
+  let scopeLabel = "Smart Contract"
+  if (contractType === "erc20") scopeLabel = "ERC-20 Token Contract"
+  else if (contractType === "erc721") scopeLabel = "ERC-721 NFT Contract"
+  else if (contractType === "proxy") scopeLabel = "Upgradeable Proxy Contract"
+  else if (contractType === "defi-protocol") scopeLabel = "DeFi Protocol Contract"
+
+  // Determine centralization
+  let centralizationLevel: ContractMeta["centralizationLevel"] = "Low"
+  let centralizationRisk: ContractMeta["centralizationRisk"] = "Low"
+
+  if (hasMintOutsideConstructor || hasBlacklist || hasSetFee) {
+    centralizationLevel = "High"
+    centralizationRisk = hasOwner ? "Medium" : "High"
+  } else if (hasPausable && !ownerRenounced) {
+    centralizationLevel = "Medium"
+    centralizationRisk = pausableProtected ? "Low" : "Medium"
+  } else if (hasOwner && !ownerRenounced) {
+    centralizationLevel = "Medium"
+    centralizationRisk = "Low"
+  }
+
+  return {
+    contractType, isERC20, hasProxy, hasOwner, ownerRenounced,
+    hasMintOutsideConstructor, hasConstructorOnlyMint, hasPausable,
+    pausableProtected, hasBlacklist, hasSetFee, hasSelfDestruct,
+    hasDelegatecall, hasExternalCalls, usesOZ, solidityVersion,
+    hasSafeMath, scopeLabel, centralizationLevel, centralizationRisk,
+  }
+}
+
+/* ───────── realistic score breakdown ───────── */
+
+function computeScoreBreakdown(
+  baseScore: number,
+  meta: ContractMeta,
+  findingCount: { critical: number; high: number; medium: number; low: number; info: number }
+): Record<string, number> {
+  // Code Security: directly from findings
+  let codeSecurity = 100
+    - findingCount.critical * 25
+    - findingCount.high * 10
+    - findingCount.medium * 3
+    - findingCount.low * 1
+  codeSecurity = Math.max(0, Math.min(100, codeSecurity))
+
+  // Architecture Risk: only meaningful for protocols/proxies, not simple ERC-20s
+  let architectureRisk: number
+  if (meta.contractType === "erc20") {
+    // Simple token: architecture is trivial. Score capped at codeSecurity
+    architectureRisk = Math.min(codeSecurity, meta.usesOZ ? 95 : 88)
+  } else if (meta.contractType === "defi-protocol") {
+    architectureRisk = Math.max(0, codeSecurity - 5)
+    if (meta.hasExternalCalls) architectureRisk -= 5
+    if (meta.hasProxy) architectureRisk -= 5
+  } else {
+    architectureRisk = Math.max(0, codeSecurity - 3)
+  }
+
+  // Governance Risk: based on actual on-chain governance features
+  let governanceRisk: number
+  if (!meta.hasOwner && !meta.hasPausable && !meta.hasMintOutsideConstructor) {
+    // Fully trustless: high governance score
+    governanceRisk = 95
+  } else if (meta.ownerRenounced) {
+    governanceRisk = 92
+  } else if (meta.hasOwner && meta.pausableProtected) {
+    // Owner exists with proper OZ access control
+    governanceRisk = 82
+  } else if (meta.hasOwner) {
+    governanceRisk = 72
+  } else {
+    governanceRisk = 85
+  }
+
+  // Centralization: directly from contract features
+  let centralization: number
+  if (meta.centralizationLevel === "Low") {
+    centralization = meta.ownerRenounced ? 95 : 88
+  } else if (meta.centralizationLevel === "Medium") {
+    centralization = meta.pausableProtected ? 75 : 65
+  } else {
+    centralization = meta.hasOwner ? 50 : 35
+  }
+
+  // Testing Coverage: we can only estimate — does it use established libs?
+  let testingCoverage: number
+  if (meta.usesOZ) {
+    testingCoverage = Math.min(95, codeSecurity + 2)
+  } else if (meta.hasSafeMath) {
+    testingCoverage = Math.min(90, codeSecurity)
+  } else {
+    testingCoverage = Math.min(85, codeSecurity - 2)
+  }
+
+  return {
+    codeSecurity: Math.round(Math.max(0, Math.min(100, codeSecurity))),
+    architectureRisk: Math.round(Math.max(0, Math.min(100, architectureRisk))),
+    governanceRisk: Math.round(Math.max(0, Math.min(100, governanceRisk))),
+    centralization: Math.round(Math.max(0, Math.min(100, centralization))),
+    testingCoverage: Math.round(Math.max(0, Math.min(100, testingCoverage))),
+  }
+}
+
+/* ───────── context-aware static analysis ───────── */
+
+function staticAnalysis(code: string, meta: ContractMeta): Finding[] {
+  const findings: Finding[] = []
+
+  const { isERC20, hasSafeMath, hasConstructorOnlyMint, hasExternalCalls,
+    usesOZ, hasPausable, pausableProtected, hasOwner } = meta
+
   const hasOZPausable = /ERC20Pausable|PausableUpgradeable|import.*Pausable/.test(code)
   const hasOZAccessControl = /Ownable|AccessControl|Roles\s*for|MinterRole|PauserRole/.test(code)
 
-  // Only flag "dangerous functions" if they are CUSTOM implementations, not OZ modules
+  const hasTransferETH = /\.transfer\(|\.send\(/.test(code)
+  const hasOnlyMappingOps = !hasExternalCalls && !hasTransferETH
+
   const hasDangerousFunctions = (() => {
-    // If using OZ Pausable, "pause" in code is NOT a missing access control issue
     if (hasOZPausable || hasOZAccessControl) return false
-    // Check for CUSTOM dangerous functions without any access control framework
     return /function\s+(pause|blacklist|setTax|setFee|forceTrans|rescue)\s*\(/.test(code) ||
            /function\s+withdraw\s*\([^)]*\)\s*(public|external)/.test(code)
   })()
@@ -307,7 +459,12 @@ CRITICAL RULES — you MUST follow these to avoid false positives:
    - Does it handle ETH? (has payable, .call{value}, .transfer, .send)
    - Does it have admin functions? (pause, blacklist, setFee, mint outside constructor)
 
-2. DO NOT FLAG as vulnerabilities:
+2. SCOPE ACCURACY IS CRITICAL:
+   - If the contract is a simple ERC-20 token, your scope is "ERC-20 Token Contract" — NOT "protocol", "DEX", "trading platform", "vault", etc.
+   - You are auditing ONLY the code provided. Do not claim to audit infrastructure, matching engines, or protocol logic that is NOT in the code.
+   - The scope description must match what the code actually contains.
+
+3. DO NOT FLAG as vulnerabilities:
    - "Missing access control" on standard ERC-20 functions (transfer, approve, transferFrom) — these are SUPPOSED to be public
    - "Missing access control" on contracts using OpenZeppelin modules (ERC20Pausable, Ownable, AccessControl, PauserRole, MinterRole) — OZ has BUILT-IN role-based access control
    - "Reentrancy" on contracts that only update mappings and emit events without external calls
@@ -316,12 +473,18 @@ CRITICAL RULES — you MUST follow these to avoid false positives:
    - Known ERC-20 limitations as HIGH/CRITICAL (e.g., approve race condition is LOW at most)
    - "Missing access control on pause" if the contract inherits ERC20Pausable from OpenZeppelin — the PauserRole modifier is inherited
 
-3. Each finding MUST be unique. Never repeat the same finding twice.
+4. Each finding MUST be unique. Never repeat the same finding twice.
 
-4. For simple, standard ERC-20 tokens with no admin functions, no proxy, no external calls:
+5. For simple, standard ERC-20 tokens with no admin functions, no proxy, no external calls:
    - The attack surface is VERY LOW
    - Only report genuine issues (floating pragma, known ERC-20 limitations, supply concentration)
    - Use appropriate severity: INFO for known standard limitations, LOW for minor issues
+
+6. GOVERNANCE & CENTRALIZATION — PROVE IT:
+   - If owner exists on-chain: check if renounced, if timelock, if multisig
+   - If there are privileged functions (pause, mint, blacklist): check if access-controlled
+   - Do NOT rate governance/centralization as "Low" without evidence
+   - If ownership is NOT renounced and has privileged functions: centralization is at least "Medium"
 
 You MUST respond ONLY with valid JSON (no markdown, no code fences):
 {
@@ -349,12 +512,39 @@ export async function POST(req: Request) {
 
     const truncatedCode = code.slice(0, 15000)
 
+    // Extract contract metadata FIRST -- this drives everything
+    const meta = extractContractMeta(truncatedCode)
+
+    // Build a metadata context preamble for the AI
+    const metaContext = [
+      `CONTRACT METADATA (pre-analyzed):`,
+      `- Type: ${meta.contractType} (${meta.scopeLabel})`,
+      `- Is ERC-20: ${meta.isERC20}`,
+      `- Uses OpenZeppelin: ${meta.usesOZ}`,
+      `- Has owner/admin: ${meta.hasOwner}${meta.ownerRenounced ? " (RENOUNCED)" : ""}`,
+      `- Has proxy/upgradeable: ${meta.hasProxy}`,
+      `- Mint: ${meta.hasConstructorOnlyMint ? "constructor-only (FIXED SUPPLY)" : meta.hasMintOutsideConstructor ? "public/external mint exists" : "no mint"}`,
+      `- Pausable: ${meta.hasPausable}${meta.pausableProtected ? " (access-controlled)" : ""}`,
+      `- Blacklist: ${meta.hasBlacklist}`,
+      `- Fee functions: ${meta.hasSetFee}`,
+      `- External calls: ${meta.hasExternalCalls}`,
+      `- SafeMath: ${meta.hasSafeMath}`,
+      `- Solidity: ${meta.solidityVersion}`,
+      `- Selfdestruct: ${meta.hasSelfDestruct}`,
+      `- Delegatecall: ${meta.hasDelegatecall}`,
+      ``,
+      `IMPORTANT: This is a "${meta.scopeLabel}" audit, NOT a protocol audit.`,
+      meta.contractType === "erc20"
+        ? `This is a SIMPLE ERC-20 TOKEN. Do NOT claim you're auditing a "protocol", "DEX", "vault", or "trading platform". The scope is ONLY the token contract. Architecture risk and governance risk should reflect this limited scope.`
+        : ``,
+    ].join("\n")
+
     // Try AI analysis first
     try {
       const result = await generateText({
         model: "openai/gpt-4o-mini",
         system: SYSTEM_PROMPT,
-        prompt: `Analyze this Solidity smart contract for security vulnerabilities. Remember: identify the contract type first, avoid false positives, and never duplicate findings.\n\n${truncatedCode}`,
+        prompt: `${metaContext}\n\nAnalyze this Solidity smart contract for security vulnerabilities. Remember: identify the contract type first, avoid false positives, and never duplicate findings.\n\n${truncatedCode}`,
         maxOutputTokens: 4096,
       })
 
@@ -398,17 +588,44 @@ export async function POST(req: Request) {
           return true
         })
 
-      return Response.json({ findings, source: "ai" })
+      // Compute realistic score breakdown based on actual findings + metadata
+      const fCount = {
+        critical: findings.filter(f => f.severity === "CRITICAL").length,
+        high: findings.filter(f => f.severity === "HIGH").length,
+        medium: findings.filter(f => f.severity === "MEDIUM").length,
+        low: findings.filter(f => f.severity === "LOW").length,
+        info: findings.filter(f => f.severity === "INFO").length,
+      }
+      const scoreBreakdown = computeScoreBreakdown(100, meta, fCount)
+
+      return Response.json({
+        findings,
+        source: "ai",
+        contractMeta: meta,
+        scoreBreakdown,
+      })
     } catch (aiError: unknown) {
-      // AI failed — fall back to static analysis (which is now context-aware)
+      // AI failed -- fall back to static analysis (which is now context-aware)
       const aiMsg = aiError instanceof Error ? aiError.message : String(aiError)
       console.log("[v0] AI unavailable, using static analysis. Reason:", aiMsg)
 
-      const findings = staticAnalysis(truncatedCode)
+      const findings = staticAnalysis(truncatedCode, meta)
+
+      const fCount = {
+        critical: findings.filter(f => f.severity === "CRITICAL").length,
+        high: findings.filter(f => f.severity === "HIGH").length,
+        medium: findings.filter(f => f.severity === "MEDIUM").length,
+        low: findings.filter(f => f.severity === "LOW").length,
+        info: findings.filter(f => f.severity === "INFO").length,
+      }
+      const scoreBreakdown = computeScoreBreakdown(100, meta, fCount)
+
       return Response.json({
         findings,
         source: "static",
         note: "Analysis performed using Solay39 pattern-based static analyzer (AI model unavailable).",
+        contractMeta: meta,
+        scoreBreakdown,
       })
     }
   } catch (error: unknown) {

@@ -59,6 +59,13 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const [aiRes, setAiRes] = useState<Omit<Finding, "id" | "category" | "status">[]>([])
   const [aiLoad, setAiLoad] = useState(false)
   const [aiError, setAiError] = useState("")
+  const [contractMeta, setContractMeta] = useState<{
+    contractType?: string; scopeLabel?: string; centralizationLevel?: string
+    centralizationRisk?: string; isERC20?: boolean; hasOwner?: boolean
+    ownerRenounced?: boolean; hasPausable?: boolean; pausableProtected?: boolean
+    usesOZ?: boolean; hasProxy?: boolean
+  } | null>(null)
+  const [apiScoreBreakdown, setApiScoreBreakdown] = useState<Record<string, number> | null>(null)
 
   const allChecks = Object.values(checks).flatMap((c) => Object.values(c))
   const anyChecked = allChecks.some(Boolean)
@@ -192,13 +199,27 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       tokenAge: tokenMeta.tokenAge,
       fdv: tokenMeta.fdv,
       volume24h: tokenMeta.volume24h,
-      centralizationLevel: "Low",
-      centralizationRisk: "Low",
+      centralizationLevel: (contractMeta?.centralizationLevel as "Low" | "Medium" | "High") || "Low",
+      centralizationRisk: (contractMeta?.centralizationRisk as "Low" | "Medium" | "High") || "Low",
       auditTimeline: [
         { label: "Requested", date: project.date || new Date().toISOString().slice(0, 10) },
         { label: "Delivered", date: new Date().toISOString().slice(0, 10) },
       ],
-      scoreBreakdown: {
+      contractUncertainty: contractMeta ? [
+        { label: "Open Source", value: true },
+        { label: "Proxy Contract", value: !!contractMeta.hasProxy },
+        { label: "External Call Risk", value: false },
+        { label: "Mint Function", value: !contractMeta.isERC20 || false },
+        { label: "Self Destruct", value: false },
+      ] : undefined,
+      ownerPrivilege: contractMeta ? [
+        { label: "Retrieve Ownership", value: false },
+        { label: "Balance Modifiable", value: false },
+        { label: "Hidden Owner", value: false },
+        ...(contractMeta.hasPausable ? [{ label: "Pause Capability", value: true as boolean }] : []),
+        { label: "Ownership Renounced", value: !!contractMeta.ownerRenounced },
+      ] : undefined,
+      scoreBreakdown: apiScoreBreakdown || {
         codeSecurity: Math.min(100, score + 2),
         architectureRisk: score,
         governanceRisk: Math.max(0, score - 8),
@@ -259,6 +280,8 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     setAiRes([])
     setAiError("")
     setAiNote("")
+    setContractMeta(null)
+    setApiScoreBreakdown(null)
     try {
       const res = await fetch("/api/skynet", {
         method: "POST",
@@ -282,6 +305,18 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       }
       if (data.findings && Array.isArray(data.findings)) {
         setAiRes(data.findings)
+      }
+      // Capture contract metadata and score breakdown from analyzer
+      if (data.contractMeta) {
+        setContractMeta(data.contractMeta)
+        // Auto-set scope if not manually entered
+        const detectedScope = data.contractMeta.scopeLabel
+        if (!project.scope && detectedScope) {
+          setProject((p) => ({ ...p, scope: detectedScope }))
+        }
+      }
+      if (data.scoreBreakdown) {
+        setApiScoreBreakdown(data.scoreBreakdown)
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error"
@@ -784,6 +819,41 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
             {aiNote && (
               <div className="bg-s39-bg2 border border-s39-cyan/20 text-s39-cyan text-[10px] p-3 mb-5">
                 {aiNote}
+              </div>
+            )}
+
+            {/* Contract Metadata Summary */}
+            {contractMeta && aiRes.length > 0 && (
+              <div className="bg-s39-bg1 border border-s39-cyan/20 p-4 mb-5">
+                <div className="text-[9px] text-s39-cyan tracking-[0.15em] mb-2.5">CONTRACT ANALYSIS</div>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+                  {[
+                    ["Type", contractMeta.scopeLabel || contractMeta.contractType],
+                    ["OpenZeppelin", contractMeta.usesOZ ? "Yes" : "No"],
+                    ["Owner", contractMeta.hasOwner ? (contractMeta.ownerRenounced ? "Renounced" : "Active") : "None"],
+                    ["Pausable", contractMeta.hasPausable ? (contractMeta.pausableProtected ? "Yes (Protected)" : "Yes (Unprotected)") : "No"],
+                    ["Proxy", contractMeta.hasProxy ? "Yes" : "No"],
+                    ["Centralization", contractMeta.centralizationLevel],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex justify-between text-[9px]">
+                      <span className="text-s39-dim">{label}</span>
+                      <span className="text-s39-lite">{value}</span>
+                    </div>
+                  ))}
+                </div>
+                {apiScoreBreakdown && (
+                  <div className="mt-3 pt-3 border-t border-s39-border">
+                    <div className="text-[8px] text-s39-dim tracking-[0.15em] mb-2">SCORE BREAKDOWN</div>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                      {Object.entries(apiScoreBreakdown).map(([key, val]) => (
+                        <div key={key} className="flex justify-between text-[9px]">
+                          <span className="text-s39-dim">{key.replace(/([A-Z])/g, " $1").trim()}</span>
+                          <span className={`font-mono ${val >= 90 ? "text-s39-green" : val >= 70 ? "text-s39-cyan" : "text-s39-red"}`}>{val}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
