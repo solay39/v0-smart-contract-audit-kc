@@ -489,10 +489,20 @@ CRITICAL RULES — you MUST follow these to avoid false positives:
    - If ownership is NOT renounced and has privileged functions: centralization is at least "Medium"
 
 7. TIER-1 ANALYSIS SECTIONS (you MUST generate ALL of these):
-   a) PRIVILEGED ROLES TABLE: List every role (owner, pauser, minter, upgrader, operator, admin) with capabilities and risk if compromised
-   b) TRUST ASSUMPTIONS: Write "Users must trust X because Y" for each trust dependency
-   c) ARCHITECTURE OVERVIEW: Describe external dependencies, upgradeability, interaction flow, asset custody
-   d) ATTACK SURFACE: List where funds can be stolen, state corrupted, or users censored. Include likelihood.
+   a) PRIVILEGED ROLES TABLE: List every role (owner, pauser, minter, upgrader, operator, admin).
+      For each role: capabilities (exact functions they can call), riskIfCompromised (what happens if key leaked),
+      and whether the role is behind a multisig/timelock or an EOA.
+      Include on-chain evidence: "owner() = 0x... (EOA, no timelock)" or "owner() = 0x... (Gnosis Safe 3/5 multisig)".
+   b) TRUST ASSUMPTIONS: Write "Users must trust X because Y" for EVERY trust dependency. Include:
+      - Who controls privileged functions
+      - What external systems the contract depends on
+      - What economic assumptions are made
+   c) ARCHITECTURE OVERVIEW: Describe the contract's architecture including:
+      - External dependencies (OpenZeppelin version, oracles, bridges)
+      - Upgradeability mechanism (none / proxy type)
+      - Interaction flow (how user → contract → external)
+      - Asset custody (who holds funds, how are they stored)
+   d) ATTACK SURFACE: List where funds can be stolen, state corrupted, or users censored. Include likelihood and numeric impact estimate.
    e) Each finding MUST include a "likelihood" field: "High", "Medium", or "Low"
 
 8. GOVERNANCE SECURITY (MUST generate):
