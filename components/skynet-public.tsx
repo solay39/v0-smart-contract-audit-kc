@@ -98,66 +98,205 @@ function SevPill({ sev, count }: { sev: SeverityLevel; count: number }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// PROJECT DETAIL PAGE
+// PROJECT DETAIL PAGE — CertiK-inspired
 // ═══════════════════════════════════════════════════════════════════
+
+/* Score arc SVG */
+function ScoreArc({ score, size = 160 }: { score: number; size?: number }) {
+  const r = (size - 16) / 2
+  const circ = 2 * Math.PI * r
+  const arc = circ * 0.75
+  const dash = (score / 100) * arc
+  const col = scoreColor(score)
+  const rot = 135 // start from bottom-left
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="block">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#1a2233" strokeWidth={8}
+          strokeDasharray={`${arc} ${circ}`} strokeLinecap="round"
+          transform={`rotate(${rot} ${size / 2} ${size / 2})`} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={col} strokeWidth={8}
+          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+          transform={`rotate(${rot} ${size / 2} ${size / 2})`}
+          style={{ filter: `drop-shadow(0 0 8px ${col}66)`, transition: "stroke-dasharray 1.2s ease" }} />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-3xl font-bold" style={{ color: col }}>{score.toFixed(2)}</span>
+        <span className="text-xs font-bold mt-0.5" style={{ color: col }}>
+          {score >= 95 ? "AAA" : score >= 90 ? "AA" : score >= 80 ? "A" : score >= 70 ? "BBB" : score >= 60 ? "BB" : "B"}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+/* Category score mini-bar */
+function CategoryBar({ label, score: val, color }: { label: string; score: number; color: string }) {
+  return (
+    <div className="bg-s39-bg2 border border-s39-border p-4">
+      <div className="flex justify-between items-center mb-1">
+        <span className="text-[10px] text-s39-mid">{label}</span>
+        <span className="text-sm font-bold" style={{ color }}>{val.toFixed(2)}</span>
+      </div>
+      <div className="h-1.5 bg-s39-bg0 mt-2">
+        <div className="h-full transition-[width] duration-1000 ease-out"
+          style={{ width: `${val}%`, background: color, boxShadow: `0 0 4px ${color}44` }} />
+      </div>
+      <div className="flex justify-between mt-1.5">
+        <span className="text-[7px] text-s39-dim">Poor</span>
+        <span className="text-[7px] text-s39-dim">Excellent</span>
+      </div>
+    </div>
+  )
+}
+
+/* Status check row */
+function CheckRow({ label, value, danger }: { label: string; value: string | boolean; danger?: boolean }) {
+  const isYes = value === true || value === "Yes"
+  const isNo = value === false || value === "No"
+  const display = typeof value === "boolean" ? (value ? "Yes" : "No") : value
+  const color = danger
+    ? (isYes ? "#ff6b00" : "#00ff88")
+    : (isNo ? "#00ff88" : isYes ? "#00ff88" : "#7a8c9e")
+  return (
+    <div className="flex justify-between items-center py-2 border-b border-s39-border last:border-0">
+      <span className="text-[10px] text-s39-mid">{label}</span>
+      <span className="text-[10px] font-bold" style={{ color }}>{display}</span>
+    </div>
+  )
+}
+
 function ProjectDetail({ p, onBack }: { p: PortfolioProject; onBack: () => void }) {
   const sc = scoreColor(p.score)
   const bd = p.scoreBreakdown
+  const totalFindings = p.criticals + p.highs + p.mediums + p.lows + p.infos
+  const resolvedCount = p.findings?.filter((f) => f.status === "RESOLVED").length ?? 0
+  const openCount = p.findings?.filter((f) => f.status === "OPEN").length ?? 0
+  const ackCount = p.findings?.filter((f) => f.status === "ACKNOWLEDGED").length ?? 0
 
   return (
     <div className="min-h-dvh bg-s39-bg0">
-      {/* Header */}
+      {/* ── Top Header ── */}
       <div className="bg-s39-bg1 border-b border-s39-border">
-        <div className="max-w-[960px] mx-auto px-4 sm:px-6 py-6">
-          <button
-            onClick={onBack}
-            className="bg-transparent border-none text-s39-mid font-mono text-[10px] cursor-pointer mb-5 tracking-widest hover:text-s39-green transition-colors"
-          >
+        <div className="max-w-[1060px] mx-auto px-4 sm:px-6 py-5">
+          <button onClick={onBack}
+            className="bg-transparent border-none text-s39-mid font-mono text-[10px] cursor-pointer mb-5 tracking-widest hover:text-s39-green transition-colors">
             {"<- BACK TO PORTFOLIO"}
           </button>
 
-          <div className="flex gap-6 sm:gap-8 items-start flex-col sm:flex-row">
-            <ScoreRing score={p.score} size={120} />
-            <div className="flex-1">
+          {/* Hero: Logo + Name + Badges + Score arc */}
+          <div className="flex gap-6 sm:gap-10 items-start flex-col sm:flex-row">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-bold text-s39-white">{p.name}</h1>
-                {p.ticker && (
-                  <span className="text-[10px] text-s39-dim bg-s39-bg2 px-2 py-0.5">{p.ticker}</span>
-                )}
+                <TokenLogo name={p.name} score={p.score} />
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h1 className="text-xl sm:text-2xl font-bold text-s39-white leading-tight">{p.name}</h1>
+                    {p.ticker && (
+                      <span className="text-[10px] text-s39-dim bg-s39-bg2 px-2 py-0.5">{p.ticker}</span>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="flex gap-3 items-center flex-wrap text-[9px] text-s39-mid mb-3">
-                <NetworkIcon network={p.network} />
-                <span>{p.network}</span>
-                <span className="text-s39-dim">|</span>
-                <span>{p.date}</span>
-                {p.auditor && (
-                  <>
-                    <span className="text-s39-dim">|</span>
-                    <span>Auditor: {p.auditor}</span>
-                  </>
-                )}
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                <span className="text-[8px] text-s39-green border border-s39-green/30 px-2.5 py-0.5 tracking-widest">
-                  AUDITED
+
+              {/* Badges row */}
+              <div className="flex gap-2 flex-wrap mt-3 mb-4">
+                <span className="flex items-center gap-1.5 text-[8px] text-s39-green bg-s39-green/5 border border-s39-green/20 px-2.5 py-1 tracking-wider">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="#00ff88" strokeWidth="1"/><path d="M3 5l1.5 1.5L7 4" stroke="#00ff88" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  SOLAY39 AUDITED
                 </span>
-                <span className="text-[8px] border px-2.5 py-0.5 font-bold" style={{ color: sc, borderColor: `${sc}44` }}>
+                <span className="text-[8px] border px-2.5 py-1 font-bold tracking-wider" style={{ color: sc, borderColor: `${sc}33`, background: `${sc}08` }}>
                   {p.rating}
                 </span>
                 {p.criticals === 0 && (
-                  <span className="text-[8px] text-s39-green border border-s39-green/20 px-2.5 py-0.5">
-                    0 Criticals
+                  <span className="text-[8px] text-s39-green/80 border border-s39-green/15 px-2.5 py-1 bg-s39-green/5">
+                    0 Critical
                   </span>
                 )}
-                {p.centralizationLevel && (
-                  <span className="text-[8px] text-s39-mid border border-s39-border px-2.5 py-0.5">
-                    Centralization: {p.centralizationLevel}
-                  </span>
-                )}
+                {p.tags?.map((t) => (
+                  <span key={t} className="text-[8px] text-s39-dim border border-s39-border px-2 py-1">{t}</span>
+                ))}
+              </div>
+
+              {/* Price + Market Cap row */}
+              {p.price && (
+                <div className="flex gap-6 items-end flex-wrap mb-4">
+                  <div>
+                    <div className="text-[8px] text-s39-dim tracking-widest mb-0.5">
+                      Token Price ({p.ticker || p.name.slice(0, 3).toUpperCase()})
+                      <span className="ml-2 text-s39-dim/60">24h</span>
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <span className="text-lg font-bold text-s39-white">{p.price}</span>
+                      {p.change24h && (
+                        <span className={`text-[10px] font-bold ${p.change24h.startsWith("+") ? "text-s39-green" : "text-s39-red"}`}>
+                          {p.change24h}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {p.tvl && (
+                    <div>
+                      <div className="text-[8px] text-s39-dim tracking-widest mb-0.5">
+                        Market Cap
+                        <span className="ml-2 text-s39-dim/60">24h</span>
+                      </div>
+                      <div className="text-lg font-bold text-s39-white">{p.tvl}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Score Arc */}
+            <div className="shrink-0 flex flex-col items-center gap-2">
+              <div className="text-[8px] text-s39-dim tracking-[0.15em]">SOLAY39 SECURITY SCORE</div>
+              <ScoreArc score={p.score} size={160} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Project Info Bar ── */}
+      <div className="bg-s39-bg1 border-b border-s39-border">
+        <div className="max-w-[1060px] mx-auto px-4 sm:px-6 py-4">
+          <div className="flex gap-6 items-start flex-col sm:flex-row">
+            {p.description && (
+              <div className="flex-1 min-w-0">
+                <div className="text-[9px] text-s39-green tracking-[0.12em] mb-2">
+                  {p.name} Info
+                </div>
+                <p className="text-[10px] text-s39-mid leading-relaxed">{p.description}</p>
+              </div>
+            )}
+            <div className="shrink-0 flex flex-col gap-1.5 text-[9px] min-w-[200px]">
+              <div className="flex justify-between gap-4">
+                <span className="text-s39-dim">Audits</span>
+                <span className="text-s39-lite font-bold">1 Available</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-s39-dim">Listed Date</span>
+                <span className="text-s39-lite">{p.date}</span>
+              </div>
+              {p.website && (
+                <div className="flex justify-between gap-4">
+                  <span className="text-s39-dim">Website</span>
+                  <a href={p.website} target="_blank" rel="noreferrer" className="text-s39-cyan hover:underline truncate max-w-[140px]">
+                    {p.website.replace(/https?:\/\//, "")}
+                  </a>
+                </div>
+              )}
+              <div className="flex justify-between gap-4">
+                <span className="text-s39-dim">Network</span>
+                <div className="flex items-center gap-1.5">
+                  <NetworkIcon network={p.network} />
+                  <span className="text-s39-lite">{p.network}</span>
+                </div>
               </div>
               {p.contractAddress && (
-                <div className="mt-3 text-[9px] text-s39-dim font-mono break-all">
-                  Contract: {p.contractAddress}
+                <div className="flex justify-between gap-4">
+                  <span className="text-s39-dim">Contract</span>
+                  <span className="text-s39-cyan font-mono truncate max-w-[140px]">{p.contractAddress.slice(0, 6)}...{p.contractAddress.slice(-6)}</span>
                 </div>
               )}
             </div>
@@ -165,119 +304,286 @@ function ProjectDetail({ p, onBack }: { p: PortfolioProject; onBack: () => void 
         </div>
       </div>
 
-      <div className="max-w-[960px] mx-auto px-4 sm:px-6 py-6">
-        {/* Price / Stats Bar */}
-        {(p.price || p.tvl) && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-            {p.price && (
-              <div className="bg-s39-bg1 border border-s39-border p-3.5 text-center">
-                <div className="text-lg font-bold text-s39-white">{p.price}</div>
-                <div className="text-[8px] text-s39-dim tracking-widest mt-1">PRICE</div>
-                {p.change24h && (
-                  <div className={`text-[9px] mt-1 ${p.change24h.startsWith("+") ? "text-s39-green" : "text-s39-red"}`}>
-                    {p.change24h}
-                  </div>
-                )}
-              </div>
-            )}
-            {p.tvl && (
-              <div className="bg-s39-bg1 border border-s39-border p-3.5 text-center">
-                <div className="text-lg font-bold text-s39-white">{p.tvl}</div>
-                <div className="text-[8px] text-s39-dim tracking-widest mt-1">TVL SECURED</div>
-              </div>
-            )}
-            <div className="bg-s39-bg1 border border-s39-border p-3.5 text-center">
-              <div className="text-lg font-bold" style={{ color: sc }}>{p.score}/100</div>
-              <div className="text-[8px] text-s39-dim tracking-widest mt-1">SECURITY SCORE</div>
-            </div>
-            <div className="bg-s39-bg1 border border-s39-border p-3.5 text-center">
-              <div className="text-lg font-bold text-s39-white">
-                {p.criticals + p.highs + p.mediums + p.lows + p.infos}
-              </div>
-              <div className="text-[8px] text-s39-dim tracking-widest mt-1">TOTAL FINDINGS</div>
-            </div>
-          </div>
-        )}
-
-        {/* Score Breakdown */}
+      {/* ── Main Content ── */}
+      <div className="max-w-[1060px] mx-auto px-4 sm:px-6 py-6">
+        {/* Category Scores Grid */}
         {bd && (
-          <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
-            <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-4">SCORE BREAKDOWN</div>
-            {([
-              ["Code Security", bd.codeSecurity, "35%", "#00ff88"],
-              ["Architecture Risk", bd.architectureRisk, "25%", "#00e5ff"],
-              ["Governance Risk", bd.governanceRisk, "20%", "#4488ff"],
-              ["Centralization", bd.centralization, "10%", "#ffd600"],
-              ["Testing Coverage", bd.testingCoverage, "10%", "#7a8c9e"],
-            ] as [string, number, string, string][]).map(([name, val, weight, color]) => (
-              <div key={name} className="mb-3">
-                <div className="flex justify-between text-[9px] mb-1">
-                  <span className="text-s39-mid">{name}</span>
-                  <span style={{ color }}>
-                    {val}/100 <span className="text-s39-dim">({weight})</span>
-                  </span>
-                </div>
-                <div className="h-[3px] bg-s39-bg2">
-                  <div
-                    className="h-full transition-[width] duration-1000 ease-out"
-                    style={{ width: `${val}%`, background: color, boxShadow: `0 0 6px ${color}66` }}
-                  />
-                </div>
+          <div className="mb-6">
+            <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">CATEGORY SCORES</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <CategoryBar label="Code Security" score={bd.codeSecurity} color="#00ff88" />
+              <CategoryBar label="Architecture Risk" score={bd.architectureRisk} color="#00e5ff" />
+              <CategoryBar label="Governance Risk" score={bd.governanceRisk} color="#4488ff" />
+              <CategoryBar label="Centralization" score={bd.centralization} color="#ffd600" />
+              <CategoryBar label="Testing Coverage" score={bd.testingCoverage} color="#7a8c9e" />
+              <div className="bg-s39-bg2 border border-s39-border p-4 flex flex-col justify-center items-center">
+                <div className="text-3xl font-bold" style={{ color: sc }}>{p.score}</div>
+                <div className="text-[8px] text-s39-dim tracking-widest mt-1">OVERALL SCORE</div>
+                <div className="text-xs font-bold mt-1" style={{ color: sc }}>{p.rating}</div>
               </div>
-            ))}
+            </div>
           </div>
         )}
 
-        {/* Findings Summary Grid */}
+        {/* ── Code Audit Section ── */}
         <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
-          <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-4">FINDINGS SUMMARY</div>
-          <div className="grid grid-cols-5 gap-3">
-            {([
-              ["CRITICAL", p.criticals, "#ff2d55"],
-              ["HIGH", p.highs, "#ff6b00"],
-              ["MEDIUM", p.mediums, "#ffd600"],
-              ["LOW", p.lows, "#00e5ff"],
-              ["INFO", p.infos, "#00ff88"],
-            ] as [string, number, string][]).map(([s, n, c]) => (
-              <div key={s} className="text-center bg-s39-bg2 py-3 px-2">
-                <div className="text-xl font-bold" style={{ color: n > 0 ? c : "#445566" }}>
-                  {n}
+          <div className="flex items-center gap-2 mb-4">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="2" stroke="#00ff88" strokeWidth="1"/><path d="M4 7l2 2 4-4" stroke="#00ff88" strokeWidth="1" strokeLinecap="round"/></svg>
+            <span className="text-[9px] text-s39-green tracking-[0.15em]">CODE AUDIT</span>
+          </div>
+
+          {/* Audit entry */}
+          <div className="bg-s39-bg2 border border-s39-border p-4 mb-4">
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-s39-green/10 border border-s39-green/20 flex items-center justify-center">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7h8M7 3v8" stroke="#00ff88" strokeWidth="1" strokeLinecap="round"/></svg>
                 </div>
-                <div className="text-[7px] text-s39-dim tracking-widest mt-1">{s}</div>
+                <div>
+                  <div className="text-[11px] text-s39-white font-bold">{p.name} Smart Contracts</div>
+                  <div className="text-[8px] text-s39-dim mt-0.5">
+                    Audited by {p.auditor || "Solay39 Founder"}
+                  </div>
+                </div>
               </div>
-            ))}
+              {p.pdfUrl && (
+                <a href={p.pdfUrl} target="_blank" rel="noreferrer">
+                  <S39Btn primary small>View PDF</S39Btn>
+                </a>
+              )}
+            </div>
+
+            {/* Audit Timeline */}
+            {p.auditTimeline && p.auditTimeline.length > 0 && (
+              <div className="flex gap-4 mb-4 flex-wrap">
+                <div className="text-[9px] text-s39-dim tracking-[0.1em]">AUDIT TIMELINE</div>
+                {p.auditTimeline.map((t, i) => (
+                  <div key={i} className="text-[9px]">
+                    <span className="text-s39-mid">{t.label}</span>
+                    <span className="text-s39-dim ml-1.5">{t.date}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Findings bar */}
+            <div className="border-t border-s39-border pt-4">
+              <div className="flex gap-4 items-center mb-3 flex-wrap">
+                <span className="text-[9px] text-s39-mid tracking-[0.1em]">ALL FINDINGS</span>
+                <span className="text-sm font-bold text-s39-white">{totalFindings}</span>
+                <span className="text-[8px] text-s39-dim">|</span>
+                <span className="text-[8px] text-s39-dim">{ackCount} Acknowledged</span>
+                <span className="text-[8px] text-s39-dim">{resolvedCount} Resolved</span>
+                <span className="text-[8px] text-s39-dim">{openCount} Open</span>
+              </div>
+
+              {/* Severity breakdown */}
+              <div className="flex flex-col gap-2">
+                {([
+                  ["Critical", p.criticals, "#ff2d55"],
+                  ["High", p.highs, "#ff6b00"],
+                  ["Medium", p.mediums, "#ffd600"],
+                  ["Low", p.lows, "#00e5ff"],
+                  ["Informational", p.infos, "#00ff88"],
+                ] as [string, number, string][]).map(([label, count, color]) => {
+                  const forThisSev = p.findings?.filter(
+                    (f) => f.severity === label.toUpperCase() || (label === "Informational" && f.severity === "INFO")
+                  ) ?? []
+                  const sevResolved = forThisSev.filter((f) => f.status === "RESOLVED").length
+                  const sevOpen = forThisSev.filter((f) => f.status === "OPEN").length
+                  return (
+                    <div key={label} className="flex items-center gap-3 py-1.5 border-b border-s39-border last:border-0">
+                      <div className="w-3 h-3 shrink-0" style={{ background: `${color}20`, border: `1px solid ${color}40` }} />
+                      <span className="text-[10px] w-20 shrink-0" style={{ color: count > 0 ? color : "#445566" }}>
+                        {count} {label}
+                      </span>
+                      <div className="flex-1 h-1 bg-s39-bg0 relative">
+                        {count > 0 && (
+                          <div className="h-full" style={{ width: `${Math.min(100, count * 20)}%`, background: color, opacity: 0.6 }} />
+                        )}
+                      </div>
+                      <span className="text-[8px] text-s39-dim shrink-0 w-28 text-right">
+                        {sevResolved > 0 && `${sevResolved} Resolved`}
+                        {sevResolved > 0 && sevOpen > 0 && ", "}
+                        {sevOpen > 0 && `${sevOpen} Open`}
+                        {count === 0 && "None"}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Methods */}
+          <div className="flex gap-6 flex-wrap text-[9px] text-s39-mid mb-3">
+            <div>
+              <span className="text-s39-dim tracking-widest">METHODS</span>
+              <span className="ml-2 text-s39-lite">Manual Review</span>
+              <span className="ml-2 text-s39-lite">Static Analysis</span>
+              <span className="ml-2 text-s39-lite">AI-Guided Verification</span>
+            </div>
           </div>
         </div>
 
-        {/* Detailed Findings */}
+        {/* ── Finding Details ── */}
         {p.findings && p.findings.length > 0 && (
           <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
             <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-4">FINDING DETAILS</div>
-            {p.findings.map((f, idx) => (
-              <div key={idx} className="bg-s39-bg2 border border-s39-border p-4 mb-3">
-                <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
-                  <div className="flex items-center gap-2">
+            {p.findings.map((f, idx) => {
+              const fColor = SEV_RAW_COLORS[f.severity as SeverityLevel] || "#7a8c9e"
+              return (
+                <div key={idx} className="bg-s39-bg2 border border-s39-border mb-3 overflow-hidden">
+                  {/* Finding header */}
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-s39-border" style={{ background: `${fColor}06` }}>
+                    <div className="w-1 h-6 shrink-0" style={{ background: fColor }} />
                     <SevBadge sev={f.severity} />
-                    <span className="text-[11px] text-s39-lite font-bold">{f.title}</span>
+                    <span className="text-[11px] text-s39-lite font-bold flex-1">{f.title}</span>
+                    <span className={`text-[8px] px-2 py-0.5 border shrink-0 ${
+                      f.status === "RESOLVED" ? "text-s39-green border-s39-green/30 bg-s39-green/5" :
+                      f.status === "ACKNOWLEDGED" ? "text-s39-yellow border-s39-yellow/30 bg-s39-yellow/5" :
+                      "text-s39-orange border-s39-orange/30 bg-s39-orange/5"
+                    }`}>
+                      {f.status}
+                    </span>
                   </div>
-                  <span className="text-[8px] text-s39-dim border border-s39-border px-2 py-0.5 shrink-0">
-                    {f.status}
-                  </span>
+                  {/* Finding body */}
+                  <div className="px-4 py-3">
+                    <div className="text-[9px] text-s39-cyan mb-2 font-mono">{f.location}</div>
+                    <div className="text-[10px] text-s39-mid leading-relaxed mb-3">{f.description}</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {f.impact && (
+                        <div className="bg-s39-bg0 border border-s39-border p-3">
+                          <div className="text-[8px] text-s39-orange tracking-widest mb-1">IMPACT</div>
+                          <div className="text-[9px] text-s39-mid leading-relaxed">{f.impact}</div>
+                        </div>
+                      )}
+                      {f.recommendation && (
+                        <div className="bg-s39-bg0 border border-s39-border p-3">
+                          <div className="text-[8px] text-s39-green tracking-widest mb-1">RECOMMENDATION</div>
+                          <div className="text-[9px] text-s39-mid leading-relaxed">{f.recommendation}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="text-[9px] text-s39-cyan mb-2">{f.location}</div>
-                <div className="text-[10px] text-s39-mid leading-relaxed mb-2">{f.description}</div>
-                {f.impact && (
-                  <div className="text-[9px] text-s39-dim mb-1">
-                    <span className="text-s39-orange">Impact: </span>{f.impact}
-                  </div>
-                )}
-                {f.recommendation && (
-                  <div className="text-[9px] text-s39-dim">
-                    <span className="text-s39-green">Fix: </span>{f.recommendation}
-                  </div>
-                )}
+              )
+            })}
+          </div>
+        )}
+
+        {/* ── Centralization / Governance ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          {/* Contract Uncertainty */}
+          {p.contractUncertainty && (
+            <div className="bg-s39-bg1 border border-s39-border p-5">
+              <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">CONTRACT UNCERTAINTY</div>
+              <div className="flex items-center gap-2 mb-3 text-[9px]">
+                <span className="text-s39-green">{p.contractUncertainty.filter((c) => !c.value || c.label === "Open Source").length} Passed</span>
+                <span className="text-s39-dim">|</span>
+                <span className="text-s39-orange">
+                  {p.contractUncertainty.filter((c) => {
+                    if (c.label === "Open Source") return !c.value
+                    return c.value === true
+                  }).length} Attention
+                </span>
               </div>
-            ))}
+              {p.contractUncertainty.map((c, i) => {
+                const isGood = c.label === "Open Source" ? c.value : !c.value
+                return (
+                  <div key={i} className="flex justify-between items-center py-2 border-b border-s39-border last:border-0">
+                    <span className="text-[10px] text-s39-mid">{c.label}</span>
+                    <span className={`text-[10px] font-bold ${isGood ? "text-s39-green" : "text-s39-orange"}`}>
+                      {c.value ? "Yes" : "No"}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Owner Privilege */}
+          {p.ownerPrivilege && (
+            <div className="bg-s39-bg1 border border-s39-border p-5">
+              <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">OWNER PRIVILEGE</div>
+              <div className="flex items-center gap-2 mb-3 text-[9px]">
+                <span className="text-s39-green">
+                  {p.ownerPrivilege.filter((o) => {
+                    if (o.label === "Ownership Renounced") return o.value === true
+                    return o.value === false || o.value === "No" || o.value === "0.00%"
+                  }).length} Passed
+                </span>
+                <span className="text-s39-dim">|</span>
+                <span className="text-s39-orange">
+                  {p.ownerPrivilege.filter((o) => {
+                    if (o.label === "Ownership Renounced") return o.value !== true
+                    return o.value === true || o.value === "Yes"
+                  }).length} Attention
+                </span>
+              </div>
+              {p.ownerPrivilege.map((o, i) => (
+                <CheckRow key={i} label={o.label} value={o.value} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Centralization Overview ── */}
+        {(p.centralizationLevel || p.centralizationRisk) && (
+          <div className="bg-s39-bg1 border border-s39-border p-5 mb-4">
+            <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-4">CENTRALIZATION OVERVIEW</div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {([
+                ["Centralization Level", p.centralizationLevel],
+                ["Centralization Risk", p.centralizationRisk],
+              ] as [string, string | undefined][])
+                .filter(([, v]) => !!v)
+                .map(([label, value]) => {
+                  const color = value === "Low" ? "#00ff88" : value === "Medium" ? "#ffd600" : "#ff6b00"
+                  return (
+                    <div key={label} className="bg-s39-bg2 p-3 text-center">
+                      <div className="text-[8px] text-s39-dim tracking-widest mb-1">{label.toUpperCase()}</div>
+                      <div className="text-sm font-bold" style={{ color }}>{value}</div>
+                    </div>
+                  )
+                })}
+              {p.contractAddress && (
+                <div className="bg-s39-bg2 p-3 text-center col-span-2">
+                  <div className="text-[8px] text-s39-dim tracking-widest mb-1">CONTRACT</div>
+                  <div className="text-[9px] text-s39-cyan font-mono break-all">{p.contractAddress}</div>
+                  {p.tokenAge && (
+                    <div className="text-[8px] text-s39-dim mt-1">Token Age: {p.tokenAge}</div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Socials / GitHub ── */}
+        {(p.githubUrl || p.website) && (
+          <div className="bg-s39-bg1 border border-s39-border p-5 mb-4">
+            <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">LINKS</div>
+            <div className="flex gap-4 flex-wrap">
+              {p.website && (
+                <a href={p.website} target="_blank" rel="noreferrer"
+                  className="text-[10px] text-s39-cyan border border-s39-cyan/20 px-3 py-1.5 hover:bg-s39-cyan/5 transition-colors">
+                  Website
+                </a>
+              )}
+              {p.githubUrl && (
+                <a href={p.githubUrl} target="_blank" rel="noreferrer"
+                  className="text-[10px] text-s39-mid border border-s39-border px-3 py-1.5 hover:bg-s39-bg2 transition-colors">
+                  GitHub
+                </a>
+              )}
+              {p.contractAddress && (
+                <a href={`https://etherscan.io/address/${p.contractAddress}`} target="_blank" rel="noreferrer"
+                  className="text-[10px] text-s39-mid border border-s39-border px-3 py-1.5 hover:bg-s39-bg2 transition-colors">
+                  Etherscan
+                </a>
+              )}
+            </div>
           </div>
         )}
 
@@ -759,7 +1065,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
       {/* Footer */}
       <footer className="border-t border-s39-border px-6 py-8 text-center mt-10">
         <div className="text-[8px] text-s39-dim tracking-[0.15em]">
-          {"SOLAY39 \u00A9 2025 \u2014 SMART CONTRACT SECURITY"}
+          {"SOLAY39 \u00A9 2026 \u2014 SMART CONTRACT SECURITY"}
         </div>
         <div className="flex gap-6 justify-center mt-3 flex-wrap">
           <a href={`mailto:${PUB_EMAIL}`} className="text-[9px] text-s39-mid hover:text-s39-lite transition-colors">

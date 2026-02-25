@@ -68,6 +68,17 @@ export interface PortfolioProject {
   }
   centralizationLevel?: "Low" | "Medium" | "High"
   centralizationRisk?: "Low" | "Medium" | "High"
+  // CertiK-style extended
+  description?: string
+  website?: string
+  tags?: string[]
+  socials?: { type: string; url: string }[]
+  auditTimeline?: { label: string; date: string }[]
+  contractUncertainty?: { label: string; value: boolean }[]
+  ownerPrivilege?: { label: string; value: string | boolean }[]
+  tokenAge?: string
+  creatorAddress?: string
+  githubUrl?: string
 }
 
 // Keep backward compat alias
@@ -181,6 +192,29 @@ export const DEFAULT_PROJECTS: PortfolioProject[] = [
     scope: "ERC-20 Token Contract",
     centralizationLevel: "Low",
     centralizationRisk: "Low",
+    description: "Injective is a lightning fast interoperable layer one blockchain optimized for building premier Web3 finance applications. INJ is the native utility token powering the Injective ecosystem.",
+    website: "https://injective.com",
+    tags: ["ERC-20", "DeFi", "Layer 1"],
+    tokenAge: "4 yrs 5 mos",
+    creatorAddress: "0x...deploy",
+    githubUrl: "https://github.com/InjectiveLabs",
+    auditTimeline: [
+      { label: "Requested", date: "2026-02-25" },
+      { label: "Delivered", date: "2026-02-25" },
+    ],
+    contractUncertainty: [
+      { label: "Open Source", value: true },
+      { label: "Proxy Contract", value: false },
+      { label: "External Call Risk", value: false },
+      { label: "Mint Function", value: false },
+      { label: "Self Destruct", value: false },
+    ],
+    ownerPrivilege: [
+      { label: "Retrieve Ownership", value: false },
+      { label: "Balance Modifiable", value: false },
+      { label: "Hidden Owner", value: false },
+      { label: "Ownership Renounced", value: true },
+    ],
     scoreBreakdown: {
       codeSecurity: 100,
       architectureRisk: 100,
@@ -193,6 +227,62 @@ export const DEFAULT_PROJECTS: PortfolioProject[] = [
       { title: "Fixed Supply (Constructor-Only Mint)", severity: "INFO", status: "OPEN", location: "Constructor", description: "Token minting occurs only in the constructor. The supply is fixed at deployment with no public or external mint function available.", impact: "No inflation risk. The token supply cannot be increased after deployment.", recommendation: "No action needed. This is a secure pattern for fixed-supply tokens." },
       { title: "ERC-20 Allowance Race Condition", severity: "LOW", status: "OPEN", location: "approve() function", description: "The standard ERC-20 approve() function is vulnerable to a front-running race condition.", impact: "A spender could extract more tokens than intended during an allowance change.", recommendation: "Consider adding increaseAllowance/decreaseAllowance helper functions." },
       { title: "Initial Supply Concentration", severity: "INFO", status: "OPEN", location: "Constructor — full supply to single address", description: "The entire token supply is minted to a single address (custodian/deployer) in the constructor.", impact: "The initial holder controls 100% of supply.", recommendation: "Recommend transparent vesting schedules and distribution plans." },
+    ],
+  },
+  {
+    id: "fetch-token",
+    name: "Fetch.ai",
+    ticker: "FET",
+    network: "Ethereum",
+    score: 93,
+    rating: "AA",
+    tvl: "$3.1B",
+    price: "$1.21",
+    change24h: "+5.40%",
+    criticals: 0,
+    highs: 1,
+    mediums: 0,
+    lows: 0,
+    infos: 0,
+    date: "2026-02-25",
+    auditor: "Solay39 Founder",
+    contractAddress: "0xaea46A60368A7bD060eec7DF8CBa43b7EF41Ad85",
+    scope: "ERC-20 Token Contract",
+    centralizationLevel: "Low",
+    centralizationRisk: "Low",
+    description: "Fetch.ai is an innovative platform for connecting IoT devices and algorithms to enable collective learning. Built on a high throughput sharded ledger, the Fetch.ai architecture delivers a unique smart contract capability to deploy ML/AI solutions for decentralized problem solving.",
+    website: "https://fetch.ai",
+    tags: ["ERC-20", "AI", "IoT", "BSC", "Cosmos"],
+    tokenAge: "5 yrs 6 mos",
+    creatorAddress: "0xa47c..7ac5",
+    githubUrl: "https://github.com/fetchai",
+    auditTimeline: [
+      { label: "Requested", date: "2026-02-25" },
+      { label: "Delivered", date: "2026-02-25" },
+    ],
+    contractUncertainty: [
+      { label: "Open Source", value: true },
+      { label: "Proxy Contract", value: false },
+      { label: "External Call Risk", value: false },
+      { label: "Mint Function", value: true },
+      { label: "Self Destruct", value: false },
+    ],
+    ownerPrivilege: [
+      { label: "Retrieve Ownership", value: false },
+      { label: "Balance Modifiable", value: false },
+      { label: "Hidden Owner", value: true },
+      { label: "Creator Percentage", value: "0.00%" },
+      { label: "Ownership Renounced", value: true },
+    ],
+    scoreBreakdown: {
+      codeSecurity: 95,
+      architectureRisk: 93,
+      governanceRisk: 85,
+      centralization: 81,
+      testingCoverage: 94,
+    },
+    findings: [
+      { title: "Integer Overflow/Underflow Risk", severity: "HIGH", status: "OPEN", location: "Compiler version 0.6", description: "The contract targets Solidity < 0.8.0 which does not have built-in overflow/underflow checks, and no SafeMath usage was detected.", impact: "Arithmetic operations can silently wrap around, leading to unexpected behavior and potential fund theft.", recommendation: "Upgrade to Solidity >= 0.8.0 or add the SafeMath library for all arithmetic operations." },
     ],
   },
   {

@@ -21,7 +21,7 @@ function staticAnalysis(code: string): Finding[] {
     && /function\s+approve\s*\(/.test(code)
     && /balances|_balances|balanceOf/.test(code)
 
-  const hasSafeMath = /SafeMath|using\s+SafeMath|\.add\(|\.sub\(|\.mul\(|\.div\(/.test(code)
+  const hasSafeMath = /library\s+SafeMath|SafeMath\s+for\s+uint|using\s+SafeMath|\.add\(|\.sub\(|\.mul\(|\.div\(/.test(code)
 
   const hasConstructorOnlyMint = (() => {
     if (!/_mint|mint/.test(code)) return false
@@ -290,7 +290,7 @@ CRITICAL RULES — you MUST follow these to avoid false positives:
    - "Missing access control" on standard ERC-20 functions (transfer, approve, transferFrom) — these are SUPPOSED to be public
    - "Reentrancy" on contracts that only update mappings and emit events without external calls
    - "Centralized minting" if _mint() is ONLY called inside the constructor (fixed supply)
-   - "Integer overflow" if the contract uses SafeMath or targets Solidity >= 0.8.0
+   - "Integer overflow" if the contract uses SafeMath (look for: "library SafeMath", "using SafeMath for uint256", .add(), .sub(), .mul(), .div()) or targets Solidity >= 0.8.0. CHECK THE ENTIRE CONTRACT for SafeMath before flagging overflow risk.
    - Known ERC-20 limitations as HIGH/CRITICAL (e.g., approve race condition is LOW at most)
 
 3. Each finding MUST be unique. Never repeat the same finding twice.
