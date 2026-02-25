@@ -61,24 +61,9 @@ export async function generateStaticParams() {
 
 export default async function AuditPage({ params }: Props) {
   const { id } = await params
-  const project = projectMap.get(id)
+  const project = projectMap.get(id) || null
 
-  if (!project) {
-    return (
-      <div className="min-h-dvh bg-s39-bg0 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-[9px] text-s39-red tracking-[0.15em] mb-4">AUDIT NOT FOUND</div>
-          <h1 className="text-xl font-bold text-s39-white mb-4">Report does not exist</h1>
-          <a
-            href="/"
-            className="text-[10px] text-s39-cyan border border-s39-cyan/30 px-4 py-2 tracking-widest hover:bg-s39-cyan/5 transition-colors no-underline"
-          >
-            {"<- BACK TO PORTFOLIO"}
-          </a>
-        </div>
-      </div>
-    )
-  }
-
-  return <AuditDetailClient project={project} />
+  // Always render the client component — it can find published audits in localStorage
+  // even when the server doesn't know about them (user-published audits)
+  return <AuditDetailClient project={project} auditId={id} />
 }
