@@ -104,6 +104,12 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: aiCode }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setAiError(data?.error || `Server error (${res.status}). Please try again.`)
+        setAiLoad(false)
+        return
+      }
       const data = await res.json()
       if (data.error) {
         setAiError(data.error)
@@ -111,8 +117,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       if (data.findings && Array.isArray(data.findings)) {
         setAiRes(data.findings)
       }
-    } catch {
-      setAiError("Network error. Please check your connection and try again.")
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error"
+      setAiError(`Network error: ${msg}. Check your connection and try again.`)
     }
     setAiLoad(false)
   }
