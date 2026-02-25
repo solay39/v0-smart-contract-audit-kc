@@ -1,4 +1,4 @@
-import type { AuditProject, Finding, PrivilegedRole, TrustAssumption, AttackScenario, GovernanceSecurity, UpgradeabilityAnalysis, EconomicRisk, IntegrationRisk, InvariantCheck } from "@/lib/solay39-constants"
+import type { AuditProject, Finding, PrivilegedRole, TrustAssumption, AttackScenario, GovernanceSecurity, UpgradeabilityAnalysis, EconomicRisk, IntegrationRisk, InvariantCheck, TestingMethodology } from "@/lib/solay39-constants"
 import { ratingOf, SEV_RAW_COLORS } from "@/lib/solay39-constants"
 
 interface Tier1Data {
@@ -14,6 +14,7 @@ interface Tier1Data {
   economicRisks?: EconomicRisk[]
   integrationRisks?: IntegrationRisk[]
   invariantsChecked?: InvariantCheck[]
+  testingMethodology?: TestingMethodology | Record<string, unknown>
 }
 
 export function exportPDF(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data) {
@@ -102,6 +103,13 @@ export function exportPDF(project: AuditProject, rawScore: number, findings: Fin
                 <span style="padding:7px 10px;color:#8899aa;font-size:10px">${f.recommendation}</span></div>`
                   : ""
               }
+              ${
+                f.proofOfConcept
+                  ? `<div style="border-top:1px solid #111820;background:#060a10;padding:8px 12px">
+                <div style="font-size:7.5px;color:#00cccc;letter-spacing:.15em;margin-bottom:6px;font-weight:700">PROOF OF CONCEPT / CODE-LEVEL EVIDENCE</div>
+                <pre style="font-size:8.5px;color:#8899aa;line-height:1.6;font-family:monospace;white-space:pre-wrap;margin:0;word-break:break-word">${f.proofOfConcept.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre></div>`
+                  : ""
+              }
             </div>`
           })
           return html
@@ -188,11 +196,12 @@ ${page(
       ["4.", "Security Architecture"],
       ["4.1", "Privileged Roles & Trust Model"],
       ["4.2", "Attack Surface Analysis"],
-      ["5.", "Governance Security"],
-      ["6.", "Upgradeability & Proxy Analysis"],
-      ["7.", "Economic & Game-Theory Risks"],
-      ["8.", "Integration Risks & Invariants"],
-      ["9.", "Tooling & On-Chain Validation"],
+      ["5.", "Tooling & On-Chain Validation"],
+      ["5.3", "Code Coverage & Testing Methodology"],
+      ["6.", "Governance Security"],
+      ["7.", "Upgradeability & Proxy Analysis"],
+      ["8.", "Economic & Game-Theory Risks"],
+      ["9.", "Integration Risks & Invariants"],
       ["10.", "Contracts"],
       ["11.", "Conclusion"],
       ["", "Appendix A. Issues Severity Classification"],
@@ -336,6 +345,72 @@ ${page(7, `${h1("5. Tooling & On-Chain Validation")}
     : p("On-chain validation was performed where applicable: source code verification, bytecode matching, and deployment configuration review.")}
   ${p("The Solay39 Manual-First Audit Framework combines deep human expertise with automated tooling. All automated results are verified manually to eliminate false positives.")}`
 )}
+
+${(() => {
+  const tm = tier1?.testingMethodology as TestingMethodology | undefined
+  if (!tm) return ""
+  return page(8, `${h1("5.3 Code Coverage & Testing Methodology")}
+    <div style="display:flex;gap:12px;margin-bottom:14px">
+      <div style="background:#0d1117;padding:10px 16px;text-align:center;flex:1;border:1px solid #161e2a">
+        <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:4px">MANUAL REVIEW</div>
+        <div style="color:#aa44ff;font-size:14px;font-weight:700">${tm.manualReviewHours}h</div>
+      </div>
+      <div style="background:#0d1117;padding:10px 16px;text-align:center;flex:1;border:1px solid #161e2a">
+        <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:4px">FUZZING</div>
+        <div style="color:${tm.fuzzingApplied ? "#00ff88" : "#445566"};font-size:14px;font-weight:700">${tm.fuzzingApplied ? "APPLIED" : "N/A"}</div>
+      </div>
+      <div style="background:#0d1117;padding:10px 16px;text-align:center;flex:1;border:1px solid #161e2a">
+        <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:4px">SYMBOLIC EXEC</div>
+        <div style="color:${tm.symbolicExecution ? "#00ff88" : "#445566"};font-size:14px;font-weight:700">${tm.symbolicExecution ? "APPLIED" : "N/A"}</div>
+      </div>
+    </div>
+
+    ${h2("Review Phases")}
+    ${tm.reviewPhases.map((phase, i) =>
+      `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+        <span style="color:#aa44ff;font-size:9px;font-family:monospace;width:16px">${i + 1}.</span>
+        <span style="color:#c8d8e8;font-size:10px">${phase}</span>
+      </div>`
+    ).join("")}
+
+    ${h2("Static Analysis")}
+    ${tm.staticAnalysisTools.map(t =>
+      `<div style="background:#0d1117;border:1px solid #161e2a;padding:8px 12px;margin-bottom:6px">
+        <div style="color:#00cccc;font-size:10px;font-weight:700;font-family:monospace">${t.tool}</div>
+        <div style="color:#8899aa;font-size:9px;margin-top:2px">${t.findings}</div>
+        ${t.configUsed ? `<div style="color:#445566;font-size:8px;margin-top:2px">${t.configUsed}</div>` : ""}
+      </div>`
+    ).join("")}
+
+    ${tm.dynamicAnalysisTools && tm.dynamicAnalysisTools.length > 0 ? `${h2("Dynamic Analysis")}
+    ${tm.dynamicAnalysisTools.map(t =>
+      `<div style="background:#0d1117;border:1px solid #161e2a;padding:8px 12px;margin-bottom:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="color:#00cccc;font-size:10px;font-weight:700;font-family:monospace">${t.tool}</span>
+          ${t.executionTime ? `<span style="color:#445566;font-size:8px">${t.executionTime}</span>` : ""}
+        </div>
+        <div style="color:#8899aa;font-size:9px;margin-top:2px">${t.findings}</div>
+      </div>`
+    ).join("")}` : ""}
+
+    ${h2("Assumptions & Limitations")}
+    <div style="display:flex;gap:16px">
+      <div style="flex:1">
+        <div style="color:#445566;font-size:7.5px;letter-spacing:.15em;margin-bottom:6px;font-weight:700">ASSUMPTIONS</div>
+        ${tm.assumptions.map(a => `<div style="display:flex;gap:6px;padding:3px 0;align-items:flex-start">
+          <span style="color:#00cccc;font-size:9px;flex-shrink:0">*</span>
+          <span style="color:#8899aa;font-size:9px;line-height:1.5">${a}</span>
+        </div>`).join("")}
+      </div>
+      <div style="flex:1">
+        <div style="color:#445566;font-size:7.5px;letter-spacing:.15em;margin-bottom:6px;font-weight:700">LIMITATIONS</div>
+        ${tm.limitations.map(l => `<div style="display:flex;gap:6px;padding:3px 0;align-items:flex-start">
+          <span style="color:#ff6b00;font-size:9px;flex-shrink:0">!</span>
+          <span style="color:#8899aa;font-size:9px;line-height:1.5">${l}</span>
+        </div>`).join("")}
+      </div>
+    </div>`)
+})()}
 
 ${(() => {
   const gov = tier1?.governanceSecurity as GovernanceSecurity | undefined

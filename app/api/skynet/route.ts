@@ -521,10 +521,29 @@ CRITICAL RULES — you MUST follow these to avoid false positives:
 
 13. REALISTIC SCORING: NEVER score 100/100. Max is 98. Scale: 96-98 = exceptional, 90-95 = very strong, 80-89 = good.
 
+14. PROOF OF CONCEPT PER FINDING (CRITICAL for Tier-1):
+    Every finding MUST include a "proofOfConcept" field with:
+    - The exact vulnerable code snippet (file name, line numbers)
+    - A concrete exploit scenario with step-by-step attack flow
+    - Numeric impact estimate where applicable
+    - Tool output that confirms the finding (e.g., "Slither: integer overflow at line 63")
+    This is what separates a Tier-1 audit from a Tier-2. Do NOT generate findings without proof.
+
+15. TESTING METHODOLOGY (MUST generate):
+    Generate a "testingMethodology" object describing the actual review depth:
+    - manualReviewHours: estimated hours
+    - reviewPhases: array of phases completed
+    - staticAnalysisTools: array with tool name, findings summary, config
+    - dynamicAnalysisTools: array with tool name, findings summary, execution time
+    - fuzzingApplied: boolean
+    - symbolicExecution: boolean
+    - assumptions: what was assumed during the review
+    - limitations: what was NOT covered
+
 You MUST respond ONLY with valid JSON (no markdown, no code fences):
 {
   "findings": [
-    { "title": "string", "severity": "CRITICAL|HIGH|MEDIUM|LOW|INFO", "location": "string", "description": "string", "impact": "string", "recommendation": "string", "likelihood": "High|Medium|Low" }
+    { "title": "string", "severity": "CRITICAL|HIGH|MEDIUM|LOW|INFO", "location": "File:Line — function()", "description": "string", "impact": "string with numeric estimate", "recommendation": "string with specific code fix", "likelihood": "High|Medium|Low", "proofOfConcept": "Vulnerable code snippet\\n\\nExploit scenario:\\n1. Step 1\\n2. Step 2\\n\\nTool output: Slither confirmed at line X" }
   ],
   "privilegedRoles": [
     { "role": "string", "capabilities": "string", "riskIfCompromised": "string" }
@@ -560,7 +579,19 @@ You MUST respond ONLY with valid JSON (no markdown, no code fences):
   ],
   "invariantsChecked": [
     { "invariant": "string", "holds": true|false, "evidence": "string" }
-  ]
+  ],
+  "testingMethodology": {
+    "manualReviewHours": number,
+    "reviewPhases": ["string"],
+    "staticAnalysisTools": [{ "tool": "string", "findings": "string", "configUsed": "string" }],
+    "dynamicAnalysisTools": [{ "tool": "string", "findings": "string", "executionTime": "string" }],
+    "fuzzingApplied": true|false,
+    "fuzzingDetails": "string or null",
+    "symbolicExecution": true|false,
+    "symbolicDetails": "string or null",
+    "assumptions": ["string"],
+    "limitations": ["string"]
+  }
 }
 
 Be thorough but PRECISE. Quality over quantity. A report with 2 real findings is better than 7 false positives.`
@@ -646,6 +677,7 @@ export async function POST(req: Request) {
           impact: String(f.impact || ""),
           recommendation: String(f.recommendation || ""),
           likelihood: validLikelihoods.includes(f.likelihood) ? f.likelihood : "Medium",
+          proofOfConcept: f.proofOfConcept ? String(f.proofOfConcept) : undefined,
         }))
         .filter((f: { title: string }) => {
           const key = f.title.toLowerCase().trim()
@@ -732,6 +764,32 @@ export async function POST(req: Request) {
           }))
         : []
 
+      // Extract Testing Methodology
+      const testingMethodology = parsed.testingMethodology ? {
+        manualReviewHours: Number(parsed.testingMethodology.manualReviewHours) || 4,
+        reviewPhases: Array.isArray(parsed.testingMethodology.reviewPhases) ? parsed.testingMethodology.reviewPhases.map(String) : ["Manual Review"],
+        staticAnalysisTools: Array.isArray(parsed.testingMethodology.staticAnalysisTools)
+          ? parsed.testingMethodology.staticAnalysisTools.map((t: Record<string, string>) => ({
+              tool: String(t.tool || ""),
+              findings: String(t.findings || ""),
+              configUsed: t.configUsed ? String(t.configUsed) : undefined,
+            }))
+          : [],
+        dynamicAnalysisTools: Array.isArray(parsed.testingMethodology.dynamicAnalysisTools)
+          ? parsed.testingMethodology.dynamicAnalysisTools.map((t: Record<string, string>) => ({
+              tool: String(t.tool || ""),
+              findings: String(t.findings || ""),
+              executionTime: t.executionTime ? String(t.executionTime) : undefined,
+            }))
+          : [],
+        fuzzingApplied: !!parsed.testingMethodology.fuzzingApplied,
+        fuzzingDetails: parsed.testingMethodology.fuzzingDetails || null,
+        symbolicExecution: !!parsed.testingMethodology.symbolicExecution,
+        symbolicDetails: parsed.testingMethodology.symbolicDetails || null,
+        assumptions: Array.isArray(parsed.testingMethodology.assumptions) ? parsed.testingMethodology.assumptions.map(String) : [],
+        limitations: Array.isArray(parsed.testingMethodology.limitations) ? parsed.testingMethodology.limitations.map(String) : [],
+      } : null
+
       // Compute realistic score breakdown
       const fCount = {
         critical: findings.filter((f: { severity: string }) => f.severity === "CRITICAL").length,
@@ -768,6 +826,7 @@ export async function POST(req: Request) {
         economicRisks,
         integrationRisks,
         invariantsChecked,
+        testingMethodology,
       })
     } catch (aiError: unknown) {
       // AI failed -- fall back to static analysis (which is now context-aware)

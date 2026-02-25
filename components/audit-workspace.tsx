@@ -78,6 +78,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const [economicRisks, setEconomicRisks] = useState<{ title: string; category: string; description: string; severity: string; mitigation: string | null }[]>([])
   const [integrationRisks, setIntegrationRisks] = useState<{ dependency: string; riskType: string; description: string; severity: string }[]>([])
   const [invariantsChecked, setInvariantsChecked] = useState<{ invariant: string; holds: boolean; evidence: string }[]>([])
+  const [testingMethodology, setTestingMethodology] = useState<Record<string, unknown> | null>(null)
 
   const allChecks = Object.values(checks).flatMap((c) => Object.values(c))
   const anyChecked = allChecks.some(Boolean)
@@ -271,6 +272,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       economicRisks: economicRisks.length > 0 ? economicRisks : undefined,
       integrationRisks: integrationRisks.length > 0 ? integrationRisks : undefined,
       invariantsChecked: invariantsChecked.length > 0 ? invariantsChecked : undefined,
+      testingMethodology: testingMethodology || undefined,
     }
 
     // ── Step 3: Save to local portfolio store ──
@@ -366,6 +368,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       if (data.economicRisks) setEconomicRisks(data.economicRisks)
       if (data.integrationRisks) setIntegrationRisks(data.integrationRisks)
       if (data.invariantsChecked) setInvariantsChecked(data.invariantsChecked)
+      if (data.testingMethodology) setTestingMethodology(data.testingMethodology)
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error"
       setAiError(`Network error: ${msg}. Check your connection and try again.`)
@@ -454,6 +457,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     economicRisks: economicRisks.length > 0 ? economicRisks : undefined,
     integrationRisks: integrationRisks.length > 0 ? integrationRisks : undefined,
     invariantsChecked: invariantsChecked.length > 0 ? invariantsChecked : undefined,
+    testingMethodology: testingMethodology || undefined,
   })}
                   className="w-full"
                 >

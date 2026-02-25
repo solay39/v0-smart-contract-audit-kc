@@ -736,6 +736,110 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
           </div>
         )}
 
+        {/* ── TIER-1: Testing Methodology & Code Coverage ── */}
+        {p.testingMethodology && (
+          <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
+            <div className="flex items-center gap-2 mb-5">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="2" stroke="#aa44ff" strokeWidth="1"/><path d="M4 7h6M7 4v6" stroke="#aa44ff" strokeWidth="1" strokeLinecap="round"/></svg>
+              <span className="text-[9px] text-[#aa44ff] tracking-[0.15em]">CODE COVERAGE & TESTING METHODOLOGY</span>
+              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">TIER-1</span>
+            </div>
+
+            {/* Review phases + hours */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <div className="text-[8px] text-s39-dim tracking-widest mb-2">MANUAL REVIEW ({p.testingMethodology.manualReviewHours}h)</div>
+                <div className="flex flex-col gap-1.5">
+                  {p.testingMethodology.reviewPhases.map((phase, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="text-[9px] text-[#aa44ff] font-mono w-4 shrink-0">{i + 1}.</span>
+                      <span className="text-[10px] text-s39-mid">{phase}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                {/* Static Analysis Tools */}
+                <div className="text-[8px] text-s39-dim tracking-widest mb-2">STATIC ANALYSIS</div>
+                <div className="flex flex-col gap-2 mb-3">
+                  {p.testingMethodology.staticAnalysisTools.map((t, i) => (
+                    <div key={i} className="bg-s39-bg2 border border-s39-border p-2.5">
+                      <div className="text-[10px] text-s39-cyan font-bold font-mono">{t.tool}</div>
+                      <div className="text-[9px] text-s39-mid mt-0.5">{t.findings}</div>
+                      {t.configUsed && <div className="text-[8px] text-s39-dim mt-0.5">{t.configUsed}</div>}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Dynamic Analysis Tools */}
+                {p.testingMethodology.dynamicAnalysisTools && p.testingMethodology.dynamicAnalysisTools.length > 0 && (
+                  <>
+                    <div className="text-[8px] text-s39-dim tracking-widest mb-2">DYNAMIC ANALYSIS</div>
+                    <div className="flex flex-col gap-2">
+                      {p.testingMethodology.dynamicAnalysisTools.map((t, i) => (
+                        <div key={i} className="bg-s39-bg2 border border-s39-border p-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-s39-cyan font-bold font-mono">{t.tool}</span>
+                            {t.executionTime && <span className="text-[8px] text-s39-dim ml-auto">{t.executionTime}</span>}
+                          </div>
+                          <div className="text-[9px] text-s39-mid mt-0.5">{t.findings}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Fuzzing + Symbolic */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
+                <div className="text-[7px] text-s39-dim tracking-widest mb-1">FUZZING</div>
+                <div className={`text-sm font-bold ${p.testingMethodology.fuzzingApplied ? "text-s39-green" : "text-s39-dim"}`}>
+                  {p.testingMethodology.fuzzingApplied ? "APPLIED" : "N/A"}
+                </div>
+              </div>
+              <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
+                <div className="text-[7px] text-s39-dim tracking-widest mb-1">SYMBOLIC EXEC</div>
+                <div className={`text-sm font-bold ${p.testingMethodology.symbolicExecution ? "text-s39-green" : "text-s39-dim"}`}>
+                  {p.testingMethodology.symbolicExecution ? "APPLIED" : "N/A"}
+                </div>
+              </div>
+              <div className="bg-s39-bg2 border border-s39-border p-3 text-center col-span-2">
+                <div className="text-[7px] text-s39-dim tracking-widest mb-1">REVIEW DEPTH</div>
+                <div className="text-sm font-bold text-[#aa44ff]">{p.testingMethodology.manualReviewHours}h MANUAL</div>
+              </div>
+            </div>
+
+            {/* Assumptions & Limitations */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <div className="text-[8px] text-s39-dim tracking-widest mb-2">ASSUMPTIONS</div>
+                <div className="flex flex-col gap-1.5">
+                  {p.testingMethodology.assumptions.map((a, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <span className="text-s39-cyan text-[9px] shrink-0 mt-0.5">*</span>
+                      <span className="text-[9px] text-s39-mid leading-relaxed">{a}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="text-[8px] text-s39-dim tracking-widest mb-2">LIMITATIONS</div>
+                <div className="flex flex-col gap-1.5">
+                  {p.testingMethodology.limitations.map((l, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <span className="text-s39-orange text-[9px] shrink-0 mt-0.5">!</span>
+                      <span className="text-[9px] text-s39-mid leading-relaxed">{l}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── TIER-1: Governance Security ── */}
         {p.governanceSecurity && (
           <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
@@ -979,9 +1083,13 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                       )}
                     </div>
                     {f.proofOfConcept && (
-                      <div className="mt-3 bg-s39-bg0 border border-s39-border p-3">
-                        <div className="text-[8px] text-s39-cyan tracking-widest mb-1">PROOF OF CONCEPT</div>
-                        <pre className="text-[9px] text-s39-mid leading-relaxed font-mono whitespace-pre-wrap">{f.proofOfConcept}</pre>
+                      <div className="mt-3 bg-[#0a0e14] border border-s39-border overflow-hidden">
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-s39-bg2 border-b border-s39-border">
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="1" y="1" width="8" height="8" rx="1" stroke="#00cccc" strokeWidth="0.8"/><path d="M3 5l1.5 1.5L7 3.5" stroke="#00cccc" strokeWidth="0.8" strokeLinecap="round"/></svg>
+                          <span className="text-[8px] text-s39-cyan tracking-widest">PROOF OF CONCEPT / CODE-LEVEL EVIDENCE</span>
+                          <span className="text-[7px] text-s39-dim ml-auto">TIER-1</span>
+                        </div>
+                        <pre className="text-[9px] text-s39-mid leading-relaxed font-mono whitespace-pre-wrap p-3 overflow-x-auto">{f.proofOfConcept}</pre>
                       </div>
                     )}
                   </div>
