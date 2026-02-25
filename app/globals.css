@@ -1,0 +1,129 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #030608;
+  --foreground: #ccd6e0;
+  --card: #07090d;
+  --card-foreground: #ccd6e0;
+  --popover: #0c0f14;
+  --popover-foreground: #ccd6e0;
+  --primary: #00ff88;
+  --primary-foreground: #000000;
+  --secondary: #111620;
+  --secondary-foreground: #ccd6e0;
+  --muted: #0c0f14;
+  --muted-foreground: #7a8c9e;
+  --accent: #00e5ff;
+  --accent-foreground: #000000;
+  --destructive: #ff2d55;
+  --destructive-foreground: #ffffff;
+  --border: #141a24;
+  --input: #0c0f14;
+  --ring: #00ff88;
+  --chart-1: #00ff88;
+  --chart-2: #00e5ff;
+  --chart-3: #4488ff;
+  --chart-4: #ffd600;
+  --chart-5: #ff6b00;
+  --radius: 0px;
+  --s39-bg0: #030608;
+  --s39-bg1: #07090d;
+  --s39-bg2: #0c0f14;
+  --s39-bg3: #111620;
+  --s39-border: #141a24;
+  --s39-muted: #2a3340;
+  --s39-dim: #445566;
+  --s39-mid: #7a8c9e;
+  --s39-lite: #ccd6e0;
+  --s39-white: #eef4fa;
+  --s39-green: #00ff88;
+  --s39-cyan: #00e5ff;
+  --s39-blue: #4488ff;
+  --s39-red: #ff2d55;
+  --s39-orange: #ff6b00;
+  --s39-yellow: #ffd600;
+}
+
+@theme inline {
+  --font-sans: 'JetBrains Mono', 'Fira Mono', 'Courier New', monospace;
+  --font-mono: 'JetBrains Mono', 'Fira Mono', 'Courier New', monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius));
+  --radius-md: calc(var(--radius));
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius));
+  --color-s39-bg0: var(--s39-bg0);
+  --color-s39-bg1: var(--s39-bg1);
+  --color-s39-bg2: var(--s39-bg2);
+  --color-s39-bg3: var(--s39-bg3);
+  --color-s39-border: var(--s39-border);
+  --color-s39-muted: var(--s39-muted);
+  --color-s39-dim: var(--s39-dim);
+  --color-s39-mid: var(--s39-mid);
+  --color-s39-lite: var(--s39-lite);
+  --color-s39-white: var(--s39-white);
+  --color-s39-green: var(--s39-green);
+  --color-s39-cyan: var(--s39-cyan);
+  --color-s39-blue: var(--s39-blue);
+  --color-s39-red: var(--s39-red);
+  --color-s39-orange: var(--s39-orange);
+  --color-s39-yellow: var(--s39-yellow);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glow {
+  0%, 100% { text-shadow: 0 0 20px rgba(0, 255, 136, 0.27); }
+  50% { text-shadow: 0 0 50px rgba(0, 255, 136, 0.53); }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  background: var(--s39-bg0);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--s39-muted);
+}
