@@ -30,17 +30,48 @@ export interface AuditProject {
   date: string
 }
 
-export interface DemoProject {
+export interface PortfolioProject {
   id: string
   name: string
+  ticker?: string
   network: string
   score: number
   rating: string
-  tvl: string
+  tvl?: string
+  price?: string
+  change24h?: string
   criticals: number
   highs: number
+  mediums: number
+  lows: number
+  infos: number
   date: string
+  auditor?: string
+  contractAddress?: string
+  scope?: string
+  pdfUrl?: string
+  findings?: {
+    title: string
+    severity: SeverityLevel
+    status: FindingStatus
+    location: string
+    description: string
+    impact: string
+    recommendation: string
+  }[]
+  scoreBreakdown?: {
+    codeSecurity: number
+    architectureRisk: number
+    governanceRisk: number
+    centralization: number
+    testingCoverage: number
+  }
+  centralizationLevel?: "Low" | "Medium" | "High"
+  centralizationRisk?: "Low" | "Medium" | "High"
 }
+
+// Keep backward compat alias
+export type DemoProject = PortfolioProject
 
 export const SEV_CONFIG: Record<SeverityLevel, { color: string; bg: string; border: string }> = {
   CRITICAL: { color: "text-s39-red", bg: "bg-[#160005]", border: "border-[#ff2d5540]" },
@@ -128,14 +159,130 @@ export const CHECKLIST: Record<string, { id: string; text: string; sev: Severity
   ],
 }
 
-export const DEMO_PROJECTS: DemoProject[] = [
-  { id: "p1", name: "ProtocolX Vault", network: "Ethereum", score: 94, rating: "AA", tvl: "$42.3M", criticals: 0, highs: 1, date: "Jan 2026" },
-  { id: "p2", name: "LiquidStake", network: "Arbitrum", score: 88, rating: "A", tvl: "$18.7M", criticals: 1, highs: 2, date: "Feb 2026" },
-  { id: "p3", name: "CrossBridge V2", network: "Optimism", score: 76, rating: "BBB", tvl: "$9.1M", criticals: 2, highs: 3, date: "Feb 2026" },
-  { id: "p4", name: "YieldFarm DAO", network: "BSC", score: 91, rating: "AA", tvl: "$31.4M", criticals: 0, highs: 0, date: "Dec 2025" },
-  { id: "p5", name: "ChiliZ Token", network: "Ethereum", score: 98, rating: "AAA", tvl: "$28.9M", criticals: 0, highs: 0, date: "Nov 2025" },
-  { id: "p6", name: "Injective Token", network: "Ethereum", score: 97, rating: "AAA", tvl: "$15.2M", criticals: 0, highs: 0, date: "Oct 2025" },
+export const DEFAULT_PROJECTS: PortfolioProject[] = [
+  {
+    id: "inj-token",
+    name: "Injective Token",
+    ticker: "INJ",
+    network: "Ethereum",
+    score: 100,
+    rating: "AAA",
+    tvl: "$315.2M",
+    price: "$12.84",
+    change24h: "+3.42%",
+    criticals: 0,
+    highs: 0,
+    mediums: 0,
+    lows: 1,
+    infos: 3,
+    date: "2026-02-25",
+    auditor: "Solay39 Founder",
+    contractAddress: "0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30",
+    scope: "ERC-20 Token Contract",
+    centralizationLevel: "Low",
+    centralizationRisk: "Low",
+    scoreBreakdown: {
+      codeSecurity: 100,
+      architectureRisk: 100,
+      governanceRisk: 92,
+      centralization: 88,
+      testingCoverage: 100,
+    },
+    findings: [
+      { title: "Solidity < 0.8.0 with SafeMath", severity: "INFO", status: "OPEN", location: "Compiler version 0.6", description: "The contract targets Solidity < 0.8.0 but uses SafeMath library for arithmetic operations, which provides overflow/underflow protection.", impact: "Arithmetic is protected by SafeMath. However, any operations NOT using SafeMath remain vulnerable.", recommendation: "Ensure ALL arithmetic operations use SafeMath consistently, or consider upgrading to Solidity >= 0.8.0 for built-in checks." },
+      { title: "Fixed Supply (Constructor-Only Mint)", severity: "INFO", status: "OPEN", location: "Constructor", description: "Token minting occurs only in the constructor. The supply is fixed at deployment with no public or external mint function available.", impact: "No inflation risk. The token supply cannot be increased after deployment.", recommendation: "No action needed. This is a secure pattern for fixed-supply tokens." },
+      { title: "ERC-20 Allowance Race Condition", severity: "LOW", status: "OPEN", location: "approve() function", description: "The standard ERC-20 approve() function is vulnerable to a front-running race condition.", impact: "A spender could extract more tokens than intended during an allowance change.", recommendation: "Consider adding increaseAllowance/decreaseAllowance helper functions." },
+      { title: "Initial Supply Concentration", severity: "INFO", status: "OPEN", location: "Constructor — full supply to single address", description: "The entire token supply is minted to a single address (custodian/deployer) in the constructor.", impact: "The initial holder controls 100% of supply.", recommendation: "Recommend transparent vesting schedules and distribution plans." },
+    ],
+  },
+  {
+    id: "protocolx-vault",
+    name: "ProtocolX Vault",
+    ticker: "PXV",
+    network: "Ethereum",
+    score: 94,
+    rating: "AA",
+    tvl: "$42.3M",
+    price: "$8.21",
+    change24h: "+1.87%",
+    criticals: 0,
+    highs: 1,
+    mediums: 0,
+    lows: 2,
+    infos: 1,
+    date: "2026-01-15",
+    auditor: "Solay39 Founder",
+    centralizationLevel: "Low",
+    centralizationRisk: "Low",
+    scoreBreakdown: { codeSecurity: 96, architectureRisk: 94, governanceRisk: 90, centralization: 88, testingCoverage: 95 },
+  },
+  {
+    id: "liquidstake",
+    name: "LiquidStake",
+    ticker: "LST",
+    network: "Arbitrum",
+    score: 88,
+    rating: "A",
+    tvl: "$18.7M",
+    price: "$2.44",
+    change24h: "-0.63%",
+    criticals: 1,
+    highs: 2,
+    mediums: 1,
+    lows: 3,
+    infos: 2,
+    date: "2026-02-01",
+    auditor: "Solay39 Founder",
+    centralizationLevel: "Medium",
+    centralizationRisk: "Medium",
+    scoreBreakdown: { codeSecurity: 82, architectureRisk: 88, governanceRisk: 84, centralization: 78, testingCoverage: 90 },
+  },
+  {
+    id: "crossbridge-v2",
+    name: "CrossBridge V2",
+    ticker: "CBR",
+    network: "Optimism",
+    score: 76,
+    rating: "BBB",
+    tvl: "$9.1M",
+    price: "$0.87",
+    change24h: "+5.21%",
+    criticals: 2,
+    highs: 3,
+    mediums: 2,
+    lows: 1,
+    infos: 0,
+    date: "2026-02-10",
+    auditor: "Solay39 Founder",
+    centralizationLevel: "High",
+    centralizationRisk: "Medium",
+    scoreBreakdown: { codeSecurity: 70, architectureRisk: 76, governanceRisk: 72, centralization: 68, testingCoverage: 80 },
+  },
+  {
+    id: "yieldfarm-dao",
+    name: "YieldFarm DAO",
+    ticker: "YFD",
+    network: "BSC",
+    score: 91,
+    rating: "AA",
+    tvl: "$31.4M",
+    price: "$4.16",
+    change24h: "+0.92%",
+    criticals: 0,
+    highs: 0,
+    mediums: 1,
+    lows: 2,
+    infos: 3,
+    date: "2025-12-20",
+    auditor: "Solay39 Founder",
+    centralizationLevel: "Low",
+    centralizationRisk: "Low",
+    scoreBreakdown: { codeSecurity: 94, architectureRisk: 90, governanceRisk: 88, centralization: 86, testingCoverage: 92 },
+  },
 ]
+
+// backward compat
+export const DEMO_PROJECTS = DEFAULT_PROJECTS
 
 // ── utils ────────────────────────────────────────────────────────
 export function scoreColor(s: number): string {

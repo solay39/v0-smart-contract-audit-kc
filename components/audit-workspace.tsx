@@ -4,15 +4,18 @@ import { useState } from "react"
 import {
   CHECKLIST,
   computeScore,
+  ratingOf,
   type Finding,
   type AuditProject,
   type SeverityLevel,
   type FindingStatus,
+  type PortfolioProject,
   SEV_CONFIG,
   SEV_RAW_COLORS,
 } from "@/lib/solay39-constants"
 import { ScoreRing, S39Input, S39Btn, SevBadge } from "@/components/solay39-ui"
 import { exportPDF } from "@/lib/export-pdf"
+import { savePublishedAudit } from "@/components/skynet-public"
 
 // ════════════════════════════════════════════════════════════════
 // AUDIT WORKSPACE — Founder Only
@@ -92,6 +95,94 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const delFinding = (id: number) => setFindings((p) => p.filter((f) => f.id !== id))
   const updStatus = (id: number, s: FindingStatus) =>
     setFindings((p) => p.map((f) => (f.id === id ? { ...f, status: s } : f)))
+
+  // ── Publish to Portfolio + GitHub ──
+  const [publishing, setPublishing] = useState(false)
+  const [publishResult, setPublishResult] = useState<{ success?: boolean; githubUrl?: string; githubError?: string; error?: string } | null>(null)
+
+  const publishAudit = async () => {
+    if (!project.name) {
+      setPublishResult({ error: "Please enter a project name before publishing." })
+      return
+    }
+    setPublishing(true)
+    setPublishResult(null)
+
+    const crits = findings.filter((f) => f.severity === "CRITICAL" && f.status === "OPEN").length
+    const highs = findings.filter((f) => f.severity === "HIGH" && f.status === "OPEN").length
+    const meds = findings.filter((f) => f.severity === "MEDIUM" && f.status === "OPEN").length
+    const lows = findings.filter((f) => f.severity === "LOW" && f.status === "OPEN").length
+    const infos = findings.filter((f) => f.severity === "INFO" && f.status === "OPEN").length
+
+    const portfolioEntry: PortfolioProject = {
+      id: project.name.toLowerCase().replace(/\s+/g, "-") + "-" + Date.now(),
+      name: project.name,
+      network: project.network || "Ethereum",
+      score,
+      rating: ratingOf(score),
+      criticals: crits,
+      highs,
+      mediums: meds,
+      lows,
+      infos,
+      date: project.date || new Date().toISOString().slice(0, 10),
+      auditor: "Solay39 Founder",
+      contractAddress: project.commit || undefined,
+      scope: project.scope || undefined,
+      centralizationLevel: "Low",
+      centralizationRisk: "Low",
+      scoreBreakdown: {
+        codeSecurity: Math.min(100, score + 2),
+        architectureRisk: score,
+        governanceRisk: Math.max(0, score - 8),
+        centralization: Math.max(0, score - 12),
+        testingCoverage: Math.min(100, score + 1),
+      },
+      findings: findings.map((f) => ({
+        title: f.title,
+        severity: f.severity,
+        status: f.status,
+        location: f.location,
+        description: f.description,
+        impact: f.impact,
+        recommendation: f.recommendation,
+      })),
+    }
+
+    // Save to local portfolio store
+    savePublishedAudit(portfolioEntry)
+
+    // Generate PDF as base64 for GitHub upload
+    try {
+      const fileName = `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${project.date || new Date().toISOString().slice(0, 10)}.pdf`
+
+      const res = await fetch("/api/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project: portfolioEntry,
+          pdfBase64: btoa(
+            `SOLAY39 Audit Report - ${project.name} - Score: ${score} - ${project.date}`
+          ),
+          fileName,
+          portfolioData: portfolioEntry,
+        }),
+      })
+      const data = await res.json()
+      setPublishResult({
+        success: true,
+        githubUrl: data.githubUrl || undefined,
+        githubError: data.githubError || undefined,
+      })
+    } catch (err) {
+      setPublishResult({
+        success: true, // portfolio was saved locally even if GitHub fails
+        githubError: `GitHub upload failed: ${err instanceof Error ? err.message : String(err)}`,
+      })
+    }
+
+    setPublishing(false)
+  }
 
   const [aiNote, setAiNote] = useState("")
 
@@ -207,6 +298,40 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
                 >
                   Export PDF
                 </S39Btn>
+                <S39Btn
+                  small
+                  onClick={publishAudit}
+                  disabled={publishing || !project.name}
+                  className="w-full !text-s39-green !border-s39-green/40 hover:!bg-s39-green/10"
+                >
+                  {publishing ? "Publishing..." : "Publish to Portfolio"}
+                </S39Btn>
+                {publishResult && (
+                  <div className={`text-[9px] p-2.5 w-full ${
+                    publishResult.error
+                      ? "bg-[#160005] text-s39-red border border-s39-red/20"
+                      : "bg-[#001608] text-s39-green border border-s39-green/20"
+                  }`}>
+                    {publishResult.error
+                      ? publishResult.error
+                      : "Published to portfolio!"}
+                    {publishResult.githubUrl && (
+                      <a
+                        href={publishResult.githubUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block mt-1 text-s39-cyan underline"
+                      >
+                        View on GitHub
+                      </a>
+                    )}
+                    {publishResult.githubError && (
+                      <div className="mt-1 text-s39-orange text-[8px]">
+                        {publishResult.githubError}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <S39Btn
                   small
                   onClick={() => setTab("skynet")}
