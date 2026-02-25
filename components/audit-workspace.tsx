@@ -93,25 +93,33 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const updStatus = (id: number, s: FindingStatus) =>
     setFindings((p) => p.map((f) => (f.id === id ? { ...f, status: s } : f)))
 
+  const [aiNote, setAiNote] = useState("")
+
   const runSkynet = async () => {
     if (!aiCode.trim()) return
     setAiLoad(true)
     setAiRes([])
     setAiError("")
+    setAiNote("")
     try {
       const res = await fetch("/api/skynet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: aiCode }),
       })
-      if (!res.ok) {
-        const data = await res.json().catch(() => null)
-        setAiError(data?.error || `Server error (${res.status}). Please try again.`)
+      const data = await res.json().catch(() => null)
+      if (!data) {
+        setAiError(`Server returned an empty response (${res.status}).`)
         setAiLoad(false)
         return
       }
-      const data = await res.json()
-      if (data.error) {
+      if (!res.ok && !data.findings?.length) {
+        setAiError(data.error || `Server error (${res.status}).`)
+        setAiLoad(false)
+        return
+      }
+      if (data.note) setAiNote(data.note)
+      if (data.error && !data.findings?.length) {
         setAiError(data.error)
       }
       if (data.findings && Array.isArray(data.findings)) {
@@ -568,9 +576,15 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
               </S39Btn>
             </div>
 
-            {aiError && (
+            {aiError && !aiRes.length && (
               <div className="bg-[#160005] border border-s39-red/30 text-s39-red text-[10px] p-4 mb-5">
                 {aiError}
+              </div>
+            )}
+
+            {aiNote && (
+              <div className="bg-s39-bg2 border border-s39-cyan/20 text-s39-cyan text-[10px] p-3 mb-5">
+                {aiNote}
               </div>
             )}
 
