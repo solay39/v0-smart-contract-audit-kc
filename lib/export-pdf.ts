@@ -1,4 +1,4 @@
-import type { AuditProject, Finding, PrivilegedRole, TrustAssumption, AttackScenario, GovernanceSecurity, UpgradeabilityAnalysis, EconomicRisk, IntegrationRisk, InvariantCheck, TestingMethodology } from "@/lib/solay39-constants"
+import type { AuditProject, Finding, PrivilegedRole, TrustAssumption, AttackScenario, GovernanceSecurity, UpgradeabilityAnalysis, EconomicRisk, IntegrationRisk, InvariantCheck, TestingMethodology, AuditEngagement, ScopeEntry, RiskModelConfig, AuditorProfile, AuditLimitations } from "@/lib/solay39-constants"
 import { ratingOf, SEV_RAW_COLORS } from "@/lib/solay39-constants"
 
 interface Tier1Data {
@@ -15,6 +15,12 @@ interface Tier1Data {
   integrationRisks?: IntegrationRisk[]
   invariantsChecked?: InvariantCheck[]
   testingMethodology?: TestingMethodology | Record<string, unknown>
+  // Halborn-style
+  engagement?: AuditEngagement | Record<string, unknown>
+  scopeTable?: ScopeEntry[]
+  riskModel?: RiskModelConfig | Record<string, unknown>
+  auditorProfile?: AuditorProfile | Record<string, unknown>
+  limitations?: AuditLimitations | Record<string, unknown>
 }
 
 export function exportPDF(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data) {
@@ -190,24 +196,25 @@ ${page(
   `${h1("Contents")}
   <table style="width:100%;border-collapse:collapse">
     ${[
-      ["1.", "Disclaimer"],
-      ["2.", "Overview"],
-      ["3.", "Found Issues"],
-      ["4.", "Security Architecture"],
-      ["4.1", "Privileged Roles & Trust Model"],
-      ["4.2", "Attack Surface Analysis"],
-      ["5.", "Tooling & On-Chain Validation"],
-      ["5.3", "Code Coverage & Testing Methodology"],
-      ["6.", "Governance Security"],
-      ["7.", "Upgradeability & Proxy Analysis"],
-      ["8.", "Economic & Game-Theory Risks"],
-      ["9.", "Integration Risks & Invariants"],
-      ["10.", "Contracts"],
-      ["11.", "Conclusion"],
+      ["1.", "Audit Engagement Details"],
+      ["1.1", "Scope"],
+      ["2.", "Risk Classification Model"],
+      ["3.", "Remediation Status"],
+      ["4.", "Found Issues"],
+      ["5.", "Security Architecture"],
+      ["5.1", "Privileged Roles & Trust Model"],
+      ["5.2", "Attack Surface Analysis"],
+      ["6.", "Tooling & On-Chain Validation"],
+      ["6.1", "Code Coverage & Testing Methodology"],
+      ["7.", "Governance Security"],
+      ["8.", "Upgradeability & Proxy Analysis"],
+      ["9.", "Economic & Game-Theory Risks"],
+      ["10.", "Integration Risks & Invariants"],
+      ["11.", "Limitations & Disclaimer"],
+      ["12.", "About the Auditor"],
+      ["13.", "Conclusion"],
       ["", "Appendix A. Issues Severity Classification"],
       ["", "Appendix B. Severity/Likelihood Matrix"],
-      ["", "Appendix C. List of Examined Issue Types"],
-      ["", "Appendix D. Centralization Risks Classification"],
     ]
       .map(
         ([n, t]) =>
@@ -217,20 +224,100 @@ ${page(
   </table>`
 )}
 
+${(() => {
+  const eng = tier1?.engagement as AuditEngagement | undefined
+  return page(
+    3,
+    `${h1("1. Audit Engagement Details")}
+    ${p(`Solay39 was engaged to perform a comprehensive security assessment of the <strong style="color:#eef4fa">${project.name || "project"}</strong> smart contracts. This audit followed the <strong style="color:#eef4fa">Solay39 Manual-First Audit Framework</strong>, an engineering-first approach combining deep manual code review with automated static analysis.`)}
+    ${tbl([
+      ["Project Name", project.name || "N/A"],
+      ["Network", project.network || "N/A"],
+      ["Audit Date", eng?.auditDate || project.date || today],
+      ["Delivery Date", eng?.deliveryDate || project.date || today],
+      ["Duration", eng ? `${eng.auditDurationDays} day(s)` : "N/A"],
+      ["Number of Auditors", eng ? String(eng.numberOfAuditors) : "1"],
+      ["Lead Auditor", eng?.leadAuditor || "Solay39 Founder"],
+      ["Compiler Version", eng?.compilerVersionUsed || "N/A"],
+      ["Contracts Reviewed", eng ? String(eng.contractsReviewed) : "1"],
+      ["Lines of Code", eng ? String(eng.linesOfCode) : "N/A"],
+      ["Commit / Verification", eng?.commitHash || (project.commit || "N/A").slice(0, 40)],
+    ])}
+    ${eng?.objectives ? `${h2("1.1 Engagement Objectives")}
+    ${eng.objectives.map((obj, i) => `<div style="display:flex;gap:8px;padding:3px 0">
+      <span style="color:#00ff88;font-size:9px;font-family:monospace;width:16px;flex-shrink:0">${i + 1}.</span>
+      <span style="color:#c8d8e8;font-size:10px">${obj}</span>
+    </div>`).join("")}` : ""}
+
+    ${h2("1.2 Scope")}
+    ${(() => {
+      const scope = tier1?.scopeTable as ScopeEntry[] | undefined
+      if (!scope || scope.length === 0) return `${p("Scope: " + (project.scope || "N/A"))}`
+      return `<table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:10px">
+        <thead><tr>${["CONTRACT", "ADDRESS", "COMMIT", "LINES", "LANGUAGE"].map(h =>
+          `<th style="background:#0d1117;color:#445566;font-size:7.5px;letter-spacing:.15em;padding:8px 10px;text-align:left;border-bottom:1px solid #161e2a">${h}</th>`
+        ).join("")}</tr></thead>
+        <tbody>${scope.map(s => `<tr>
+          <td style="padding:8px 10px;border-bottom:1px solid #111820;color:#00cccc;font-weight:700;font-family:monospace">${s.contract}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #111820;font-family:monospace;font-size:9px">${s.address.slice(0, 8)}...${s.address.slice(-6)}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #111820;font-size:9px">${s.commit}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #111820;font-weight:700">${s.linesOfCode}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #111820;font-size:9px">${s.language}</td>
+        </tr>`).join("")}</tbody>
+      </table>`
+    })()}`
+  )
+})()}
+
+${(() => {
+  const rm = tier1?.riskModel as RiskModelConfig | undefined
+  if (!rm) return ""
+  return page(4, `${h1("2. Risk Classification Model")}
+    ${p(rm.methodology)}
+    ${rm.severityMatrix.map(s => {
+      const col = s.level === "CRITICAL" ? "#ff2d55" : s.level === "HIGH" ? "#ff6b00" : s.level === "MEDIUM" ? "#ffd600" : s.level === "LOW" ? "#00e5ff" : "#00ff88"
+      return `<div style="display:flex;gap:10px;margin-bottom:8px;background:#07090d;border-left:3px solid ${col};padding:10px 12px">
+        <div style="flex-shrink:0;width:80px">
+          <div style="color:${col};font-size:10px;font-weight:700;font-family:monospace">${s.level}</div>
+          <div style="color:#445566;font-size:7.5px;margin-top:2px">${s.likelihood}</div>
+        </div>
+        <div style="color:#8899aa;font-size:9px;line-height:1.5">${s.description}</div>
+      </div>`
+    }).join("")}
+    <p style="color:#445566;font-size:8px;font-style:italic;margin-top:14px">${rm.disclaimer}</p>`)
+})()}
+
 ${page(
-  3,
-  `${h1("1. Disclaimer")}
-  ${p("This is a limited report on our findings based on our analysis, in accordance with good industry practice at the date of this report, in relation to cybersecurity vulnerabilities and issues in smart contracts.")}
-  ${p("While we have done our best in conducting our analysis and producing this report, it is important to note that you should not rely on this report alone before making any decisions.")}
-  ${p("The analysis of the security is purely based on the smart contracts alone. No applications or operations were reviewed for security. Solay39 owns all copyright rights to the content provided in this document.")}
-  ${p("Solay39 has exclusive rights to publish the results of this audit on its web and social channels. Sharing of this report by third parties must include direct attribution to Solay39 Blockchain Security and a link to the original document.")}`
+  5,
+  `${h1("3. Remediation Status")}
+  ${p("The following table summarizes the current remediation status of all findings identified during this audit.")}
+  <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:10px">
+    <thead><tr>${["ID", "FINDING", "SEVERITY", "STATUS"].map(h =>
+      `<th style="background:#0d1117;color:#445566;font-size:7.5px;letter-spacing:.15em;padding:8px 10px;text-align:left;border-bottom:1px solid #161e2a">${h}</th>`
+    ).join("")}</tr></thead>
+    <tbody>${findings.map((f, i) => {
+      const sc2 = hC[f.severity] || "#fff"
+      const stC = f.status === "RESOLVED" ? "#00ff88" : f.status === "ACKNOWLEDGED" ? "#ffd600" : "#ff2d55"
+      const stLabel = f.status === "RESOLVED" ? "FIXED" : f.status === "ACKNOWLEDGED" ? "ACKNOWLEDGED" : f.status === "PARTIALLY_FIXED" ? "PARTIAL FIX" : "OPEN"
+      const pfx = f.severity === "CRITICAL" ? "C" : f.severity === "HIGH" ? "H" : f.severity === "MEDIUM" ? "M" : f.severity === "LOW" ? "L" : "I"
+      return `<tr>
+        <td style="padding:8px 10px;border-bottom:1px solid #111820;color:${sc2};font-weight:700;font-family:monospace">${pfx}-${String(i + 1).padStart(2, "0")}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #111820">${f.title}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #111820"><span style="color:${sc2};font-weight:700;font-size:9px;padding:2px 6px;border:1px solid ${sc2}40">${f.severity}</span></td>
+        <td style="padding:8px 10px;border-bottom:1px solid #111820"><span style="color:${stC};font-weight:700;font-size:9px">${stLabel}</span></td>
+      </tr>`
+    }).join("")}</tbody>
+  </table>
+  <div style="display:flex;gap:16px;margin-top:8px;font-size:9px">
+    <span style="color:#00ff88;font-weight:700">${findings.filter(f => f.status === "RESOLVED").length} Fixed</span>
+    <span style="color:#ffd600;font-weight:700">${findings.filter(f => f.status === "ACKNOWLEDGED").length} Acknowledged</span>
+    <span style="color:#ff2d55;font-weight:700">${findings.filter(f => f.status === "OPEN").length} Open</span>
+  </div>`
 )}
 
 ${page(
-  4,
-  `${h1("2. Overview")}
-  ${p(`Solay39 was commissioned by the <strong style="color:#eef4fa">${project.name || "project"}</strong> team to perform an audit of their smart contracts. This audit was conducted using the <strong style="color:#eef4fa">Solay39 Manual-First Audit Framework</strong>.`)}
-  ${h2("2.1 Summary")}
+  6,
+  `${h1("4. Overview & Security Score")}
   ${tbl([
     ["Project name", project.name || "N/A"],
     ["Network", project.network || "N/A"],
@@ -239,8 +326,6 @@ ${page(
     ["Audit date", project.date || today],
     ["Commit hash", (project.commit || "N/A").slice(0, 40)],
     ["Scope", scopeDisplay],
-    ["Centralization level", "Low"],
-    ["Centralization risk", "Low"],
   ])}
   ${h2("2.2 Security Score")}
   <table style="width:100%;border-collapse:collapse;margin-bottom:14px">
@@ -547,9 +632,43 @@ ${page(
   ${scopeDisplay !== "—" ? `<div style="background:#0d1117;padding:8px 12px;margin-top:8px"><span style="color:#00ff88;font-size:9px">Scope: ${scopeDisplay}</span></div>` : ""}`
 )}
 
+${(() => {
+  const lim = tier1?.limitations as AuditLimitations | undefined
+  if (!lim) return ""
+  return page(13, `${h1("11. Limitations & Disclaimer")}
+    ${lim.statements.map((s, i) => `<div style="display:flex;gap:8px;padding:4px 0">
+      <span style="color:#ff6b00;font-size:9px;font-family:monospace;width:16px;flex-shrink:0">${i + 1}.</span>
+      <span style="color:#c8d8e8;font-size:10px;line-height:1.6">${s}</span>
+    </div>`).join("")}
+    <div style="background:#1a0e00;border:1px solid #ff6b0030;padding:12px 16px;margin-top:16px">
+      <p style="color:#ff6b00;font-size:8.5px;font-weight:700;line-height:1.6;letter-spacing:.03em">${lim.disclaimer}</p>
+    </div>`)
+})()}
+
+${(() => {
+  const ap = tier1?.auditorProfile as AuditorProfile | undefined
+  if (!ap) return ""
+  return page(14, `${h1("12. About the Auditor")}
+    <div style="margin-bottom:14px">
+      <div style="font-size:18px;font-weight:700;color:#eef4fa;margin-bottom:4px">${ap.firmName}</div>
+      <p style="color:#8899aa;font-size:10px;line-height:1.6">${ap.description}</p>
+    </div>
+    ${h2("Methodology")}
+    <p style="color:#8899aa;font-size:10px;line-height:1.6;margin-bottom:14px">${ap.methodology}</p>
+    ${h2("Areas of Expertise")}
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+      ${ap.experience.map(exp => `<span style="font-size:8.5px;color:#00cccc;background:#00cccc10;border:1px solid #00cccc20;padding:4px 10px">${exp}</span>`).join("")}
+    </div>
+    ${h2("Contact")}
+    ${tbl([
+      ["Email", ap.contactEmail],
+      ["Telegram", ap.telegram || "N/A"],
+    ])}`)
+})()}
+
 ${page(
-  13,
-  `${h1("11. Conclusion")}
+  15,
+  `${h1("13. Conclusion")}
   ${
     findings.length === 0
       ? `${p(`<strong style="color:#eef4fa">No severity issues were found.</strong>`)}${p(`The ${project.name || "protocol"} contracts passed all checks of the Solay39 Manual-First Audit Framework. The codebase demonstrates secure development practices, properly inheriting from well-tested libraries.`)}`

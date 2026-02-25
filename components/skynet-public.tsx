@@ -577,7 +577,175 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
           </div>
         </div>
 
-        {/* ══════════ TIER-1 SECTIONS (BEFORE FINDINGS per audit standard) ══════════ */}
+        {/* ══════════ HALBORN-STYLE TIER-1 SECTIONS ══════════ */}
+
+        {/* ── 1. AUDIT ENGAGEMENT DETAILS ── */}
+        {p.engagement && (
+          <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
+            <div className="flex items-center gap-2 mb-5">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="2" width="10" height="10" rx="1.5" stroke="#00ff88" strokeWidth="1"/><path d="M5 5h4M5 7h4M5 9h2" stroke="#00ff88" strokeWidth="0.8" strokeLinecap="round"/></svg>
+              <span className="text-[9px] text-s39-green tracking-[0.15em]">AUDIT ENGAGEMENT DETAILS</span>
+              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">HALBORN STANDARD</span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className="bg-s39-bg2 border border-s39-border p-3">
+                <div className="text-[7px] text-s39-dim tracking-widest mb-1">AUDIT DATE</div>
+                <div className="text-[11px] text-s39-white font-bold font-mono">{p.engagement.auditDate}</div>
+              </div>
+              <div className="bg-s39-bg2 border border-s39-border p-3">
+                <div className="text-[7px] text-s39-dim tracking-widest mb-1">DURATION</div>
+                <div className="text-[11px] text-s39-white font-bold font-mono">{p.engagement.auditDurationDays} days</div>
+              </div>
+              <div className="bg-s39-bg2 border border-s39-border p-3">
+                <div className="text-[7px] text-s39-dim tracking-widest mb-1">AUDITORS</div>
+                <div className="text-[11px] text-s39-white font-bold font-mono">{p.engagement.numberOfAuditors}</div>
+              </div>
+              <div className="bg-s39-bg2 border border-s39-border p-3">
+                <div className="text-[7px] text-s39-dim tracking-widest mb-1">LINES OF CODE</div>
+                <div className="text-[11px] text-s39-white font-bold font-mono">{p.engagement.linesOfCode}</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+              <div className="bg-s39-bg2 border border-s39-border p-3">
+                <div className="text-[7px] text-s39-dim tracking-widest mb-1">LEAD AUDITOR</div>
+                <div className="text-[10px] text-s39-cyan font-bold">{p.engagement.leadAuditor}</div>
+              </div>
+              <div className="bg-s39-bg2 border border-s39-border p-3">
+                <div className="text-[7px] text-s39-dim tracking-widest mb-1">COMPILER VERSION</div>
+                <div className="text-[10px] text-s39-cyan font-mono">{p.engagement.compilerVersionUsed}</div>
+              </div>
+            </div>
+
+            <div className="bg-s39-bg2 border border-s39-border p-3 mb-4">
+              <div className="text-[7px] text-s39-dim tracking-widest mb-1">COMMIT / VERIFICATION</div>
+              <div className="text-[9px] text-s39-mid font-mono break-all">{p.engagement.commitHash}</div>
+              {p.engagement.repositoryUrl && (
+                <a href={p.engagement.repositoryUrl} target="_blank" rel="noreferrer" className="text-[8px] text-s39-cyan hover:underline mt-1 inline-block">{p.engagement.repositoryUrl}</a>
+              )}
+            </div>
+
+            {p.engagement.objectives && p.engagement.objectives.length > 0 && (
+              <div>
+                <div className="text-[7px] text-s39-dim tracking-widest mb-2">ENGAGEMENT OBJECTIVES</div>
+                <div className="flex flex-col gap-1.5">
+                  {p.engagement.objectives.map((obj, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <span className="text-s39-green text-[9px] shrink-0 mt-0.5 font-mono">{i + 1}.</span>
+                      <span className="text-[9px] text-s39-mid leading-relaxed">{obj}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── 2. SCOPE TABLE ── */}
+        {p.scopeTable && p.scopeTable.length > 0 && (
+          <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
+            <div className="flex items-center gap-2 mb-4">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="3" width="12" height="8" rx="1" stroke="#00e5ff" strokeWidth="1"/><path d="M1 6h12M5 6v5M9 6v5" stroke="#00e5ff" strokeWidth="0.7"/></svg>
+              <span className="text-[9px] text-s39-cyan tracking-[0.15em]">SCOPE</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[10px]">
+                <thead>
+                  <tr className="bg-s39-bg2">
+                    <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">CONTRACT</th>
+                    <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">ADDRESS</th>
+                    <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">COMMIT</th>
+                    <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">LINES</th>
+                    <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">LANGUAGE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {p.scopeTable.map((s, i) => (
+                    <tr key={i} className="border-b border-s39-border last:border-0">
+                      <td className="px-3 py-2.5 text-s39-cyan font-bold font-mono">{s.contract}</td>
+                      <td className="px-3 py-2.5 text-s39-mid font-mono text-[9px]">{s.address.slice(0, 8)}...{s.address.slice(-6)}</td>
+                      <td className="px-3 py-2.5 text-s39-mid text-[9px]">{s.commit}</td>
+                      <td className="px-3 py-2.5 text-s39-white font-bold font-mono">{s.linesOfCode}</td>
+                      <td className="px-3 py-2.5 text-s39-mid text-[9px]">{s.language}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── 3. RISK MODEL (Severity Matrix) ── */}
+        {p.riskModel && (
+          <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
+            <div className="flex items-center gap-2 mb-4">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2L2 12h10L7 2z" stroke="#ffd600" strokeWidth="1" strokeLinejoin="round"/><path d="M7 6v3M7 10.5v.5" stroke="#ffd600" strokeWidth="1" strokeLinecap="round"/></svg>
+              <span className="text-[9px] text-s39-yellow tracking-[0.15em]">RISK CLASSIFICATION MODEL</span>
+            </div>
+            <p className="text-[9px] text-s39-mid leading-relaxed mb-4">{p.riskModel.methodology}</p>
+            <div className="flex flex-col gap-2 mb-4">
+              {p.riskModel.severityMatrix.map((s, i) => {
+                const col = s.level === "CRITICAL" ? "#ff2d55" : s.level === "HIGH" ? "#ff6b00" : s.level === "MEDIUM" ? "#ffd600" : s.level === "LOW" ? "#00e5ff" : "#00ff88"
+                return (
+                  <div key={i} className="flex items-start gap-3 bg-s39-bg2 border border-s39-border p-3" style={{ borderLeftColor: col, borderLeftWidth: 3 }}>
+                    <div className="shrink-0 w-20">
+                      <span className="text-[9px] font-bold font-mono" style={{ color: col }}>{s.level}</span>
+                      <div className="text-[7px] text-s39-dim mt-0.5">{s.likelihood}</div>
+                    </div>
+                    <p className="text-[9px] text-s39-mid leading-relaxed flex-1">{s.description}</p>
+                  </div>
+                )
+              })}
+            </div>
+            <p className="text-[8px] text-s39-dim italic">{p.riskModel.disclaimer}</p>
+          </div>
+        )}
+
+        {/* ── 4. REMEDIATION STATUS ── */}
+        {p.findings && p.findings.length > 0 && (
+          <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
+            <div className="flex items-center gap-2 mb-4">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 7l2 2 4-4" stroke="#00ff88" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="7" cy="7" r="5.5" stroke="#00ff88" strokeWidth="1"/></svg>
+              <span className="text-[9px] text-s39-green tracking-[0.15em]">REMEDIATION STATUS</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[10px]">
+                <thead>
+                  <tr className="bg-s39-bg2">
+                    <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">ID</th>
+                    <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">FINDING</th>
+                    <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">SEVERITY</th>
+                    <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">STATUS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {p.findings.map((f, i) => {
+                    const sevCol = f.severity === "CRITICAL" ? "#ff2d55" : f.severity === "HIGH" ? "#ff6b00" : f.severity === "MEDIUM" ? "#ffd600" : f.severity === "LOW" ? "#00e5ff" : "#00ff88"
+                    const stCol = f.status === "RESOLVED" ? "#00ff88" : f.status === "ACKNOWLEDGED" ? "#ffd600" : f.status === "PARTIALLY_FIXED" ? "#ff6b00" : "#ff2d55"
+                    const stIcon = f.status === "RESOLVED" ? "FIXED" : f.status === "ACKNOWLEDGED" ? "ACK" : f.status === "PARTIALLY_FIXED" ? "PARTIAL" : "OPEN"
+                    const sevPfx = f.severity === "CRITICAL" ? "C" : f.severity === "HIGH" ? "H" : f.severity === "MEDIUM" ? "M" : f.severity === "LOW" ? "L" : "I"
+                    return (
+                      <tr key={i} className="border-b border-s39-border last:border-0">
+                        <td className="px-3 py-2.5 font-mono font-bold" style={{ color: sevCol }}>{sevPfx}-{String(i + 1).padStart(2, "0")}</td>
+                        <td className="px-3 py-2.5 text-s39-mid">{f.title}</td>
+                        <td className="px-3 py-2.5"><span className="text-[8px] font-bold px-2 py-0.5 border" style={{ color: sevCol, borderColor: `${sevCol}40`, background: `${sevCol}10` }}>{f.severity}</span></td>
+                        <td className="px-3 py-2.5"><span className="text-[9px] font-bold" style={{ color: stCol }}>{stIcon}</span></td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {/* Summary stats */}
+            <div className="flex gap-4 mt-4 text-[9px]">
+              <span className="text-s39-green font-bold">{p.findings.filter(f => f.status === "RESOLVED").length} Fixed</span>
+              <span className="text-s39-yellow font-bold">{p.findings.filter(f => f.status === "ACKNOWLEDGED").length} Acknowledged</span>
+              <span className="text-s39-red font-bold">{p.findings.filter(f => f.status === "OPEN").length} Open</span>
+              <span className="text-s39-orange font-bold">{p.findings.filter(f => f.status === "PARTIALLY_FIXED").length} Partial</span>
+            </div>
+          </div>
+        )}
 
         {/* ── TIER-1: Security Architecture ── */}
         {(p.privilegedRoles || p.trustAssumptions || p.architectureOverview || p.attackSurface) && (
@@ -1182,6 +1350,65 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                     <div className="text-[8px] text-s39-dim mt-1">Token Age: {p.tokenAge}</div>
                   )}
                 </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── LIMITATIONS & DISCLAIMER ── */}
+        {p.limitations && (
+          <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
+            <div className="flex items-center gap-2 mb-4">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#ff6b00" strokeWidth="1"/><path d="M7 4v4M7 9.5v.5" stroke="#ff6b00" strokeWidth="1" strokeLinecap="round"/></svg>
+              <span className="text-[9px] text-s39-orange tracking-[0.15em]">LIMITATIONS & DISCLAIMER</span>
+            </div>
+            <div className="flex flex-col gap-2 mb-4">
+              {p.limitations.statements.map((s, i) => (
+                <div key={i} className="flex items-start gap-2.5 py-1">
+                  <span className="text-s39-orange text-[9px] shrink-0 mt-0.5 font-mono">{i + 1}.</span>
+                  <span className="text-[9px] text-s39-mid leading-relaxed">{s}</span>
+                </div>
+              ))}
+            </div>
+            <div className="bg-[#1a0e00] border border-[#ff6b0030] p-4">
+              <p className="text-[8px] text-s39-orange leading-relaxed font-bold tracking-wide">{p.limitations.disclaimer}</p>
+            </div>
+          </div>
+        )}
+
+        {/* ── ABOUT THE AUDITOR ── */}
+        {p.auditorProfile && (
+          <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
+            <div className="flex items-center gap-2 mb-4">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="3" stroke="#00e5ff" strokeWidth="1"/><path d="M2 12c0-2.5 2.2-4 5-4s5 1.5 5 4" stroke="#00e5ff" strokeWidth="1"/></svg>
+              <span className="text-[9px] text-s39-cyan tracking-[0.15em]">ABOUT THE AUDITOR</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <div className="text-[18px] text-s39-white font-bold mb-1">{p.auditorProfile.firmName}</div>
+                <p className="text-[9px] text-s39-mid leading-relaxed">{p.auditorProfile.description}</p>
+              </div>
+              <div>
+                <div className="text-[8px] text-s39-dim tracking-widest mb-2">METHODOLOGY</div>
+                <p className="text-[9px] text-s39-mid leading-relaxed">{p.auditorProfile.methodology}</p>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <div className="text-[8px] text-s39-dim tracking-widest mb-2">AREAS OF EXPERTISE</div>
+              <div className="flex flex-wrap gap-2">
+                {p.auditorProfile.experience.map((exp, i) => (
+                  <span key={i} className="text-[8px] text-s39-cyan bg-s39-cyan/5 border border-s39-cyan/20 px-2.5 py-1">{exp}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-4 flex-wrap text-[9px]">
+              <span className="text-s39-dim">Contact:</span>
+              <a href={`mailto:${p.auditorProfile.contactEmail}`} className="text-s39-cyan hover:underline">{p.auditorProfile.contactEmail}</a>
+              {p.auditorProfile.telegram && (
+                <a href={p.auditorProfile.telegram} target="_blank" rel="noreferrer" className="text-s39-cyan hover:underline">Telegram</a>
               )}
             </div>
           </div>

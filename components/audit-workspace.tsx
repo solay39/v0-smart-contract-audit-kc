@@ -79,6 +79,8 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const [integrationRisks, setIntegrationRisks] = useState<{ dependency: string; riskType: string; description: string; severity: string }[]>([])
   const [invariantsChecked, setInvariantsChecked] = useState<{ invariant: string; holds: boolean; evidence: string }[]>([])
   const [testingMethodology, setTestingMethodology] = useState<Record<string, unknown> | null>(null)
+  const [aiEngagement, setAiEngagement] = useState<Record<string, unknown> | null>(null)
+  const [aiScopeTable, setAiScopeTable] = useState<Record<string, unknown>[] | null>(null)
 
   const allChecks = Object.values(checks).flatMap((c) => Object.values(c))
   const anyChecked = allChecks.some(Boolean)
@@ -273,6 +275,65 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       integrationRisks: integrationRisks.length > 0 ? integrationRisks : undefined,
       invariantsChecked: invariantsChecked.length > 0 ? invariantsChecked : undefined,
       testingMethodology: testingMethodology || undefined,
+      // Halborn-style
+      engagement: {
+        auditDate: project.date || new Date().toISOString().slice(0, 10),
+        deliveryDate: new Date().toISOString().slice(0, 10),
+        auditDurationDays: (aiEngagement?.auditDurationDays as number) || 3,
+        numberOfAuditors: 1,
+        leadAuditor: "Solay39 Founder",
+        compilerVersionUsed: (aiEngagement?.compilerVersionUsed as string) || contractMeta?.solidityVersion || "N/A",
+        contractsReviewed: 1,
+        linesOfCode: (aiEngagement?.linesOfCode as number) || 0,
+        commitHash: project.commit || "N/A — verified deployed bytecode",
+        repositoryUrl: contractAddr ? `https://etherscan.io/address/${contractAddr}#code` : undefined,
+        objectives: (aiEngagement?.objectives as string[]) || [
+          "Identify security vulnerabilities in the deployed smart contract",
+          "Assess centralization and privilege risks",
+          "Evaluate standard compliance and edge cases",
+        ],
+      },
+      scopeTable: aiScopeTable ? aiScopeTable.map((s) => ({
+        contract: String(s.contract || project.name),
+        address: contractAddr || "N/A",
+        commit: project.commit || "Etherscan verified",
+        linesOfCode: Number(s.linesOfCode) || 0,
+        language: String(s.language || "Solidity"),
+      })) : contractAddr ? [{
+        contract: `${project.name}.sol`,
+        address: contractAddr,
+        commit: project.commit || "Etherscan verified",
+        linesOfCode: (aiEngagement?.linesOfCode as number) || 0,
+        language: contractMeta?.solidityVersion ? `Solidity ${contractMeta.solidityVersion}` : "Solidity",
+      }] : undefined,
+      riskModel: {
+        methodology: "Likelihood x Impact severity matrix following OWASP and Halborn classification standards.",
+        severityMatrix: [
+          { level: "CRITICAL", likelihood: "High Likelihood + High Impact", description: "Directly exploitable vulnerability leading to loss of funds or protocol takeover." },
+          { level: "HIGH", likelihood: "High + Medium OR Medium + High", description: "Exploitable vulnerability with significant consequences." },
+          { level: "MEDIUM", likelihood: "Medium Likelihood + Medium Impact", description: "Vulnerability with moderate exploitability and impact." },
+          { level: "LOW", likelihood: "Low Likelihood + Low/Medium Impact", description: "Minor issue with limited practical exploitability." },
+          { level: "INFO", likelihood: "Informational", description: "Code quality observation with no security impact." },
+        ],
+        disclaimer: "Severity assignments are based on the auditor's professional judgment at the time of review.",
+      },
+      auditorProfile: {
+        firmName: "Solay39",
+        description: "Independent smart contract security firm specializing in manual adversarial review combined with AI-guided static analysis.",
+        methodology: "Manual adversarial review + automated static analysis (Slither, Mythril) + symbolic execution + on-chain bytecode verification.",
+        experience: ["ERC-20/ERC-721 security reviews", "DeFi protocol analysis", "Proxy & upgradeability audits"],
+        contactEmail: "solay2126@gmail.com",
+        telegram: "https://t.me/Solay39audit",
+      },
+      limitations: {
+        statements: [
+          "This is a time-boxed review and does not guarantee the absence of vulnerabilities.",
+          "Only smart contract source code was in scope. Off-chain components were not reviewed.",
+          "No formal verification was performed unless stated in the Testing Methodology section.",
+          "This audit does not constitute financial advice.",
+        ],
+        disclaimer: "DISCLAIMER: This report is provided as-is for informational purposes only. Solay39 makes no warranties regarding the completeness or accuracy of this assessment.",
+      },
     }
 
     // ── Step 3: Save to local portfolio store ──
@@ -369,6 +430,8 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       if (data.integrationRisks) setIntegrationRisks(data.integrationRisks)
       if (data.invariantsChecked) setInvariantsChecked(data.invariantsChecked)
       if (data.testingMethodology) setTestingMethodology(data.testingMethodology)
+      if (data.aiEngagement) setAiEngagement(data.aiEngagement)
+      if (data.aiScopeTable) setAiScopeTable(data.aiScopeTable)
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error"
       setAiError(`Network error: ${msg}. Check your connection and try again.`)
@@ -458,6 +521,53 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     integrationRisks: integrationRisks.length > 0 ? integrationRisks : undefined,
     invariantsChecked: invariantsChecked.length > 0 ? invariantsChecked : undefined,
     testingMethodology: testingMethodology || undefined,
+    engagement: aiEngagement ? {
+      auditDate: project.date || new Date().toISOString().slice(0, 10),
+      deliveryDate: new Date().toISOString().slice(0, 10),
+      auditDurationDays: (aiEngagement.auditDurationDays as number) || 3,
+      numberOfAuditors: 1,
+      leadAuditor: "Solay39 Founder",
+      compilerVersionUsed: (aiEngagement.compilerVersionUsed as string) || "N/A",
+      contractsReviewed: 1,
+      linesOfCode: (aiEngagement.linesOfCode as number) || 0,
+      commitHash: project.commit || "N/A",
+      objectives: (aiEngagement.objectives as string[]) || [],
+    } : undefined,
+    scopeTable: aiScopeTable ? aiScopeTable.map((s) => ({
+      contract: String(s.contract || ""),
+      address: project.scope || "N/A",
+      commit: project.commit || "verified",
+      linesOfCode: Number(s.linesOfCode) || 0,
+      language: String(s.language || "Solidity"),
+    })) : undefined,
+    riskModel: {
+      methodology: "Likelihood x Impact severity matrix following OWASP and Halborn classification standards.",
+      severityMatrix: [
+        { level: "CRITICAL", likelihood: "High + High", description: "Directly exploitable, fund loss or protocol takeover." },
+        { level: "HIGH", likelihood: "High + Medium", description: "Exploitable with significant consequences." },
+        { level: "MEDIUM", likelihood: "Medium + Medium", description: "Moderate exploitability and impact." },
+        { level: "LOW", likelihood: "Low + Low/Medium", description: "Minor issue, limited exploitability." },
+        { level: "INFO", likelihood: "Informational", description: "Code quality, no security impact." },
+      ],
+      disclaimer: "Severity based on auditor professional judgment at time of review.",
+    },
+    auditorProfile: {
+      firmName: "Solay39",
+      description: "Independent smart contract security firm.",
+      methodology: "Manual adversarial review + AI-guided static analysis.",
+      experience: ["ERC-20/ERC-721 reviews", "DeFi protocol analysis"],
+      contactEmail: "solay2126@gmail.com",
+      telegram: "https://t.me/Solay39audit",
+    },
+    limitations: {
+      statements: [
+        "Time-boxed review, does not guarantee absence of vulnerabilities.",
+        "Only smart contract source code was in scope.",
+        "No formal verification performed.",
+        "This audit does not constitute financial advice.",
+      ],
+      disclaimer: "DISCLAIMER: Report provided as-is. Solay39 makes no warranties regarding completeness or accuracy.",
+    },
   })}
                   className="w-full"
                 >

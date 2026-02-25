@@ -601,7 +601,16 @@ You MUST respond ONLY with valid JSON (no markdown, no code fences):
     "symbolicDetails": "string or null",
     "assumptions": ["string"],
     "limitations": ["string"]
-  }
+  },
+  "engagement": {
+    "compilerVersionUsed": "string (e.g. solc 0.8.20)",
+    "linesOfCode": number,
+    "objectives": ["string — list of specific audit objectives"],
+    "auditDurationDays": number
+  },
+  "scopeTable": [
+    { "contract": "ContractName.sol", "linesOfCode": number, "language": "Solidity X.Y.Z" }
+  ]
 }
 
 Be thorough but PRECISE. Quality over quantity. A report with 2 real findings is better than 7 false positives.`
@@ -800,6 +809,22 @@ export async function POST(req: Request) {
         limitations: Array.isArray(parsed.testingMethodology.limitations) ? parsed.testingMethodology.limitations.map(String) : [],
       } : null
 
+      // Extract engagement data from AI
+      const aiEngagement = parsed.engagement ? {
+        compilerVersionUsed: String(parsed.engagement.compilerVersionUsed || meta.solidityVersion || "N/A"),
+        linesOfCode: Number(parsed.engagement.linesOfCode) || 0,
+        objectives: Array.isArray(parsed.engagement.objectives) ? parsed.engagement.objectives.map(String) : [],
+        auditDurationDays: Number(parsed.engagement.auditDurationDays) || 3,
+      } : null
+
+      const aiScopeTable = Array.isArray(parsed.scopeTable)
+        ? parsed.scopeTable.map((s: Record<string, unknown>) => ({
+            contract: String(s.contract || ""),
+            linesOfCode: Number(s.linesOfCode) || 0,
+            language: String(s.language || ""),
+          }))
+        : null
+
       // Compute realistic score breakdown
       const fCount = {
         critical: findings.filter((f: { severity: string }) => f.severity === "CRITICAL").length,
@@ -837,6 +862,8 @@ export async function POST(req: Request) {
         integrationRisks,
         invariantsChecked,
         testingMethodology,
+        aiEngagement,
+        aiScopeTable,
       })
     } catch (aiError: unknown) {
       // AI failed -- fall back to static analysis (which is now context-aware)

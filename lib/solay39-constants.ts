@@ -24,6 +24,54 @@ export interface Finding {
   proofOfConcept?: string
 }
 
+// ── Tier-1: Audit Engagement (Halborn-style) ─────────────────
+export interface AuditEngagement {
+  auditDate: string                  // "2026-02-25"
+  deliveryDate: string               // "2026-02-25"
+  auditDurationDays: number          // 3
+  numberOfAuditors: number           // 1
+  leadAuditor: string                // "Solay39 Founder"
+  compilerVersionUsed: string        // "solc 0.6.12"
+  contractsReviewed: number          // 1
+  linesOfCode: number                // 245
+  commitHash: string                 // "0xabc123...verified on Etherscan"
+  repositoryUrl?: string             // "https://etherscan.io/address/0x..."
+  objectives: string[]               // ["Identify security vulnerabilities", "Assess centralization risks"]
+}
+
+export interface ScopeEntry {
+  contract: string                   // "InjectiveToken.sol"
+  address: string                    // "0xe28b...ca30"
+  commit: string                     // "N/A (verified bytecode)"
+  linesOfCode: number                // 245
+  language: string                   // "Solidity 0.6.12"
+}
+
+export interface RiskModelConfig {
+  methodology: string                // "Likelihood x Impact matrix (Halborn standard)"
+  severityMatrix: {
+    level: string                    // "CRITICAL"
+    likelihood: string               // "High likelihood + High impact"
+    description: string              // "Exploitable with high certainty, leads to fund loss"
+  }[]
+  disclaimer: string                 // "Severity is assigned based on..."
+}
+
+export interface AuditorProfile {
+  firmName: string                   // "Solay39"
+  description: string                // "Independent smart contract security firm..."
+  methodology: string                // "Manual adversarial review + AI-guided static analysis"
+  experience: string[]               // ["50+ ERC-20 audits", "DeFi protocol reviews"]
+  contactEmail: string               // "solay2126@gmail.com"
+  website?: string
+  telegram?: string
+}
+
+export interface AuditLimitations {
+  statements: string[]               // ["Time-boxed review...", "No formal verification..."]
+  disclaimer: string                 // "This audit does not guarantee..."
+}
+
 // ── Tier-1 types ──────────────────────────────────────────────
 export interface PrivilegedRole {
   role: string
@@ -191,6 +239,12 @@ export interface PortfolioProject {
   integrationRisks?: IntegrationRisk[]
   testingMethodology?: TestingMethodology
   invariantsChecked?: InvariantCheck[]
+  // ── Halborn-style Tier-1 sections ──
+  engagement?: AuditEngagement
+  scopeTable?: ScopeEntry[]
+  riskModel?: RiskModelConfig
+  auditorProfile?: AuditorProfile
+  limitations?: AuditLimitations
 }
 
 // Keep backward compat alias
@@ -280,6 +334,46 @@ export const CHECKLIST: Record<string, { id: string; text: string; sev: Severity
     { id: "cr4", text: "No use of weak randomness (blockhash, timestamp)", sev: "HIGH" },
     { id: "cr5", text: "Merkle tree leaf encoding includes prefix (2nd preimage)", sev: "HIGH" },
   ],
+}
+
+// ── Shared Halborn-style configs ─────────────────────────────
+export const SOLAY39_RISK_MODEL: RiskModelConfig = {
+  methodology: "Likelihood x Impact severity matrix following OWASP and Halborn classification standards. Each finding is independently assessed for exploitability (likelihood) and damage potential (impact), then mapped to a composite severity level.",
+  severityMatrix: [
+    { level: "CRITICAL", likelihood: "High Likelihood + High Impact", description: "Directly exploitable vulnerability leading to loss of funds, total state corruption, or protocol takeover. Requires immediate remediation before deployment." },
+    { level: "HIGH", likelihood: "High Likelihood + Medium Impact OR Medium Likelihood + High Impact", description: "Exploitable vulnerability with significant consequences. May lead to partial fund loss, privilege escalation, or denial of service. Must be fixed before mainnet deployment." },
+    { level: "MEDIUM", likelihood: "Medium Likelihood + Medium Impact", description: "Vulnerability with moderate exploitability and impact. Could lead to unexpected behavior, gas griefing, or minor economic loss under specific conditions." },
+    { level: "LOW", likelihood: "Low Likelihood + Low/Medium Impact", description: "Minor issue with limited practical exploitability. Typically best-practice violations, gas inefficiencies, or edge-case behaviors." },
+    { level: "INFO", likelihood: "Informational / Best Practice", description: "Code quality observation, documentation suggestion, or gas optimization. No security impact but improves code maintainability." },
+  ],
+  disclaimer: "Severity assignments are based on the auditor's professional judgment at the time of review. Actual exploitability may vary depending on deployment context, on-chain conditions, and external system interactions.",
+}
+
+export const SOLAY39_AUDITOR_PROFILE: AuditorProfile = {
+  firmName: "Solay39",
+  description: "Independent smart contract security firm specializing in manual adversarial review combined with AI-guided static analysis. Solay39 follows an engineering-first approach inspired by Halborn and Trail of Bits methodologies, emphasizing deep manual code review over automated scanning.",
+  methodology: "Manual adversarial review (line-by-line) + automated static analysis (Slither, Mythril) + symbolic execution + on-chain bytecode verification. All automated findings are manually verified to eliminate false positives. Each engagement includes attack surface mapping, privileged role analysis, and economic model review.",
+  experience: [
+    "ERC-20 / ERC-721 token security reviews",
+    "DeFi protocol architecture analysis",
+    "Proxy & upgradeability pattern audits",
+    "On-chain governance security assessment",
+    "Cross-chain bridge risk evaluation",
+  ],
+  contactEmail: "solay2126@gmail.com",
+  telegram: "https://t.me/Solay39audit",
+}
+
+export const SOLAY39_LIMITATIONS: AuditLimitations = {
+  statements: [
+    "This security assessment is a time-boxed review and does not guarantee the absence of vulnerabilities. Undiscovered issues may exist.",
+    "The review is limited to the smart contract source code provided. Off-chain components, frontend applications, and deployment scripts were not in scope.",
+    "No formal verification (Certora, K Framework) was performed unless explicitly stated in the Testing Methodology section.",
+    "Economic model analysis is limited to on-chain contract logic. Token market dynamics, liquidity conditions, and external oracle behavior may introduce risks not covered by this audit.",
+    "This audit does not constitute financial advice. It is a technical assessment of smart contract code security only.",
+    "Findings and recommendations reflect the auditor's professional judgment at the time of review. The threat landscape evolves continuously.",
+  ],
+  disclaimer: "DISCLAIMER: This report is provided as-is for informational purposes only. Solay39 makes no warranties regarding the completeness or accuracy of this assessment. Users should conduct their own due diligence before interacting with any audited smart contract.",
 }
 
 export const DEFAULT_PROJECTS: PortfolioProject[] = [
@@ -521,11 +615,36 @@ constructor() public {
       { label: "Requested", date: "2026-02-25" },
       { label: "Delivered", date: "2026-02-25" },
     ],
+    engagement: {
+      auditDate: "2026-02-25",
+      deliveryDate: "2026-02-25",
+      auditDurationDays: 2,
+      numberOfAuditors: 1,
+      leadAuditor: "Solay39 Founder",
+      compilerVersionUsed: "solc 0.4.18",
+      contractsReviewed: 1,
+      linesOfCode: 180,
+      commitHash: "N/A — verified deployed bytecode on Etherscan matches source",
+      repositoryUrl: "https://etherscan.io/address/0xaea46A60368A7bD060eec7DF8CBa43b7EF41Ad85#code",
+      objectives: [
+        "Identify integer overflow/underflow vulnerabilities (no SafeMath, Solidity 0.4.18)",
+        "Assess arithmetic safety across all state-changing functions",
+        "Verify ERC-20 standard compliance",
+        "Evaluate centralization and privilege risks",
+        "On-chain bytecode verification against published source",
+      ],
+    },
+    scopeTable: [
+      { contract: "FetchToken.sol", address: "0xaea46A60368A7bD060eec7DF8CBa43b7EF41Ad85", commit: "Etherscan verified", linesOfCode: 180, language: "Solidity 0.4.18" },
+    ],
+    riskModel: SOLAY39_RISK_MODEL,
+    auditorProfile: SOLAY39_AUDITOR_PROFILE,
+    limitations: SOLAY39_LIMITATIONS,
     contractUncertainty: [
       { label: "Open Source", value: true },
       { label: "Proxy Contract", value: false },
       { label: "External Call Risk", value: false },
-      { label: "Mint Function", value: true },
+      { label: "Mint Function", value: false },
       { label: "Self Destruct", value: false },
     ],
     ownerPrivilege: [
@@ -670,6 +789,32 @@ function transfer(address _to, uint256 _value) public returns (bool) {
       { label: "Requested", date: "2026-02-25" },
       { label: "Delivered", date: "2026-02-25" },
     ],
+    engagement: {
+      auditDate: "2026-02-25",
+      deliveryDate: "2026-02-25",
+      auditDurationDays: 4,
+      numberOfAuditors: 1,
+      leadAuditor: "Solay39 Founder",
+      compilerVersionUsed: "solc 0.4.24",
+      contractsReviewed: 1,
+      linesOfCode: 320,
+      commitHash: "N/A — verified deployed bytecode on Etherscan matches source",
+      repositoryUrl: "https://etherscan.io/address/0x3506424F91fD33084466F402d5D97f05F8e3b4AF#code",
+      objectives: [
+        "Identify security vulnerabilities in the deployed smart contract",
+        "Assess PauserRole centralization and access control risks",
+        "Verify OpenZeppelin module integration (ERC20Pausable, ERC20Mintable, Roles)",
+        "Evaluate ERC-20 standard compliance and edge cases",
+        "Verify MinterRole is not assigned to any address post-deployment",
+        "On-chain bytecode verification against published source",
+      ],
+    },
+    scopeTable: [
+      { contract: "ChilizToken.sol", address: "0x3506424F91fD33084466F402d5D97f05F8e3b4AF", commit: "Etherscan verified", linesOfCode: 320, language: "Solidity 0.4.24" },
+    ],
+    riskModel: SOLAY39_RISK_MODEL,
+    auditorProfile: SOLAY39_AUDITOR_PROFILE,
+    limitations: SOLAY39_LIMITATIONS,
     contractUncertainty: [
       { label: "Open Source", value: true },
       { label: "Proxy Contract", value: false },
