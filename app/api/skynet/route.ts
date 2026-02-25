@@ -212,7 +212,7 @@ function staticAnalysis(code: string, meta: ContractMeta): Finding[] {
   const hasRequireSender = /require\s*\(\s*msg\.sender/.test(code)
 
   /* ── 1. Reentrancy ── */
-  if (hasExternalCall || hasTransferETH) {
+  if (hasExternalCalls || hasTransferETH) {
     // Only flag if there are REAL external calls, not just ERC-20 transfer mapping updates
     if (!isERC20 || !hasOnlyMappingOps) {
       // Check if state changes happen AFTER external calls (the actual vulnerability pattern)
