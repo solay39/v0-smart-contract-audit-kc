@@ -3,8 +3,8 @@
 // ═══════════════════════════════════════════════════════════════════
 
 // Token contract addresses (Ethereum mainnet)
-const TOKEN_CONTRACTS: Record<string, string> = {
-  // Real audited tokens — Ethereum mainnet contract addresses
+// Base set of known audited tokens
+const BASE_TOKENS: Record<string, string> = {
   INJ: "0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30",
   FET: "0xaea46A60368A7bD060eec7DF8CBa43b7EF41Ad85",
   CHZ: "0x3506424F91fD33084466F402d5D97f05F8e3b4AF",
@@ -20,12 +20,28 @@ interface TokenPriceData {
 }
 
 // Cache to respect GeckoTerminal 10 calls/min limit
-let priceCache: { data: Record<string, TokenPriceData>; timestamp: number } | null = null
+let priceCache: { data: Record<string, TokenPriceData>; timestamp: number; key: string } | null = null
 const CACHE_TTL = 60_000 // 60 seconds
 
-export async function GET() {
-  // Return cached data if fresh
-  if (priceCache && Date.now() - priceCache.timestamp < CACHE_TTL) {
+export async function GET(req: Request) {
+  // Accept extra tokens from query params: ?extra=TICKER:address,TICKER2:address2
+  const url = new URL(req.url)
+  const extraParam = url.searchParams.get("extra") || ""
+  const TOKEN_CONTRACTS: Record<string, string> = { ...BASE_TOKENS }
+  if (extraParam) {
+    for (const pair of extraParam.split(",")) {
+      const [ticker, addr] = pair.split(":")
+      if (ticker && addr && /^0x[a-fA-F0-9]{40}$/.test(addr)) {
+        TOKEN_CONTRACTS[ticker.toUpperCase()] = addr
+      }
+    }
+  }
+
+  // Build cache key that includes extras
+  const cacheKey = Object.keys(TOKEN_CONTRACTS).sort().join(",")
+
+  // Return cached data if fresh and same token set
+  if (priceCache && Date.now() - priceCache.timestamp < CACHE_TTL && priceCache.key === cacheKey) {
     return Response.json({ prices: priceCache.data, cached: true })
   }
 
@@ -67,7 +83,7 @@ export async function GET() {
     // Use the top pool for each token
     const pricesWithChange = await enrichWith24hChange(prices)
 
-    priceCache = { data: pricesWithChange, timestamp: Date.now() }
+    priceCache = { data: pricesWithChange, timestamp: Date.now(), key: cacheKey }
     return Response.json({ prices: pricesWithChange, cached: false })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)

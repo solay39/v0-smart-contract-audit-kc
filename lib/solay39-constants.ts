@@ -69,16 +69,23 @@ export interface PortfolioProject {
   centralizationLevel?: "Low" | "Medium" | "High"
   centralizationRisk?: "Low" | "Medium" | "High"
   // CertiK-style extended
+  logoUrl?: string
   description?: string
   website?: string
   tags?: string[]
   socials?: { type: string; url: string }[]
+  telegram?: string
+  twitter?: string
+  discord?: string
   auditTimeline?: { label: string; date: string }[]
   contractUncertainty?: { label: string; value: boolean }[]
   ownerPrivilege?: { label: string; value: string | boolean }[]
   tokenAge?: string
   creatorAddress?: string
   githubUrl?: string
+  totalSupply?: string
+  volume24h?: string
+  fdv?: string
 }
 
 // Keep backward compat alias

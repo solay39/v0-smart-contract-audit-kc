@@ -27,26 +27,25 @@ export function getPublishedAudits(): PortfolioProject[] {
 
 export function savePublishedAudit(project: PortfolioProject) {
   const existing = getPublishedAudits()
-  // Deduplicate by id OR by normalized name
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
   const idx = existing.findIndex(
     (p) => p.id === project.id || norm(p.name) === norm(project.name)
   )
-  // Inherit price/market data from DEFAULT_PROJECTS if not set
-  if (!project.price) {
-    const match = DEFAULT_PROJECTS.find((dp) => norm(dp.name) === norm(project.name))
-    if (match) {
-      project.price = match.price
-      project.change24h = match.change24h
-      project.tvl = project.tvl || match.tvl
-      project.ticker = project.ticker || match.ticker
-      project.tags = project.tags || match.tags
-      project.description = project.description || match.description
-      project.website = project.website || match.website
-    }
-  }
   if (idx >= 0) {
-    existing[idx] = project
+    // Merge: keep new data but preserve old fields that are missing in new
+    const old = existing[idx]
+    existing[idx] = {
+      ...old,
+      ...project,
+      logoUrl: project.logoUrl || old.logoUrl,
+      description: project.description || old.description,
+      website: project.website || old.website,
+      githubUrl: project.githubUrl || old.githubUrl,
+      telegram: project.telegram || old.telegram,
+      twitter: project.twitter || old.twitter,
+      discord: project.discord || old.discord,
+      tags: project.tags?.length ? project.tags : old.tags,
+    }
   } else {
     existing.unshift(project)
   }
@@ -77,13 +76,44 @@ function NetworkIcon({ network }: { network: string }) {
   )
 }
 
-// ── Token Logo (first letter styled) ─────────────────────────────
-function TokenLogo({ name, score }: { name: string; score: number }) {
+// ── Token Logo (real image from CoinGecko or fallback letter) ────
+function TokenLogo({ name, score, logoUrl, size = 40 }: { name: string; score: number; logoUrl?: string; size?: number }) {
   const col = scoreColor(score)
+  const [imgError, setImgError] = useState(false)
+
+  if (logoUrl && !imgError) {
+    return (
+      <div
+        className="shrink-0 overflow-hidden"
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size > 32 ? 8 : 4,
+          border: `1px solid ${col}33`,
+          background: `${col}08`,
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={logoUrl}
+          alt={`${name} logo`}
+          width={size}
+          height={size}
+          className="block object-cover"
+          style={{ width: size, height: size }}
+          onError={() => setImgError(true)}
+        />
+      </div>
+    )
+  }
+
   return (
     <div
-      className="w-10 h-10 flex items-center justify-center text-sm font-bold shrink-0"
+      className="flex items-center justify-center text-sm font-bold shrink-0"
       style={{
+        width: size,
+        height: size,
+        borderRadius: size > 32 ? 8 : 4,
         background: `${col}11`,
         border: `1px solid ${col}33`,
         color: col,
@@ -205,7 +235,7 @@ function ProjectDetail({ p, onBack, isLive }: { p: PortfolioProject; onBack: () 
           <div className="flex gap-6 sm:gap-10 items-start flex-col sm:flex-row">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2 flex-wrap">
-                <TokenLogo name={p.name} score={p.score} />
+                <TokenLogo name={p.name} score={p.score} logoUrl={p.logoUrl} size={48} />
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <h1 className="text-xl sm:text-2xl font-bold text-s39-white leading-tight">{p.name}</h1>
@@ -583,25 +613,49 @@ function ProjectDetail({ p, onBack, isLive }: { p: PortfolioProject; onBack: () 
         )}
 
         {/* ── Socials / GitHub ── */}
-        {(p.githubUrl || p.website) && (
+        {(p.githubUrl || p.website || p.telegram || p.twitter || p.discord || p.contractAddress) && (
           <div className="bg-s39-bg1 border border-s39-border p-5 mb-4">
-            <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">LINKS</div>
-            <div className="flex gap-4 flex-wrap">
+            <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">LINKS & SOCIALS</div>
+            <div className="flex gap-3 flex-wrap">
               {p.website && (
                 <a href={p.website} target="_blank" rel="noreferrer"
-                  className="text-[10px] text-s39-cyan border border-s39-cyan/20 px-3 py-1.5 hover:bg-s39-cyan/5 transition-colors">
+                  className="text-[10px] text-s39-cyan border border-s39-cyan/20 px-3 py-1.5 hover:bg-s39-cyan/5 transition-colors flex items-center gap-1.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
                   Website
                 </a>
               )}
               {p.githubUrl && (
                 <a href={p.githubUrl} target="_blank" rel="noreferrer"
-                  className="text-[10px] text-s39-mid border border-s39-border px-3 py-1.5 hover:bg-s39-bg2 transition-colors">
+                  className="text-[10px] text-s39-mid border border-s39-border px-3 py-1.5 hover:bg-s39-bg2 transition-colors flex items-center gap-1.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
                   GitHub
+                </a>
+              )}
+              {p.twitter && (
+                <a href={p.twitter} target="_blank" rel="noreferrer"
+                  className="text-[10px] text-s39-mid border border-s39-border px-3 py-1.5 hover:bg-s39-bg2 transition-colors flex items-center gap-1.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                  X / Twitter
+                </a>
+              )}
+              {p.telegram && (
+                <a href={p.telegram} target="_blank" rel="noreferrer"
+                  className="text-[10px] text-s39-mid border border-s39-border px-3 py-1.5 hover:bg-s39-bg2 transition-colors flex items-center gap-1.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                  Telegram
+                </a>
+              )}
+              {p.discord && (
+                <a href={p.discord} target="_blank" rel="noreferrer"
+                  className="text-[10px] text-s39-mid border border-s39-border px-3 py-1.5 hover:bg-s39-bg2 transition-colors flex items-center gap-1.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286z"/></svg>
+                  Discord
                 </a>
               )}
               {p.contractAddress && (
                 <a href={`https://etherscan.io/address/${p.contractAddress}`} target="_blank" rel="noreferrer"
-                  className="text-[10px] text-s39-mid border border-s39-border px-3 py-1.5 hover:bg-s39-bg2 transition-colors">
+                  className="text-[10px] text-s39-mid border border-s39-border px-3 py-1.5 hover:bg-s39-bg2 transition-colors flex items-center gap-1.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
                   Etherscan
                 </a>
               )}
@@ -729,12 +783,18 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
   // Merge default + published audits
   const [allProjects, setAllProjects] = useState<PortfolioProject[]>(DEFAULT_PROJECTS)
 
-  // Fetch live prices from GeckoTerminal API
+  // Fetch live prices from GeckoTerminal API (including dynamically published tokens)
   useEffect(() => {
     let mounted = true
     async function fetchPrices() {
       try {
-        const res = await fetch("/api/prices")
+        // Build extra tokens param from published projects
+        const extraTokens = allProjects
+          .filter((p) => p.ticker && p.contractAddress && /^0x[a-fA-F0-9]{40}$/.test(p.contractAddress))
+          .map((p) => `${p.ticker}:${p.contractAddress}`)
+          .join(",")
+        const qs = extraTokens ? `?extra=${encodeURIComponent(extraTokens)}` : ""
+        const res = await fetch(`/api/prices${qs}`)
         if (!res.ok) throw new Error("Price fetch failed")
         const data = await res.json()
         if (mounted && data.prices) {
@@ -750,18 +810,18 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
     // Refresh prices every 60s
     const interval = setInterval(fetchPrices, 60_000)
     return () => { mounted = false; clearInterval(interval) }
-  }, [])
+  }, [allProjects])
 
-  // Apply live prices to projects
+  // Apply live prices to projects (match by ticker or contractAddress)
   const projectsWithPrices = allProjects.map((p) => {
-    if (!p.ticker) return p
-    const lp = livePrices[p.ticker]
+    const lp = p.ticker ? livePrices[p.ticker] : undefined
     if (!lp) return p
     return {
       ...p,
-      price: lp.price,
+      price: lp.price || p.price,
       change24h: lp.change24h || p.change24h,
       tvl: lp.marketCap || p.tvl,
+      volume24h: lp.volume24h || p.volume24h,
     }
   })
 
@@ -939,7 +999,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                     className="bg-s39-bg1 border border-s39-border p-4 cursor-pointer hover:border-s39-green/30 transition-all group"
                   >
                     <div className="flex items-center gap-3 mb-3">
-                      <TokenLogo name={p.name} score={p.score} />
+                      <TokenLogo name={p.name} score={p.score} logoUrl={p.logoUrl} />
                       <div className="min-w-0">
                         <div className="text-[11px] font-bold text-s39-white truncate group-hover:text-s39-green transition-colors">
                           {p.name}
@@ -992,7 +1052,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                   className="bg-s39-bg1 border border-s39-border p-3 min-w-[140px] cursor-pointer hover:border-s39-green/30 transition-colors shrink-0"
                 >
                   <div className="flex items-center gap-2 mb-2">
-                    <TokenLogo name={p.name} score={p.score} />
+                    <TokenLogo name={p.name} score={p.score} logoUrl={p.logoUrl} />
                     <div className="text-[10px] font-bold text-s39-white truncate max-w-[80px]">{p.name}</div>
                   </div>
                   <div className="flex items-center justify-between">
@@ -1047,7 +1107,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                 >
                   <div className={`text-[10px] font-bold ${rankColor}`}>#{i + 1}</div>
                   <div className="flex items-center gap-3 min-w-0">
-                    <TokenLogo name={p.name} score={p.score} />
+                    <TokenLogo name={p.name} score={p.score} logoUrl={p.logoUrl} />
                     <div className="min-w-0">
                       <div className="text-[11px] font-bold text-s39-white truncate">{p.name}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
@@ -1114,7 +1174,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <TokenLogo name={p.name} score={p.score} />
+                      <TokenLogo name={p.name} score={p.score} logoUrl={p.logoUrl} />
                       <div className="min-w-0">
                         <div className="text-[11px] font-bold text-s39-white truncate">
                           #{i + 1} {p.name}

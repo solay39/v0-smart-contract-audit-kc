@@ -114,12 +114,63 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     const lows = findings.filter((f) => f.severity === "LOW" && f.status === "OPEN").length
     const infos = findings.filter((f) => f.severity === "INFO" && f.status === "OPEN").length
 
+    // ── Step 1: Auto-fetch token metadata from blockchain APIs ──
+    let tokenMeta: {
+      ticker?: string; price?: string; change24h?: string; marketCap?: string
+      logoUrl?: string; description?: string; website?: string; githubUrl?: string
+      telegram?: string; twitter?: string; discord?: string; tags?: string[]
+      totalSupply?: string; tokenAge?: string; fdv?: string; volume24h?: string
+      resolvedName?: string
+    } = {}
+
+    const contractAddr = project.commit?.trim()
+    if (contractAddr && /^0x[a-fA-F0-9]{40}$/.test(contractAddr)) {
+      try {
+        const infoRes = await fetch("/api/token-info", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address: contractAddr, network: project.network || "Ethereum" }),
+        })
+        if (infoRes.ok) {
+          const { token } = await infoRes.json()
+          if (token) {
+            tokenMeta = {
+              ticker: token.ticker || undefined,
+              price: token.price !== "N/A" ? token.price : undefined,
+              change24h: token.change24h !== "N/A" ? token.change24h : undefined,
+              marketCap: token.marketCap !== "N/A" ? token.marketCap : undefined,
+              logoUrl: token.logoUrl || undefined,
+              description: token.description || undefined,
+              website: token.website || undefined,
+              githubUrl: token.github || undefined,
+              telegram: token.telegram || undefined,
+              twitter: token.twitter || undefined,
+              discord: token.discord || undefined,
+              tags: token.tags?.length > 0 ? token.tags : undefined,
+              totalSupply: token.totalSupply || undefined,
+              tokenAge: token.tokenAge || undefined,
+              fdv: token.fdv !== "N/A" ? token.fdv : undefined,
+              volume24h: token.volume24h !== "N/A" ? token.volume24h : undefined,
+              resolvedName: token.name || undefined,
+            }
+          }
+        }
+      } catch {
+        // Token info fetch is non-critical — continue with manual data
+      }
+    }
+
+    // ── Step 2: Build the portfolio entry with enriched data ──
     const portfolioEntry: PortfolioProject = {
       id: project.name.toLowerCase().replace(/\s+/g, "-") + "-" + Date.now(),
       name: project.name,
+      ticker: tokenMeta.ticker,
       network: project.network || "Ethereum",
       score,
       rating: ratingOf(score),
+      price: tokenMeta.price,
+      change24h: tokenMeta.change24h,
+      tvl: tokenMeta.marketCap,
       criticals: crits,
       highs,
       mediums: meds,
@@ -127,10 +178,26 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       infos,
       date: project.date || new Date().toISOString().slice(0, 10),
       auditor: "Solay39 Founder",
-      contractAddress: project.commit || undefined,
+      contractAddress: contractAddr || undefined,
       scope: project.scope || undefined,
+      logoUrl: tokenMeta.logoUrl,
+      description: tokenMeta.description,
+      website: tokenMeta.website,
+      githubUrl: tokenMeta.githubUrl,
+      telegram: tokenMeta.telegram,
+      twitter: tokenMeta.twitter,
+      discord: tokenMeta.discord,
+      tags: tokenMeta.tags,
+      totalSupply: tokenMeta.totalSupply,
+      tokenAge: tokenMeta.tokenAge,
+      fdv: tokenMeta.fdv,
+      volume24h: tokenMeta.volume24h,
       centralizationLevel: "Low",
       centralizationRisk: "Low",
+      auditTimeline: [
+        { label: "Requested", date: project.date || new Date().toISOString().slice(0, 10) },
+        { label: "Delivered", date: new Date().toISOString().slice(0, 10) },
+      ],
       scoreBreakdown: {
         codeSecurity: Math.min(100, score + 2),
         architectureRisk: score,
@@ -149,10 +216,10 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       })),
     }
 
-    // Save to local portfolio store
+    // ── Step 3: Save to local portfolio store ──
     savePublishedAudit(portfolioEntry)
 
-    // Generate PDF as base64 for GitHub upload
+    // ── Step 4: Upload to GitHub ──
     try {
       const fileName = `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${project.date || new Date().toISOString().slice(0, 10)}.pdf`
 
@@ -176,7 +243,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       })
     } catch (err) {
       setPublishResult({
-        success: true, // portfolio was saved locally even if GitHub fails
+        success: true,
         githubError: `GitHub upload failed: ${err instanceof Error ? err.message : String(err)}`,
       })
     }
@@ -358,10 +425,10 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
                     placeholder="Ethereum"
                   />
                   <S39Input
-                    label="Commit Hash"
+                    label="Contract Address"
                     value={project.commit}
                     onChange={(e) => setProject((p) => ({ ...p, commit: e.target.value }))}
-                    placeholder="0x..."
+                    placeholder="0x3506424F91fD33..."
                   />
                   <S39Input
                     label="Audit Date"
