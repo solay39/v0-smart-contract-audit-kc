@@ -488,27 +488,43 @@ CRITICAL RULES — you MUST follow these to avoid false positives:
    - Do NOT rate governance/centralization as "Low" without evidence
    - If ownership is NOT renounced and has privileged functions: centralization is at least "Medium"
 
-7. TIER-1 ANALYSIS SECTIONS (you MUST generate these):
+7. TIER-1 ANALYSIS SECTIONS (you MUST generate ALL of these):
    a) PRIVILEGED ROLES TABLE: List every role (owner, pauser, minter, upgrader, operator, admin) with capabilities and risk if compromised
    b) TRUST ASSUMPTIONS: Write "Users must trust X because Y" for each trust dependency
    c) ARCHITECTURE OVERVIEW: Describe external dependencies, upgradeability, interaction flow, asset custody
    d) ATTACK SURFACE: List where funds can be stolen, state corrupted, or users censored. Include likelihood.
    e) Each finding MUST include a "likelihood" field: "High", "Medium", or "Low"
 
-8. REALISTIC SCORING: NEVER score 100/100. Max is 98. Scale: 96-98 = exceptional, 90-95 = very strong, 80-89 = good.
+8. GOVERNANCE SECURITY (MUST generate):
+   - Does the contract have governance? (hasGovernance: true/false)
+   - If yes: proposal lifecycle, timelock delay, voting mechanism, quorum threshold
+   - Voting risks: flash-loan voting, whale takeover, low quorum, vote buying
+   - If no governance: explain why and set hasGovernance: false
+
+9. UPGRADEABILITY ANALYSIS (MUST generate):
+   - Is the contract upgradeable? (isUpgradeable: true/false)
+   - If proxy: pattern (Transparent/UUPS/Beacon), admin address, storage collision risk, initializer protection
+   - If not upgradeable: confirm and explain
+
+10. ECONOMIC & GAME-THEORY RISKS (MUST generate):
+    - Supply concentration risk, vote buying, incentive misalignment, treasury drain, MEV exposure, oracle manipulation
+    - For each: category, description, severity, mitigation if any
+
+11. INTEGRATION RISKS (MUST generate):
+    - External dependencies: oracles, bridges, DEXes, staking contracts, Snapshot
+    - For each: dependency name, risk type, description, severity
+    - If no external dependencies, return empty array
+
+12. INVARIANTS (MUST generate):
+    - List key invariants the contract should maintain: totalSupply immutability, balance consistency, access control invariants
+    - For each: the invariant statement, whether it holds (true/false), evidence
+
+13. REALISTIC SCORING: NEVER score 100/100. Max is 98. Scale: 96-98 = exceptional, 90-95 = very strong, 80-89 = good.
 
 You MUST respond ONLY with valid JSON (no markdown, no code fences):
 {
   "findings": [
-    {
-      "title": "string",
-      "severity": "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO",
-      "location": "string — specific function or line",
-      "description": "string — detailed technical explanation",
-      "impact": "string — what could happen if exploited",
-      "recommendation": "string — how to fix",
-      "likelihood": "High" | "Medium" | "Low"
-    }
+    { "title": "string", "severity": "CRITICAL|HIGH|MEDIUM|LOW|INFO", "location": "string", "description": "string", "impact": "string", "recommendation": "string", "likelihood": "High|Medium|Low" }
   ],
   "privilegedRoles": [
     { "role": "string", "capabilities": "string", "riskIfCompromised": "string" }
@@ -516,9 +532,34 @@ You MUST respond ONLY with valid JSON (no markdown, no code fences):
   "trustAssumptions": [
     { "statement": "Users must trust X because Y" }
   ],
-  "architectureOverview": "string — describe contract architecture, dependencies, interaction flow",
+  "architectureOverview": "string — contract architecture, dependencies, interaction flow",
   "attackSurface": [
     { "title": "string", "type": "fund-theft|state-corruption|censorship|economic|governance", "description": "string", "likelihood": "High|Medium|Low", "mitigated": true|false }
+  ],
+  "governanceSecurity": {
+    "hasGovernance": true|false,
+    "proposalLifecycle": "string or null",
+    "timelockDelay": "string or null",
+    "timelockBypassRisk": "string or null",
+    "votingMechanism": "string or null",
+    "quorumThreshold": "string or null",
+    "votingRisks": ["string"]
+  },
+  "upgradeabilityAnalysis": {
+    "isUpgradeable": true|false,
+    "proxyPattern": "TransparentProxy|UUPS|Beacon|none",
+    "storageCollisionRisk": "None|Low|Medium|High",
+    "initializerProtection": true|false,
+    "upgradeControl": "string or null"
+  },
+  "economicRisks": [
+    { "title": "string", "category": "vote-buying|supply-concentration|incentive-misalignment|treasury-drain|oracle-manipulation|mev|other", "description": "string", "severity": "High|Medium|Low", "mitigation": "string or null" }
+  ],
+  "integrationRisks": [
+    { "dependency": "string", "riskType": "string", "description": "string", "severity": "High|Medium|Low" }
+  ],
+  "invariantsChecked": [
+    { "invariant": "string", "holds": true|false, "evidence": "string" }
   ]
 }
 
@@ -641,6 +682,56 @@ export async function POST(req: Request) {
           }))
         : []
 
+      // Extract Governance Security
+      const governanceSecurity = parsed.governanceSecurity ? {
+        hasGovernance: !!parsed.governanceSecurity.hasGovernance,
+        proposalLifecycle: parsed.governanceSecurity.proposalLifecycle || null,
+        timelockDelay: parsed.governanceSecurity.timelockDelay || null,
+        timelockBypassRisk: parsed.governanceSecurity.timelockBypassRisk || null,
+        votingMechanism: parsed.governanceSecurity.votingMechanism || null,
+        quorumThreshold: parsed.governanceSecurity.quorumThreshold || null,
+        votingRisks: Array.isArray(parsed.governanceSecurity.votingRisks) ? parsed.governanceSecurity.votingRisks.map(String) : [],
+      } : { hasGovernance: false }
+
+      // Extract Upgradeability Analysis
+      const upgradeabilityAnalysis = parsed.upgradeabilityAnalysis ? {
+        isUpgradeable: !!parsed.upgradeabilityAnalysis.isUpgradeable,
+        proxyPattern: String(parsed.upgradeabilityAnalysis.proxyPattern || "none"),
+        storageCollisionRisk: (["None","Low","Medium","High"].includes(parsed.upgradeabilityAnalysis.storageCollisionRisk) ? parsed.upgradeabilityAnalysis.storageCollisionRisk : "None") as string,
+        initializerProtection: !!parsed.upgradeabilityAnalysis.initializerProtection,
+        upgradeControl: parsed.upgradeabilityAnalysis.upgradeControl || null,
+      } : { isUpgradeable: false, proxyPattern: "none" }
+
+      // Extract Economic Risks
+      const economicRisks = Array.isArray(parsed.economicRisks)
+        ? parsed.economicRisks.map((e: Record<string, string>) => ({
+            title: String(e.title || ""),
+            category: String(e.category || "other"),
+            description: String(e.description || ""),
+            severity: validLikelihoods.includes(e.severity) ? e.severity : "Low",
+            mitigation: e.mitigation || null,
+          }))
+        : []
+
+      // Extract Integration Risks
+      const integrationRisks = Array.isArray(parsed.integrationRisks)
+        ? parsed.integrationRisks.map((ir: Record<string, string>) => ({
+            dependency: String(ir.dependency || ""),
+            riskType: String(ir.riskType || ""),
+            description: String(ir.description || ""),
+            severity: validLikelihoods.includes(ir.severity) ? ir.severity : "Low",
+          }))
+        : []
+
+      // Extract Invariants
+      const invariantsChecked = Array.isArray(parsed.invariantsChecked)
+        ? parsed.invariantsChecked.map((inv: Record<string, string | boolean>) => ({
+            invariant: String(inv.invariant || ""),
+            holds: inv.holds === true,
+            evidence: String(inv.evidence || ""),
+          }))
+        : []
+
       // Compute realistic score breakdown
       const fCount = {
         critical: findings.filter((f: { severity: string }) => f.severity === "CRITICAL").length,
@@ -651,7 +742,7 @@ export async function POST(req: Request) {
       }
       const scoreBreakdown = computeScoreBreakdown(98, meta, fCount)
 
-      // Build tooling section based on what was actually used
+      // Build tooling section
       const toolingUsed = [
         "Solay39 Manual Review",
         "Solay39 Static Analyzer",
@@ -671,6 +762,12 @@ export async function POST(req: Request) {
         architectureOverview,
         attackSurface,
         toolingUsed,
+        // Tier-1 advanced
+        governanceSecurity,
+        upgradeabilityAnalysis,
+        economicRisks,
+        integrationRisks,
+        invariantsChecked,
       })
     } catch (aiError: unknown) {
       // AI failed -- fall back to static analysis (which is now context-aware)

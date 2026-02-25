@@ -72,6 +72,12 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const [architectureOverview, setArchitectureOverview] = useState("")
   const [attackSurface, setAttackSurface] = useState<{ title: string; type: string; description: string; likelihood: string; mitigated: boolean }[]>([])
   const [toolingUsed, setToolingUsed] = useState<string[]>([])
+  // Tier-1 advanced sections
+  const [governanceSecurity, setGovernanceSecurity] = useState<Record<string, unknown> | null>(null)
+  const [upgradeabilityAnalysis, setUpgradeabilityAnalysis] = useState<Record<string, unknown> | null>(null)
+  const [economicRisks, setEconomicRisks] = useState<{ title: string; category: string; description: string; severity: string; mitigation: string | null }[]>([])
+  const [integrationRisks, setIntegrationRisks] = useState<{ dependency: string; riskType: string; description: string; severity: string }[]>([])
+  const [invariantsChecked, setInvariantsChecked] = useState<{ invariant: string; holds: boolean; evidence: string }[]>([])
 
   const allChecks = Object.values(checks).flatMap((c) => Object.values(c))
   const anyChecked = allChecks.some(Boolean)
@@ -259,6 +265,12 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         { label: "Deployment Config Review", status: "pass" as const },
         ...(contractMeta?.hasProxy ? [{ label: "Proxy Storage Layout", status: "pass" as const }] : []),
       ] : undefined,
+      // Tier-1 advanced
+      governanceSecurity: governanceSecurity || undefined,
+      upgradeabilityAnalysis: upgradeabilityAnalysis || undefined,
+      economicRisks: economicRisks.length > 0 ? economicRisks : undefined,
+      integrationRisks: integrationRisks.length > 0 ? integrationRisks : undefined,
+      invariantsChecked: invariantsChecked.length > 0 ? invariantsChecked : undefined,
     }
 
     // ── Step 3: Save to local portfolio store ──
@@ -348,6 +360,12 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       if (data.architectureOverview) setArchitectureOverview(data.architectureOverview)
       if (data.attackSurface) setAttackSurface(data.attackSurface)
       if (data.toolingUsed) setToolingUsed(data.toolingUsed)
+      // Tier-1 advanced
+      if (data.governanceSecurity) setGovernanceSecurity(data.governanceSecurity)
+      if (data.upgradeabilityAnalysis) setUpgradeabilityAnalysis(data.upgradeabilityAnalysis)
+      if (data.economicRisks) setEconomicRisks(data.economicRisks)
+      if (data.integrationRisks) setIntegrationRisks(data.integrationRisks)
+      if (data.invariantsChecked) setInvariantsChecked(data.invariantsChecked)
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error"
       setAiError(`Network error: ${msg}. Check your connection and try again.`)
@@ -431,6 +449,11 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     architectureOverview: architectureOverview || undefined,
     attackSurface: attackSurface.length > 0 ? attackSurface : undefined,
     toolingUsed: toolingUsed.length > 0 ? toolingUsed : undefined,
+    governanceSecurity: governanceSecurity || undefined,
+    upgradeabilityAnalysis: upgradeabilityAnalysis || undefined,
+    economicRisks: economicRisks.length > 0 ? economicRisks : undefined,
+    integrationRisks: integrationRisks.length > 0 ? integrationRisks : undefined,
+    invariantsChecked: invariantsChecked.length > 0 ? invariantsChecked : undefined,
   })}
                   className="w-full"
                 >

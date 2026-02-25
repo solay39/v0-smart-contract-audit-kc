@@ -43,6 +43,51 @@ export interface AttackScenario {
   mitigated: boolean
 }
 
+// ── Tier-1 Governance ─────────────────────────────────────────
+export interface GovernanceSecurity {
+  hasGovernance: boolean
+  proposalLifecycle?: string        // "creation -> voting -> queue -> execution"
+  timelockDelay?: string            // "48h" or "none"
+  timelockBypassRisk?: string       // explanation
+  votingMechanism?: string          // "token-weighted on-chain" / "snapshot off-chain"
+  quorumThreshold?: string          // "4% of total supply"
+  votingRisks?: string[]            // ["flash-loan voting", "whale takeover", "low quorum"]
+}
+
+// ── Tier-1 Upgradeability ─────────────────────────────────────
+export interface UpgradeabilityAnalysis {
+  isUpgradeable: boolean
+  proxyPattern?: string             // "TransparentProxy" / "UUPS" / "Beacon" / "none"
+  adminAddress?: string
+  storageCollisionRisk?: "None" | "Low" | "Medium" | "High"
+  initializerProtection?: boolean
+  upgradeControl?: string           // "multisig" / "single owner" / "timelock"
+}
+
+// ── Tier-1 Economic Risks ─────────────────────────────────────
+export interface EconomicRisk {
+  title: string
+  category: "vote-buying" | "supply-concentration" | "incentive-misalignment" | "treasury-drain" | "oracle-manipulation" | "mev" | "other"
+  description: string
+  severity: "High" | "Medium" | "Low"
+  mitigation?: string
+}
+
+// ── Tier-1 Integration Risks ──────────────────────────────────
+export interface IntegrationRisk {
+  dependency: string                // "Chainlink Oracle" / "Uniswap V3" / "Snapshot"
+  riskType: string                  // "price manipulation" / "bridge failure" / "dependency lock"
+  description: string
+  severity: "High" | "Medium" | "Low"
+}
+
+// ── Tier-1 Invariants ─────────────────────────────────────────
+export interface InvariantCheck {
+  invariant: string                 // "totalSupply never changes after deployment"
+  holds: boolean
+  evidence?: string                 // "No mint() or burn() functions outside constructor"
+}
+
 export interface AuditProject {
   name: string
   network: string
@@ -116,6 +161,12 @@ export interface PortfolioProject {
   attackSurface?: AttackScenario[]
   toolingUsed?: string[]
   onChainValidation?: { label: string; status: "pass" | "fail" | "n/a"; detail?: string }[]
+  // ── Tier-1 advanced sections ──
+  governanceSecurity?: GovernanceSecurity
+  upgradeabilityAnalysis?: UpgradeabilityAnalysis
+  economicRisks?: EconomicRisk[]
+  integrationRisks?: IntegrationRisk[]
+  invariantsChecked?: InvariantCheck[]
 }
 
 // Keep backward compat alias
@@ -280,6 +331,35 @@ export const DEFAULT_PROJECTS: PortfolioProject[] = [
       { label: "Bytecode Match", status: "pass" as const },
       { label: "Deployment Config Review", status: "pass" as const },
     ],
+    // Tier-1 advanced
+    governanceSecurity: {
+      hasGovernance: false,
+      proposalLifecycle: null,
+      timelockDelay: null,
+      timelockBypassRisk: null,
+      votingMechanism: null,
+      quorumThreshold: null,
+      votingRisks: [],
+    },
+    upgradeabilityAnalysis: {
+      isUpgradeable: false,
+      proxyPattern: "none",
+      storageCollisionRisk: "None" as const,
+      initializerProtection: false,
+      upgradeControl: null,
+    },
+    economicRisks: [
+      { title: "Initial Supply Concentration", category: "supply-concentration" as const, description: "100% of supply minted to single deployer address at construction. Market price can be manipulated by initial holder.", severity: "Medium" as const, mitigation: "Ownership renounced; supply distributed via exchanges and vesting." },
+      { title: "Approve Race Condition", category: "other" as const, description: "The standard ERC-20 approve() is susceptible to front-running that can extract more tokens than intended during an allowance change.", severity: "Low" as const, mitigation: "Use increaseAllowance/decreaseAllowance patterns." },
+    ],
+    integrationRisks: [
+      { dependency: "No external dependencies", riskType: "none", description: "This is a standalone ERC-20 token with no oracle, bridge, or external contract dependencies.", severity: "Low" as const },
+    ],
+    invariantsChecked: [
+      { invariant: "totalSupply never changes after deployment", holds: true, evidence: "No mint() or burn() functions outside constructor. Supply is immutable." },
+      { invariant: "balances[a] + balances[b] <= totalSupply for all a,b", holds: true, evidence: "SafeMath prevents overflow; transfer logic preserves conservation." },
+      { invariant: "No privileged functions post-renounce", holds: true, evidence: "Ownership renounced. No admin, pause, or mint functions callable." },
+    ],
   },
   {
     id: "fetch-token",
@@ -350,6 +430,27 @@ export const DEFAULT_PROJECTS: PortfolioProject[] = [
       { label: "Source Code Verified", status: "pass" as const },
       { label: "Bytecode Match", status: "pass" as const },
       { label: "Deployment Config Review", status: "pass" as const },
+    ],
+    governanceSecurity: {
+      hasGovernance: false,
+      votingRisks: [],
+    },
+    upgradeabilityAnalysis: {
+      isUpgradeable: false,
+      proxyPattern: "none",
+      storageCollisionRisk: "None" as const,
+      initializerProtection: false,
+    },
+    economicRisks: [
+      { title: "Integer Overflow Exploitation", category: "other" as const, description: "Solidity < 0.8.0 without SafeMath allows arithmetic overflow. Attacker could craft transactions exploiting uint256 wrap-around.", severity: "High" as const, mitigation: "Upgrade compiler or add SafeMath." },
+      { title: "Supply Concentration at Genesis", category: "supply-concentration" as const, description: "Full supply minted to deployer. Risk of market manipulation.", severity: "Medium" as const, mitigation: "Transparent distribution records." },
+    ],
+    integrationRisks: [
+      { dependency: "No external dependencies", riskType: "none", description: "Standalone ERC-20 with no oracle or bridge dependencies.", severity: "Low" as const },
+    ],
+    invariantsChecked: [
+      { invariant: "totalSupply immutability", holds: true, evidence: "No mint/burn post-deployment." },
+      { invariant: "Balance conservation on transfers", holds: false, evidence: "Possible overflow in transfer() due to missing SafeMath could break conservation." },
     ],
   },
   {
@@ -426,6 +527,28 @@ export const DEFAULT_PROJECTS: PortfolioProject[] = [
       { label: "Source Code Verified", status: "pass" as const },
       { label: "Bytecode Match", status: "pass" as const },
       { label: "Deployment Config Review", status: "pass" as const },
+    ],
+    governanceSecurity: {
+      hasGovernance: false,
+      votingRisks: [],
+    },
+    upgradeabilityAnalysis: {
+      isUpgradeable: false,
+      proxyPattern: "none",
+      storageCollisionRisk: "None" as const,
+      initializerProtection: false,
+    },
+    economicRisks: [
+      { title: "Supply Concentration Risk", category: "supply-concentration" as const, description: "Full 8.88B CHZ supply minted to deployer. Centralized initial distribution.", severity: "Medium" as const, mitigation: "Distributed via exchanges and partnerships; deployer wallet monitored." },
+      { title: "Transfer Freeze Risk", category: "other" as const, description: "PauserRole can halt all transfers. If compromised, could be used for market manipulation or censorship.", severity: "Low" as const, mitigation: "PauserRole gated by OpenZeppelin Roles library. Recommend multisig governance." },
+    ],
+    integrationRisks: [
+      { dependency: "OpenZeppelin v2.x", riskType: "dependency lock", description: "Contract relies on OpenZeppelin 2.x (Solidity 0.4.24). Legacy version no longer maintained.", severity: "Low" as const },
+    ],
+    invariantsChecked: [
+      { invariant: "totalSupply immutability (8,888,888,888 CHZ)", holds: true, evidence: "Constructor-only mint. No mint/burn functions post-deploy." },
+      { invariant: "Balance conservation on transfer", holds: true, evidence: "OpenZeppelin SafeMath applied. Overflow protected." },
+      { invariant: "PauserRole access control", holds: true, evidence: "Role gated by OZ Roles library. Cannot be claimed by arbitrary addresses." },
     ],
   },
 ]
