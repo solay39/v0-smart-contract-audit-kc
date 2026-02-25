@@ -183,7 +183,7 @@ function CheckRow({ label, value, danger }: { label: string; value: string | boo
   )
 }
 
-function ProjectDetail({ p, onBack }: { p: PortfolioProject; onBack: () => void }) {
+function ProjectDetail({ p, onBack, isLive }: { p: PortfolioProject; onBack: () => void; isLive?: boolean }) {
   const sc = scoreColor(p.score)
   const bd = p.scoreBreakdown
   const totalFindings = p.criticals + p.highs + p.mediums + p.lows + p.infos
@@ -239,9 +239,14 @@ function ProjectDetail({ p, onBack }: { p: PortfolioProject; onBack: () => void 
               {p.price && (
                 <div className="flex gap-6 items-end flex-wrap mb-4">
                   <div>
-                    <div className="text-[8px] text-s39-dim tracking-widest mb-0.5">
-                      Token Price ({p.ticker || p.name.slice(0, 3).toUpperCase()})
-                      <span className="ml-2 text-s39-dim/60">24h</span>
+                    <div className="text-[8px] text-s39-dim tracking-widest mb-0.5 flex items-center gap-2">
+                      <span>Token Price ({p.ticker || p.name.slice(0, 3).toUpperCase()})</span>
+                      {isLive && (
+                        <span className="text-[6px] text-s39-green bg-s39-green/10 border border-s39-green/20 px-1.5 py-px tracking-wider animate-pulse">
+                          LIVE
+                        </span>
+                      )}
+                      <span className="text-s39-dim/60">24h</span>
                     </div>
                     <div className="flex items-end gap-2">
                       <span className="text-lg font-bold text-s39-white">{p.price}</span>
@@ -701,62 +706,113 @@ function MethodologyPage() {
 // ═══════════════════════════════════════════════════════════════════
 // MAIN SKYNET PUBLIC COMPONENT (CertiK-inspired)
 // ═══════════════════════════════════════════════════════════════════
+// Price data type from our API
+interface LivePriceData {
+  ticker: string
+  address: string
+  price: string
+  priceNum: number
+  change24h?: string
+  volume24h?: string
+  marketCap?: string
+}
+
 export function SkynetPublic({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState<"portfolio" | "methodology">("portfolio")
   const [search, setSearch] = useState("")
   const [net, setNet] = useState("all")
   const [sortBy, setSortBy] = useState("score")
   const [detail, setDetail] = useState<PortfolioProject | null>(null)
+  const [livePrices, setLivePrices] = useState<Record<string, LivePriceData>>({})
+  const [priceLoading, setPriceLoading] = useState(true)
 
   // Merge default + published audits
   const [allProjects, setAllProjects] = useState<PortfolioProject[]>(DEFAULT_PROJECTS)
+
+  // Fetch live prices from GeckoTerminal API
+  useEffect(() => {
+    let mounted = true
+    async function fetchPrices() {
+      try {
+        const res = await fetch("/api/prices")
+        if (!res.ok) throw new Error("Price fetch failed")
+        const data = await res.json()
+        if (mounted && data.prices) {
+          setLivePrices(data.prices)
+        }
+      } catch {
+        // Non-critical — prices just won't update
+      } finally {
+        if (mounted) setPriceLoading(false)
+      }
+    }
+    fetchPrices()
+    // Refresh prices every 60s
+    const interval = setInterval(fetchPrices, 60_000)
+    return () => { mounted = false; clearInterval(interval) }
+  }, [])
+
+  // Apply live prices to projects
+  const projectsWithPrices = allProjects.map((p) => {
+    if (!p.ticker) return p
+    const lp = livePrices[p.ticker]
+    if (!lp) return p
+    return {
+      ...p,
+      price: lp.price,
+      change24h: lp.change24h || p.change24h,
+      tvl: lp.marketCap || p.tvl,
+    }
+  })
 
   useEffect(() => {
     const published = getPublishedAudits()
     if (published.length > 0) {
       const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
-      // Remove published entries that duplicate DEFAULT_PROJECTS by name but have less data
+      // Remove stale published entries that now exist in DEFAULT_PROJECTS
       const cleaned = published.filter((pub) => {
         const defaultMatch = DEFAULT_PROJECTS.find((dp) => norm(dp.name) === norm(pub.name))
-        if (defaultMatch && !pub.price && defaultMatch.price) return false // default has more data
+        if (defaultMatch) return false
         return true
       })
       if (cleaned.length !== published.length) {
         localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(cleaned))
       }
-      const merged = [...cleaned]
-      for (const dp of DEFAULT_PROJECTS) {
-        // Deduplicate by id OR by normalized name
-        if (!merged.some((m) => m.id === dp.id || norm(m.name) === norm(dp.name))) {
-          merged.push(dp)
+      const merged = [...DEFAULT_PROJECTS]
+      for (const pub of cleaned) {
+        if (!merged.some((m) => m.id === pub.id || norm(m.name) === norm(pub.name))) {
+          merged.push(pub)
         }
       }
       setAllProjects(merged)
     }
   }, [])
 
-  const filtered = allProjects
+  // Use live prices for all display
+  const displayProjects = projectsWithPrices
+
+  const filtered = displayProjects
     .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
     .filter((p) => net === "all" || p.network === net)
     .sort((a, b) => (sortBy === "score" ? b.score - a.score : a.name.localeCompare(b.name)))
 
-  const networks = [...new Set(allProjects.map((p) => p.network))]
-  const totalTvl = allProjects.reduce((s, p) => {
+  const networks = [...new Set(displayProjects.map((p) => p.network))]
+  const totalTvl = displayProjects.reduce((s, p) => {
     const n = parseFloat((p.tvl || "0").replace(/[^0-9.]/g, ""))
     return s + (isNaN(n) ? 0 : n)
   }, 0)
-  const avgScore = Math.round(allProjects.reduce((s, p) => s + p.score, 0) / allProjects.length)
-  const totalCriticals = allProjects.reduce((s, p) => s + p.criticals, 0)
+  const avgScore = Math.round(displayProjects.reduce((s, p) => s + p.score, 0) / (displayProjects.length || 1))
+  const totalCriticals = displayProjects.reduce((s, p) => s + p.criticals, 0)
 
   // Top Security Score projects (top 4)
-  const topProjects = [...allProjects].sort((a, b) => b.score - a.score).slice(0, 4)
+  const topProjects = [...displayProjects].sort((a, b) => b.score - a.score).slice(0, 4)
 
   // Recently audited (sorted by date desc)
-  const recentProjects = [...allProjects]
+  const recentProjects = [...displayProjects]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 6)
 
-  if (detail) return <ProjectDetail p={detail} onBack={() => setDetail(null)} />
+  if (detail) return <ProjectDetail p={detail} onBack={() => setDetail(null)} isLive={!!livePrices[detail.ticker || ""]} />
 
   return (
     <div className="min-h-dvh bg-s39-bg0">
@@ -857,7 +913,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
             {([
               [`$${totalTvl.toFixed(1)}M`, "TVL Secured", "text-s39-green"],
-              [String(allProjects.length), "Audits Completed", "text-s39-cyan"],
+              [String(displayProjects.length), "Audits Completed", "text-s39-cyan"],
               [String(totalCriticals), "Criticals Found", "text-s39-red"],
               [String(avgScore), "Average Score", "text-s39-yellow"],
             ] as [string, string, string][]).map(([v, l, c]) => (
@@ -901,16 +957,23 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                           {p.rating}
                         </span>
                       </div>
-                      {p.price && (
+                      {p.price ? (
                         <div className="text-right">
-                          <div className="text-[10px] text-s39-lite">{p.price}</div>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <div className="text-[10px] text-s39-lite">{p.price}</div>
+                            {!priceLoading && livePrices[p.ticker || ""] && (
+                              <span className="text-[6px] text-s39-green bg-s39-green/10 px-1 py-px tracking-wider">LIVE</span>
+                            )}
+                          </div>
                           {p.change24h && (
                             <div className={`text-[8px] ${p.change24h.startsWith("+") ? "text-s39-green" : "text-s39-red"}`}>
                               {p.change24h}
                             </div>
                           )}
                         </div>
-                      )}
+                      ) : priceLoading && p.ticker ? (
+                        <div className="text-[8px] text-s39-dim animate-pulse">Loading...</div>
+                      ) : null}
                     </div>
                   </div>
                 )
@@ -989,17 +1052,22 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                       <div className="text-[11px] font-bold text-s39-white truncate">{p.name}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         {p.ticker && <span className="text-[8px] text-s39-dim">{p.ticker}</span>}
-                        {p.price && (
+                        {p.price ? (
                           <>
                             <span className="text-[8px] text-s39-dim">|</span>
                             <span className="text-[8px] text-s39-lite">{p.price}</span>
+                            {!priceLoading && livePrices[p.ticker || ""] && (
+                              <span className="text-[5px] text-s39-green bg-s39-green/10 px-0.5 tracking-wider">LIVE</span>
+                            )}
                             {p.change24h && (
                               <span className={`text-[8px] ${p.change24h.startsWith("+") ? "text-s39-green" : "text-s39-red"}`}>
                                 {p.change24h}
                               </span>
                             )}
                           </>
-                        )}
+                        ) : priceLoading && p.ticker ? (
+                          <span className="text-[8px] text-s39-dim animate-pulse">...</span>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -1054,12 +1122,19 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <NetworkIcon network={p.network} />
                           <span className="text-[8px] text-s39-dim">{p.network}</span>
-                          {p.price && (
+                          {p.price ? (
                             <>
                               <span className="text-[8px] text-s39-dim">|</span>
                               <span className="text-[8px] text-s39-lite">{p.price}</span>
+                              {p.change24h && (
+                                <span className={`text-[7px] ${p.change24h.startsWith("+") ? "text-s39-green" : "text-s39-red"}`}>
+                                  {p.change24h}
+                                </span>
+                              )}
                             </>
-                          )}
+                          ) : priceLoading && p.ticker ? (
+                            <span className="text-[8px] text-s39-dim animate-pulse">...</span>
+                          ) : null}
                         </div>
                       </div>
                     </div>
