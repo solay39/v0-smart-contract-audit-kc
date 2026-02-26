@@ -57,8 +57,6 @@ export async function GET(req: Request) {
     }
   }
 
-  console.log("[v0] Prices API called with", tokens.length, "tokens:", tokens.map(t => `${t.ticker}(${t.network})`).join(", "))
-
   if (tokens.length === 0) {
     return Response.json({ prices: {}, cached: false })
   }
@@ -99,20 +97,13 @@ export async function GET(req: Request) {
               `${GECKO_BASE}/simple/networks/${netId}/token_price/${addrs}`,
               { headers: { Accept: "application/json;version=20230203" }, next: { revalidate: 60 } }
             )
-            if (!res.ok) {
-              console.log(`[v0] GeckoTerminal simple price ${netId} HTTP ${res.status}`)
-              throw new Error(`${res.status}`)
-            }
-            const json = await res.json()
-            const priceMap: Record<string, string> = json?.data?.attributes?.token_prices ?? {}
-            console.log(`[v0] Simple price ${netId}: got ${Object.keys(priceMap).length} prices from ${chunk.length} tokens`)
+            if (!res.ok) throw new Error(`${res.status}`)
+          const json = await res.json()
+          const priceMap: Record<string, string> = json?.data?.attributes?.token_prices ?? {}
 
-            for (const t of chunk) {
-              const raw = priceMap[t.address] ?? priceMap[t.address.toLowerCase()]
-              const num = raw ? parseFloat(raw) : 0
-              if (!raw) {
-                console.log(`[v0] No simple price for ${t.ticker} addr=${t.address.slice(0, 10)}... on ${netId}`)
-              }
+          for (const t of chunk) {
+            const raw = priceMap[t.address] ?? priceMap[t.address.toLowerCase()]
+            const num = raw ? parseFloat(raw) : 0
               prices[t.ticker] = {
                 ticker: t.ticker, address: t.address, network: netId,
                 price: num > 0 ? fmtPrice(num) : "N/A",
@@ -178,12 +169,7 @@ export async function GET(req: Request) {
             else if (isQuote) pp = parseFloat(attr.quote_token_price_usd || "0")
             else pp = parseFloat(attr.base_token_price_usd || "0") || parseFloat(attr.quote_token_price_usd || "0")
 
-            if (pp > 0) {
-              priceNum = pp; price = fmtPrice(pp)
-              console.log(`[v0] Pool fallback price for ${ticker}: ${price}`)
-            } else {
-              console.log(`[v0] Pool fallback FAILED for ${ticker}: basePrice=${attr.base_token_price_usd}, quotePrice=${attr.quote_token_price_usd}, isBase=${isBase}, isQuote=${isQuote}`)
-            }
+            if (pp > 0) { priceNum = pp; price = fmtPrice(pp) }
           }
 
           prices[ticker] = {

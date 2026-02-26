@@ -30,6 +30,7 @@ export interface Finding {
 export interface CodeMetrics {
   totalLOC: number
   totalContracts: number
+  functionsReviewed?: number         // 312
   externalDependencies: string[]    // ["OpenZeppelin 4.9.3", "Chainlink v0.8"]
   upgradeabilityPattern: string     // "UUPS" | "TransparentProxy" | "none"
   standardUsed: string              // "OpenZeppelin 4.9.3"

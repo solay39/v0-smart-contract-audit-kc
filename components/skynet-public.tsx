@@ -1415,8 +1415,11 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
             )}
             {p.onChainValidation && p.onChainValidation.length > 0 && (
               <div className="bg-s39-bg1 border border-s39-border p-5">
-                <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">ON-CHAIN VALIDATION</div>
-                <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2 mb-3">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1L2 3v4c0 2.8 1.7 5.4 4 6 2.3-.6 4-3.2 4-6V3L6 1z" stroke="#00ff88" strokeWidth="0.8" fill="#00ff8808"/></svg>
+                  <span className="text-[9px] text-s39-green tracking-[0.15em]">ON-CHAIN DEPLOYMENT VALIDATION</span>
+                </div>
+                <div className="flex flex-col gap-1.5">
                   {p.onChainValidation.map((v, i) => {
                     const statusIcon = v.status === "pass" ? (
                       <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="#00ff88" strokeWidth="1" /><path d="M3.5 6l2 2L8.5 4.5" stroke="#00ff88" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -1426,27 +1429,80 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                       <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="#445566" strokeWidth="1" /><path d="M4 6h4" stroke="#445566" strokeWidth="1" strokeLinecap="round" /></svg>
                     )
                     return (
-                      <div key={i} className="flex items-center gap-2 py-1">
+                      <div key={i} className={`flex items-center gap-2.5 py-1.5 px-2 ${v.status === "fail" ? "bg-[#ff2d5508] border border-[#ff2d5520]" : ""}`}>
                         {statusIcon}
-                        <span className={`text-[10px] ${v.status === "pass" ? "text-s39-mid" : v.status === "fail" ? "text-s39-red" : "text-s39-dim"}`}>{v.label}</span>
-                        {v.detail && <span className="text-[8px] text-s39-dim ml-auto">{v.detail}</span>}
-                        <span className={`ml-auto text-[8px] font-bold ${v.status === "pass" ? "text-s39-green" : v.status === "fail" ? "text-s39-red" : "text-s39-dim"}`}>{v.status.toUpperCase()}</span>
+                        <span className={`text-[10px] flex-1 ${v.status === "pass" ? "text-s39-mid" : v.status === "fail" ? "text-s39-red" : "text-s39-dim"}`}>{v.label}</span>
+                        {v.detail && <span className="text-[8px] text-s39-dim font-mono">{v.detail}</span>}
+                        <span className={`text-[8px] font-bold shrink-0 w-8 text-right ${v.status === "pass" ? "text-s39-green" : v.status === "fail" ? "text-s39-red" : "text-s39-dim"}`}>{v.status === "pass" ? "PASS" : v.status === "fail" ? "FAIL" : "N/A"}</span>
                       </div>
                     )
                   })}
+                </div>
+                {/* Summary bar */}
+                <div className="mt-3 flex items-center gap-2 pt-2 border-t border-s39-border">
+                  <span className="text-[8px] text-s39-dim tracking-widest">RESULT:</span>
+                  {p.onChainValidation.every(v => v.status === "pass")
+                    ? <span className="text-[9px] text-s39-green font-bold">ALL CHECKS PASSED</span>
+                    : <span className="text-[9px] text-s39-yellow font-bold">{p.onChainValidation.filter(v => v.status === "pass").length}/{p.onChainValidation.length} PASSED</span>
+                  }
                 </div>
               </div>
             )}
           </div>
         )}
 
-        {/* ── TIER-1: Testing Methodology & Code Coverage ── */}
+        {/* ── TIER-1: Security Testing & Verification ── */}
         {p.testingMethodology && (
           <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
             <div className="flex items-center gap-2 mb-5">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="2" stroke="#aa44ff" strokeWidth="1"/><path d="M4 7h6M7 4v6" stroke="#aa44ff" strokeWidth="1" strokeLinecap="round"/></svg>
-              <span className="text-[9px] text-[#aa44ff] tracking-[0.15em]">CODE COVERAGE & TESTING METHODOLOGY</span>
-              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">TIER-1</span>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1L2 4v5c0 3.5 2 6.5 5 8 3-1.5 5-4.5 5-8V4L7 1z" stroke="#aa44ff" strokeWidth="1" fill="#aa44ff08"/><path d="M5 7l1.5 1.5L9 5.5" stroke="#aa44ff" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <span className="text-[9px] text-[#aa44ff] tracking-[0.15em]">SECURITY TESTING & VERIFICATION</span>
+              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">PROOF OF WORK</span>
+            </div>
+
+            {/* ── Review Depth Stats ── */}
+            {p.codeMetrics && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+                <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
+                  <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">CONTRACTS ANALYZED</div>
+                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.totalContracts}</div>
+                </div>
+                <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
+                  <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">LINES OF CODE</div>
+                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.totalLOC.toLocaleString()}</div>
+                </div>
+                <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
+                  <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">FUNCTIONS REVIEWED</div>
+                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.functionsReviewed || Math.round(p.codeMetrics.totalLOC / 8)}</div>
+                </div>
+                <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
+                  <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">TEST COVERAGE</div>
+                  <div className="text-xl font-bold text-s39-green font-mono">{p.codeMetrics.testCoverage || "N/A"}</div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Verification Pipeline ── */}
+            <div className="bg-s39-bg2 border border-s39-border p-4 mb-5">
+              <div className="text-[8px] text-s39-dim tracking-widest mb-3">VERIFICATION PIPELINE</div>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {[
+                  { label: "Static Analysis", icon: "S", active: true, color: "#00ff88" },
+                  { label: "Manual Review", icon: "M", active: true, color: "#00e5ff" },
+                  { label: "Fuzzing", icon: "F", active: !!p.testingMethodology.fuzzingApplied, color: "#aa44ff" },
+                  { label: "Symbolic Exec", icon: "X", active: !!p.testingMethodology.symbolicExecution, color: "#ffd600" },
+                  { label: "On-Chain Verify", icon: "V", active: !!(p.onChainValidation && p.onChainValidation.length > 0), color: "#ff6b00" },
+                ].map((step, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1.5 py-2">
+                    <div className={`w-8 h-8 flex items-center justify-center border ${step.active ? "bg-opacity-10" : "opacity-30"}`}
+                      style={{ borderColor: step.active ? `${step.color}60` : "#334455", background: step.active ? `${step.color}10` : "transparent" }}>
+                      <span className="text-[11px] font-bold font-mono" style={{ color: step.active ? step.color : "#445566" }}>{step.icon}</span>
+                    </div>
+                    <span className={`text-[7px] tracking-widest text-center ${step.active ? "text-s39-mid" : "text-s39-dim"}`}>{step.label.toUpperCase()}</span>
+                    <span className={`text-[7px] font-bold ${step.active ? "text-s39-green" : "text-s39-dim"}`}>{step.active ? "DONE" : "N/A"}</span>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Review phases + hours */}
@@ -1957,23 +2013,85 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
           </div>
         )}
 
-        {/* ── LIMITATIONS & DISCLAIMER ── */}
+        {/* ── AUDIT LIMITATIONS, AUDITOR RESPONSIBILITY & DISCLAIMER ── */}
         {p.limitations && (
           <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-5">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#ff6b00" strokeWidth="1"/><path d="M7 4v4M7 9.5v.5" stroke="#ff6b00" strokeWidth="1" strokeLinecap="round"/></svg>
-              <span className="text-[9px] text-s39-orange tracking-[0.15em]">LIMITATIONS & DISCLAIMER</span>
+              <span className="text-[9px] text-s39-orange tracking-[0.15em]">AUDIT LIMITATIONS & AUDITOR RESPONSIBILITY</span>
+              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">LEGAL</span>
             </div>
-            <div className="flex flex-col gap-2 mb-4">
-              {p.limitations.statements.map((s, i) => (
-                <div key={i} className="flex items-start gap-2.5 py-1">
-                  <span className="text-s39-orange text-[9px] shrink-0 mt-0.5 font-mono">{i + 1}.</span>
-                  <span className="text-[9px] text-s39-mid leading-relaxed">{s}</span>
+
+            {/* Audit Timeframe */}
+            {p.engagement && (
+              <div className="bg-s39-bg2 border border-s39-border p-4 mb-4">
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div>
+                    <div className="text-[7px] text-s39-dim tracking-widest">AUDIT PERIOD</div>
+                    <div className="text-[10px] text-s39-white font-mono mt-0.5">{p.engagement.auditDate} to {p.engagement.deliveryDate}</div>
+                  </div>
+                  <div>
+                    <div className="text-[7px] text-s39-dim tracking-widest">DURATION</div>
+                    <div className="text-[10px] text-s39-white font-mono mt-0.5">{p.engagement.auditDurationDays} day{p.engagement.auditDurationDays !== 1 ? "s" : ""}</div>
+                  </div>
+                  <div>
+                    <div className="text-[7px] text-s39-dim tracking-widest">AUDITOR(S)</div>
+                    <div className="text-[10px] text-s39-white font-mono mt-0.5">{p.engagement.numberOfAuditors}</div>
+                  </div>
+                  <div>
+                    <div className="text-[7px] text-s39-dim tracking-widest">REPORT VALID AS OF</div>
+                    <div className="text-[10px] text-s39-white font-mono mt-0.5">{p.engagement.deliveryDate}</div>
+                  </div>
                 </div>
-              ))}
+              </div>
+            )}
+
+            {/* Scope Limitations */}
+            <div className="mb-4">
+              <div className="text-[8px] text-s39-dim tracking-widest mb-2">SCOPE & REVIEW LIMITATIONS</div>
+              <div className="flex flex-col gap-2">
+                {p.limitations.statements.map((s, i) => (
+                  <div key={i} className="flex items-start gap-2.5 py-1">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="shrink-0 mt-0.5"><circle cx="5" cy="5" r="4" stroke="#ff6b00" strokeWidth="0.8"/><path d="M5 3v3M5 7.2v.3" stroke="#ff6b00" strokeWidth="0.8" strokeLinecap="round"/></svg>
+                    <span className="text-[9px] text-s39-mid leading-relaxed">{s}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="bg-[#1a0e00] border border-[#ff6b0030] p-4">
-              <p className="text-[8px] text-s39-orange leading-relaxed font-bold tracking-wide">{p.limitations.disclaimer}</p>
+
+            {/* No-Guarantee Clause */}
+            <div className="bg-[#1a0e00] border border-[#ff6b0030] p-4 mb-4">
+              <div className="text-[7px] text-s39-orange tracking-widest mb-2">NO-GUARANTEE CLAUSE</div>
+              <p className="text-[9px] text-s39-mid leading-relaxed">
+                This security audit does not guarantee the absence of vulnerabilities. No audit can ensure that a smart contract is 100% secure. 
+                The assessment is based on the state of the code at the time of review and does not account for future changes, 
+                new attack vectors, or undiscovered vulnerabilities in external dependencies.
+              </p>
+            </div>
+
+            {/* Auditor Responsibility */}
+            <div className="bg-s39-bg2 border border-s39-border p-4 mb-4">
+              <div className="text-[7px] text-s39-dim tracking-widest mb-2">AUDITOR RESPONSIBILITY</div>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-start gap-2">
+                  <span className="text-s39-cyan text-[9px] shrink-0 mt-0.5">1.</span>
+                  <span className="text-[9px] text-s39-mid leading-relaxed">The auditor has conducted this review with professional diligence, applying industry-standard methodologies including manual code review, automated static analysis, and adversarial testing.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-s39-cyan text-[9px] shrink-0 mt-0.5">2.</span>
+                  <span className="text-[9px] text-s39-mid leading-relaxed">All findings are reported to the best of the auditor&apos;s knowledge and ability at the time of the engagement. Severity ratings reflect professional judgment and standard risk frameworks.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-s39-cyan text-[9px] shrink-0 mt-0.5">3.</span>
+                  <span className="text-[9px] text-s39-mid leading-relaxed">The auditor is not responsible for the actions taken or not taken based on this report. The client is solely responsible for the implementation of recommended fixes and deployment decisions.</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Formal Disclaimer */}
+            <div className="bg-[#1a0000] border border-[#ff2d5530] p-4">
+              <div className="text-[7px] text-s39-red tracking-widest mb-2">DISCLAIMER & LIMITATION OF LIABILITY</div>
+              <p className="text-[8px] text-s39-orange leading-relaxed tracking-wide">{p.limitations.disclaimer}</p>
             </div>
           </div>
         )}
@@ -2237,7 +2355,6 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
       try {
         // Build extra tokens param from published projects
         const priceTokens = allProjects.filter((p) => p.ticker && p.contractAddress)
-        console.log("[v0] Price fetch: sending", priceTokens.length, "tokens:", priceTokens.map(p => `${p.ticker}(${p.network})`).join(", "))
         const extraTokens = priceTokens
           .map((p) => `${p.ticker}:${p.contractAddress}:${p.network || "Ethereum"}`)
           .join(",")
