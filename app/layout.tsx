@@ -10,21 +10,21 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'SOLAY39 — Smart Contract Security Audit Platform',
-  description: 'Enterprise-grade smart contract security audits. Manual-first audit framework with AI-powered verification. Securing protocols through deep human review.',
+  title: 'SOLAY39 — Security Rating | The Independent Security Standard for Web3',
+  description: 'Independent security ratings for Web3 protocols. Manual-first audit framework with AI-powered verification and transparent penalty-based scoring.',
   generator: 'v0.app',
   metadataBase: new URL('https://www.solay39.eu'),
   openGraph: {
-    title: 'SOLAY39 — Smart Contract Security Audit Platform',
-    description: 'Enterprise-grade smart contract security audits. Manual-first audit framework with AI-powered verification.',
+    title: 'SOLAY39 Security Rating',
+    description: 'The independent security standard for Web3. Manual-first audits with transparent, penalty-based scoring across 6 categories.',
     url: 'https://www.solay39.eu',
-    siteName: 'Solay39 Skynet',
+    siteName: 'SOLAY39 Security Rating',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'SOLAY39 — Smart Contract Security Audit Platform',
-    description: 'Enterprise-grade smart contract security audits. Manual-first audit framework with AI-powered verification.',
+    title: 'SOLAY39 Security Rating',
+    description: 'The independent security standard for Web3. Manual-first audits with transparent, penalty-based scoring across 6 categories.',
   },
   icons: {
     icon: [
