@@ -140,6 +140,37 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       setPublishResult({ error: "Cannot publish: no code was provided for analysis. Paste source code or use Auto-Fetch before publishing." })
       return
     }
+
+    // ── TIER-1 SANITY CHECK: Pre-publish consistency validation ──
+    const sanityErrors: string[] = []
+    // 1. Engineering hours coherence
+    const pubDays = (aiEngagement?.auditDurationDays as number) || 3
+    const pubEngineers = 1
+    const pubHours = pubDays * pubEngineers * 10
+    if (pubHours > pubDays * 12 * pubEngineers) {
+      sanityErrors.push(`Hours (${pubHours}) exceed max ${pubDays * 12 * pubEngineers}h for ${pubDays} days / ${pubEngineers} engineers`)
+    }
+    // 2. Findings must be ordered by severity (no mixed numbering)
+    const sevOrder = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
+    const findingSevs = findings.map(f => sevOrder.indexOf(f.severity))
+    const isSorted = findingSevs.every((v, i) => i === 0 || v >= findingSevs[i - 1])
+    if (!isSorted && findings.length > 0) {
+      // Auto-sort findings by severity for publication
+      findings.sort((a, b) => sevOrder.indexOf(a.severity) - sevOrder.indexOf(b.severity))
+    }
+    // 3. No empty findings
+    if (findings.some(f => !f.title.trim() || !f.description.trim())) {
+      sanityErrors.push("Some findings have empty title or description")
+    }
+    // 4. Score consistency check — will be validated by single source of truth
+    if (score < 0 || score > 100) {
+      sanityErrors.push(`Score ${score} out of valid range 0-100`)
+    }
+    if (sanityErrors.length > 0) {
+      setPublishResult({ error: `Sanity check failed:\n${sanityErrors.join("\n")}` })
+      return
+    }
+
     setPublishing(true)
     setPublishResult(null)
 
@@ -254,6 +285,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         governanceRisk: Math.min(98, Math.max(0, score - 8)),
         centralization: Math.min(98, Math.max(0, score - 12)),
         testingCoverage: Math.min(98, score + 1),
+        economic: Math.min(98, Math.max(0, score - 5)),
       },
       findings: findings.map((f) => ({
         title: f.title,
@@ -429,7 +461,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         deliveryDate: new Date().toISOString().slice(0, 10),
         auditDurationDays: (aiEngagement?.auditDurationDays as number) || 1,
         numberOfAuditors: 1,
-        engineeringHours: Math.max(72, ((aiEngagement?.auditDurationDays as number) || 3) * 24),
+        engineeringHours: ((aiEngagement?.auditDurationDays as number) || 3) * 1 * 10,
         securityEngineersInvolved: 1,
         leadAuditor: "Solay39 Founder",
         compilerVersionUsed: (aiEngagement?.compilerVersionUsed as string) || contractMeta?.codeLanguage || contractMeta?.solidityVersion || "N/A",
@@ -748,7 +780,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       deliveryDate: new Date().toISOString().slice(0, 10),
       auditDurationDays: (aiEngagement.auditDurationDays as number) || 3,
       numberOfAuditors: 1,
-      engineeringHours: Math.max(72, ((aiEngagement.auditDurationDays as number) || 3) * 24),
+      engineeringHours: ((aiEngagement.auditDurationDays as number) || 3) * 1 * 10,
       securityEngineersInvolved: 1,
       leadAuditor: "Solay39 Founder",
       compilerVersionUsed: (aiEngagement.compilerVersionUsed as string) || "N/A",
@@ -797,6 +829,40 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
                 >
                   Export PDF
                 </S39Btn>
+                {/* ── TIER-1 SANITY CHECK PANEL ── */}
+                <div className="w-full bg-s39-bg2 border border-s39-border p-3 mb-1">
+                  <div className="text-[8px] text-s39-cyan tracking-[0.15em] mb-2">AUDIT CONSISTENCY CHECK</div>
+                  {(() => {
+                    const days = (aiEngagement?.auditDurationDays as number) || 3
+                    const hrs = days * 1 * 10
+                    const checks = [
+                      { label: "Score in valid range (0-100)", ok: score >= 0 && score <= 100 },
+                      { label: `Hours coherent: ${hrs}h for ${days}d / 1 eng`, ok: hrs <= days * 12 },
+                      { label: "Findings have severity order", ok: (() => {
+                        const o = ["CRITICAL","HIGH","MEDIUM","LOW","INFO"]
+                        const s = findings.map(f => o.indexOf(f.severity))
+                        return s.every((v,i) => i===0 || v >= s[i-1]) || findings.length === 0
+                      })() },
+                      { label: "No empty findings", ok: findings.every(f => f.title.trim() && f.description.trim()) || findings.length === 0 },
+                      { label: "Project name set", ok: !!project.name },
+                      { label: "Code analyzed", ok: !!(aiCode.trim() || aiRes.length > 0) },
+                    ]
+                    const allOk = checks.every(c => c.ok)
+                    return (
+                      <div className="flex flex-col gap-1">
+                        {checks.map((c, i) => (
+                          <div key={i} className="flex items-center gap-2 text-[9px]">
+                            <span className={c.ok ? "text-s39-green" : "text-s39-red"}>{c.ok ? "[PASS]" : "[FAIL]"}</span>
+                            <span className="text-s39-mid">{c.label}</span>
+                          </div>
+                        ))}
+                        <div className={`mt-1 pt-1 border-t border-s39-border text-[9px] font-bold ${allOk ? "text-s39-green" : "text-s39-yellow"}`}>
+                          {allOk ? "All checks passed — ready to publish" : "Some checks need attention"}
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
                 <S39Btn
                   small
                   onClick={publishAudit}

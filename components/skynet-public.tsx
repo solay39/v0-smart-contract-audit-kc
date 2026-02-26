@@ -11,6 +11,7 @@ import {
   type PortfolioProject,
   type SeverityLevel,
   SEV_RAW_COLORS,
+  assignFindingIds,
 } from "@/lib/solay39-constants"
 import { ScoreRing, S39Btn, SevBadge } from "@/components/solay39-ui"
 import { getExplorer } from "@/lib/explorers"
@@ -544,7 +545,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                   ["Architecture", p.scoreBreakdown.architectureRisk, "#00e5ff", "20%"],
                   ["Governance", p.scoreBreakdown.governanceRisk, "#4488ff", "15%"],
                   ["On-Chain", p.scoreBreakdown.centralization, "#ffd600", "10%"],
-                  ["Economic", Math.round((p.scoreBreakdown.codeSecurity + p.scoreBreakdown.centralization) / 2), "#ff6b00", "10%"],
+                  ["Economic", p.scoreBreakdown.economic ?? Math.round((p.scoreBreakdown.codeSecurity + p.scoreBreakdown.centralization) / 2), "#ff6b00", "10%"],
                   ["Operations", p.scoreBreakdown.testingCoverage, "#aa44ff", "10%"],
                 ] as [string, number, string, string][]).map(([label, val, color, weight]) => (
                   <div key={label} className="bg-s39-bg2 border border-s39-border p-3">
@@ -873,7 +874,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
             <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
               <div className="text-[7px] text-s39-dim tracking-widest mb-1">ENGINEERING HOURS</div>
-              <div className="text-lg font-bold text-s39-green font-mono">{p.engagement?.engineeringHours || Math.max(72, (p.engagement?.auditDurationDays || 3) * 24)}</div>
+              <div className="text-lg font-bold text-s39-green font-mono">{p.engagement?.engineeringHours || (p.engagement?.auditDurationDays || 3) * (p.engagement?.securityEngineersInvolved || 1) * 10}</div>
             </div>
             <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
               <div className="text-[7px] text-s39-dim tracking-widest mb-1">ENGINEERS</div>
@@ -957,7 +958,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 items-center">
                 <div>
                   <div className="text-[7px] text-s39-green tracking-widest mb-1">TOTAL ENGINEERING HOURS</div>
-                  <div className="text-[28px] text-s39-green font-bold font-mono leading-none">{p.engagement.engineeringHours || Math.max(72, p.engagement.auditDurationDays * 24)}<span className="text-[10px] text-s39-dim ml-1">hrs</span></div>
+                  <div className="text-[28px] text-s39-green font-bold font-mono leading-none">{p.engagement.engineeringHours || p.engagement.auditDurationDays * (p.engagement.securityEngineersInvolved || 1) * 10}<span className="text-[10px] text-s39-dim ml-1">hrs</span></div>
                 </div>
                 <div>
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1">SECURITY ENGINEERS INVOLVED</div>
@@ -1168,6 +1169,66 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                 </table>
               </div>
             </div>
+
+            {/* Dependencies & Compiler Compatibility */}
+            <div className="mt-4">
+              <div className="text-[8px] text-s39-dim tracking-widest mb-2">DEPENDENCIES & COMPILER COMPATIBILITY</div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[10px]">
+                  <thead>
+                    <tr className="bg-s39-bg2">
+                      <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">PROPERTY</th>
+                      <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">VALUE</th>
+                      <th className="text-center text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">STATUS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const ver = p.codeMetrics.compilerVersion || ""
+                      const solMajor = ver.match(/0\.(\d+)/)?.[1]
+                      const ozVer = p.codeMetrics.standardUsed || ""
+                      const ozMajor = ozVer.match(/(\d+)\./)?.[1]
+                      // Compatibility check per the standard table
+                      const isCompat = (() => {
+                        if (!solMajor || !ozMajor) return null // unknown
+                        const s = parseInt(solMajor); const o = parseInt(ozMajor)
+                        if (s <= 4 && o <= 2) return true
+                        if (s === 5 && o === 2) return true
+                        if ((s === 6 || s === 7) && o === 3) return true
+                        if (s >= 8 && o >= 4) return true
+                        return false
+                      })()
+                      const rows = [
+                        { prop: "Solidity Version", val: ver || "N/A", ok: !!ver },
+                        { prop: "OpenZeppelin Version", val: ozVer || "N/A", ok: !!ozVer },
+                        { prop: "Compatibility Status", val: isCompat === null ? "Unknown" : isCompat ? "Compatible" : "Mismatch Detected", ok: isCompat !== false },
+                      ]
+                      return rows.map((r, i) => (
+                        <tr key={i} className="border-b border-s39-border last:border-0">
+                          <td className="px-3 py-2 text-s39-mid">{r.prop}</td>
+                          <td className="px-3 py-2 text-s39-white font-mono font-bold">{r.val}</td>
+                          <td className="text-center px-3 py-2">
+                            <span className={`text-[8px] font-bold px-2 py-0.5 border ${r.ok ? "text-s39-green border-s39-green/25 bg-s39-green/5" : "text-s39-red border-s39-red/25 bg-s39-red/5"}`}>
+                              {r.ok ? "OK" : "WARNING"}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    })()}
+                    {/* External dependencies */}
+                    {p.codeMetrics.externalDependencies.map((dep, i) => (
+                      <tr key={`dep-${i}`} className="border-b border-s39-border last:border-0">
+                        <td className="px-3 py-2 text-s39-dim">External Dependency</td>
+                        <td className="px-3 py-2 text-s39-cyan font-mono">{dep}</td>
+                        <td className="text-center px-3 py-2">
+                          <span className="text-[8px] text-s39-dim border border-s39-border px-2 py-0.5">REVIEWED</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1260,14 +1321,13 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                   </tr>
                 </thead>
                 <tbody>
-                  {p.findings.map((f, i) => {
-                    const sevCol = f.severity === "CRITICAL" ? "#ff2d55" : f.severity === "HIGH" ? "#ff6b00" : f.severity === "MEDIUM" ? "#ffd600" : f.severity === "LOW" ? "#00e5ff" : "#00ff88"
+                  {assignFindingIds(p.findings).map((f) => {
+                    const sevCol = SEV_RAW_COLORS[f.severity as SeverityLevel] || "#7a8c9e"
                     const stCol = f.status === "RESOLVED" ? "#00ff88" : f.status === "ACKNOWLEDGED" ? "#ffd600" : f.status === "PARTIALLY_FIXED" ? "#ff6b00" : "#ff2d55"
                     const stIcon = f.status === "RESOLVED" ? "FIXED" : f.status === "ACKNOWLEDGED" ? "ACK" : f.status === "PARTIALLY_FIXED" ? "PARTIAL" : "OPEN"
-                    const sevPfx = f.severity === "CRITICAL" ? "C" : f.severity === "HIGH" ? "H" : f.severity === "MEDIUM" ? "M" : f.severity === "LOW" ? "L" : "I"
                     return (
-                      <tr key={i} className="border-b border-s39-border last:border-0">
-                        <td className="px-3 py-2.5 font-mono font-bold" style={{ color: sevCol }}>{sevPfx}-{String(i + 1).padStart(2, "0")}</td>
+                      <tr key={f.findingId} className="border-b border-s39-border last:border-0">
+                        <td className="px-3 py-2.5 font-mono font-bold" style={{ color: sevCol }}>{f.findingId}</td>
                         <td className="px-3 py-2.5 text-s39-mid">{f.title}</td>
                         <td className="px-3 py-2.5"><span className="text-[8px] font-bold px-2 py-0.5 border" style={{ color: sevCol, borderColor: `${sevCol}40`, background: `${sevCol}10` }}>{f.severity}</span></td>
                         <td className="px-3 py-2.5"><span className="text-[9px] font-bold" style={{ color: stCol }}>{stIcon}</span></td>
@@ -1820,7 +1880,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
             </div>
 
-            {/* ════ 1. STATIC ANALYSIS — Tool Outputs ════ */}
+            {/* ══���═ 1. STATIC ANALYSIS — Tool Outputs ════ */}
             <div className="mb-5">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-2 h-2 bg-s39-green" />
@@ -1860,7 +1920,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
             </div>
 
-            {/* ════ 2. FUZZING — Foundry + Echidna ════ */}
+            {/* ════ 2. FUZZING — Foundry + Echidna ═══��� */}
             {p.testingMethodology.dynamicAnalysisTools && p.testingMethodology.dynamicAnalysisTools.length > 0 && (
               <div className="mb-5">
                 <div className="flex items-center gap-2 mb-3">
@@ -2320,13 +2380,14 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               <span className="text-[9px] text-s39-red tracking-[0.15em]">DETAILED FINDINGS</span>
               <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 12</span>
             </div>
-            {p.findings.map((f, idx) => {
+            {assignFindingIds(p.findings).map((f) => {
               const fColor = SEV_RAW_COLORS[f.severity as SeverityLevel] || "#7a8c9e"
               return (
-                <div key={idx} className="bg-s39-bg2 border border-s39-border mb-3 overflow-hidden">
+                <div key={f.findingId} className="bg-s39-bg2 border border-s39-border mb-3 overflow-hidden">
                   {/* Finding header */}
                   <div className="flex items-center gap-2 px-4 py-3 border-b border-s39-border" style={{ background: `${fColor}06` }}>
                     <div className="w-1 h-6 shrink-0" style={{ background: fColor }} />
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 border shrink-0" style={{ color: fColor, borderColor: `${fColor}40`, background: `${fColor}08` }}>{f.findingId}</span>
                     <SevBadge sev={f.severity} />
                     <span className="text-[11px] text-s39-lite font-bold flex-1">{f.title}</span>
                     <span className={`text-[8px] px-2 py-0.5 border shrink-0 ${
@@ -2619,16 +2680,18 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </thead>
               <tbody>
                 {(() => {
+                  // SINGLE SOURCE OF TRUTH: read from p.scoreBreakdown (same data as header)
+                  const sb = p.scoreBreakdown
                   const cats = [
-                    { name: "Code Security", weight: 0.35, color: "#00ff88", base: Math.min(98, p.score + 4 - (p.criticals * 20) - (p.highs * 8)) },
-                    { name: "Architecture", weight: 0.20, color: "#00e5ff", base: Math.min(98, p.score + 6) },
-                    { name: "Governance", weight: 0.15, color: "#4488ff", base: Math.min(98, p.score + (p.codeMetrics?.upgradeabilityPattern === "none" ? 10 : 2)) },
-                    { name: "On-Chain Verification", weight: 0.10, color: "#ffd600", base: Math.min(98, p.score + 8) },
-                    { name: "Economic Model", weight: 0.10, color: "#ff6b00", base: Math.min(98, p.score + 5) },
-                    { name: "Operational Security", weight: 0.10, color: "#aa44ff", base: Math.min(98, p.score + 3) },
+                    { name: "Code Security", weight: 0.35, color: "#00ff88", score: sb?.codeSecurity ?? p.score },
+                    { name: "Architecture", weight: 0.20, color: "#00e5ff", score: sb?.architectureRisk ?? p.score },
+                    { name: "Governance", weight: 0.15, color: "#4488ff", score: sb?.governanceRisk ?? p.score },
+                    { name: "On-Chain Verification", weight: 0.10, color: "#ffd600", score: sb?.centralization ?? p.score },
+                    { name: "Economic Model", weight: 0.10, color: "#ff6b00", score: sb?.economic ?? (sb ? Math.round((sb.codeSecurity + sb.centralization) / 2) : p.score) },
+                    { name: "Operational Security", weight: 0.10, color: "#aa44ff", score: sb?.testingCoverage ?? p.score },
                   ]
                   return cats.map((cat, i) => {
-                    const catScore = Math.max(40, Math.min(98, cat.base))
+                    const catScore = cat.score
                     const weighted = (catScore * cat.weight).toFixed(1)
                     return (
                       <tr key={i} className="border-b border-s39-border last:border-0">
@@ -2733,7 +2796,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                   </div>
                   <div>
                     <div className="text-[7px] text-s39-green tracking-widest">ENGINEERING HOURS</div>
-                    <div className="text-[10px] text-s39-green font-mono font-bold mt-0.5">{p.engagement.engineeringHours || Math.max(72, p.engagement.auditDurationDays * 24)}h</div>
+                    <div className="text-[10px] text-s39-green font-mono font-bold mt-0.5">{p.engagement.engineeringHours || p.engagement.auditDurationDays * (p.engagement.securityEngineersInvolved || 1) * 10}h</div>
                   </div>
                   <div>
                     <div className="text-[7px] text-s39-dim tracking-widest">ENGINEERS</div>

@@ -62,7 +62,7 @@ export interface AuditEngagement {
   deliveryDate: string               // "2026-02-25"
   auditDurationDays: number          // 3
   numberOfAuditors: number           // 1
-  engineeringHours: number           // 72+ total hours across all phases
+  engineeringHours: number           // days * engineers * 10 (max 10-12h/day/engineer)
   securityEngineersInvolved: number  // number of engineers (1-3)
   leadAuditor: string                // "Solay39 Founder"
   compilerVersionUsed: string        // "solc 0.6.12"
@@ -250,10 +250,11 @@ export interface PortfolioProject {
   }[]
   scoreBreakdown?: {
     codeSecurity: number
-    architectureRisk: number
-    governanceRisk: number
-    centralization: number
-    testingCoverage: number
+    architectureRisk: number   // renamed: "architecture" category
+    governanceRisk: number     // renamed: "governance" category
+    centralization: number     // renamed: "onChain" category
+    testingCoverage: number    // renamed: "operations" category
+    economic?: number          // economic model score
   }
   centralizationLevel?: "Low" | "Medium" | "High"
   centralizationRisk?: "Low" | "Medium" | "High"
@@ -304,6 +305,25 @@ export interface PortfolioProject {
 
 // Keep backward compat alias
 export type DemoProject = PortfolioProject
+
+// ── Finding ID generation (H-01, M-01, etc.) ───────────────
+const SEV_PREFIX: Record<SeverityLevel, string> = {
+  CRITICAL: "C", HIGH: "H", MEDIUM: "M", LOW: "L", INFO: "I",
+}
+const SEV_ORDER: SeverityLevel[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
+
+/** Sort findings by severity and assign standard IDs (C-01, H-01, M-01, L-01, I-01) */
+export function assignFindingIds<T extends { severity: string }>(findings: T[]): (T & { findingId: string })[] {
+  const sorted = [...findings].sort((a, b) =>
+    SEV_ORDER.indexOf(a.severity as SeverityLevel) - SEV_ORDER.indexOf(b.severity as SeverityLevel)
+  )
+  const counters: Record<string, number> = {}
+  return sorted.map(f => {
+    const prefix = SEV_PREFIX[f.severity as SeverityLevel] || "X"
+    counters[prefix] = (counters[prefix] || 0) + 1
+    return { ...f, findingId: `${prefix}-${String(counters[prefix]).padStart(2, "0")}` }
+  })
+}
 
 export const SEV_CONFIG: Record<SeverityLevel, { color: string; bg: string; border: string }> = {
   CRITICAL: { color: "text-s39-red", bg: "bg-[#160005]", border: "border-[#ff2d5540]" },
@@ -479,6 +499,7 @@ export const DEFAULT_PROJECTS: PortfolioProject[] = [
       governanceRisk: 92,
       centralization: 88,
       testingCoverage: 97,
+      economic: 95,
     },
     findings: [
       {
@@ -678,7 +699,7 @@ constructor() public {
       deliveryDate: "2026-02-25",
   auditDurationDays: 2,
   numberOfAuditors: 1,
-  engineeringHours: 72,
+  engineeringHours: 20,
   securityEngineersInvolved: 1,
   leadAuditor: "Solay39 Founder",
       compilerVersionUsed: "solc 0.4.18",
@@ -720,6 +741,7 @@ constructor() public {
       governanceRisk: 85,
       centralization: 81,
       testingCoverage: 90,
+      economic: 88,
     },
     findings: [
       {
@@ -854,7 +876,7 @@ function transfer(address _to, uint256 _value) public returns (bool) {
       deliveryDate: "2026-02-25",
   auditDurationDays: 4,
   numberOfAuditors: 1,
-  engineeringHours: 96,
+  engineeringHours: 40,
   securityEngineersInvolved: 1,
   leadAuditor: "Solay39 Founder",
       compilerVersionUsed: "solc 0.4.24",
@@ -897,6 +919,7 @@ function transfer(address _to, uint256 _value) public returns (bool) {
       governanceRisk: 84,
       centralization: 78,
       testingCoverage: 91,
+      economic: 85,
     },
     findings: [
       {
