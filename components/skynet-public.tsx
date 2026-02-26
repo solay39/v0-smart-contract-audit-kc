@@ -12,6 +12,7 @@ import {
   type SeverityLevel,
   SEV_RAW_COLORS,
   assignFindingIds,
+  ratingOf,
 } from "@/lib/solay39-constants"
 import { ScoreRing, S39Btn, SevBadge } from "@/components/solay39-ui"
 import { getExplorer } from "@/lib/explorers"
@@ -370,8 +371,18 @@ function ShareButton({ auditId, name }: { auditId: string; name: string }) {
 }
 
 export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioProject; onBack?: () => void; isLive?: boolean; backHref?: string }) {
-  const sc = scoreColor(p.score)
+  // ── SINGLE SOURCE OF TRUTH: compute final score from weighted category sum ──
   const bd = p.scoreBreakdown
+  const computedScore = bd ? Math.round(
+    (bd.codeSecurity ?? p.score) * 0.35 +
+    (bd.architectureRisk ?? p.score) * 0.20 +
+    (bd.governanceRisk ?? p.score) * 0.15 +
+    (bd.centralization ?? p.score) * 0.10 +
+    (bd.economic ?? p.score) * 0.10 +
+    (bd.testingCoverage ?? p.score) * 0.10
+  ) : p.score
+  const computedRating = ratingOf(computedScore)
+  const sc = scoreColor(computedScore)
   const totalFindings = p.criticals + p.highs + p.mediums + p.lows + p.infos
   const resolvedCount = p.findings?.filter((f) => f.status === "RESOLVED").length ?? 0
   const openCount = p.findings?.filter((f) => f.status === "OPEN").length ?? 0
@@ -429,7 +440,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                   SOLAY39 AUDITED
                 </span>
                 <span className="text-[8px] border px-2.5 py-1 font-bold tracking-wider" style={{ color: sc, borderColor: `${sc}33`, background: `${sc}08` }}>
-                  {p.rating}
+                  {computedRating}
                 </span>
                 {p.criticals === 0 && (
                   <span className="text-[8px] text-s39-green/80 border border-s39-green/15 px-2.5 py-1 bg-s39-green/5">
@@ -461,7 +472,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
 
               {/* Security Badge (copyable) */}
               <div className="mb-4">
-                <SecurityBadge rating={p.rating} score={p.score} name={p.name} />
+                <SecurityBadge rating={computedRating} score={computedScore} name={p.name} />
               </div>
 
               {/* Price + Market Cap row */}
@@ -503,7 +514,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
             <div className="shrink-0 flex flex-col items-center gap-2">
               <div className="text-[8px] text-s39-dim tracking-[0.15em]">SOLAY39 SECURITY SCORE</div>
               <div className="flex items-center gap-4">
-                <ScoreArc score={Math.min(p.score, 100)} size={160} />
+                <ScoreArc score={Math.min(computedScore, 100)} size={160} />
                 {radarData.length > 0 && (
                   <div className="hidden lg:block">
                     <RadarChart data={radarData} size={180} />
@@ -512,14 +523,15 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
               {/* Risk Outlook Badge */}
               {(() => {
-                const hasOpen = p.findings?.some(f => f.severity === "CRITICAL" && f.status === "OPEN")
-                const outlook = hasOpen ? "HIGH" : (p.centralizationRisk === "High" ? "HIGH" : p.centralizationRisk === "Medium" ? "MODERATE" : "LOW")
-                const olColor = outlook === "LOW" ? "#00ff88" : outlook === "MODERATE" ? "#ffd600" : "#ff2d55"
-                return (
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[7px] text-s39-dim tracking-widest">RISK OUTLOOK</span>
-                    <span className="text-[9px] font-bold px-2 py-0.5 border" style={{ color: olColor, borderColor: `${olColor}40`, background: `${olColor}08` }}>{outlook}</span>
-                  </div>
+  const openCrits = p.findings?.filter(f => f.severity === "CRITICAL" && f.status !== "RESOLVED").length || 0
+  const openHighs = p.findings?.filter(f => f.severity === "HIGH" && f.status !== "RESOLVED").length || 0
+  const outlook = openCrits > 0 ? "HIGH" : openHighs > 0 ? "ELEVATED" : (p.centralizationRisk === "High" ? "HIGH" : p.centralizationRisk === "Medium" ? "MODERATE" : "LOW")
+  const olColor = outlook === "LOW" ? "#00ff88" : outlook === "MODERATE" ? "#ffd600" : "#ff2d55"
+  return (
+  <div className="flex items-center gap-2 mt-1">
+  <span className="text-[7px] text-s39-dim tracking-widest">RISK OUTLOOK</span>
+  <span className="text-[9px] font-bold px-2 py-0.5 border" style={{ color: olColor, borderColor: `${olColor}40`, background: `${olColor}08` }}>{outlook}</span>
+  </div>
                 )
               })()}
             </div>
@@ -631,9 +643,9 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               <CategoryBar label="Centralization" score={bd.centralization} color="#ffd600" />
               <CategoryBar label="Testing Coverage" score={bd.testingCoverage} color="#7a8c9e" />
               <div className="bg-s39-bg2 border border-s39-border p-4 flex flex-col justify-center items-center">
-                <div className="text-3xl font-bold" style={{ color: sc }}>{p.score}</div>
+                <div className="text-3xl font-bold" style={{ color: sc }}>{computedScore}</div>
                 <div className="text-[8px] text-s39-dim tracking-widest mt-1">OVERALL SCORE</div>
-                <div className="text-xs font-bold mt-1" style={{ color: sc }}>{p.rating}</div>
+                <div className="text-xs font-bold mt-1" style={{ color: sc }}>{computedRating}</div>
               </div>
             </div>
           </div>
@@ -651,15 +663,15 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
             {/* Rating Badge */}
             <div className="flex items-center gap-6 mb-6 flex-wrap">
               <div className="flex items-center gap-3">
-                <div className="text-4xl font-bold font-mono" style={{ color: sc }}>{p.score}</div>
+                <div className="text-4xl font-bold font-mono" style={{ color: sc }}>{computedScore}</div>
                 <div>
-                  <div className="text-lg font-bold" style={{ color: sc }}>{p.rating}</div>
+                  <div className="text-lg font-bold" style={{ color: sc }}>{computedRating}</div>
                   <div className="text-[8px] text-s39-dim tracking-widest">
-                    {p.score >= 95 ? "Exceptional Security" : p.score >= 90 ? "Very Strong Security" : p.score >= 80 ? "Strong Security" : p.score >= 70 ? "Adequate Security" : p.score >= 60 ? "Below Average" : "Needs Improvement"}
+                    {computedScore >= 95 ? "Exceptional Security" : computedScore >= 90 ? "Very Strong Security" : computedScore >= 80 ? "Strong Security" : computedScore >= 70 ? "Adequate Security" : computedScore >= 60 ? "Below Average" : "Needs Improvement"}
                   </div>
                 </div>
               </div>
-              <SecurityBadge rating={p.rating} score={p.score} name={p.name} />
+                <SecurityBadge rating={computedRating} score={computedScore} name={p.name} />
             </div>
 
             {/* Category Breakdown Table — Clean */}
@@ -704,9 +716,10 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
 
             {/* Risk Outlook */}
             {(() => {
-              const hasOpen = p.findings?.some(f => f.severity === "CRITICAL" && f.status === "OPEN")
-              const outlook = hasOpen ? "HIGH RISK" : (p.centralizationRisk === "High" ? "HIGH RISK" : p.centralizationRisk === "Medium" ? "MODERATE RISK" : "LOW RISK")
-              const olColor = outlook === "LOW RISK" ? "#00ff88" : outlook === "MODERATE RISK" ? "#ffd600" : "#ff2d55"
+  const openCrits2 = p.findings?.filter(f => f.severity === "CRITICAL" && f.status !== "RESOLVED").length || 0
+  const openHighs2 = p.findings?.filter(f => f.severity === "HIGH" && f.status !== "RESOLVED").length || 0
+  const outlook = openCrits2 > 0 ? "HIGH RISK" : openHighs2 > 0 ? "ELEVATED RISK" : (p.centralizationRisk === "High" ? "HIGH RISK" : p.centralizationRisk === "Medium" ? "MODERATE RISK" : "LOW RISK")
+  const olColor = outlook === "LOW RISK" ? "#00ff88" : outlook === "MODERATE RISK" ? "#ffd600" : "#ff2d55"
               return (
                 <div className="flex items-center gap-3 mb-4 bg-s39-bg2 border border-s39-border p-3">
                   <div className="text-[8px] text-s39-dim tracking-widest">RISK OUTLOOK</div>
@@ -890,7 +903,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
             </div>
             <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
               <div className="text-[7px] text-s39-dim tracking-widest mb-1">SECURITY SCORE</div>
-              <div className="text-lg font-bold font-mono" style={{ color: scoreColor(p.score) }}>{p.score}/100</div>
+              <div className="text-lg font-bold font-mono" style={{ color: scoreColor(computedScore) }}>{computedScore}/100</div>
             </div>
           </div>
 
@@ -909,14 +922,13 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
 
           {/* Overall Security Posture */}
           <div className={`border p-4 ${
-            p.score >= 80 ? "bg-[#001a08] border-s39-green/30" : p.score >= 60 ? "bg-[#1a1200] border-s39-yellow/30" : "bg-[#1a0000] border-s39-red/30"
-          }`}>
-            <div className="text-[8px] text-s39-dim tracking-widest mb-1">OVERALL SECURITY POSTURE</div>
-            <div className="text-[11px] font-bold mb-1" style={{ color: scoreColor(p.score) }}>
-              {p.score >= 95 ? "EXCEPTIONAL" : p.score >= 90 ? "VERY STRONG" : p.score >= 80 ? "STRONG" : p.score >= 70 ? "ADEQUATE" : p.score >= 60 ? "BELOW AVERAGE" : "NEEDS IMPROVEMENT"}
+            computedScore >= 80 ? "bg-[#001a08] border-s39-green/30" : computedScore >= 60 ? "bg-[#1a1200] border-s39-yellow/30" : "bg-[#1a0000] border-s39-red/30"
+            }`}>
+            <div className="text-[11px] font-bold mb-1" style={{ color: scoreColor(computedScore) }}>
+            {computedScore >= 95 ? "EXCEPTIONAL" : computedScore >= 90 ? "VERY STRONG" : computedScore >= 80 ? "STRONG" : computedScore >= 70 ? "ADEQUATE" : computedScore >= 60 ? "BELOW AVERAGE" : "NEEDS IMPROVEMENT"}
             </div>
             <p className="text-[9px] text-s39-mid leading-relaxed">
-              {p.finalAssessment?.securityPosture || `The protocol achieved a score of ${p.score}/100, rated ${p.rating}. ${p.findings?.filter(f => f.status === "RESOLVED").length || 0} of ${p.findings?.length || 0} findings have been resolved.`}
+              {p.finalAssessment?.securityPosture || `The protocol achieved a score of ${computedScore}/100, rated ${computedRating}. ${p.findings?.filter(f => f.status === "RESOLVED").length || 0} of ${p.findings?.length || 0} findings have been resolved.`}
             </p>
           </div>
 
@@ -945,7 +957,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
               <div className="bg-s39-bg2 border border-s39-border p-3">
                 <div className="text-[7px] text-s39-dim tracking-widest mb-1">DURATION</div>
-                <div className="text-[11px] text-s39-white font-bold font-mono">{p.engagement.auditDurationDays} days</div>
+                <div className="text-[11px] text-s39-white font-bold font-mono">{p.engagement.auditDurationDays} {p.engagement.auditDurationDays === 1 ? "day" : "days"}</div>
               </div>
               <div className="bg-s39-bg2 border border-s39-border p-3">
                 <div className="text-[7px] text-s39-dim tracking-widest mb-1">LINES OF CODE</div>
@@ -1198,18 +1210,23 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                         if (s >= 8 && o >= 4) return true
                         return false
                       })()
-                      const rows = [
-                        { prop: "Solidity Version", val: ver || "N/A", ok: !!ver },
-                        { prop: "OpenZeppelin Version", val: ozVer || "N/A", ok: !!ozVer },
-                        { prop: "Compatibility Status", val: isCompat === null ? "Unknown" : isCompat ? "Compatible" : "Mismatch Detected", ok: isCompat !== false },
+                      const rows: { prop: string; val: string; status: "OK" | "WARNING" | "REVIEW" }[] = [
+                        { prop: "Solidity Version", val: ver || "N/A", status: ver ? "OK" : "REVIEW" },
+                        { prop: "OpenZeppelin Version", val: ozVer || "N/A", status: ozVer ? "OK" : "REVIEW" },
+                        { prop: "Compatibility Status", val: isCompat === null ? "Requires Manual Review" : isCompat ? "Compatible" : "Mismatch Detected", status: isCompat === true ? "OK" : isCompat === false ? "WARNING" : "REVIEW" },
                       ]
+                      const statusStyles = {
+                        OK: "text-s39-green border-s39-green/25 bg-s39-green/5",
+                        WARNING: "text-s39-red border-s39-red/25 bg-s39-red/5",
+                        REVIEW: "text-s39-yellow border-s39-yellow/25 bg-s39-yellow/5",
+                      }
                       return rows.map((r, i) => (
                         <tr key={i} className="border-b border-s39-border last:border-0">
                           <td className="px-3 py-2 text-s39-mid">{r.prop}</td>
                           <td className="px-3 py-2 text-s39-white font-mono font-bold">{r.val}</td>
                           <td className="text-center px-3 py-2">
-                            <span className={`text-[8px] font-bold px-2 py-0.5 border ${r.ok ? "text-s39-green border-s39-green/25 bg-s39-green/5" : "text-s39-red border-s39-red/25 bg-s39-red/5"}`}>
-                              {r.ok ? "OK" : "WARNING"}
+                            <span className={`text-[8px] font-bold px-2 py-0.5 border ${statusStyles[r.status]}`}>
+                              {r.status}
                             </span>
                           </td>
                         </tr>
@@ -2618,7 +2635,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
             <div className="border-2 border-s39-green/30 bg-[#001a08] p-5">
               <div className="text-[8px] text-s39-green tracking-widest mb-3 font-bold">WHY THIS MATTERS FOR PRODUCTION</div>
               <p className="text-[10px] text-s39-mid leading-relaxed mb-4">
-                {p.score >= 80
+                {computedScore >= 80
                   ? `This audit provides independent third-party verification that ${p.name} has been reviewed for security vulnerabilities, centralization risks, and compliance with industry standards. The findings and their resolution status are documented transparently to support informed deployment and investment decisions.`
                   : `This audit identifies areas requiring attention before ${p.name} can be considered production-ready. The findings documented herein should be addressed and verified in a follow-up review to establish confidence in the protocol's security posture.`
                 }
@@ -2630,9 +2647,9 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                   <span className="text-[6px] text-s39-dim tracking-widest bg-s39-bg2 border border-s39-border px-1.5 py-0.5">INVESTOR-READY STATEMENT</span>
                 </div>
                 <p className="text-[11px] text-s39-green font-bold leading-relaxed pr-8">
-                  {p.score >= 80
+                  {computedScore >= 80
                     ? `The protocol demonstrates a solid security posture and is considered suitable for production deployment, assuming the operational recommendations outlined in this report are followed.`
-                    : p.score >= 60
+                    : computedScore >= 60
                     ? `The protocol shows a developing security posture. Deployment is conditionally recommended pending resolution of the identified findings and implementation of the operational recommendations.`
                     : `The protocol requires additional security hardening before production deployment. A follow-up audit is recommended after addressing the findings documented in this report.`
                   }
@@ -2650,34 +2667,20 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
             <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 15</span>
           </div>
 
-          {/* Score + Rating Header — derived from weighted category sum */}
-          {(() => {
-            const sb = p.scoreBreakdown
-            const computedScore = sb ? Math.round(
-              (sb.codeSecurity ?? p.score) * 0.35 +
-              (sb.architectureRisk ?? p.score) * 0.20 +
-              (sb.governanceRisk ?? p.score) * 0.15 +
-              (sb.centralization ?? p.score) * 0.10 +
-              (sb.economic ?? p.score) * 0.10 +
-              (sb.testingCoverage ?? p.score) * 0.10
-            ) : p.score
-            const computedRating = ratingOf(computedScore)
-            return (
-              <div className="flex flex-col sm:flex-row items-center gap-6 mb-6 p-5 bg-[#0a0e14] border border-s39-border">
-                <div className="text-center">
-                  <div className="text-[48px] font-bold font-mono leading-none" style={{ color: scoreColor(computedScore) }}>{computedScore}</div>
-                  <div className="text-[8px] text-s39-dim tracking-widest mt-1">/ 100</div>
-                </div>
-                <div className="h-16 w-px bg-s39-border hidden sm:block" />
-                <div className="text-center sm:text-left">
-                  <div className="text-[28px] font-bold font-mono" style={{ color: scoreColor(computedScore) }}>{computedRating}</div>
-                  <div className="text-[9px] text-s39-mid mt-1">
-                    {computedScore >= 95 ? "Exceptional Security Posture" : computedScore >= 90 ? "Very Strong Security Posture" : computedScore >= 80 ? "Strong Security Posture" : computedScore >= 70 ? "Adequate Security Posture" : computedScore >= 60 ? "Below Average Security Posture" : "Needs Improvement"}
-                  </div>
-                </div>
+          {/* Score + Rating Header — derived from weighted category sum (single source of truth) */}
+          <div className="flex flex-col sm:flex-row items-center gap-6 mb-6 p-5 bg-[#0a0e14] border border-s39-border">
+            <div className="text-center">
+              <div className="text-[48px] font-bold font-mono leading-none" style={{ color: scoreColor(computedScore) }}>{computedScore}</div>
+              <div className="text-[8px] text-s39-dim tracking-widest mt-1">/ 100</div>
+            </div>
+            <div className="h-16 w-px bg-s39-border hidden sm:block" />
+            <div className="text-center sm:text-left">
+              <div className="text-[28px] font-bold font-mono" style={{ color: scoreColor(computedScore) }}>{computedRating}</div>
+              <div className="text-[9px] text-s39-mid mt-1">
+                {computedScore >= 95 ? "Exceptional Security Posture" : computedScore >= 90 ? "Very Strong Security Posture" : computedScore >= 80 ? "Strong Security Posture" : computedScore >= 70 ? "Adequate Security Posture" : computedScore >= 60 ? "Below Average Security Posture" : "Needs Improvement"}
               </div>
-            )
-          })()}
+            </div>
+          </div>
 
           {/* Category Breakdown Table */}
           <div className="text-[8px] text-s39-dim tracking-widest mb-2">CATEGORY BREAKDOWN</div>
@@ -2726,27 +2729,14 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                     )
                   })
                 })()}
-                {/* Total row — computed from actual weighted sum */}
-                {(() => {
-                  const sb = p.scoreBreakdown
-                  const computedTotal = sb ? Math.round(
-                    (sb.codeSecurity ?? p.score) * 0.35 +
-                    (sb.architectureRisk ?? p.score) * 0.20 +
-                    (sb.governanceRisk ?? p.score) * 0.15 +
-                    (sb.centralization ?? p.score) * 0.10 +
-                    (sb.economic ?? p.score) * 0.10 +
-                    (sb.testingCoverage ?? p.score) * 0.10
-                  ) : p.score
-                  return (
-                    <tr className="bg-s39-bg2">
-                      <td className="px-3 py-2.5 text-s39-white font-bold">TOTAL</td>
-                      <td className="text-center px-3 py-2.5 text-s39-dim font-mono">100%</td>
-                      <td className="text-center px-3 py-2.5" />
-                      <td className="px-3 py-2.5" />
-                      <td className="text-center px-3 py-2.5 font-bold font-mono text-lg" style={{ color: scoreColor(computedTotal) }}>{computedTotal}</td>
-                    </tr>
-                  )
-                })()}
+                {/* Total row — uses component-level computedScore (single source of truth) */}
+                <tr className="bg-s39-bg2">
+                  <td className="px-3 py-2.5 text-s39-white font-bold">TOTAL</td>
+                  <td className="text-center px-3 py-2.5 text-s39-dim font-mono">100%</td>
+                  <td className="text-center px-3 py-2.5" />
+                  <td className="px-3 py-2.5" />
+                  <td className="text-center px-3 py-2.5 font-bold font-mono text-lg" style={{ color: scoreColor(computedScore) }}>{computedScore}</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -2770,20 +2760,32 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
           </div>
 
           {/* Risk Outlook */}
-          <div className={`border p-4 ${
-            p.score >= 80 ? "bg-[#001a08] border-s39-green/25" : p.score >= 60 ? "bg-[#1a1200] border-s39-yellow/25" : "bg-[#1a0000] border-s39-red/25"
-          }`}>
+            <div className={`border p-4 ${
+            computedScore >= 80 ? "bg-[#001a08] border-s39-green/25" : computedScore >= 60 ? "bg-[#1a1200] border-s39-yellow/25" : "bg-[#1a0000] border-s39-red/25"
+            }`}>
             <div className="text-[8px] text-s39-dim tracking-widest mb-1">RISK OUTLOOK</div>
-            <p className="text-[9px] text-s39-mid leading-relaxed">
-              {p.score >= 90
-                ? `The protocol demonstrates an exemplary security posture with a ${p.rating} rating. All critical and high-severity findings, if any, have been addressed. The codebase shows strong adherence to security best practices.`
-                : p.score >= 80
-                ? `The protocol shows a strong security posture with a ${p.rating} rating. Minor findings have been identified and addressed. Continued monitoring and periodic re-audits are recommended.`
-                : p.score >= 70
-                ? `The protocol has an adequate security posture rated ${p.rating}. Some findings remain that should be addressed before significant value is secured. Centralization vectors may exist.`
-                : `The protocol requires improvement to reach production-grade security. Multiple findings need resolution. A follow-up audit is strongly recommended before deployment.`
+            {(() => {
+              const oc = p.findings?.filter(f => f.severity === "CRITICAL" && f.status !== "RESOLVED").length || 0
+              const oh = p.findings?.filter(f => f.severity === "HIGH" && f.status !== "RESOLVED").length || 0
+              const om = p.findings?.filter(f => f.severity === "MEDIUM" && f.status !== "RESOLVED").length || 0
+              const ol = p.findings?.filter(f => f.severity === "LOW" && f.status !== "RESOLVED").length || 0
+              const totalOpen = oc + oh + om + ol
+              const cs = computedScore
+              const cr = computedRating
+              // Generate fact-based text
+              let text = ""
+              if (totalOpen === 0) {
+                text = `The protocol demonstrates a ${cs >= 90 ? "exemplary" : cs >= 80 ? "strong" : "developing"} security posture with a computed score of ${cs}/100 (${cr}). All identified findings have been resolved or acknowledged.`
+              } else {
+                const parts: string[] = []
+                if (oc > 0) parts.push(`${oc} critical`)
+                if (oh > 0) parts.push(`${oh} high`)
+                if (om > 0) parts.push(`${om} medium`)
+                if (ol > 0) parts.push(`${ol} low`)
+                text = `The protocol has a computed score of ${cs}/100 (${cr}). ${totalOpen} finding${totalOpen > 1 ? "s" : ""} remain${totalOpen === 1 ? "s" : ""} open: ${parts.join(", ")}. ${oc > 0 ? "Critical findings require immediate attention before deployment." : oh > 0 ? "High-severity findings should be addressed before production deployment." : "Remaining findings should be addressed in subsequent iterations."}`
               }
-            </p>
+              return <p className="text-[9px] text-s39-mid leading-relaxed">{text}</p>
+            })()}
           </div>
         </div>
 
