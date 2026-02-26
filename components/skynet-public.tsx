@@ -369,33 +369,55 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
             {/* Score Arc + Sub-Score Breakdown */}
             <div className="shrink-0 flex flex-col items-center gap-2">
               <div className="text-[8px] text-s39-dim tracking-[0.15em]">SOLAY39 SECURITY SCORE</div>
-              <ScoreArc score={Math.min(p.score, 98)} size={160} />
-              <div className="text-[7px] text-s39-dim italic mt-1">Max: 98/98</div>
+              <ScoreArc score={Math.min(p.score, 100)} size={160} />
+              {/* Risk Outlook Badge */}
+              {(() => {
+                const hasOpen = p.findings?.some(f => f.severity === "CRITICAL" && f.status === "OPEN")
+                const outlook = hasOpen ? "HIGH" : (p.centralizationRisk === "High" ? "HIGH" : p.centralizationRisk === "Medium" ? "MODERATE" : "LOW")
+                const olColor = outlook === "LOW" ? "#00ff88" : outlook === "MODERATE" ? "#ffd600" : "#ff2d55"
+                return (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[7px] text-s39-dim tracking-widest">RISK OUTLOOK</span>
+                    <span className="text-[9px] font-bold px-2 py-0.5 border" style={{ color: olColor, borderColor: `${olColor}40`, background: `${olColor}08` }}>{outlook}</span>
+                  </div>
+                )
+              })()}
             </div>
           </div>
 
-          {/* Sub-Score Breakdown */}
+          {/* Sub-Score Breakdown — 6 categories (SOLAY39 Security Rating Model) */}
           {p.scoreBreakdown && (
             <div className="mt-5 pt-5 border-t border-s39-border">
-              <div className="text-[8px] text-s39-dim tracking-[0.15em] mb-3">SCORE BREAKDOWN</div>
-              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="text-[8px] text-s39-dim tracking-[0.15em]">SOLAY39 SECURITY RATING MODEL</div>
+                <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider">6 CATEGORIES / WEIGHTED</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {([
-                  ["Code Security", p.scoreBreakdown.codeSecurity, "#00ff88"],
-                  ["Architecture", p.scoreBreakdown.architectureRisk, "#00e5ff"],
-                  ["Governance", p.scoreBreakdown.governanceRisk, "#4488ff"],
-                  ["Centralization", p.scoreBreakdown.centralization, "#ffd600"],
-                  ["Testing", p.scoreBreakdown.testingCoverage, "#ff6b00"],
-                ] as [string, number, string][]).map(([label, val, color]) => (
+                  ["Code Security", p.scoreBreakdown.codeSecurity, "#00ff88", "35%"],
+                  ["Architecture", p.scoreBreakdown.architectureRisk, "#00e5ff", "20%"],
+                  ["Governance", p.scoreBreakdown.governanceRisk, "#4488ff", "15%"],
+                  ["On-Chain", p.scoreBreakdown.centralization, "#ffd600", "10%"],
+                  ["Economic", Math.round((p.scoreBreakdown.codeSecurity + p.scoreBreakdown.centralization) / 2), "#ff6b00", "10%"],
+                  ["Operations", p.scoreBreakdown.testingCoverage, "#aa44ff", "10%"],
+                ] as [string, number, string, string][]).map(([label, val, color, weight]) => (
                   <div key={label} className="bg-s39-bg2 border border-s39-border p-3">
-                    <div className="flex justify-between items-center mb-1.5">
+                    <div className="flex justify-between items-center mb-1">
                       <span className="text-[7px] text-s39-dim tracking-widest">{label.toUpperCase()}</span>
-                      <span className="text-[11px] font-bold font-mono" style={{ color: val >= 90 ? "#00ff88" : val >= 70 ? "#ffd600" : "#ff2d55" }}>{val}</span>
+                      <span className="text-[7px] text-s39-dim tracking-wider">{weight}</span>
+                    </div>
+                    <div className="flex items-baseline gap-1 mb-1.5">
+                      <span className="text-[13px] font-bold font-mono" style={{ color: val >= 90 ? "#00ff88" : val >= 70 ? "#ffd600" : "#ff2d55" }}>{val}</span>
+                      <span className="text-[8px] text-s39-dim">/100</span>
                     </div>
                     <div className="h-1 bg-s39-bg0 w-full">
                       <div className="h-full transition-all duration-700" style={{ width: `${val}%`, background: color, opacity: 0.8 }} />
                     </div>
                   </div>
                 ))}
+              </div>
+              <div className="mt-3 text-[8px] text-s39-dim italic">
+                {'Final Score = (Code x 0.35) + (Arch x 0.20) + (Gov x 0.15) + (OnChain x 0.10) + (Econ x 0.10) + (Ops x 0.10)'}
               </div>
             </div>
           )}
@@ -757,10 +779,142 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">TIER-1</span>
             </div>
 
-            {/* Architecture Overview */}
+            {/* Architecture Overview — Visual Diagram + Text */}
             {p.architectureOverview && (
               <div className="mb-5">
-                <div className="text-[8px] text-s39-dim tracking-widest mb-2">ARCHITECTURE OVERVIEW</div>
+                <div className="text-[8px] text-s39-dim tracking-widest mb-2">SYSTEM ARCHITECTURE</div>
+
+                {/* ── Visual Architecture Diagram ── */}
+                <div className="bg-s39-bg2 border border-s39-border p-4 sm:p-5 mb-3">
+                  <div className="flex flex-col items-center gap-3">
+                    {/* Row 1: Users */}
+                    <div className="flex items-center gap-3 w-full justify-center">
+                      <div className="bg-[#001618] border border-s39-cyan/30 px-4 py-2.5 text-center min-w-[100px]">
+                        <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">EXTERNAL</div>
+                        <div className="text-[10px] text-s39-cyan font-bold">Users / EOAs</div>
+                      </div>
+                      {p.integrationRisks && p.integrationRisks.length > 0 && p.integrationRisks[0].dependency !== "No external dependencies" && (
+                        <div className="bg-[#160800] border border-s39-orange/30 px-4 py-2.5 text-center min-w-[100px]">
+                          <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">EXTERNAL</div>
+                          <div className="text-[10px] text-s39-orange font-bold">
+                            {p.integrationRisks[0].dependency.length > 18 ? p.integrationRisks[0].dependency.slice(0, 18) + '...' : p.integrationRisks[0].dependency}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Arrow down */}
+                    <div className="flex flex-col items-center">
+                      <div className="w-px h-4 bg-s39-border" />
+                      <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="#334455" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </div>
+
+                    {/* Row 2: Contract Core */}
+                    <div className="relative w-full max-w-md">
+                      <div className={`border-2 ${p.upgradeabilityAnalysis?.isUpgradeable ? 'border-s39-orange/40' : 'border-s39-green/30'} bg-s39-bg0 p-4`}>
+                        {/* Proxy wrapper label */}
+                        {p.upgradeabilityAnalysis?.isUpgradeable && (
+                          <div className="absolute -top-2.5 left-3 bg-s39-bg0 px-2">
+                            <span className="text-[7px] text-s39-orange tracking-widest font-bold">PROXY ({p.upgradeabilityAnalysis.proxyPattern?.toUpperCase() || 'UPGRADEABLE'})</span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-center gap-3 flex-wrap">
+                          {/* Main Contract */}
+                          <div className="bg-s39-bg1 border border-s39-cyan/20 px-4 py-3 text-center flex-1 min-w-[120px]">
+                            <div className="text-[7px] text-s39-dim tracking-widest mb-1">
+                              {p.scopeTable?.[0]?.language || p.network || 'CONTRACT'}
+                            </div>
+                            <div className="text-[11px] text-s39-white font-bold font-mono">
+                              {p.scopeTable?.[0]?.contract || p.scope || p.name}
+                            </div>
+                            <div className="text-[8px] text-s39-dim mt-1 font-mono">
+                              {p.scopeTable?.[0]?.linesOfCode || '?'} LoC
+                            </div>
+                          </div>
+
+                          {/* Libraries */}
+                          {p.architectureOverview.toLowerCase().includes('openzeppelin') && (
+                            <div className="bg-[#001608] border border-s39-green/20 px-3 py-2 text-center">
+                              <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">LIBRARY</div>
+                              <div className="text-[9px] text-s39-green font-bold">OpenZeppelin</div>
+                            </div>
+                          )}
+                          {p.architectureOverview.toLowerCase().includes('safemath') && !p.architectureOverview.toLowerCase().includes('no safemath') && (
+                            <div className="bg-[#001608] border border-s39-green/20 px-3 py-2 text-center">
+                              <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">MATH</div>
+                              <div className="text-[9px] text-s39-green font-bold">SafeMath</div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Privileged Roles Bar */}
+                        {p.privilegedRoles && p.privilegedRoles.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-s39-border">
+                            <div className="flex gap-2 flex-wrap justify-center">
+                              {p.privilegedRoles.slice(0, 3).map((r, i) => {
+                                const isRisky = r.riskIfCompromised.toLowerCase().includes('critical') || r.riskIfCompromised.toLowerCase().includes('high')
+                                const isNone = r.riskIfCompromised.toLowerCase().includes('none')
+                                return (
+                                  <div key={i} className={`px-2 py-1 border text-center ${isNone ? 'border-s39-green/20 bg-s39-green/5' : isRisky ? 'border-s39-red/20 bg-s39-red/5' : 'border-s39-yellow/20 bg-s39-yellow/5'}`}>
+                                    <div className="text-[7px] text-s39-dim tracking-widest">ROLE</div>
+                                    <div className={`text-[8px] font-bold ${isNone ? 'text-s39-green' : isRisky ? 'text-s39-red' : 'text-s39-yellow'}`}>
+                                      {r.role.length > 20 ? r.role.slice(0, 20) + '...' : r.role}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Arrow down */}
+                    <div className="flex flex-col items-center">
+                      <div className="w-px h-4 bg-s39-border" />
+                      <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="#334455" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </div>
+
+                    {/* Row 3: On-chain state */}
+                    <div className="flex items-center gap-3 w-full justify-center flex-wrap">
+                      <div className="bg-s39-bg1 border border-s39-border px-3 py-2 text-center">
+                        <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">OWNERSHIP</div>
+                        <div className={`text-[9px] font-bold ${
+                          p.onChainValidation?.some(v => v.label.toLowerCase().includes('owner') && v.status === 'pass' && v.detail?.toLowerCase().includes('renounced'))
+                            ? 'text-s39-green' : 'text-s39-yellow'
+                        }`}>
+                          {p.onChainValidation?.some(v => v.label.toLowerCase().includes('owner') && v.detail?.toLowerCase().includes('renounced'))
+                            ? 'RENOUNCED' : p.governanceSecurity?.hasGovernance ? 'GOVERNANCE' : 'ACTIVE'}
+                        </div>
+                      </div>
+                      <div className="bg-s39-bg1 border border-s39-border px-3 py-2 text-center">
+                        <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">SUPPLY</div>
+                        <div className={`text-[9px] font-bold ${
+                          p.onChainValidation?.some(v => v.label.toLowerCase().includes('mint') && v.status === 'pass')
+                            ? 'text-s39-green' : 'text-s39-yellow'
+                        }`}>
+                          {p.onChainValidation?.some(v => v.label.toLowerCase().includes('mint') && v.status === 'pass')
+                            ? 'FIXED' : 'MINTABLE'}
+                        </div>
+                      </div>
+                      <div className="bg-s39-bg1 border border-s39-border px-3 py-2 text-center">
+                        <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">PROXY</div>
+                        <div className={`text-[9px] font-bold ${
+                          !p.upgradeabilityAnalysis?.isUpgradeable ? 'text-s39-green' : 'text-s39-orange'
+                        }`}>
+                          {!p.upgradeabilityAnalysis?.isUpgradeable ? 'NONE' : p.upgradeabilityAnalysis.proxyPattern?.toUpperCase() || 'YES'}
+                        </div>
+                      </div>
+                      <div className="bg-s39-bg1 border border-s39-border px-3 py-2 text-center">
+                        <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">NETWORK</div>
+                        <div className="text-[9px] font-bold text-s39-cyan">{p.network}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Text description */}
                 <div className="bg-s39-bg2 border border-s39-border p-4">
                   <p className="text-[10px] text-s39-mid leading-relaxed">{p.architectureOverview}</p>
                 </div>

@@ -336,7 +336,7 @@ export const CHECKLIST: Record<string, { id: string; text: string; sev: Severity
   ],
 }
 
-// ── Shared Halborn-style configs ──────────────────────��──────
+// ── Shared Halborn-style configs ──────────────────────���──────
 export const SOLAY39_RISK_MODEL: RiskModelConfig = {
   methodology: "Likelihood x Impact severity matrix following OWASP and Halborn classification standards. Each finding is independently assessed for exploitability (likelihood) and damage potential (impact), then mapped to a composite severity level.",
   severityMatrix: [
@@ -1021,30 +1021,215 @@ export function scoreColorClass(s: number): string {
   return "text-s39-orange"
 }
 
-// Tier-1 rating: 96-98 = AAA (exceptional), 90-95 = AA, 80-89 = A
+// Tier-1 rating scale (SOLAY39 standard)
 export function ratingOf(s: number): string {
-  if (s >= 96) return "AAA"
+  if (s >= 95) return "AAA"
   if (s >= 90) return "AA"
   if (s >= 80) return "A"
   if (s >= 70) return "BBB"
   if (s >= 60) return "BB"
-  return "B"
+  if (s >= 50) return "B"
+  return "C"
 }
 
-// Tier-1 scoring: max 98 — "security is risk reduction, not perfection"
-export const MAX_SCORE = 98
+// ═══════════════════════════════════════════════════════════════
+// SOLAY39 SECURITY SCORING ENGINE v1.0
+// Penalty-based model: each category starts at 100, penalties deducted
+// Final = weighted sum of 6 categories
+// ═══════════════════════════════════════════════════════════════
 
+export const MAX_SCORE = 100
+
+export interface ScoringInput {
+  // Findings (only OPEN/unresolved count as penalties)
+  findings: { severity: string; status: string }[]
+  // Code quality assessment
+  codeQuality?: "Excellent" | "Good" | "Average" | "Poor"
+  // Upgrade safety
+  upgradeType?: "none" | "proxy-timelock" | "proxy-no-timelock" | "admin-eoa"
+  // Architecture
+  modularity?: "clean" | "average" | "monolithic"
+  externalDeps?: "none" | "oracle-bridge" | "multiple-critical"
+  trustModel?: "trustless" | "multisig" | "single-admin"
+  // Governance
+  adminPower?: "none" | "limited" | "critical"
+  timelockHours?: number
+  multisigSigners?: number
+  // On-chain
+  bytecodeVerified?: boolean
+  ownershipType?: "renounced" | "multisig" | "eoa"
+  mintability?: "disabled" | "controlled" | "unrestricted"
+  // Economic
+  tokenConcentration?: "distributed" | "top10-over-50" | "team-dominant"
+  liquidityDepth?: "deep" | "medium" | "low"
+  inflationControl?: "fixed" | "controlled" | "arbitrary"
+  // Operational
+  documentation?: "complete" | "average" | "absent"
+  monitoring?: "present" | "partial" | "absent"
+  upgradeProcedure?: "formalized" | "informal" | "absent"
+}
+
+const CATEGORY_WEIGHTS = {
+  codeSecurity: 0.35,
+  architecture: 0.20,
+  governance: 0.15,
+  onChain: 0.10,
+  economic: 0.10,
+  operations: 0.10,
+}
+
+function calcCodeSecurity(input: ScoringInput): number {
+  let score = 100
+  // Vulnerability penalties (only OPEN findings)
+  const open = input.findings.filter(f => f.status === "OPEN" || f.status === "PARTIALLY_FIXED")
+  const criticals = open.filter(f => f.severity === "CRITICAL").length
+  const highs = open.filter(f => f.severity === "HIGH").length
+  const mediums = open.filter(f => f.severity === "MEDIUM").length
+  const lows = open.filter(f => f.severity === "LOW").length
+  if (criticals >= 2) score -= 40
+  else if (criticals === 1) score -= 25
+  score -= highs * 12
+  score -= mediums * 5
+  score -= lows * 1
+  // Code quality
+  const cqPenalty = { Excellent: 0, Good: -5, Average: -10, Poor: -20 }
+  score += cqPenalty[input.codeQuality || "Good"] || 0
+  // Upgrade safety
+  const upPenalty = { none: 0, "proxy-timelock": -3, "proxy-no-timelock": -10, "admin-eoa": -20 }
+  score += upPenalty[input.upgradeType || "none"] || 0
+  return Math.max(0, Math.min(100, score))
+}
+
+function calcArchitecture(input: ScoringInput): number {
+  let score = 100
+  const modPenalty = { clean: 0, average: -5, monolithic: -12 }
+  score += modPenalty[input.modularity || "clean"] || 0
+  const depPenalty = { none: 0, "oracle-bridge": -8, "multiple-critical": -15 }
+  score += depPenalty[input.externalDeps || "none"] || 0
+  const trustPenalty = { trustless: 0, multisig: -5, "single-admin": -15 }
+  score += trustPenalty[input.trustModel || "trustless"] || 0
+  return Math.max(0, Math.min(100, score))
+}
+
+function calcGovernance(input: ScoringInput): number {
+  let score = 100
+  const adminPenalty = { none: 0, limited: -5, critical: -15 }
+  score += adminPenalty[input.adminPower || "none"] || 0
+  // Timelock
+  const h = input.timelockHours
+  if (h === undefined || h === null) score -= 0 // no admin = no timelock needed
+  else if (h >= 48) score -= 0
+  else if (h >= 24) score -= 3
+  else if (h > 0) score -= 7
+  else score -= 12
+  // Multisig
+  const s = input.multisigSigners
+  if (s === undefined || s === null) score -= 0
+  else if (s >= 5) score -= 0
+  else if (s >= 3) score -= 4
+  else if (s >= 2) score -= 10
+  else score -= 15 // EOA
+  return Math.max(0, Math.min(100, score))
+}
+
+function calcOnChain(input: ScoringInput): number {
+  let score = 100
+  if (input.bytecodeVerified === false) score -= 20
+  const ownerPenalty = { renounced: 0, multisig: -3, eoa: -10 }
+  score += ownerPenalty[input.ownershipType || "renounced"] || 0
+  const mintPenalty = { disabled: 0, controlled: -5, unrestricted: -15 }
+  score += mintPenalty[input.mintability || "disabled"] || 0
+  return Math.max(0, Math.min(100, score))
+}
+
+function calcEconomic(input: ScoringInput): number {
+  let score = 100
+  const concPenalty = { distributed: 0, "top10-over-50": -10, "team-dominant": -15 }
+  score += concPenalty[input.tokenConcentration || "distributed"] || 0
+  const liqPenalty = { deep: 0, medium: -5, low: -10 }
+  score += liqPenalty[input.liquidityDepth || "deep"] || 0
+  const infPenalty = { fixed: 0, controlled: -5, arbitrary: -12 }
+  score += infPenalty[input.inflationControl || "fixed"] || 0
+  return Math.max(0, Math.min(100, score))
+}
+
+function calcOperations(input: ScoringInput): number {
+  let score = 100
+  const docPenalty = { complete: 0, average: -5, absent: -10 }
+  score += docPenalty[input.documentation || "complete"] || 0
+  const monPenalty = { present: 0, partial: -5, absent: -10 }
+  score += monPenalty[input.monitoring || "present"] || 0
+  const upPenalty = { formalized: 0, informal: -5, absent: -10 }
+  score += upPenalty[input.upgradeProcedure || "formalized"] || 0
+  return Math.max(0, Math.min(100, score))
+}
+
+export interface ScoreBreakdownV2 {
+  codeSecurity: number
+  architecture: number
+  governance: number
+  onChain: number
+  economic: number
+  operations: number
+  final: number
+  rating: string
+  riskOutlook: "LOW" | "MODERATE" | "HIGH"
+}
+
+export function computeScoreV2(input: ScoringInput): ScoreBreakdownV2 {
+  const codeSecurity = calcCodeSecurity(input)
+  const architecture = calcArchitecture(input)
+  const governance = calcGovernance(input)
+  const onChain = calcOnChain(input)
+  const economic = calcEconomic(input)
+  const operations = calcOperations(input)
+
+  const final = Math.round(
+    codeSecurity * CATEGORY_WEIGHTS.codeSecurity +
+    architecture * CATEGORY_WEIGHTS.architecture +
+    governance * CATEGORY_WEIGHTS.governance +
+    onChain * CATEGORY_WEIGHTS.onChain +
+    economic * CATEGORY_WEIGHTS.economic +
+    operations * CATEGORY_WEIGHTS.operations
+  )
+
+  const openFindings = input.findings.filter(f => f.status === "OPEN" || f.status === "PARTIALLY_FIXED")
+  const hasCritical = openFindings.some(f => f.severity === "CRITICAL")
+  const hasAdminEOA = input.ownershipType === "eoa" || input.trustModel === "single-admin"
+  const hasUnrestrictedMint = input.mintability === "unrestricted"
+
+  let riskOutlook: "LOW" | "MODERATE" | "HIGH" = "LOW"
+  if (hasCritical || (hasAdminEOA && hasUnrestrictedMint)) {
+    riskOutlook = "HIGH"
+  } else if (hasAdminEOA || input.upgradeType === "proxy-no-timelock" || governance < 80) {
+    riskOutlook = "MODERATE"
+  }
+
+  return {
+    codeSecurity, architecture, governance, onChain, economic, operations,
+    final: Math.min(100, Math.max(0, final)),
+    rating: ratingOf(final),
+    riskOutlook,
+  }
+}
+
+// Legacy computeScore for backward compat (used by workspace checklist)
 export function computeScore(
   checks: Record<string, Record<string, boolean>>,
-  findings: Finding[]
+  findings: { severity: string; status: string }[]
 ): number {
+  // Use the V2 engine with defaults derived from checklist + findings
+  const open = findings.filter(f => f.status === "OPEN" || f.status === "PARTIALLY_FIXED")
+  const hasCrit = open.some(f => f.severity === "CRITICAL")
+  const result = computeScoreV2({
+    findings,
+    codeQuality: hasCrit ? "Poor" : open.length > 3 ? "Average" : "Good",
+  })
+  // Also factor in checklist completion
   const all = Object.values(checks).flatMap((c) => Object.values(c))
   const done = all.filter(Boolean).length
-  const anyChecked = all.some(Boolean)
-  const crit = findings.filter((f) => f.severity === "CRITICAL" && f.status === "OPEN").length
-  const high = findings.filter((f) => f.severity === "HIGH" && f.status === "OPEN").length
-  const med = findings.filter((f) => f.severity === "MEDIUM" && f.status === "OPEN").length
-  const low = findings.filter((f) => f.severity === "LOW" && f.status === "OPEN").length
-  if (!anyChecked) return Math.max(0, Math.min(MAX_SCORE, MAX_SCORE - crit * 25 - high * 10 - med * 3 - low * 1))
-  return Math.min(MAX_SCORE, Math.max(0, Math.round((done / all.length) * MAX_SCORE) - crit * 15 - high * 5 - med * 2 - low * 1))
+  const total = all.length
+  if (total === 0) return result.final
+  const checklistFactor = done / total
+  return Math.min(MAX_SCORE, Math.max(0, Math.round(result.final * (0.4 + 0.6 * checklistFactor))))
 }
