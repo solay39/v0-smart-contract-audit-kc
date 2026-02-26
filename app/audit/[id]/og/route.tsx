@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og"
-import { DEFAULT_PROJECTS, scoreColor } from "@/lib/solay39-constants"
+import { DEFAULT_PROJECTS, scoreColor, ratingOf, getWeightedScore } from "@/lib/solay39-constants"
 
 const projectMap = new Map(DEFAULT_PROJECTS.map((p) => [p.id, p]))
 
@@ -35,7 +35,9 @@ export async function GET(
     )
   }
 
-  const sc = scoreColor(p.score)
+  const ws = getWeightedScore(p)
+  const wr = ratingOf(ws)
+  const sc = scoreColor(ws)
   const ratingColor = sc
 
   return new ImageResponse(
@@ -236,7 +238,7 @@ export async function GET(
               }}
             >
               <div style={{ fontSize: 56, fontWeight: 900, color: sc, lineHeight: 1 }}>
-                {p.score}
+                {ws}
               </div>
               <div style={{ fontSize: 12, color: "#7a8c9e", letterSpacing: "0.12em", marginTop: 4 }}>
                 / 100
@@ -252,7 +254,7 @@ export async function GET(
                 padding: "6px 20px",
               }}
             >
-              {p.rating}
+              {wr}
             </div>
           </div>
         </div>

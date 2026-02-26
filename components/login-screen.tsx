@@ -9,6 +9,7 @@ import {
   DEFAULT_PROJECTS,
   scoreColor,
   ratingOf,
+  getWeightedScore,
 } from "@/lib/solay39-constants"
 import { ScoreRing, S39Input, S39Btn } from "@/components/solay39-ui"
 
@@ -169,7 +170,9 @@ export function LoginScreen({
 
           {/* Rows */}
           {leaderboard.map((p, idx) => {
-            const sc = scoreColor(p.score)
+            const ws = getWeightedScore(p)
+            const wr = ratingOf(ws)
+            const sc = scoreColor(ws)
             const chainColor = CHAIN_COLORS[p.network] || "#7a8c9e"
             const totalFindings = p.criticals + p.highs + p.mediums + p.lows + p.infos
             return (
@@ -212,14 +215,14 @@ export function LoginScreen({
                     className="text-[12px] sm:text-[13px] font-bold tracking-widest"
                     style={{ color: sc }}
                   >
-                    {p.rating}
+                    {wr}
                   </span>
                 </div>
 
                 {/* Score */}
                 <div className="flex justify-center">
                   <span className="text-[12px] sm:text-[13px] font-bold font-mono" style={{ color: sc }}>
-                    {p.score}
+                    {ws}
                   </span>
                 </div>
 

@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { DEFAULT_PROJECTS, type PortfolioProject } from "@/lib/solay39-constants"
+import { DEFAULT_PROJECTS, ratingOf, getWeightedScore } from "@/lib/solay39-constants"
 import { list } from "@vercel/blob"
 import { AuditDetailClient } from "./client"
 
@@ -36,7 +36,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const title = `${p.name}${p.ticker ? ` (${p.ticker})` : ""} Security Audit | Solay39`
-  const desc = `Score: ${p.score}/100 (${p.rating}) | ${p.criticals} Critical, ${p.highs} High, ${p.mediums} Medium, ${p.lows} Low findings. ${p.description ? p.description.slice(0, 120) : `Smart contract audit by Solay39 on ${p.network}.`}`
+  const ws = getWeightedScore(p)
+  const wr = ratingOf(ws)
+  const desc = `Score: ${ws}/100 (${wr}) | ${p.criticals} Critical, ${p.highs} High, ${p.mediums} Medium, ${p.lows} Low findings. ${p.description ? p.description.slice(0, 120) : `Smart contract audit by Solay39 on ${p.network}.`}`
 
   const url = `https://www.solay39.eu/audit/${id}`
 

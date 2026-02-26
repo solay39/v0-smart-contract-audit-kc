@@ -13,6 +13,7 @@ import {
   SEV_RAW_COLORS,
   assignFindingIds,
   ratingOf,
+  getWeightedScore,
 } from "@/lib/solay39-constants"
 import { ScoreRing, S39Btn, SevBadge } from "@/components/solay39-ui"
 import { getExplorer } from "@/lib/explorers"
@@ -373,14 +374,7 @@ function ShareButton({ auditId, name }: { auditId: string; name: string }) {
 export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioProject; onBack?: () => void; isLive?: boolean; backHref?: string }) {
   // ── SINGLE SOURCE OF TRUTH: compute final score from weighted category sum ──
   const bd = p.scoreBreakdown
-  const computedScore = bd ? Math.round(
-    (bd.codeSecurity ?? p.score) * 0.35 +
-    (bd.architectureRisk ?? p.score) * 0.20 +
-    (bd.governanceRisk ?? p.score) * 0.15 +
-    (bd.centralization ?? p.score) * 0.10 +
-    (bd.economic ?? p.score) * 0.10 +
-    (bd.testingCoverage ?? p.score) * 0.10
-  ) : p.score
+  const computedScore = getWeightedScore(p)
   const computedRating = ratingOf(computedScore)
   const sc = scoreColor(computedScore)
   const totalFindings = p.criticals + p.highs + p.mediums + p.lows + p.infos
@@ -422,7 +416,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
           <div className="flex gap-6 sm:gap-10 items-start flex-col sm:flex-row">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2 flex-wrap">
-                <TokenLogo name={p.name} score={p.score} logoUrl={p.logoUrl} size={48} />
+                <TokenLogo name={p.name} score={computedScore} logoUrl={p.logoUrl} size={48} />
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <h1 className="text-xl sm:text-2xl font-bold text-s39-white leading-tight">{p.name}</h1>
@@ -3291,18 +3285,18 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
   const filtered = displayProjects
     .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
     .filter((p) => net === "all" || p.network === net)
-    .sort((a, b) => (sortBy === "score" ? b.score - a.score : a.name.localeCompare(b.name)))
+    .sort((a, b) => (sortBy === "score" ? getWeightedScore(b) - getWeightedScore(a) : a.name.localeCompare(b.name)))
 
   const networks = [...new Set(displayProjects.map((p) => p.network))]
   const totalTvl = displayProjects.reduce((s, p) => {
     const n = parseFloat((p.tvl || "0").replace(/[^0-9.]/g, ""))
     return s + (isNaN(n) ? 0 : n)
   }, 0)
-  const avgScore = Math.round(displayProjects.reduce((s, p) => s + p.score, 0) / (displayProjects.length || 1))
+  const avgScore = Math.round(displayProjects.reduce((s, p) => s + getWeightedScore(p), 0) / (displayProjects.length || 1))
   const totalCriticals = displayProjects.reduce((s, p) => s + p.criticals, 0)
 
   // Top Security Score projects (top 4)
-  const topProjects = [...displayProjects].sort((a, b) => b.score - a.score).slice(0, 4)
+  const topProjects = [...displayProjects].sort((a, b) => getWeightedScore(b) - getWeightedScore(a)).slice(0, 4)
 
   // Recently audited (sorted by date desc)
   const recentProjects = [...displayProjects]
@@ -3428,7 +3422,9 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {topProjects.map((p) => {
-                const sc = scoreColor(p.score)
+                const ws = getWeightedScore(p)
+                const wr = ratingOf(ws)
+                const sc = scoreColor(ws)
                 return (
                   <div
                     key={p.id}
@@ -3436,7 +3432,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                     className="bg-s39-bg1 border border-s39-border p-4 cursor-pointer hover:border-s39-green/30 transition-all group"
                   >
                     <div className="flex items-center gap-3 mb-3">
-                      <TokenLogo name={p.name} score={p.score} logoUrl={p.logoUrl} />
+                      <TokenLogo name={p.name} score={ws} logoUrl={p.logoUrl} />
                       <div className="min-w-0">
                         <div className="text-[11px] font-bold text-s39-white truncate group-hover:text-s39-green transition-colors">
                           {p.name}
@@ -3449,9 +3445,9 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-lg font-bold" style={{ color: sc }}>{p.score}</span>
+                        <span className="text-lg font-bold" style={{ color: sc }}>{ws}</span>
                         <span className="text-[9px] font-bold border px-1.5 py-0.5" style={{ color: sc, borderColor: `${sc}44` }}>
-                          {p.rating}
+                          {wr}
                         </span>
                       </div>
                       {p.price ? (
@@ -3482,24 +3478,26 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
           <div className="mb-8">
             <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-4">RECENTLY AUDITED</div>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
-              {recentProjects.map((p) => (
+              {recentProjects.map((p) => {
+                const ws = getWeightedScore(p)
+                return (
                 <div
                   key={p.id}
                   onClick={() => goToAudit(p)}
                   className="bg-s39-bg1 border border-s39-border p-3 min-w-[140px] cursor-pointer hover:border-s39-green/30 transition-colors shrink-0"
                 >
                   <div className="flex items-center gap-2 mb-2">
-                    <TokenLogo name={p.name} score={p.score} logoUrl={p.logoUrl} />
+                    <TokenLogo name={p.name} score={ws} logoUrl={p.logoUrl} />
                     <div className="text-[10px] font-bold text-s39-white truncate max-w-[80px]">{p.name}</div>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[8px] text-s39-dim">
                       {new Date(p.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     </span>
-                    <span className="text-[10px] font-bold" style={{ color: scoreColor(p.score) }}>{p.score}</span>
+                    <span className="text-[10px] font-bold" style={{ color: scoreColor(ws) }}>{ws}</span>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           </div>
 
@@ -3535,7 +3533,9 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
             </div>
             {filtered.map((p, i) => {
               const rankColor = i === 0 ? "text-s39-yellow" : i === 1 ? "text-s39-mid" : i === 2 ? "text-s39-orange" : "text-s39-dim"
-              const sc = scoreColor(p.score)
+              const ws = getWeightedScore(p)
+              const wr = ratingOf(ws)
+              const sc = scoreColor(ws)
               return (
                 <div
                   key={p.id}
@@ -3544,7 +3544,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                 >
                   <div className={`text-[10px] font-bold ${rankColor}`}>#{i + 1}</div>
                   <div className="flex items-center gap-3 min-w-0">
-                    <TokenLogo name={p.name} score={p.score} logoUrl={p.logoUrl} />
+                    <TokenLogo name={p.name} score={ws} logoUrl={p.logoUrl} />
                     <div className="min-w-0">
                       <div className="text-[11px] font-bold text-s39-white truncate">{p.name}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
@@ -3569,11 +3569,11 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <ScoreRing score={p.score} size={32} />
+                    <ScoreRing score={ws} size={32} />
                   </div>
                   <div>
                     <span className="text-[9px] font-bold border px-1.5 py-0.5" style={{ color: sc, borderColor: `${sc}44` }}>
-                      {p.rating}
+                      {wr}
                     </span>
                   </div>
                   <div className="flex gap-1 flex-wrap">
@@ -3602,7 +3602,9 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
           {/* Cards - Mobile */}
           <div className="md:hidden flex flex-col gap-3">
             {filtered.map((p, i) => {
-              const sc = scoreColor(p.score)
+              const ws = getWeightedScore(p)
+              const wr = ratingOf(ws)
+              const sc = scoreColor(ws)
               return (
                 <div
                   key={p.id}
@@ -3611,7 +3613,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <TokenLogo name={p.name} score={p.score} logoUrl={p.logoUrl} />
+                      <TokenLogo name={p.name} score={ws} logoUrl={p.logoUrl} />
                       <div className="min-w-0">
                         <div className="text-[11px] font-bold text-s39-white truncate">
                           #{i + 1} {p.name}
@@ -3635,11 +3637,11 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                         </div>
                       </div>
                     </div>
-                    <ScoreRing score={p.score} size={44} />
+                    <ScoreRing score={ws} size={44} />
                   </div>
                   <div className="flex gap-1.5 items-center flex-wrap">
                     <span className="text-[8px] font-bold border px-1.5 py-0.5" style={{ color: sc, borderColor: `${sc}44` }}>
-                      {p.rating}
+                      {wr}
                     </span>
                     <span className="text-[8px] text-s39-green border border-s39-green/20 px-2 py-0.5 tracking-wider">
                       AUDITED

@@ -306,6 +306,20 @@ export interface PortfolioProject {
 // Keep backward compat alias
 export type DemoProject = PortfolioProject
 
+/** Compute weighted score from scoreBreakdown — SINGLE SOURCE OF TRUTH for display */
+export function getWeightedScore(p: PortfolioProject): number {
+  const sb = p.scoreBreakdown
+  if (!sb) return p.score
+  return Math.round(
+    (sb.codeSecurity ?? p.score) * 0.35 +
+    (sb.architectureRisk ?? p.score) * 0.20 +
+    (sb.governanceRisk ?? p.score) * 0.15 +
+    (sb.centralization ?? p.score) * 0.10 +
+    (sb.economic ?? p.score) * 0.10 +
+    (sb.testingCoverage ?? p.score) * 0.10
+  )
+}
+
 // ── Finding ID generation (H-01, M-01, etc.) ───────────────
 const SEV_PREFIX: Record<SeverityLevel, string> = {
   CRITICAL: "C", HIGH: "H", MEDIUM: "M", LOW: "L", INFO: "I",
