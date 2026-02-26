@@ -617,7 +617,8 @@ Be thorough but PRECISE. Quality over quantity. A report with 2 real findings is
 
 export async function POST(req: Request) {
   try {
-    const { code } = await req.json()
+    const { code, network } = await req.json()
+    const chainNetwork: string = network || "Ethereum"
 
     if (!code || typeof code !== "string" || code.trim().length === 0) {
       return Response.json({ error: "No code provided" }, { status: 400 })
@@ -625,12 +626,24 @@ export async function POST(req: Request) {
 
     const truncatedCode = code.slice(0, 15000)
 
+    // Detect the programming language from the network
+    const isEVM = !["Solana", "Sui", "Aptos", "Cosmos", "Injective", "Sei", "Near", "Ton", "Starknet"].includes(chainNetwork)
+    const codeLanguage = chainNetwork === "Solana" ? "Rust/Anchor"
+      : ["Sui", "Aptos"].includes(chainNetwork) ? "Move"
+      : ["Cosmos", "Injective", "Sei"].includes(chainNetwork) ? "CosmWasm (Rust)"
+      : chainNetwork === "Near" ? "Rust/AssemblyScript"
+      : chainNetwork === "Ton" ? "FunC/Tact"
+      : chainNetwork === "Starknet" ? "Cairo"
+      : "Solidity"
+
     // Extract contract metadata FIRST -- this drives everything
     const meta = extractContractMeta(truncatedCode)
 
     // Build a metadata context preamble for the AI
-    const metaContext = [
+    const metaContext = isEVM ? [
       `CONTRACT METADATA (pre-analyzed):`,
+      `- Network: ${chainNetwork}`,
+      `- Language: ${codeLanguage}`,
       `- Type: ${meta.contractType} (${meta.scopeLabel})`,
       `- Is ERC-20: ${meta.isERC20}`,
       `- Uses OpenZeppelin: ${meta.usesOZ}`,
@@ -650,14 +663,28 @@ export async function POST(req: Request) {
       meta.contractType === "erc20"
         ? `This is a SIMPLE ERC-20 TOKEN. Do NOT claim you're auditing a "protocol", "DEX", "vault", or "trading platform". The scope is ONLY the token contract. Architecture risk and governance risk should reflect this limited scope.`
         : ``,
+    ].join("\n") : [
+      `CONTRACT METADATA:`,
+      `- Network: ${chainNetwork}`,
+      `- Language: ${codeLanguage}`,
+      `- This is NOT a Solidity contract. Analyze it according to ${codeLanguage} best practices and common vulnerabilities.`,
+      `- Focus on: access control, arithmetic safety, state mutation safety, program authority/signer verification, token account validation, CPI (Cross-Program Invocation) safety.`,
+      chainNetwork === "Solana" ? `- For Solana/Anchor programs: check account constraint validation, signer checks, PDA derivation, CPI guard, reinitialization attacks, type cosplay, missing close constraints.` : "",
+      ["Sui", "Aptos"].includes(chainNetwork) ? `- For Move programs: check capability patterns, object ownership, resource safety, phantom type abuse, entry function validation.` : "",
+      ["Cosmos", "Injective", "Sei"].includes(chainNetwork) ? `- For CosmWasm contracts: check instantiate/execute/query handler safety, storage patterns, submessage reply handling, migration safety.` : "",
     ].join("\n")
+
+    // Adapt the analysis prompt for the code language
+    const analysisPrompt = isEVM
+      ? `${metaContext}\n\nAnalyze this Solidity smart contract for security vulnerabilities. Remember: identify the contract type first, avoid false positives, and never duplicate findings.\n\n${truncatedCode}`
+      : `${metaContext}\n\nAnalyze this ${codeLanguage} smart contract/program deployed on ${chainNetwork} for security vulnerabilities. Apply ${codeLanguage}-specific security patterns. Remember: avoid false positives, and never duplicate findings.\n\n${truncatedCode}`
 
     // Try AI analysis first
     try {
       const result = await generateText({
         model: "openai/gpt-4o-mini",
         system: SYSTEM_PROMPT,
-        prompt: `${metaContext}\n\nAnalyze this Solidity smart contract for security vulnerabilities. Remember: identify the contract type first, avoid false positives, and never duplicate findings.\n\n${truncatedCode}`,
+        prompt: analysisPrompt,
         maxOutputTokens: 4096,
       })
 

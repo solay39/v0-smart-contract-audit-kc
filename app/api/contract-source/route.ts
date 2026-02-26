@@ -187,12 +187,22 @@ export async function POST(req: Request) {
           network: net,
         }, { status: 404 })
       }
+      const linesOfCode = result.source.split("\n").length
+      const explorerName = config.apiUrl.includes("etherscan") ? "Etherscan" :
+        config.apiUrl.includes("bscscan") ? "BscScan" :
+        config.apiUrl.includes("arbiscan") ? "Arbiscan" :
+        config.apiUrl.includes("polygonscan") ? "PolygonScan" :
+        config.apiUrl.includes("basescan") ? "BaseScan" :
+        config.apiUrl.includes("snowscan") ? "Snowscan" :
+        net + " Explorer"
       return Response.json({
         source: result.source,
         compiler: result.compiler,
         contractName: result.contractName,
-        language: "solidity",
+        language: "Solidity " + (result.compiler || ""),
+        explorerName,
         explorerUrl,
+        linesOfCode,
         network: net,
       })
     }
@@ -204,8 +214,10 @@ export async function POST(req: Request) {
         return Response.json({
           source: result.idl,
           contractName: result.programName,
-          language: "rust-anchor-idl",
+          language: "Rust/Anchor IDL",
+          explorerName: "Solscan",
           explorerUrl,
+          linesOfCode: result.idl.split("\n").length,
           network: net,
           note: "Solana programs are compiled Rust/Anchor. This is the program IDL (Interface Description Language). The audit will analyze the program interface, instruction handlers, and account constraints.",
         })

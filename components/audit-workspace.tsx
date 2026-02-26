@@ -13,6 +13,7 @@ import {
   SEV_CONFIG,
   SEV_RAW_COLORS,
 } from "@/lib/solay39-constants"
+import { isValidAddress, getExplorer, chainLanguage } from "@/lib/explorers"
 import { ScoreRing, S39Input, S39Btn, SevBadge } from "@/components/solay39-ui"
 import { exportPDF } from "@/lib/export-pdf"
 import { savePublishedAudit } from "@/components/skynet-public"
@@ -146,7 +147,8 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     } = {}
 
     const contractAddr = project.commit?.trim()
-    if (contractAddr && /^0x[a-fA-F0-9]{40}$/.test(contractAddr)) {
+    const currentNetwork = project.network || "Ethereum"
+    if (contractAddr && isValidAddress(contractAddr, currentNetwork)) {
       try {
         const infoRes = await fetch("/api/token-info", {
           method: "POST",
@@ -286,7 +288,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         contractsReviewed: 1,
         linesOfCode: (aiEngagement?.linesOfCode as number) || 0,
         commitHash: project.commit || "N/A — verified deployed bytecode",
-        repositoryUrl: contractAddr ? `https://etherscan.io/address/${contractAddr}#code` : undefined,
+        repositoryUrl: contractAddr ? getExplorer(currentNetwork).addressUrl(contractAddr) : undefined,
         objectives: (aiEngagement?.objectives as string[]) || [
           "Identify security vulnerabilities in the deployed smart contract",
           "Assess centralization and privilege risks",
@@ -397,7 +399,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       const res = await fetch("/api/skynet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: aiCode }),
+        body: JSON.stringify({ code: aiCode, network: project.network || "Ethereum" }),
       })
       const data = await res.json().catch(() => null)
       if (!data) {
@@ -992,12 +994,47 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
                 SKYNET AI COPILOT
               </div>
               <div className="text-[10px] text-s39-mid mb-4">
-                Paste your Solidity code for automated vulnerability analysis.
+                Paste your smart contract code or auto-fetch it from the blockchain.
               </div>
+
+              {/* Auto-fetch source from contract address */}
+              {project.commit?.trim() && isValidAddress(project.commit.trim(), project.network || "Ethereum") && (
+                <S39Btn
+                  onClick={async () => {
+                    setAiNote("Fetching source code from " + getExplorer(project.network || "Ethereum").name + "...")
+                    setAiError("")
+                    try {
+                      const res = await fetch("/api/contract-source", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          address: project.commit?.trim(),
+                          network: project.network || "Ethereum",
+                        }),
+                      })
+                      const data = await res.json()
+                      if (data.source) {
+                        setAiCode(data.source)
+                        setAiNote(`Source code fetched from ${data.explorerName || "explorer"} (${data.language || "unknown"}, ${data.linesOfCode || "?"} lines)`)
+                      } else {
+                        setAiError(data.error || "Could not fetch source code. Paste it manually.")
+                        setAiNote("")
+                      }
+                    } catch {
+                      setAiError("Failed to connect to source code API.")
+                      setAiNote("")
+                    }
+                  }}
+                  className="w-full mb-3 !border-s39-cyan/30 !text-s39-cyan"
+                >
+                  Auto-Fetch Source from {getExplorer(project.network || "Ethereum").name}
+                </S39Btn>
+              )}
+
               <textarea
                 value={aiCode}
                 onChange={(e) => setAiCode(e.target.value)}
-                placeholder="// Paste Solidity code here..."
+                placeholder={`// Paste ${chainLanguage(project.network || "Ethereum")} code here...\n// Or use the Auto-Fetch button above to load from ${getExplorer(project.network || "Ethereum").name}`}
                 className="w-full bg-s39-bg2 border border-s39-border text-s39-lite p-3 text-[10px] font-mono resize-y min-h-[200px] outline-none focus:border-s39-cyan transition-colors mb-3.5"
               />
               <S39Btn
