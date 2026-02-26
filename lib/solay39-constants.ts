@@ -22,6 +22,37 @@ export interface Finding {
   status: FindingStatus
   likelihood?: "High" | "Medium" | "Low"
   proofOfConcept?: string
+  clientResponse?: string         // "Team acknowledged; will implement in next release"
+  fixVerification?: string        // "Verified in commit abc123 — mint guard added"
+}
+
+// ── Code Quality & Complexity Metrics ────────────────────────
+export interface CodeMetrics {
+  totalLOC: number
+  totalContracts: number
+  externalDependencies: string[]    // ["OpenZeppelin 4.9.3", "Chainlink v0.8"]
+  upgradeabilityPattern: string     // "UUPS" | "TransparentProxy" | "none"
+  standardUsed: string              // "OpenZeppelin 4.9.3"
+  compilerVersion: string           // "solc 0.8.20"
+  optimizerRuns?: number            // 200
+  testCoverage?: string             // "87%"
+  cyclomaticComplexity?: string     // "Low" | "Medium" | "High"
+}
+
+// ── Formal Trust Model ──────────────────────────────────────
+export interface TrustModelEntry {
+  component: string                 // "Owner" | "ProxyAdmin" | "Oracle"
+  trustRequired: "High" | "Medium" | "Low" | "None"
+  riskIfCompromised: string         // "Can mint unlimited tokens, drain treasury"
+  mitigation?: string               // "Timelock + multisig"
+}
+
+// ── Final Assessment ─────────────────────────────────────────
+export interface FinalAssessment {
+  securityPosture: string           // "The contract demonstrates a strong security posture..."
+  productionReadiness: string       // "The contract is production-ready..."
+  keyRisksToMonitor: string[]       // ["Owner key management", "Oracle dependency"]
+  remediationCommit?: string        // "abc123def456" — commit where all fixes verified
 }
 
 // ── Tier-1: Audit Engagement (Halborn-style) ─────────────────
@@ -77,6 +108,8 @@ export interface PrivilegedRole {
   role: string
   capabilities: string
   riskIfCompromised: string
+  riskLevel?: "Critical" | "High" | "Medium" | "Low"
+  recommendation?: string           // "Transfer to multisig + timelock"
 }
 
 export interface TrustAssumption {
@@ -197,6 +230,8 @@ export interface PortfolioProject {
     recommendation: string
     likelihood?: "High" | "Medium" | "Low"
     proofOfConcept?: string
+    clientResponse?: string
+    fixVerification?: string
   }[]
   scoreBreakdown?: {
     codeSecurity: number
@@ -245,6 +280,11 @@ export interface PortfolioProject {
   riskModel?: RiskModelConfig
   auditorProfile?: AuditorProfile
   limitations?: AuditLimitations
+  // ── 16K-Ready Premium sections ──
+  codeMetrics?: CodeMetrics
+  trustModel?: TrustModelEntry[]
+  finalAssessment?: FinalAssessment
+  methodologySteps?: string[]       // 6-phase methodology steps
 }
 
 // Keep backward compat alias
@@ -336,7 +376,7 @@ export const CHECKLIST: Record<string, { id: string; text: string; sev: Severity
   ],
 }
 
-// ── Shared Halborn-style configs ──────────────────────���──────
+// ── Shared Halborn-style configs ──────────────────────����──────
 export const SOLAY39_RISK_MODEL: RiskModelConfig = {
   methodology: "Likelihood x Impact severity matrix following OWASP and Halborn classification standards. Each finding is independently assessed for exploitability (likelihood) and damage potential (impact), then mapped to a composite severity level.",
   severityMatrix: [

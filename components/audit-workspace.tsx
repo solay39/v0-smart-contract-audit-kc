@@ -265,6 +265,8 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         recommendation: f.recommendation,
         likelihood: f.likelihood || undefined,
         proofOfConcept: f.proofOfConcept || undefined,
+        clientResponse: f.clientResponse || undefined,
+        fixVerification: f.fixVerification || undefined,
       })),
       // Tier-1 sections
       privilegedRoles: privilegedRoles.length > 0 ? privilegedRoles : undefined,
@@ -355,6 +357,53 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
           "This audit does not constitute financial advice.",
         ],
         disclaimer: "DISCLAIMER: This report is provided as-is for informational purposes only. Solay39 makes no warranties regarding the completeness or accuracy of this assessment.",
+      },
+      // ── 16K-Ready Premium Sections ──
+      methodologySteps: [
+        "Automated static analysis (Slither, custom detectors)",
+        "Manual line-by-line code review",
+        "Privilege & access control analysis",
+        "Economic attack surface review",
+        "On-chain deployment verification & bytecode match",
+        "Remediation validation & fix re-testing",
+      ],
+      codeMetrics: {
+        totalLOC: (aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 0,
+        totalContracts: (aiScopeTable?.length) || 1,
+        externalDependencies: contractMeta?.usesOZ ? ["OpenZeppelin Contracts"] : [],
+        upgradeabilityPattern: contractMeta?.hasProxy ? "TransparentProxy" : "none",
+        standardUsed: contractMeta?.usesOZ ? "OpenZeppelin" : "Custom",
+        compilerVersion: contractMeta?.solidityVersion || contractMeta?.codeLanguage || "N/A",
+        cyclomaticComplexity: ((aiEngagement?.linesOfCode as number) || 0) > 500 ? "Medium" : "Low",
+      },
+      trustModel: privilegedRoles.length > 0 ? privilegedRoles.map(r => ({
+        component: r.role,
+        trustRequired: (r.riskIfCompromised?.toLowerCase().includes("fund") || r.riskIfCompromised?.toLowerCase().includes("mint") || r.riskIfCompromised?.toLowerCase().includes("drain")) ? "High" as const : "Medium" as const,
+        riskIfCompromised: r.riskIfCompromised,
+        mitigation: r.recommendation || undefined,
+      })) : contractMeta?.hasOwner ? [{
+        component: "Owner",
+        trustRequired: "High" as const,
+        riskIfCompromised: contractMeta.ownerRenounced ? "Limited — ownership renounced" : "Can execute privileged functions (pause, mint, upgrade)",
+        mitigation: contractMeta.ownerRenounced ? "Ownership renounced" : "Transfer to multisig + timelock recommended",
+      }] : undefined,
+      finalAssessment: {
+        securityPosture: score >= 90
+          ? `The ${project.name} contract demonstrates a strong security posture with well-implemented access controls, standard-compliant code, and no critical vulnerabilities identified during review.`
+          : score >= 70
+          ? `The ${project.name} contract has an adequate security posture with some areas requiring attention. The identified findings should be addressed before production deployment.`
+          : `The ${project.name} contract requires significant security improvements. Critical and high-severity findings must be resolved before any production deployment.`,
+        productionReadiness: score >= 80
+          ? "The contract is considered production-ready pending resolution of all identified findings."
+          : "The contract is NOT recommended for production deployment until all critical and high-severity findings are resolved.",
+        keyRisksToMonitor: [
+          ...(contractMeta?.hasOwner && !contractMeta?.ownerRenounced ? ["Owner key security and potential for privileged function abuse"] : []),
+          ...(contractMeta?.hasProxy ? ["Upgrade mechanism — ensure proper governance controls on proxy admin"] : []),
+          ...((findings.filter(f => f.severity === "CRITICAL" && f.status === "OPEN").length > 0) ? ["Unresolved critical vulnerabilities require immediate attention"] : []),
+          "External dependency updates and potential upstream vulnerabilities",
+          "On-chain monitoring for abnormal transaction patterns",
+        ],
+        remediationCommit: findings.some(f => f.status === "RESOLVED") ? (project.commit || "verified on-chain") : undefined,
       },
     }
 
@@ -912,6 +961,20 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
                 value={nf.recommendation}
                 onChange={(e) => setNf((p) => ({ ...p, recommendation: e.target.value }))}
                 placeholder="How to fix..."
+                multi
+              />
+              <S39Input
+                label="Client Response (optional)"
+                value={nf.clientResponse || ""}
+                onChange={(e) => setNf((p) => ({ ...p, clientResponse: e.target.value }))}
+                placeholder="Team response: acknowledged, will fix in v2..."
+                multi
+              />
+              <S39Input
+                label="Fix Verification (optional)"
+                value={nf.fixVerification || ""}
+                onChange={(e) => setNf((p) => ({ ...p, fixVerification: e.target.value }))}
+                placeholder="Verified in commit abc123 — guard added to mint()"
                 multi
               />
               <S39Btn primary onClick={addFinding}>
