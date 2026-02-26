@@ -182,8 +182,36 @@ async function enrichWith24hChange(
       const vol = topPool.volume_usd?.h24
       const mcap = topPool.market_cap_usd ?? topPool.fdv_usd
 
+      // Fallback: if simple price endpoint returned N/A, extract price from pool data
+      let finalPrice = data.price
+      let finalPriceNum = data.priceNum
+      if (data.priceNum === 0 || data.price === "N/A") {
+        // Try base_token_price_usd first (if our token is the base token)
+        // Check which side of the pool our token is on
+        const poolBaseAddr = poolsJson?.data?.[0]?.relationships?.base_token?.data?.id || ""
+        const poolQuoteAddr = poolsJson?.data?.[0]?.relationships?.quote_token?.data?.id || ""
+        const ourAddrLower = data.address.toLowerCase()
+
+        let poolPrice: number | null = null
+        if (poolBaseAddr.toLowerCase().includes(ourAddrLower)) {
+          poolPrice = parseFloat(topPool.base_token_price_usd || "0")
+        } else if (poolQuoteAddr.toLowerCase().includes(ourAddrLower)) {
+          poolPrice = parseFloat(topPool.quote_token_price_usd || "0")
+        } else {
+          // Try both, pick the non-zero one
+          poolPrice = parseFloat(topPool.base_token_price_usd || "0") || parseFloat(topPool.quote_token_price_usd || "0")
+        }
+
+        if (poolPrice && poolPrice > 0) {
+          finalPriceNum = poolPrice
+          finalPrice = `$${poolPrice < 0.0001 ? poolPrice.toFixed(8) : poolPrice < 0.01 ? poolPrice.toFixed(6) : poolPrice < 1 ? poolPrice.toFixed(4) : poolPrice.toFixed(2)}`
+        }
+      }
+
       enriched[ticker] = {
         ...data,
+        price: finalPrice,
+        priceNum: finalPriceNum,
         change24h: change != null ? `${parseFloat(change) >= 0 ? "+" : ""}${parseFloat(change).toFixed(2)}%` : undefined,
         volume24h: vol ? `$${formatCompact(parseFloat(vol))}` : undefined,
         marketCap: mcap ? `$${formatCompact(parseFloat(mcap))}` : undefined,
