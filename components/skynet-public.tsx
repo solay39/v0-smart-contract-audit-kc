@@ -2842,7 +2842,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               )}
               <div>
                 <span className="text-[7px] text-s39-dim tracking-widest">WEBSITE: </span>
-                <span className="text-[9px] text-s39-cyan font-mono">solay39.com</span>
+                <span className="text-[9px] text-s39-cyan font-mono">solay39.eu</span>
               </div>
             </div>
           </div>
