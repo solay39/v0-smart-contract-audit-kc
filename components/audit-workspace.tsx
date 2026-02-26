@@ -275,11 +275,13 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       attackSurface: attackSurface.length > 0 ? attackSurface : [
         // Privileged Role Abuse
         ...(contractMeta?.hasOwner ? [{
-          title: "Privileged Role Abuse — Owner Key Compromise",
+          title: "Owner Key Compromise -> Protocol Takeover",
           type: "fund-theft" as const,
           description: contractMeta?.ownerRenounced
-            ? "Ownership has been renounced, eliminating the risk of owner key compromise. No privileged functions remain accessible to any external account."
-            : `If the owner private key is compromised, the attacker could execute all privileged functions including ${contractMeta?.hasMint ? "minting new tokens, " : ""}${contractMeta?.hasPause ? "pausing the contract, " : ""}${contractMeta?.hasBlacklist ? "blacklisting addresses, " : ""}and potentially draining protocol value.`,
+            ? "Ownership has been renounced, eliminating the risk of owner key compromise. No privileged functions remain accessible to any external account. The contract is effectively trustless."
+            : `If the owner private key is compromised, the attacker gains full control over all privileged functions. This includes ${contractMeta?.hasMint ? "minting unlimited tokens to dilute supply, " : ""}${contractMeta?.hasPause ? "freezing all transfers via pause(), " : ""}${contractMeta?.hasBlacklist ? "permanently blacklisting any address, " : ""}and executing any owner-restricted state changes.`,
+          narrativeImpact: contractMeta?.ownerRenounced ? "No impact — ownership renounced" : "Total loss of protocol control and potential fund drain",
+          mitigation: contractMeta?.ownerRenounced ? "Ownership renounced (0x0 address)" : "Access control active — recommend multisig + timelock",
           likelihood: (contractMeta?.ownerRenounced ? "Low" : "Medium") as "High" | "Medium" | "Low",
           mitigated: !!contractMeta?.ownerRenounced,
           simulationResult: contractMeta?.ownerRenounced
@@ -288,11 +290,13 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         }] : []),
         // Economic Attack Vector
         {
-          title: "Economic Attack — Supply Manipulation",
+          title: "Supply Manipulation -> Infinite Mint Attack",
           type: "economic" as const,
           description: contractMeta?.hasMint
-            ? "The contract contains a mint function. If improperly guarded, an attacker could inflate the token supply, diluting existing holders and crashing the token price."
-            : "The contract has a fixed supply model with no mint function, significantly reducing the risk of supply manipulation attacks.",
+            ? "The contract exposes a mint() function. If the access control on this function is weak or the minter key is compromised, an attacker could inflate the token supply to arbitrary levels, diluting all existing holders and crashing the market price to zero."
+            : "The contract uses a fixed supply model with no mint function. Tokens can only be redistributed, not created. This eliminates the supply inflation attack vector entirely.",
+          narrativeImpact: contractMeta?.hasMint ? "Total supply dilution — token price driven to zero" : "No impact — fixed supply model",
+          mitigation: contractMeta?.hasMint ? (contractMeta?.mintGuarded ? "Mint restricted to authorized role" : "No mitigation — unrestricted mint") : "Fixed supply — no mint function",
           likelihood: (contractMeta?.hasMint && !contractMeta?.mintGuarded ? "High" : "Low") as "High" | "Medium" | "Low",
           mitigated: !contractMeta?.hasMint || !!contractMeta?.mintGuarded,
           simulationResult: contractMeta?.hasMint
@@ -301,27 +305,33 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         },
         // Governance Takeover
         ...(contractMeta?.hasGovernance || false ? [{
-          title: "Governance Takeover — Flash Loan Voting",
+          title: "Governance Takeover -> Flash Loan Voting Attack",
           type: "governance" as const,
-          description: "A governance mechanism exists in this protocol. An attacker could potentially use flash loans to temporarily acquire a large voting position, pass a malicious proposal, and drain protocol value within a single transaction.",
+          description: "A governance mechanism exists in this protocol. An attacker could use a flash loan to temporarily acquire a voting position exceeding the quorum threshold, propose and execute a malicious transaction (e.g., draining the treasury), and return the borrowed tokens in the same block. This bypasses the economic cost that governance security assumes.",
+          narrativeImpact: "Total loss of protocol governance and treasury funds",
+          mitigation: "Implement vote-escrowed tokens or snapshot-based voting with timelock",
           likelihood: "Medium" as const,
           mitigated: false,
           simulationResult: "Governance voting mechanism requires assessment of quorum thresholds and timelock delays.",
         }] : []),
         // Upgradeability Risk
         ...(contractMeta?.hasProxy ? [{
-          title: "Upgradeability Risk — Malicious Implementation Upgrade",
+          title: "Proxy Admin Compromise -> Malicious Implementation Upgrade",
           type: "state-corruption" as const,
-          description: "The contract uses a proxy pattern. If the proxy admin key is compromised, an attacker could deploy a malicious implementation contract that drains all user funds or corrupts storage state.",
+          description: "The contract uses a proxy pattern. If the proxy admin private key is compromised, an attacker can deploy a malicious implementation contract that has full access to the proxy's storage. This allows draining all user balances, modifying approval mappings, or permanently bricking the contract.",
+          narrativeImpact: "Total loss of all user funds and protocol state corruption",
+          mitigation: "Transfer proxy admin to multisig with minimum 48h timelock",
           likelihood: "Medium" as const,
           mitigated: false,
           simulationResult: "Proxy admin address identified. Recommend transfer to multisig with timelock for upgrade operations.",
         }] : []),
         // Censorship Risk
         ...(contractMeta?.hasPause || contractMeta?.hasBlacklist ? [{
-          title: "Censorship Risk — Transfer Restrictions",
+          title: `Censorship Attack -> ${contractMeta?.hasPause ? "Global Transfer Freeze" : "Targeted Address Blacklisting"}`,
           type: "censorship" as const,
-          description: `The contract contains ${contractMeta?.hasPause ? "pause functionality" : ""}${contractMeta?.hasPause && contractMeta?.hasBlacklist ? " and " : ""}${contractMeta?.hasBlacklist ? "address blacklisting" : ""}. These mechanisms could be used to freeze user funds or prevent token transfers.`,
+          description: `The contract implements ${contractMeta?.hasPause ? "a global pause mechanism that can freeze all token transfers for every holder" : ""}${contractMeta?.hasPause && contractMeta?.hasBlacklist ? ", combined with " : ""}${contractMeta?.hasBlacklist ? "an address blacklisting system that can permanently block specific addresses from sending or receiving tokens" : ""}. In a compromised-key scenario, these functions become weapons for financial censorship.`,
+          narrativeImpact: contractMeta?.hasPause ? "All user funds frozen — no transfers possible" : "Targeted users permanently blocked from token operations",
+          mitigation: "Role-based access control + recommended governance multisig",
           likelihood: "Low" as const,
           mitigated: true,
           simulationResult: `${contractMeta?.hasPause ? "pause() restricted to owner only. " : ""}${contractMeta?.hasBlacklist ? "Blacklist function restricted to authorized role." : ""} Access control verified.`,
@@ -419,6 +429,8 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         deliveryDate: new Date().toISOString().slice(0, 10),
         auditDurationDays: (aiEngagement?.auditDurationDays as number) || 1,
         numberOfAuditors: 1,
+        engineeringHours: Math.max(72, ((aiEngagement?.auditDurationDays as number) || 3) * 24),
+        securityEngineersInvolved: 1,
         leadAuditor: "Solay39 Founder",
         compilerVersionUsed: (aiEngagement?.compilerVersionUsed as string) || contractMeta?.codeLanguage || contractMeta?.solidityVersion || "N/A",
         contractsReviewed: 1,
@@ -736,6 +748,8 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       deliveryDate: new Date().toISOString().slice(0, 10),
       auditDurationDays: (aiEngagement.auditDurationDays as number) || 3,
       numberOfAuditors: 1,
+      engineeringHours: Math.max(72, ((aiEngagement.auditDurationDays as number) || 3) * 24),
+      securityEngineersInvolved: 1,
       leadAuditor: "Solay39 Founder",
       compilerVersionUsed: (aiEngagement.compilerVersionUsed as string) || "N/A",
       contractsReviewed: 1,

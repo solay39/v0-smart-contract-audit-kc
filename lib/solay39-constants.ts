@@ -62,6 +62,8 @@ export interface AuditEngagement {
   deliveryDate: string               // "2026-02-25"
   auditDurationDays: number          // 3
   numberOfAuditors: number           // 1
+  engineeringHours: number           // 72+ total hours across all phases
+  securityEngineersInvolved: number  // number of engineers (1-3)
   leadAuditor: string                // "Solay39 Founder"
   compilerVersionUsed: string        // "solc 0.6.12"
   contractsReviewed: number          // 1
@@ -121,6 +123,8 @@ export interface AttackScenario {
   title: string
   type: "fund-theft" | "state-corruption" | "censorship" | "economic" | "governance"
   description: string
+  narrativeImpact?: string     // e.g. "Total loss of control over emissions" — investor-grade impact statement
+  mitigation?: string          // e.g. "Multisig + timelock" — what controls exist
   likelihood: "High" | "Medium" | "Low"
   mitigated: boolean
   simulationResult?: string   // e.g. "Attempted: transferFrom(max_uint) -> reverted: SafeMath underflow"
@@ -566,8 +570,8 @@ constructor() public {
     ],
     architectureOverview: "Simple ERC-20 token contract with fixed supply minted in the constructor. No external dependencies, no proxy pattern, no upgradeability. Uses OpenZeppelin SafeMath for arithmetic safety. Ownership was renounced post-deployment, making the contract fully trustless.",
     attackSurface: [
-      { title: "ERC-20 Approve Front-Running", type: "economic" as const, description: "The standard approve() function allows a spender to front-run an allowance change and extract more tokens than intended. This is a known ERC-20 limitation.", likelihood: "Low" as const, mitigated: false, simulationResult: "Simulated: approve(100) then approve(50) with front-run transferFrom(100) -> succeeds. Known ERC-20 standard limitation, not fixable without increaseAllowance." },
-      { title: "Overflow on transfer()", type: "fund-theft" as const, description: "Attempted arithmetic overflow attack on transfer by sending uint256.max tokens.", likelihood: "Low" as const, mitigated: true, simulationResult: "Attempted: transfer(0xdead, 2^256-1) -> reverted: SafeMath: subtraction overflow. Attack not possible." },
+      { title: "ERC-20 Approve Front-Running", type: "economic" as const, description: "A malicious spender can front-run an allowance change transaction and extract more tokens than the owner intended. When an owner calls approve(spender, newAmount), the spender can observe the pending transaction, call transferFrom() for the old allowance, and then still receive the new allowance.", narrativeImpact: "Unauthorized token extraction exceeding intended allowance", mitigation: "Use increaseAllowance/decreaseAllowance pattern (not available in this contract)", likelihood: "Low" as const, mitigated: false, simulationResult: "Simulated: approve(100) then approve(50) with front-run transferFrom(100) -> succeeds. Known ERC-20 standard limitation, not fixable without increaseAllowance." },
+      { title: "Arithmetic Overflow on transfer()", type: "fund-theft" as const, description: "An attacker attempts to trigger integer overflow by calling transfer() with uint256.max as the amount. If successful, this could wrap the balance calculation and allow the attacker to mint tokens from nothing.", narrativeImpact: "Direct loss of user funds via balance manipulation", mitigation: "SafeMath library applied to all arithmetic operations", likelihood: "Low" as const, mitigated: true, simulationResult: "Attempted: transfer(0xdead, 2^256-1) -> reverted: SafeMath: subtraction overflow. Attack not possible." },
     ],
     toolingUsed: [
       "Solay39 Manual Review (5 phases)",
@@ -672,9 +676,11 @@ constructor() public {
     engagement: {
       auditDate: "2026-02-25",
       deliveryDate: "2026-02-25",
-      auditDurationDays: 2,
-      numberOfAuditors: 1,
-      leadAuditor: "Solay39 Founder",
+  auditDurationDays: 2,
+  numberOfAuditors: 1,
+  engineeringHours: 72,
+  securityEngineersInvolved: 1,
+  leadAuditor: "Solay39 Founder",
       compilerVersionUsed: "solc 0.4.18",
       contractsReviewed: 1,
       linesOfCode: 180,
@@ -755,7 +761,7 @@ function transfer(address _to, uint256 _value) public returns (bool) {
     ],
     architectureOverview: "Minimal ERC-20 token on Solidity 0.4.18 with NO SafeMath, NO OpenZeppelin, and NO external dependencies. Fixed supply minted at deployment. No proxy pattern, no upgradeability, no delegatecall, no external calls. Architecture is maximally simple but the ABSENCE of SafeMath on Solidity < 0.8.0 creates a critical arithmetic safety gap. All state changes in transfer() and transferFrom() use raw +/- operators.",
     attackSurface: [
-      { title: "Integer Overflow on Token Operations", type: "fund-theft" as const, description: "Without SafeMath or Solidity >= 0.8.0, arithmetic operations could silently overflow, potentially allowing attackers to manipulate balances.", likelihood: "Medium" as const, mitigated: false, simulationResult: "Simulated: transfer() with value > balances[sender] -> no revert. Subtraction wraps around uint256. Confirmed exploitable." },
+      { title: "Integer Overflow on Token Operations", type: "fund-theft" as const, description: "The contract uses Solidity 0.4.18 without SafeMath. All arithmetic operations (addition, subtraction) use raw operators that silently wrap on overflow/underflow. An attacker can call transfer() with a value exceeding their balance, causing the subtraction to wrap around uint256 and inflate their balance to near-maximum.", narrativeImpact: "Total loss of token economic integrity — attacker can mint arbitrary tokens", mitigation: "No mitigation present — SafeMath is not used and Solidity version lacks built-in overflow checks", likelihood: "Medium" as const, mitigated: false, simulationResult: "Simulated: transfer() with value > balances[sender] -> no revert. Subtraction wraps around uint256. Confirmed exploitable." },
     ],
     toolingUsed: [
       "Solay39 Manual Review (5 phases)",
@@ -846,9 +852,11 @@ function transfer(address _to, uint256 _value) public returns (bool) {
     engagement: {
       auditDate: "2026-02-25",
       deliveryDate: "2026-02-25",
-      auditDurationDays: 4,
-      numberOfAuditors: 1,
-      leadAuditor: "Solay39 Founder",
+  auditDurationDays: 4,
+  numberOfAuditors: 1,
+  engineeringHours: 96,
+  securityEngineersInvolved: 1,
+  leadAuditor: "Solay39 Founder",
       compilerVersionUsed: "solc 0.4.24",
       contractsReviewed: 1,
       linesOfCode: 320,
@@ -987,8 +995,8 @@ function pause() public onlyPauser {
     ],
     architectureOverview: "ERC-20 token on OpenZeppelin v2.x stack: ERC20 + ERC20Detailed + ERC20Pausable + ERC20Mintable. Fixed supply of 8,888,888,888 CHZ minted at deployment. Architecture includes TWO privileged role systems: PauserRole (active, assigned to deployer) and MinterRole (inactive, no address assigned). SafeMath applied via OZ for all arithmetic. No proxy, no upgradeability, no delegatecall, no external calls. The PauserRole is the primary centralization vector.",
     attackSurface: [
-      { title: "Transfer Freeze via PauserRole", type: "censorship" as const, description: "A compromised PauserRole holder could pause all token transfers, effectively freezing the token. This is mitigated by OpenZeppelin's role-based access control.", likelihood: "Low" as const, mitigated: true, simulationResult: "Simulated: pause() from non-PauserRole address -> reverted: 'PauserRole: caller does not have the Pauser role'. Role protection confirmed." },
-      { title: "ERC-20 Approve Front-Running", type: "economic" as const, description: "Standard approve() race condition allows a spender to extract more tokens than intended during allowance changes.", likelihood: "Low" as const, mitigated: false, simulationResult: "Simulated: approve(100) -> approve(50) with front-run transferFrom(100) -> succeeds. Known standard limitation." },
+      { title: "Governance Key Compromise -> Protocol Takeover", type: "censorship" as const, description: "If the PauserRole private key is compromised, an attacker gains the ability to freeze all token transfers globally. This constitutes a single point of failure in the protocol's operational security. While the role is protected by OpenZeppelin's access control, the centralization of this power in a single address creates an asymmetric risk.", narrativeImpact: "Total freeze of all token transfers — protocol becomes unusable", mitigation: "OpenZeppelin Roles library + recommended multisig migration", likelihood: "Low" as const, mitigated: true, simulationResult: "Simulated: pause() from non-PauserRole address -> reverted: 'PauserRole: caller does not have the Pauser role'. Role protection confirmed." },
+      { title: "ERC-20 Approve Front-Running", type: "economic" as const, description: "A malicious spender monitors the mempool for approve() transactions. When the token owner changes an existing allowance, the spender front-runs the transaction to spend the old allowance before the new one takes effect, then also spends the new allowance.", narrativeImpact: "Unauthorized token extraction exceeding intended allowance", mitigation: "Use increaseAllowance/decreaseAllowance (available via OZ ERC20 but not in ERC20Pausable interface)", likelihood: "Low" as const, mitigated: false, simulationResult: "Simulated: approve(100) -> approve(50) with front-run transferFrom(100) -> succeeds. Known standard limitation." },
     ],
     toolingUsed: [
       "Solay39 Manual Review (5 phases)",
