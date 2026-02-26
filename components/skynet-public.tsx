@@ -1455,11 +1455,11 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                   Discord
                 </a>
               )}
-  {p.contractAddress && (
-> <a href={getExplorer(p.network || "Ethereum").addressUrl(p.contractAddress)} target="_blank" rel="noreferrer"
-  className="text-[10px] text-s39-mid border border-s39-border px-3 py-1.5 hover:bg-s39-bg2 transition-colors flex items-center gap-1.5">
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-  {getExplorer(p.network || "Ethereum").name}
+              {p.contractAddress && (
+                <a href={getExplorer(p.network || "Ethereum").addressUrl(p.contractAddress)} target="_blank" rel="noreferrer"
+                  className="text-[10px] text-s39-mid border border-s39-border px-3 py-1.5 hover:bg-s39-bg2 transition-colors flex items-center gap-1.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+                  {getExplorer(p.network || "Ethereum").name}
                 </a>
               )}
             </div>
