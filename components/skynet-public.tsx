@@ -1057,13 +1057,57 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
           </div>
         )}
 
-        {/* ── 4. REMEDIATION STATUS ── */}
+        {/* ── SECTION 4: REMEDIATION VERIFICATION ── */}
         {p.findings && p.findings.length > 0 && (
           <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
             <div className="flex items-center gap-2 mb-4">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 7l2 2 4-4" stroke="#00ff88" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="7" cy="7" r="5.5" stroke="#00ff88" strokeWidth="1"/></svg>
-              <span className="text-[9px] text-s39-green tracking-[0.15em]">REMEDIATION STATUS</span>
+              <span className="text-[9px] text-s39-green tracking-[0.15em]">REMEDIATION VERIFICATION</span>
+              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 4</span>
             </div>
+
+            {/* Formal Remediation Process Description */}
+            <div className="bg-[#0a0e14] border border-s39-green/15 p-4 mb-4">
+              <div className="text-[8px] text-s39-green tracking-widest mb-2">REMEDIATION PROCESS</div>
+              <p className="text-[9px] text-s39-mid leading-relaxed mb-2">
+                All identified findings were assigned to the project team for remediation. 
+                The remediation process follows a structured approach to ensure complete resolution.
+              </p>
+              <p className="text-[9px] text-s39-mid leading-relaxed">
+                Resolved issues were re-tested by the auditors to confirm that:
+              </p>
+              <div className="mt-1.5 flex flex-col gap-1 pl-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-s39-green text-[8px]">--</span>
+                  <span className="text-[9px] text-s39-mid">The vulnerability was fully mitigated</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-s39-green text-[8px]">--</span>
+                  <span className="text-[9px] text-s39-mid">No new issues were introduced by the fix</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-s39-green text-[8px]">--</span>
+                  <span className="text-[9px] text-s39-mid">The fix aligns with the original recommendation</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Status Legend */}
+            <div className="flex items-center gap-4 mb-3 flex-wrap">
+              {[
+                { label: "Resolved", color: "#00ff88", desc: "Fix verified by auditor" },
+                { label: "Acknowledged", color: "#ffd600", desc: "Team aware, no fix applied" },
+                { label: "Partial", color: "#ff6b00", desc: "Partially resolved" },
+                { label: "Open", color: "#ff2d55", desc: "Unresolved" },
+              ].map((s, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <div className="w-2 h-2" style={{ background: s.color }} />
+                  <span className="text-[8px] font-bold" style={{ color: s.color }}>{s.label}</span>
+                  <span className="text-[7px] text-s39-dim">{s.desc}</span>
+                </div>
+              ))}
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full text-[10px]">
                 <thead>
@@ -1280,10 +1324,10 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
             )}
 
-            {/* Privileged Roles Table */}
+            {/* ── SECTION 3: PRIVILEGED ROLES RISK ANALYSIS ── */}
             {p.privilegedRoles && p.privilegedRoles.length > 0 && (
               <div className="mb-5">
-                <div className="text-[8px] text-s39-dim tracking-widest mb-2">PRIVILEGED ROLES ANALYSIS</div>
+                <div className="text-[8px] text-s39-dim tracking-widest mb-2">ACCESS CONTROL MATRIX</div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-[10px]">
                     <thead>
@@ -1291,8 +1335,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                         <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">ROLE</th>
                         <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">CAPABILITIES</th>
                         <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">RISK LEVEL</th>
-                        <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">RISK IF COMPROMISED</th>
-                        <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">RECOMMENDATION</th>
+                        <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">MITIGATION</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1306,13 +1349,43 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                             <td className="px-3 py-2.5">
                               <span className="text-[8px] font-bold px-2 py-0.5 border" style={{ color: rlCol, borderColor: `${rlCol}40`, background: `${rlCol}10` }}>{rl.toUpperCase()}</span>
                             </td>
-                            <td className="px-3 py-2.5 text-[9px] text-s39-mid">{r.riskIfCompromised}</td>
                             <td className="px-3 py-2.5 text-[9px] text-s39-green">{r.recommendation || "Monitor"}</td>
                           </tr>
                         )
                       })}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Centralization Risk Statement */}
+                <div className="bg-[#1a0e00] border border-[#ff6b0025] p-3.5 mt-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1L1 9h8L5 1z" stroke="#ff6b00" strokeWidth="0.8" strokeLinejoin="round"/><path d="M5 4v2.5M5 7.5v.5" stroke="#ff6b00" strokeWidth="0.8" strokeLinecap="round"/></svg>
+                    <span className="text-[8px] text-s39-orange tracking-widest font-bold">CENTRALIZATION RISK</span>
+                  </div>
+                  <p className="text-[9px] text-s39-mid leading-relaxed">
+                    The presence of privileged roles introduces trust assumptions that must be clearly 
+                    understood by users and integrators. A compromised or malicious privileged account 
+                    could affect the protocol&apos;s integrity, user funds, or operational continuity.
+                  </p>
+                </div>
+
+                {/* Formal Recommendations */}
+                <div className="bg-s39-bg2 border border-s39-border p-3.5 mt-3">
+                  <div className="text-[8px] text-s39-dim tracking-widest mb-2">RECOMMENDATIONS</div>
+                  <div className="flex flex-col gap-1.5">
+                    {[
+                      "Implement a timelock for all sensitive privileged operations (minimum 24-48h delay)",
+                      "Enforce multisig governance (3-of-5 minimum) for owner / admin roles",
+                      "Apply role separation: no single address should hold multiple privileged roles",
+                      "Consider ownership renunciation or transfer to a DAO for maximum decentralization",
+                    ].map((rec, i) => (
+                      <div key={i} className="flex items-start gap-2">
+                        <span className="text-s39-green text-[9px] shrink-0 mt-0.5 font-mono">*</span>
+                        <span className="text-[9px] text-s39-mid leading-relaxed">{rec}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -1353,41 +1426,69 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
             )}
 
-            {/* Attack Surface */}
+            {/* ── SECTION 2: ATTACK SCENARIOS & THREAT MODEL ── */}
             {p.attackSurface && p.attackSurface.length > 0 && (
               <div>
-                <div className="text-[8px] text-s39-dim tracking-widest mb-2">ATTACK SURFACE ANALYSIS</div>
-                <div className="flex flex-col gap-2">
+                <div className="text-[8px] text-s39-dim tracking-widest mb-2">ATTACK SCENARIOS & THREAT MODEL</div>
+
+                {/* Threat Modeling Approach */}
+                <div className="bg-[#0a0e14] border border-s39-border p-3.5 mb-3">
+                  <div className="text-[8px] text-s39-cyan tracking-widest mb-1.5">THREAT MODELING APPROACH</div>
+                  <p className="text-[9px] text-s39-mid leading-relaxed">
+                    The protocol was analyzed from an adversarial perspective to identify realistic attack paths 
+                    based on privileged roles, token mechanics, and deployment configuration. Each scenario 
+                    describes the impact, likelihood, and whether it has been mitigated.
+                  </p>
+                </div>
+
+                {/* Key Attack Scenarios */}
+                <div className="text-[7px] text-s39-dim tracking-widest mb-2">KEY ATTACK SCENARIOS</div>
+                <div className="flex flex-col gap-2.5">
                   {p.attackSurface.map((a, i) => {
                     const typeColor = a.type === "fund-theft" ? "#ff2d55"
                       : a.type === "censorship" ? "#ff6b00"
                       : a.type === "state-corruption" ? "#ffd600"
                       : a.type === "governance" ? "#4488ff" : "#00e5ff"
-                    const lColor = a.likelihood === "High" ? "text-s39-red" : a.likelihood === "Medium" ? "text-s39-yellow" : "text-s39-green"
+                    const lColor = a.likelihood === "High" ? "#ff2d55" : a.likelihood === "Medium" ? "#ffd600" : "#00ff88"
                     return (
-                      <div key={i} className="bg-s39-bg2 border border-s39-border p-3">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <div className="w-1 h-4 shrink-0" style={{ background: typeColor }} />
+                      <div key={i} className="bg-s39-bg2 border border-s39-border overflow-hidden">
+                        {/* Scenario Header */}
+                        <div className="flex items-center gap-2 px-3 py-2 bg-s39-bg0 border-b border-s39-border flex-wrap">
+                          <div className="w-1.5 h-5 shrink-0" style={{ background: typeColor }} />
                           <span className="text-[10px] text-s39-lite font-bold flex-1">{a.title}</span>
-                          <span className="text-[7px] tracking-widest px-2 py-0.5 border" style={{ color: typeColor, borderColor: `${typeColor}40` }}>
+                          <span className="text-[7px] tracking-widest px-2 py-0.5 border" style={{ color: typeColor, borderColor: `${typeColor}40`, background: `${typeColor}08` }}>
                             {a.type.replace("-", " ").toUpperCase()}
                           </span>
-                          <span className={`text-[8px] ${lColor} font-bold`}>
-                            {a.likelihood} Likelihood
-                          </span>
-                          {a.mitigated && (
-                            <span className="text-[7px] text-s39-green bg-s39-green/10 border border-s39-green/20 px-1.5 py-0.5 tracking-wider">
-                              MITIGATED
-                            </span>
+                        </div>
+                        {/* Scenario Body */}
+                        <div className="p-3">
+                          <div className="flex items-center gap-4 mb-2.5 flex-wrap">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[7px] text-s39-dim tracking-widest">IMPACT:</span>
+                              <span className="text-[8px] font-bold" style={{ color: typeColor }}>
+                                {a.type === "fund-theft" ? "CRITICAL" : a.type === "governance" ? "HIGH" : a.type === "state-corruption" ? "HIGH" : "MEDIUM"}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[7px] text-s39-dim tracking-widest">LIKELIHOOD:</span>
+                              <span className="text-[8px] font-bold" style={{ color: lColor }}>{a.likelihood.toUpperCase()}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[7px] text-s39-dim tracking-widest">STATUS:</span>
+                              {a.mitigated
+                                ? <span className="text-[8px] text-s39-green font-bold bg-s39-green/10 border border-s39-green/20 px-1.5 py-0.5">MITIGATED</span>
+                                : <span className="text-[8px] text-s39-red font-bold bg-s39-red/10 border border-s39-red/20 px-1.5 py-0.5">UNMITIGATED</span>
+                              }
+                            </div>
+                          </div>
+                          <p className="text-[9px] text-s39-mid leading-relaxed">{a.description}</p>
+                          {a.simulationResult && (
+                            <div className="mt-2.5 bg-s39-bg0 border-l-2 border-s39-cyan px-3 py-2">
+                              <div className="text-[7px] text-s39-cyan tracking-widest mb-1">SIMULATION / VERIFICATION</div>
+                              <pre className="text-[9px] text-s39-mid leading-relaxed font-mono whitespace-pre-wrap">{a.simulationResult}</pre>
+                            </div>
                           )}
                         </div>
-                        <p className="text-[9px] text-s39-mid leading-relaxed pl-3">{a.description}</p>
-                        {a.simulationResult && (
-                          <div className="mt-2 ml-3 bg-s39-bg0 border-l-2 border-s39-cyan px-3 py-2">
-                            <div className="text-[7px] text-s39-cyan tracking-widest mb-0.5">SIMULATION RESULT</div>
-                            <pre className="text-[9px] text-s39-mid leading-relaxed font-mono whitespace-pre-wrap">{a.simulationResult}</pre>
-                          </div>
-                        )}
                       </div>
                     )
                   })}
@@ -1418,7 +1519,26 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                 <div className="flex items-center gap-2 mb-3">
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1L2 3v4c0 2.8 1.7 5.4 4 6 2.3-.6 4-3.2 4-6V3L6 1z" stroke="#00ff88" strokeWidth="0.8" fill="#00ff8808"/></svg>
                   <span className="text-[9px] text-s39-green tracking-[0.15em]">ON-CHAIN DEPLOYMENT VALIDATION</span>
+                  <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 5</span>
                 </div>
+
+                {/* Formal Deployment Verification Statement */}
+                <div className="bg-[#0a0e14] border border-s39-green/15 p-3 mb-3">
+                  <div className="text-[7px] text-s39-green tracking-widest mb-1.5">DEPLOYMENT VERIFICATION</div>
+                  <p className="text-[9px] text-s39-mid leading-relaxed mb-1.5">
+                    The deployed contracts were verified against the reviewed source code. 
+                    The following parameters were validated:
+                  </p>
+                  <div className="flex flex-col gap-0.5 pl-2">
+                    {["Contract ownership", "Minting capabilities", "Upgradeability configuration", "Role assignments"].map((item, i) => (
+                      <div key={i} className="flex items-center gap-1.5">
+                        <span className="text-s39-green text-[7px]">--</span>
+                        <span className="text-[8px] text-s39-mid">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="flex flex-col gap-1.5">
                   {p.onChainValidation.map((v, i) => {
                     const statusIcon = v.status === "pass" ? (
@@ -1451,18 +1571,42 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
           </div>
         )}
 
-        {/* ── TIER-1: Security Testing & Verification ── */}
+        {/* ── SECTION 1: SECURITY TESTING & COVERAGE ── */}
         {p.testingMethodology && (
           <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
-            <div className="flex items-center gap-2 mb-5">
+            <div className="flex items-center gap-2 mb-4">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1L2 4v5c0 3.5 2 6.5 5 8 3-1.5 5-4.5 5-8V4L7 1z" stroke="#aa44ff" strokeWidth="1" fill="#aa44ff08"/><path d="M5 7l1.5 1.5L9 5.5" stroke="#aa44ff" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              <span className="text-[9px] text-[#aa44ff] tracking-[0.15em]">SECURITY TESTING & VERIFICATION</span>
-              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">PROOF OF WORK</span>
+              <span className="text-[9px] text-[#aa44ff] tracking-[0.15em]">SECURITY TESTING & COVERAGE</span>
+              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">INDEPENDENT ASSESSMENT</span>
             </div>
 
-            {/* ── Review Depth Stats ── */}
+            {/* Institutional Methodology Statement */}
+            <div className="bg-[#0a0e14] border border-[#aa44ff20] p-4 mb-5">
+              <div className="text-[8px] text-[#aa44ff] tracking-widest mb-2.5">SECURITY TESTING METHODOLOGY</div>
+              <p className="text-[9px] text-s39-mid leading-relaxed mb-3">
+                The security assessment combined automated analysis with manual adversarial review to identify vulnerabilities, 
+                privilege escalation paths, and economic attack vectors.
+              </p>
+              <p className="text-[9px] text-s39-mid leading-relaxed mb-2">
+                Automated analysis included static analysis tools and dependency inspection.
+              </p>
+              <div className="text-[9px] text-s39-mid leading-relaxed">
+                <span className="text-s39-dim">Manual review focused on:</span>
+                <div className="mt-1.5 flex flex-col gap-1">
+                  {["Line-by-line code analysis", "State transition validation", "Access control mechanisms", "Upgradeability patterns", "Business logic correctness"].map((item, i) => (
+                    <div key={i} className="flex items-center gap-2 pl-2">
+                      <span className="text-[#aa44ff] text-[8px]">--</span>
+                      <span className="text-[9px] text-s39-mid">{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Review Coverage Stats ── */}
+            <div className="text-[8px] text-s39-dim tracking-widest mb-2">REVIEW COVERAGE</div>
             {p.codeMetrics && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
                 <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">CONTRACTS ANALYZED</div>
                   <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.totalContracts}</div>
@@ -1474,6 +1618,10 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                 <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">FUNCTIONS REVIEWED</div>
                   <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.functionsReviewed || Math.round(p.codeMetrics.totalLOC / 8)}</div>
+                </div>
+                <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
+                  <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">EXT. DEPENDENCIES</div>
+                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.externalDependencies.length}</div>
                 </div>
                 <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">TEST COVERAGE</div>
@@ -1971,27 +2119,42 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
           </div>
         )}
 
-        {/* ── FINAL ASSESSMENT — 16K Premium ── */}
+        {/* ── SECTION 7: FINAL SECURITY ASSESSMENT ── */}
         {p.finalAssessment && (
-          <div className="bg-s39-bg1 border border-s39-green/20 p-5 sm:p-6 mb-4">
+          <div className="bg-s39-bg1 border-2 border-s39-green/30 p-5 sm:p-6 mb-4">
             <div className="flex items-center gap-2 mb-5">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1L2 4v5c0 3.5 2 6.5 5 8 3-1.5 5-4.5 5-8V4L7 1z" stroke="#00ff88" strokeWidth="1" fill="#00ff8808"/><path d="M5 7l1.5 1.5L9 5.5" stroke="#00ff88" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              <span className="text-[9px] text-s39-green tracking-[0.15em]">FINAL ASSESSMENT</span>
-              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">EXECUTIVE</span>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1L3 4v5.5c0 4 2.2 7.5 5 9 2.8-1.5 5-5 5-9V4L8 1z" stroke="#00ff88" strokeWidth="1.2" fill="#00ff8810"/><path d="M5.5 8l2 2L10.5 6" stroke="#00ff88" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <span className="text-[10px] text-s39-green tracking-[0.15em] font-bold">FINAL SECURITY ASSESSMENT</span>
+              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 7</span>
             </div>
 
             {/* Security Posture */}
             <div className="bg-s39-bg2 border border-s39-border p-4 mb-3">
-              <div className="text-[8px] text-s39-dim tracking-widest mb-2">SECURITY POSTURE</div>
+              <div className="text-[8px] text-s39-dim tracking-widest mb-1">SECURITY POSTURE</div>
+              <div className="text-[7px] text-s39-dim mb-2 italic">
+                {"Risk profile based on identified findings, privilege model, and deployment configuration."}
+              </div>
               <div className="text-[10px] text-s39-mid leading-relaxed">{p.finalAssessment.securityPosture}</div>
             </div>
 
             {/* Production Readiness */}
-            <div className="bg-s39-bg2 border border-s39-border p-4 mb-3">
-              <div className="text-[8px] text-s39-dim tracking-widest mb-2">PRODUCTION READINESS</div>
-              <div className={`text-[10px] leading-relaxed ${
-                p.finalAssessment.productionReadiness.toLowerCase().includes("not recommended") ? "text-s39-red" : "text-s39-green"
+            <div className={`border p-4 mb-3 ${
+              p.finalAssessment.productionReadiness.toLowerCase().includes("not recommended") || p.finalAssessment.productionReadiness.toLowerCase().includes("not ready")
+                ? "bg-[#1a0000] border-s39-red/30"
+                : "bg-[#001a08] border-s39-green/30"
+            }`}>
+              <div className="text-[8px] text-s39-dim tracking-widest mb-1">PRODUCTION READINESS</div>
+              <div className={`text-[11px] font-bold leading-relaxed ${
+                p.finalAssessment.productionReadiness.toLowerCase().includes("not recommended") || p.finalAssessment.productionReadiness.toLowerCase().includes("not ready")
+                  ? "text-s39-red"
+                  : "text-s39-green"
               }`}>
+                {p.finalAssessment.productionReadiness.toLowerCase().includes("not recommended") || p.finalAssessment.productionReadiness.toLowerCase().includes("not ready")
+                  ? "NOT READY FOR PRODUCTION"
+                  : "PRODUCTION READY"
+                }
+              </div>
+              <div className="text-[9px] text-s39-mid leading-relaxed mt-1.5">
                 {p.finalAssessment.productionReadiness}
               </div>
             </div>
@@ -2000,10 +2163,13 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
             {p.finalAssessment.keyRisksToMonitor && p.finalAssessment.keyRisksToMonitor.length > 0 && (
               <div className="bg-s39-bg2 border border-s39-border p-4">
                 <div className="text-[8px] text-s39-dim tracking-widest mb-2">KEY RISKS TO MONITOR</div>
+                <p className="text-[8px] text-s39-dim mb-2 italic">
+                  {"The following risks require ongoing monitoring post-deployment:"}
+                </p>
                 <div className="flex flex-col gap-2">
                   {p.finalAssessment.keyRisksToMonitor.map((risk, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <svg width="8" height="8" viewBox="0 0 8 8" fill="none" className="shrink-0 mt-1"><path d="M4 1L1 7h6L4 1z" stroke="#ffd600" strokeWidth="0.8" strokeLinejoin="round"/></svg>
+                    <div key={i} className="flex items-start gap-2.5 bg-s39-bg0 border border-s39-border p-2.5">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="shrink-0 mt-0.5"><path d="M5 1L1 9h8L5 1z" stroke="#ffd600" strokeWidth="0.8" strokeLinejoin="round"/><path d="M5 4v2.5M5 7.5v.3" stroke="#ffd600" strokeWidth="0.6" strokeLinecap="round"/></svg>
                       <span className="text-[9px] text-s39-mid leading-relaxed">{risk}</span>
                     </div>
                   ))}
@@ -2013,18 +2179,31 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
           </div>
         )}
 
-        {/* ── AUDIT LIMITATIONS, AUDITOR RESPONSIBILITY & DISCLAIMER ── */}
+        {/* ── SECTION 6: AUDIT LIMITATIONS & DISCLAIMER ── */}
         {p.limitations && (
           <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
             <div className="flex items-center gap-2 mb-5">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#ff6b00" strokeWidth="1"/><path d="M7 4v4M7 9.5v.5" stroke="#ff6b00" strokeWidth="1" strokeLinecap="round"/></svg>
-              <span className="text-[9px] text-s39-orange tracking-[0.15em]">AUDIT LIMITATIONS & AUDITOR RESPONSIBILITY</span>
-              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">LEGAL</span>
+              <span className="text-[9px] text-s39-orange tracking-[0.15em]">AUDIT LIMITATIONS & DISCLAIMER</span>
+              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 6</span>
+            </div>
+
+            {/* Formal Assessment Scope */}
+            <div className="bg-[#0a0e14] border border-s39-orange/15 p-4 mb-4">
+              <p className="text-[9px] text-s39-mid leading-relaxed mb-2">
+                This security assessment is time-boxed and reflects the state of the codebase at the commit reviewed. 
+                The audit does not guarantee the absence of vulnerabilities.
+              </p>
+              <p className="text-[9px] text-s39-mid leading-relaxed font-bold">
+                Smart contract security is a continuous process that requires ongoing monitoring and review, 
+                especially after upgrades or configuration changes.
+              </p>
             </div>
 
             {/* Audit Timeframe */}
             {p.engagement && (
               <div className="bg-s39-bg2 border border-s39-border p-4 mb-4">
+                <div className="text-[7px] text-s39-dim tracking-widest mb-3">ENGAGEMENT DETAILS</div>
                 <div className="flex items-center gap-4 flex-wrap">
                   <div>
                     <div className="text-[7px] text-s39-dim tracking-widest">AUDIT PERIOD</div>
@@ -2042,6 +2221,12 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                     <div className="text-[7px] text-s39-dim tracking-widest">REPORT VALID AS OF</div>
                     <div className="text-[10px] text-s39-white font-mono mt-0.5">{p.engagement.deliveryDate}</div>
                   </div>
+                  {p.engagement.commitHash && (
+                    <div>
+                      <div className="text-[7px] text-s39-dim tracking-widest">COMMIT REVIEWED</div>
+                      <div className="text-[10px] text-s39-cyan font-mono mt-0.5">{p.engagement.commitHash.length > 20 ? p.engagement.commitHash.slice(0, 20) + "..." : p.engagement.commitHash}</div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -2086,6 +2271,17 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                   <span className="text-[9px] text-s39-mid leading-relaxed">The auditor is not responsible for the actions taken or not taken based on this report. The client is solely responsible for the implementation of recommended fixes and deployment decisions.</span>
                 </div>
               </div>
+            </div>
+
+            {/* Continuous Security Statement */}
+            <div className="bg-[#001a16] border border-s39-green/20 p-4 mb-4">
+              <div className="text-[7px] text-s39-green tracking-widest mb-2">CONTINUOUS SECURITY</div>
+              <p className="text-[9px] text-s39-mid leading-relaxed">
+                Smart contract security is a continuous process that requires ongoing monitoring and review. 
+                This report reflects a point-in-time assessment. Post-deployment monitoring, incident response plans, 
+                and periodic re-audits are strongly recommended, especially after protocol upgrades, parameter changes, 
+                or integration of new external dependencies.
+              </p>
             </div>
 
             {/* Formal Disclaimer */}
