@@ -97,7 +97,10 @@ export async function GET(req: Request) {
     // Fetch prices per network (GeckoTerminal simple price endpoint)
     for (const [netId, tokens] of Object.entries(byNetwork)) {
       try {
-        const addresses = tokens.map(t => t.address.toLowerCase()).join(",")
+        // EVM addresses are case-insensitive -> lowercase is fine.
+        // Solana addresses are base58 (case-sensitive) -> must preserve original case.
+        const isCaseSensitive = netId === "solana" || netId === "tron"
+        const addresses = tokens.map(t => isCaseSensitive ? t.address : t.address.toLowerCase()).join(",")
         const priceUrl = `${GECKO_BASE}/simple/networks/${netId}/token_price/${addresses}`
 
         const res = await fetch(priceUrl, {
@@ -107,7 +110,6 @@ export async function GET(req: Request) {
 
         if (!res.ok) {
           console.error(`[v0] GeckoTerminal ${netId} responded ${res.status}`)
-          // Still add tokens with N/A price
           for (const t of tokens) {
             prices[t.ticker] = { ticker: t.ticker, address: t.address, network: netId, price: "N/A", priceNum: 0 }
           }
@@ -118,8 +120,8 @@ export async function GET(req: Request) {
         const tokenPrices: Record<string, string> = json?.data?.attributes?.token_prices ?? {}
 
         for (const t of tokens) {
-          const addrLower = t.address.toLowerCase()
-          const rawPrice = tokenPrices[addrLower]
+          // Look up with original case first, then lowercase fallback (GeckoTerminal may return either)
+          const rawPrice = tokenPrices[t.address] ?? tokenPrices[t.address.toLowerCase()]
           const priceNum = rawPrice ? parseFloat(rawPrice) : 0
 
           prices[t.ticker] = {
@@ -182,23 +184,29 @@ async function enrichWith24hChange(
       const vol = topPool.volume_usd?.h24
       const mcap = topPool.market_cap_usd ?? topPool.fdv_usd
 
-      // Fallback: if simple price endpoint returned N/A, extract price from pool data
+      // Fallback: if simple price endpoint returned N/A, extract price from pool data.
+      // GeckoTerminal pool relationship IDs use format "network_address" (e.g. "solana_orcaEK...").
+      // Solana addresses are base58 (case-sensitive), so we can't just .toLowerCase() everything.
+      // Strategy: check if our address appears in the pool's base/quote token ID,
+      // then use the corresponding price. If no match, try base first then quote.
       let finalPrice = data.price
       let finalPriceNum = data.priceNum
       if (data.priceNum === 0 || data.price === "N/A") {
-        // Try base_token_price_usd first (if our token is the base token)
-        // Check which side of the pool our token is on
-        const poolBaseAddr = poolsJson?.data?.[0]?.relationships?.base_token?.data?.id || ""
-        const poolQuoteAddr = poolsJson?.data?.[0]?.relationships?.quote_token?.data?.id || ""
-        const ourAddrLower = data.address.toLowerCase()
+        const poolBaseId = poolsJson?.data?.[0]?.relationships?.base_token?.data?.id || ""
+        const poolQuoteId = poolsJson?.data?.[0]?.relationships?.quote_token?.data?.id || ""
+        const addr = data.address
+
+        // Check both case-sensitive (Solana) and case-insensitive (EVM)
+        const isBase = poolBaseId.includes(addr) || poolBaseId.toLowerCase().includes(addr.toLowerCase())
+        const isQuote = poolQuoteId.includes(addr) || poolQuoteId.toLowerCase().includes(addr.toLowerCase())
 
         let poolPrice: number | null = null
-        if (poolBaseAddr.toLowerCase().includes(ourAddrLower)) {
+        if (isBase) {
           poolPrice = parseFloat(topPool.base_token_price_usd || "0")
-        } else if (poolQuoteAddr.toLowerCase().includes(ourAddrLower)) {
+        } else if (isQuote) {
           poolPrice = parseFloat(topPool.quote_token_price_usd || "0")
         } else {
-          // Try both, pick the non-zero one
+          // No ID match — try base_token_price_usd first (most common), then quote
           poolPrice = parseFloat(topPool.base_token_price_usd || "0") || parseFloat(topPool.quote_token_price_usd || "0")
         }
 
