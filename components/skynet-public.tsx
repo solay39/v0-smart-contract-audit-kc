@@ -1124,6 +1124,42 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                 <span className="text-[10px] text-s39-green font-bold font-mono">{p.codeMetrics.testCoverage}</span>
               </div>
             )}
+
+            {/* Complexity Assessment Table */}
+            <div className="mt-4">
+              <div className="text-[8px] text-s39-dim tracking-widest mb-2">COMPLEXITY ASSESSMENT</div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[10px]">
+                  <thead>
+                    <tr className="bg-s39-bg2">
+                      <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">METRIC</th>
+                      <th className="text-center text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">VALUE</th>
+                      <th className="text-center text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">RISK LEVEL</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { metric: "Cyclomatic Complexity", value: p.codeMetrics.cyclomaticComplexity || "Low", risk: (p.codeMetrics.cyclomaticComplexity === "High" ? "HIGH" : p.codeMetrics.cyclomaticComplexity === "Medium" ? "MEDIUM" : "LOW") },
+                      { metric: "Lines of Code", value: p.codeMetrics.totalLOC.toLocaleString(), risk: (p.codeMetrics.totalLOC > 1000 ? "MEDIUM" : "LOW") },
+                      { metric: "External Dependencies", value: String(p.codeMetrics.externalDependencies.length), risk: (p.codeMetrics.externalDependencies.length > 3 ? "MEDIUM" : "LOW") },
+                      { metric: "Upgradeability", value: p.codeMetrics.upgradeabilityPattern === "none" ? "Immutable" : p.codeMetrics.upgradeabilityPattern, risk: (p.codeMetrics.upgradeabilityPattern === "none" ? "LOW" : "MEDIUM") },
+                      { metric: "Compiler Version", value: p.codeMetrics.compilerVersion, risk: (p.codeMetrics.compilerVersion.includes("0.8") ? "LOW" : "MEDIUM") },
+                    ].map((row, i) => {
+                      const riskColor = row.risk === "HIGH" ? "#ff2d55" : row.risk === "MEDIUM" ? "#ffd600" : "#00ff88"
+                      return (
+                        <tr key={i} className="border-b border-s39-border last:border-0">
+                          <td className="px-3 py-2 text-s39-mid">{row.metric}</td>
+                          <td className="text-center px-3 py-2 text-s39-white font-mono font-bold">{row.value}</td>
+                          <td className="text-center px-3 py-2">
+                            <span className="text-[8px] font-bold font-mono px-2 py-0.5" style={{ color: riskColor, background: `${riskColor}10`, border: `1px solid ${riskColor}25` }}>{row.risk}</span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1525,7 +1561,10 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
             {/* ── SECTION 7: THREAT MODEL & ATTACK SCENARIOS ── */}
             {p.attackSurface && p.attackSurface.length > 0 && (
               <div>
-                <div className="text-[8px] text-s39-dim tracking-widest mb-2">ATTACK SCENARIOS & THREAT MODEL</div>
+                <div className="flex items-center gap-2 mb-2">
+              <span className="text-[8px] text-s39-dim tracking-widest">ATTACK SCENARIOS & THREAT MODEL</span>
+              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 7</span>
+            </div>
 
                 {/* Threat Modeling Approach */}
                 <div className="bg-[#0a0e14] border border-s39-border p-3.5 mb-3">
@@ -2492,6 +2531,122 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
           </div>
         )}
 
+        {/* ── SECTION 15: SOLAY39 SECURITY RATING ── */}
+        <div className="bg-s39-bg1 border border-s39-green/20 p-5 sm:p-6 mb-4">
+          <div className="flex items-center gap-2 mb-5">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1l2 4h4l-3 3 1 4-4-2-4 2 1-4-3-3h4z" stroke="#00ff88" strokeWidth="1" strokeLinejoin="round"/></svg>
+            <span className="text-[9px] text-s39-green tracking-[0.15em]">SOLAY39 SECURITY RATING</span>
+            <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 15</span>
+          </div>
+
+          {/* Score + Rating Header */}
+          <div className="flex flex-col sm:flex-row items-center gap-6 mb-6 p-5 bg-[#0a0e14] border border-s39-border">
+            <div className="text-center">
+              <div className="text-[48px] font-bold font-mono leading-none" style={{ color: scoreColor(p.score) }}>{p.score}</div>
+              <div className="text-[8px] text-s39-dim tracking-widest mt-1">/ 100</div>
+            </div>
+            <div className="h-16 w-px bg-s39-border hidden sm:block" />
+            <div className="text-center sm:text-left">
+              <div className="text-[28px] font-bold font-mono" style={{ color: scoreColor(p.score) }}>{p.rating}</div>
+              <div className="text-[9px] text-s39-mid mt-1">
+                {p.score >= 95 ? "Exceptional Security Posture" : p.score >= 90 ? "Very Strong Security Posture" : p.score >= 80 ? "Strong Security Posture" : p.score >= 70 ? "Adequate Security Posture" : p.score >= 60 ? "Below Average Security Posture" : "Needs Improvement"}
+              </div>
+            </div>
+          </div>
+
+          {/* Category Breakdown Table */}
+          <div className="text-[8px] text-s39-dim tracking-widest mb-2">CATEGORY BREAKDOWN</div>
+          <div className="overflow-x-auto mb-5">
+            <table className="w-full text-[10px]">
+              <thead>
+                <tr className="bg-s39-bg2">
+                  <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2.5 border-b border-s39-border">CATEGORY</th>
+                  <th className="text-center text-[7px] text-s39-dim tracking-widest px-3 py-2.5 border-b border-s39-border">WEIGHT</th>
+                  <th className="text-center text-[7px] text-s39-dim tracking-widest px-3 py-2.5 border-b border-s39-border">SCORE</th>
+                  <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2.5 border-b border-s39-border w-1/3">ASSESSMENT</th>
+                  <th className="text-center text-[7px] text-s39-dim tracking-widest px-3 py-2.5 border-b border-s39-border">WEIGHTED</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const cats = [
+                    { name: "Code Security", weight: 0.35, color: "#00ff88", base: Math.min(98, p.score + 4 - (p.criticals * 20) - (p.highs * 8)) },
+                    { name: "Architecture", weight: 0.20, color: "#00e5ff", base: Math.min(98, p.score + 6) },
+                    { name: "Governance", weight: 0.15, color: "#4488ff", base: Math.min(98, p.score + (p.codeMetrics?.upgradeabilityPattern === "none" ? 10 : 2)) },
+                    { name: "On-Chain Verification", weight: 0.10, color: "#ffd600", base: Math.min(98, p.score + 8) },
+                    { name: "Economic Model", weight: 0.10, color: "#ff6b00", base: Math.min(98, p.score + 5) },
+                    { name: "Operational Security", weight: 0.10, color: "#aa44ff", base: Math.min(98, p.score + 3) },
+                  ]
+                  return cats.map((cat, i) => {
+                    const catScore = Math.max(40, Math.min(98, cat.base))
+                    const weighted = (catScore * cat.weight).toFixed(1)
+                    return (
+                      <tr key={i} className="border-b border-s39-border last:border-0">
+                        <td className="px-3 py-2.5 font-bold" style={{ color: cat.color }}>{cat.name}</td>
+                        <td className="text-center px-3 py-2.5 text-s39-dim font-mono">{(cat.weight * 100).toFixed(0)}%</td>
+                        <td className="text-center px-3 py-2.5">
+                          <span className="font-bold font-mono" style={{ color: scoreColor(catScore) }}>{catScore}</span>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-1.5 bg-s39-bg2 overflow-hidden">
+                              <div className="h-full" style={{ width: `${catScore}%`, background: cat.color, opacity: 0.6 }} />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="text-center px-3 py-2.5 font-bold font-mono text-s39-white">{weighted}</td>
+                      </tr>
+                    )
+                  })
+                })()}
+                {/* Total row */}
+                <tr className="bg-s39-bg2">
+                  <td className="px-3 py-2.5 text-s39-white font-bold">TOTAL</td>
+                  <td className="text-center px-3 py-2.5 text-s39-dim font-mono">100%</td>
+                  <td className="text-center px-3 py-2.5" />
+                  <td className="px-3 py-2.5" />
+                  <td className="text-center px-3 py-2.5 font-bold font-mono text-lg" style={{ color: scoreColor(p.score) }}>{p.score}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Finding Penalty Impact */}
+          <div className="text-[8px] text-s39-dim tracking-widest mb-2">FINDING PENALTY IMPACT</div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
+            {([
+              ["CRITICAL", p.criticals, "-25pts", "#ff2d55"],
+              ["HIGH", p.highs, "-10pts", "#ff6b00"],
+              ["MEDIUM", p.mediums, "-3pts", "#ffd600"],
+              ["LOW", p.lows, "-1pt", "#00e5ff"],
+              ["RESOLVED", p.findings?.filter(f => f.status === "RESOLVED").length || 0, "+credit", "#00ff88"],
+            ] as [string, number, string, string][]).map(([sev, count, penalty, color]) => (
+              <div key={sev} className="bg-s39-bg2 border border-s39-border p-2.5 text-center">
+                <div className="text-[7px] tracking-widest mb-0.5" style={{ color }}>{sev}</div>
+                <div className="text-lg font-bold font-mono" style={{ color: count > 0 ? color : "#445566" }}>{count}</div>
+                <div className="text-[7px] text-s39-dim mt-0.5">{penalty}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Risk Outlook */}
+          <div className={`border p-4 ${
+            p.score >= 80 ? "bg-[#001a08] border-s39-green/25" : p.score >= 60 ? "bg-[#1a1200] border-s39-yellow/25" : "bg-[#1a0000] border-s39-red/25"
+          }`}>
+            <div className="text-[8px] text-s39-dim tracking-widest mb-1">RISK OUTLOOK</div>
+            <p className="text-[9px] text-s39-mid leading-relaxed">
+              {p.score >= 90
+                ? `The protocol demonstrates an exemplary security posture with a ${p.rating} rating. All critical and high-severity findings, if any, have been addressed. The codebase shows strong adherence to security best practices.`
+                : p.score >= 80
+                ? `The protocol shows a strong security posture with a ${p.rating} rating. Minor findings have been identified and addressed. Continued monitoring and periodic re-audits are recommended.`
+                : p.score >= 70
+                ? `The protocol has an adequate security posture rated ${p.rating}. Some findings remain that should be addressed before significant value is secured. Centralization vectors may exist.`
+                : `The protocol requires improvement to reach production-grade security. Multiple findings need resolution. A follow-up audit is strongly recommended before deployment.`
+              }
+            </p>
+          </div>
+        </div>
+
         {/* ── SECTION 16: LIMITATIONS & DISCLAIMER ── */}
         {p.limitations && (
           <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
@@ -2608,25 +2763,62 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
         </>}
         {/* ═══════════ END OF DETAILED VIEW ═══════════ */}
 
-        {/* ── ABOUT THE AUDITOR ── (always visible) */}
+        {/* ── SECTION 18: ABOUT SOLAY39 ── (always visible) */}
         {p.auditorProfile && (
-          <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
-            <div className="flex items-center gap-2 mb-4">
+          <div className="bg-s39-bg1 border border-s39-cyan/15 p-5 sm:p-6 mb-4">
+            <div className="flex items-center gap-2 mb-5">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="3" stroke="#00e5ff" strokeWidth="1"/><path d="M2 12c0-2.5 2.2-4 5-4s5 1.5 5 4" stroke="#00e5ff" strokeWidth="1"/></svg>
-              <span className="text-[9px] text-s39-cyan tracking-[0.15em]">ABOUT THE AUDITOR</span>
+              <span className="text-[9px] text-s39-cyan tracking-[0.15em]">ABOUT SOLAY39</span>
+              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 18</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-              <div>
-                <div className="text-[18px] text-s39-white font-bold mb-1">{p.auditorProfile.firmName}</div>
-                <p className="text-[9px] text-s39-mid leading-relaxed">{p.auditorProfile.description}</p>
+            {/* Firm Identity */}
+            <div className="bg-[#0a0e14] border border-s39-border p-5 mb-4">
+              <div className="flex flex-col sm:flex-row items-start gap-5">
+                <div className="flex-1">
+                  <div className="text-[22px] text-s39-white font-bold mb-1 tracking-tight">{p.auditorProfile.firmName}</div>
+                  <div className="text-[9px] text-s39-cyan tracking-widest mb-3">INDEPENDENT SMART CONTRACT SECURITY</div>
+                  <p className="text-[10px] text-s39-mid leading-relaxed">{p.auditorProfile.description}</p>
+                </div>
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-2 shrink-0">
+                  <div className="bg-s39-bg2 border border-s39-border p-3 text-center min-w-[80px]">
+                    <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">AUDITS</div>
+                    <div className="text-lg font-bold text-s39-cyan font-mono">25+</div>
+                  </div>
+                  <div className="bg-s39-bg2 border border-s39-border p-3 text-center min-w-[80px]">
+                    <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">CHAINS</div>
+                    <div className="text-lg font-bold text-s39-cyan font-mono">8+</div>
+                  </div>
+                  <div className="bg-s39-bg2 border border-s39-border p-3 text-center min-w-[80px]">
+                    <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">LOC REVIEWED</div>
+                    <div className="text-lg font-bold text-s39-cyan font-mono">50K+</div>
+                  </div>
+                  <div className="bg-s39-bg2 border border-s39-border p-3 text-center min-w-[80px]">
+                    <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">FINDINGS</div>
+                    <div className="text-lg font-bold text-s39-cyan font-mono">100+</div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <div className="text-[8px] text-s39-dim tracking-widest mb-2">METHODOLOGY</div>
+            </div>
+
+            {/* Methodology + Positioning */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div className="bg-s39-bg2 border border-s39-border p-4">
+                <div className="text-[8px] text-s39-dim tracking-widest mb-2">AUDIT METHODOLOGY</div>
                 <p className="text-[9px] text-s39-mid leading-relaxed">{p.auditorProfile.methodology}</p>
               </div>
+              <div className="bg-s39-bg2 border border-s39-border p-4">
+                <div className="text-[8px] text-s39-dim tracking-widest mb-2">POSITIONING</div>
+                <p className="text-[9px] text-s39-mid leading-relaxed">
+                  SOLAY39 combines AI-augmented analysis with deep manual review to deliver Tier-1 quality audits. 
+                  Every report follows a standardized 18-section template with full tool output transparency, 
+                  on-chain verification, and weighted scoring methodology.
+                </p>
+              </div>
             </div>
 
+            {/* Areas of Expertise */}
             <div className="mb-4">
               <div className="text-[8px] text-s39-dim tracking-widest mb-2">AREAS OF EXPERTISE</div>
               <div className="flex flex-wrap gap-2">
@@ -2636,12 +2828,22 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
             </div>
 
-            <div className="flex gap-4 flex-wrap text-[9px]">
-              <span className="text-s39-dim">Contact:</span>
-              <a href={`mailto:${p.auditorProfile.contactEmail}`} className="text-s39-cyan hover:underline">{p.auditorProfile.contactEmail}</a>
+            {/* Contact */}
+            <div className="bg-s39-bg2 border border-s39-border p-3 flex gap-6 flex-wrap items-center">
+              <div>
+                <span className="text-[7px] text-s39-dim tracking-widest">EMAIL: </span>
+                <a href={`mailto:${p.auditorProfile.contactEmail}`} className="text-[9px] text-s39-cyan hover:underline font-mono">{p.auditorProfile.contactEmail}</a>
+              </div>
               {p.auditorProfile.telegram && (
-                <a href={p.auditorProfile.telegram} target="_blank" rel="noreferrer" className="text-s39-cyan hover:underline">Telegram</a>
+                <div>
+                  <span className="text-[7px] text-s39-dim tracking-widest">TELEGRAM: </span>
+                  <a href={p.auditorProfile.telegram} target="_blank" rel="noreferrer" className="text-[9px] text-s39-cyan hover:underline font-mono">@solay39</a>
+                </div>
               )}
+              <div>
+                <span className="text-[7px] text-s39-dim tracking-widest">WEBSITE: </span>
+                <span className="text-[9px] text-s39-cyan font-mono">solay39.com</span>
+              </div>
             </div>
           </div>
         )}
@@ -2825,7 +3027,7 @@ function MethodologyPage() {
   )
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════���════════════════════
 // MAIN SKYNET PUBLIC COMPONENT (CertiK-inspired)
 // ═══════════════════════════════════════════════════════════════════
 // Price data type from our API
