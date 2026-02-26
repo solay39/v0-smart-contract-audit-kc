@@ -2650,20 +2650,34 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
             <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 15</span>
           </div>
 
-          {/* Score + Rating Header */}
-          <div className="flex flex-col sm:flex-row items-center gap-6 mb-6 p-5 bg-[#0a0e14] border border-s39-border">
-            <div className="text-center">
-              <div className="text-[48px] font-bold font-mono leading-none" style={{ color: scoreColor(p.score) }}>{p.score}</div>
-              <div className="text-[8px] text-s39-dim tracking-widest mt-1">/ 100</div>
-            </div>
-            <div className="h-16 w-px bg-s39-border hidden sm:block" />
-            <div className="text-center sm:text-left">
-              <div className="text-[28px] font-bold font-mono" style={{ color: scoreColor(p.score) }}>{p.rating}</div>
-              <div className="text-[9px] text-s39-mid mt-1">
-                {p.score >= 95 ? "Exceptional Security Posture" : p.score >= 90 ? "Very Strong Security Posture" : p.score >= 80 ? "Strong Security Posture" : p.score >= 70 ? "Adequate Security Posture" : p.score >= 60 ? "Below Average Security Posture" : "Needs Improvement"}
+          {/* Score + Rating Header — derived from weighted category sum */}
+          {(() => {
+            const sb = p.scoreBreakdown
+            const computedScore = sb ? Math.round(
+              (sb.codeSecurity ?? p.score) * 0.35 +
+              (sb.architectureRisk ?? p.score) * 0.20 +
+              (sb.governanceRisk ?? p.score) * 0.15 +
+              (sb.centralization ?? p.score) * 0.10 +
+              (sb.economic ?? p.score) * 0.10 +
+              (sb.testingCoverage ?? p.score) * 0.10
+            ) : p.score
+            const computedRating = ratingOf(computedScore)
+            return (
+              <div className="flex flex-col sm:flex-row items-center gap-6 mb-6 p-5 bg-[#0a0e14] border border-s39-border">
+                <div className="text-center">
+                  <div className="text-[48px] font-bold font-mono leading-none" style={{ color: scoreColor(computedScore) }}>{computedScore}</div>
+                  <div className="text-[8px] text-s39-dim tracking-widest mt-1">/ 100</div>
+                </div>
+                <div className="h-16 w-px bg-s39-border hidden sm:block" />
+                <div className="text-center sm:text-left">
+                  <div className="text-[28px] font-bold font-mono" style={{ color: scoreColor(computedScore) }}>{computedRating}</div>
+                  <div className="text-[9px] text-s39-mid mt-1">
+                    {computedScore >= 95 ? "Exceptional Security Posture" : computedScore >= 90 ? "Very Strong Security Posture" : computedScore >= 80 ? "Strong Security Posture" : computedScore >= 70 ? "Adequate Security Posture" : computedScore >= 60 ? "Below Average Security Posture" : "Needs Improvement"}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            )
+          })()}
 
           {/* Category Breakdown Table */}
           <div className="text-[8px] text-s39-dim tracking-widest mb-2">CATEGORY BREAKDOWN</div>
@@ -2712,14 +2726,27 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                     )
                   })
                 })()}
-                {/* Total row */}
-                <tr className="bg-s39-bg2">
-                  <td className="px-3 py-2.5 text-s39-white font-bold">TOTAL</td>
-                  <td className="text-center px-3 py-2.5 text-s39-dim font-mono">100%</td>
-                  <td className="text-center px-3 py-2.5" />
-                  <td className="px-3 py-2.5" />
-                  <td className="text-center px-3 py-2.5 font-bold font-mono text-lg" style={{ color: scoreColor(p.score) }}>{p.score}</td>
-                </tr>
+                {/* Total row — computed from actual weighted sum */}
+                {(() => {
+                  const sb = p.scoreBreakdown
+                  const computedTotal = sb ? Math.round(
+                    (sb.codeSecurity ?? p.score) * 0.35 +
+                    (sb.architectureRisk ?? p.score) * 0.20 +
+                    (sb.governanceRisk ?? p.score) * 0.15 +
+                    (sb.centralization ?? p.score) * 0.10 +
+                    (sb.economic ?? p.score) * 0.10 +
+                    (sb.testingCoverage ?? p.score) * 0.10
+                  ) : p.score
+                  return (
+                    <tr className="bg-s39-bg2">
+                      <td className="px-3 py-2.5 text-s39-white font-bold">TOTAL</td>
+                      <td className="text-center px-3 py-2.5 text-s39-dim font-mono">100%</td>
+                      <td className="text-center px-3 py-2.5" />
+                      <td className="px-3 py-2.5" />
+                      <td className="text-center px-3 py-2.5 font-bold font-mono text-lg" style={{ color: scoreColor(computedTotal) }}>{computedTotal}</td>
+                    </tr>
+                  )
+                })()}
               </tbody>
             </table>
           </div>

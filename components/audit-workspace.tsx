@@ -3,7 +3,7 @@
 import { useState } from "react"
 import {
   CHECKLIST,
-  computeScore,
+  computeScoreV2,
   ratingOf,
   type Finding,
   type AuditProject,
@@ -86,16 +86,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const [aiScopeTable, setAiScopeTable] = useState<Record<string, unknown>[] | null>(null)
 
   const allChecks = Object.values(checks).flatMap((c) => Object.values(c))
-  const anyChecked = allChecks.some(Boolean)
-  const rawScore = computeScore(checks, findings)
-  const findingScore = Math.max(
-    0,
-    100 -
-      findings.filter((f) => f.severity === "CRITICAL" && f.status === "OPEN").length * 25 -
-      findings.filter((f) => f.severity === "HIGH" && f.status === "OPEN").length * 10 -
-      findings.filter((f) => f.severity === "MEDIUM" && f.status === "OPEN").length * 3
-  )
-  const score = anyChecked ? rawScore : findingScore
+  // SINGLE SOURCE OF TRUTH: always use V2 engine for score computation
+  const v2Result = computeScoreV2({ findings })
+  const score = v2Result.final
   const done = allChecks.filter(Boolean).length
   const total = allChecks.length
 
@@ -280,12 +273,12 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         { label: "Ownership Renounced", value: !!contractMeta.ownerRenounced },
       ] : undefined,
       scoreBreakdown: apiScoreBreakdown || {
-        codeSecurity: Math.min(98, score + 2),
-        architectureRisk: Math.min(98, score),
-        governanceRisk: Math.min(98, Math.max(0, score - 8)),
-        centralization: Math.min(98, Math.max(0, score - 12)),
-        testingCoverage: Math.min(98, score + 1),
-        economic: Math.min(98, Math.max(0, score - 5)),
+        codeSecurity: v2Result.codeSecurity,
+        architectureRisk: v2Result.architecture,
+        governanceRisk: v2Result.governance,
+        centralization: v2Result.onChain,
+        testingCoverage: v2Result.operations,
+        economic: v2Result.economic,
       },
       findings: findings.map((f) => ({
         title: f.title,
