@@ -1,20 +1,48 @@
 // ═══════════════════════════════════════════════════════════════════
-// SOLAY39 — Live Token Prices via GeckoTerminal API
+// SOLAY39 — Live Token Prices via GeckoTerminal API (Multi-Chain)
+// Supports: Ethereum, BSC, Arbitrum, Optimism, Polygon, Base,
+//           Avalanche, Fantom, Solana, and all GeckoTerminal chains
 // ═══════════════════════════════════════════════════════════════════
 
-// Token contract addresses (Ethereum mainnet)
-// Base set of known audited tokens
-const BASE_TOKENS: Record<string, string> = {
-  INJ: "0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30",
-  FET: "0xaea46A60368A7bD060eec7DF8CBa43b7EF41Ad85",
-  CHZ: "0x3506424F91fD33084466F402d5D97f05F8e3b4AF",
+// Base set of known audited tokens: TICKER -> { address, network }
+const BASE_TOKENS: Record<string, { address: string; network: string }> = {
+  INJ: { address: "0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30", network: "eth" },
+  FET: { address: "0xaea46A60368A7bD060eec7DF8CBa43b7EF41Ad85", network: "eth" },
+  CHZ: { address: "0x3506424F91fD33084466F402d5D97f05F8e3b4AF", network: "eth" },
 }
 
 const GECKO_BASE = "https://api.geckoterminal.com/api/v2"
 
+// Map user-facing network names to GeckoTerminal network IDs
+function mapNetworkToGeckoId(network: string): string {
+  const map: Record<string, string> = {
+    Ethereum: "eth", eth: "eth",
+    BSC: "bsc", "BNB Chain": "bsc", "Binance Smart Chain": "bsc", bsc: "bsc",
+    Arbitrum: "arbitrum", "Arbitrum One": "arbitrum", arbitrum: "arbitrum",
+    Optimism: "optimism", optimism: "optimism",
+    Polygon: "polygon_pos", "Polygon PoS": "polygon_pos", polygon_pos: "polygon_pos",
+    Avalanche: "avax", "Avalanche C-Chain": "avax", avax: "avax",
+    Base: "base", base: "base",
+    Fantom: "ftm", ftm: "ftm",
+    Cronos: "cro", cro: "cro",
+    Gnosis: "xdai", xdai: "xdai",
+    Celo: "celo", celo: "celo",
+    Mantle: "mantle", mantle: "mantle",
+    Linea: "linea", linea: "linea",
+    Scroll: "scroll", scroll: "scroll",
+    zkSync: "zksync", "zkSync Era": "zksync", zksync: "zksync",
+    Blast: "blast", blast: "blast",
+    Solana: "solana", solana: "solana",
+    Tron: "tron", tron: "tron",
+    Moonbeam: "moonbeam", moonbeam: "moonbeam",
+  }
+  return map[network] || network.toLowerCase().replace(/\s+/g, "-")
+}
+
 interface TokenPriceData {
   ticker: string
   address: string
+  network: string
   price: string
   priceNum: number
 }
@@ -24,63 +52,95 @@ let priceCache: { data: Record<string, TokenPriceData>; timestamp: number; key: 
 const CACHE_TTL = 60_000 // 60 seconds
 
 export async function GET(req: Request) {
-  // Accept extra tokens from query params: ?extra=TICKER:address,TICKER2:address2
+  // Accept extra tokens: ?extra=TICKER:address:network,TICKER2:address2:network2
+  // Also supports legacy format: ?extra=TICKER:address (defaults to eth)
   const url = new URL(req.url)
   const extraParam = url.searchParams.get("extra") || ""
-  const TOKEN_CONTRACTS: Record<string, string> = { ...BASE_TOKENS }
+  const TOKEN_MAP: Record<string, { address: string; network: string }> = { ...BASE_TOKENS }
+
   if (extraParam) {
     for (const pair of extraParam.split(",")) {
-      const [ticker, addr] = pair.split(":")
-      if (ticker && addr && /^0x[a-fA-F0-9]{40}$/.test(addr)) {
-        TOKEN_CONTRACTS[ticker.toUpperCase()] = addr
+      const parts = pair.split(":")
+      const ticker = parts[0]
+      const addr = parts[1]
+      const net = parts[2] || "eth" // default to eth for backward compat
+      if (ticker && addr) {
+        TOKEN_MAP[ticker.toUpperCase()] = {
+          address: addr,
+          network: mapNetworkToGeckoId(net),
+        }
       }
     }
   }
 
-  // Build cache key that includes extras
-  const cacheKey = Object.keys(TOKEN_CONTRACTS).sort().join(",")
+  // Build cache key
+  const cacheKey = Object.entries(TOKEN_MAP)
+    .map(([t, v]) => `${t}:${v.network}:${v.address}`)
+    .sort()
+    .join(",")
 
-  // Return cached data if fresh and same token set
+  // Return cached data if fresh
   if (priceCache && Date.now() - priceCache.timestamp < CACHE_TTL && priceCache.key === cacheKey) {
     return Response.json({ prices: priceCache.data, cached: true })
   }
 
   try {
-    // GeckoTerminal simple token price endpoint — batch all ETH addresses
-    const addresses = Object.values(TOKEN_CONTRACTS).join(",").toLowerCase()
-    const url = `${GECKO_BASE}/simple/networks/eth/token_price/${addresses}`
-
-    const res = await fetch(url, {
-      headers: { Accept: "application/json;version=20230203" },
-      next: { revalidate: 60 },
-    })
-
-    if (!res.ok) {
-      throw new Error(`GeckoTerminal API responded ${res.status}`)
+    // Group tokens by network for batched GeckoTerminal calls
+    const byNetwork: Record<string, { ticker: string; address: string }[]> = {}
+    for (const [ticker, { address, network }] of Object.entries(TOKEN_MAP)) {
+      if (!byNetwork[network]) byNetwork[network] = []
+      byNetwork[network].push({ ticker, address })
     }
 
-    const json = await res.json()
-    const tokenPrices: Record<string, string> =
-      json?.data?.attributes?.token_prices ?? {}
-
-    // Build our price map keyed by ticker
     const prices: Record<string, TokenPriceData> = {}
 
-    for (const [ticker, address] of Object.entries(TOKEN_CONTRACTS)) {
-      const addrLower = address.toLowerCase()
-      const rawPrice = tokenPrices[addrLower]
-      const priceNum = rawPrice ? parseFloat(rawPrice) : 0
+    // Fetch prices per network (GeckoTerminal simple price endpoint)
+    for (const [netId, tokens] of Object.entries(byNetwork)) {
+      try {
+        const addresses = tokens.map(t => t.address.toLowerCase()).join(",")
+        const priceUrl = `${GECKO_BASE}/simple/networks/${netId}/token_price/${addresses}`
 
-      prices[ticker] = {
-        ticker,
-        address,
-        price: priceNum > 0 ? `$${priceNum < 0.01 ? priceNum.toFixed(6) : priceNum < 1 ? priceNum.toFixed(4) : priceNum.toFixed(2)}` : "N/A",
-        priceNum,
+        const res = await fetch(priceUrl, {
+          headers: { Accept: "application/json;version=20230203" },
+          next: { revalidate: 60 },
+        })
+
+        if (!res.ok) {
+          console.error(`[v0] GeckoTerminal ${netId} responded ${res.status}`)
+          // Still add tokens with N/A price
+          for (const t of tokens) {
+            prices[t.ticker] = { ticker: t.ticker, address: t.address, network: netId, price: "N/A", priceNum: 0 }
+          }
+          continue
+        }
+
+        const json = await res.json()
+        const tokenPrices: Record<string, string> = json?.data?.attributes?.token_prices ?? {}
+
+        for (const t of tokens) {
+          const addrLower = t.address.toLowerCase()
+          const rawPrice = tokenPrices[addrLower]
+          const priceNum = rawPrice ? parseFloat(rawPrice) : 0
+
+          prices[t.ticker] = {
+            ticker: t.ticker,
+            address: t.address,
+            network: netId,
+            price: priceNum > 0
+              ? `$${priceNum < 0.01 ? priceNum.toFixed(6) : priceNum < 1 ? priceNum.toFixed(4) : priceNum.toFixed(2)}`
+              : "N/A",
+            priceNum,
+          }
+        }
+      } catch (e) {
+        console.error(`[v0] Price fetch error for network ${netId}:`, e)
+        for (const t of tokens) {
+          prices[t.ticker] = { ticker: t.ticker, address: t.address, network: netId, price: "N/A", priceNum: 0 }
+        }
       }
     }
 
-    // Now fetch 24h pool data for each token to get real % change
-    // Use the top pool for each token
+    // Enrich with 24h change, volume, market cap
     const pricesWithChange = await enrichWith24hChange(prices)
 
     priceCache = { data: pricesWithChange, timestamp: Date.now(), key: cacheKey }
@@ -89,7 +149,6 @@ export async function GET(req: Request) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error("[v0] Price fetch error:", msg)
 
-    // Return stale cache if available
     if (priceCache) {
       return Response.json({ prices: priceCache.data, cached: true, stale: true })
     }
@@ -105,7 +164,9 @@ async function enrichWith24hChange(
 
   for (const [ticker, data] of Object.entries(prices)) {
     try {
-      const poolsUrl = `${GECKO_BASE}/networks/eth/tokens/${data.address.toLowerCase()}/pools?page=1`
+      // Use the correct network for pool lookup
+      const netId = data.network || "eth"
+      const poolsUrl = `${GECKO_BASE}/networks/${netId}/tokens/${data.address.toLowerCase()}/pools?page=1`
       const poolsRes = await fetch(poolsUrl, {
         headers: { Accept: "application/json;version=20230203" },
         next: { revalidate: 60 },

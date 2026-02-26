@@ -2041,8 +2041,8 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
       try {
         // Build extra tokens param from published projects
         const extraTokens = allProjects
-          .filter((p) => p.ticker && p.contractAddress && /^0x[a-fA-F0-9]{40}$/.test(p.contractAddress))
-          .map((p) => `${p.ticker}:${p.contractAddress}`)
+          .filter((p) => p.ticker && p.contractAddress)
+          .map((p) => `${p.ticker}:${p.contractAddress}:${p.network || "Ethereum"}`)
           .join(",")
         const qs = extraTokens ? `?extra=${encodeURIComponent(extraTokens)}` : ""
         const res = await fetch(`/api/prices${qs}`)

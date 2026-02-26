@@ -58,7 +58,7 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
     async function fetchPrice() {
       try {
         const extra = liveProject?.ticker && liveProject?.contractAddress
-          ? `?extra=${liveProject.ticker}:${liveProject.contractAddress}`
+          ? `?extra=${liveProject.ticker}:${liveProject.contractAddress}:${liveProject.network || "Ethereum"}`
           : ""
         const res = await fetch(`/api/prices${extra}`)
         if (!res.ok) return
