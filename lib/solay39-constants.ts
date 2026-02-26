@@ -336,7 +336,7 @@ export const CHECKLIST: Record<string, { id: string; text: string; sev: Severity
   ],
 }
 
-// ── Shared Halborn-style configs ─────────────────────────────
+// ── Shared Halborn-style configs ──────────────────────��──────
 export const SOLAY39_RISK_MODEL: RiskModelConfig = {
   methodology: "Likelihood x Impact severity matrix following OWASP and Halborn classification standards. Each finding is independently assessed for exploitability (likelihood) and damage potential (impact), then mapped to a composite severity level.",
   severityMatrix: [
@@ -586,6 +586,9 @@ constructor() public {
       { invariant: "balances[a] + balances[b] <= totalSupply for all a,b", holds: true, evidence: "SafeMath prevents overflow; transfer logic preserves conservation." },
       { invariant: "No privileged functions post-renounce", holds: true, evidence: "Ownership renounced. No admin, pause, or mint functions callable." },
     ],
+    riskModel: SOLAY39_RISK_MODEL,
+    auditorProfile: SOLAY39_AUDITOR_PROFILE,
+    limitations: SOLAY39_LIMITATIONS,
   },
   {
     id: "fetch-token",
