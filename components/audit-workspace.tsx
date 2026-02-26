@@ -64,7 +64,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     contractType?: string; scopeLabel?: string; centralizationLevel?: string
     centralizationRisk?: string; isERC20?: boolean; hasOwner?: boolean
     ownerRenounced?: boolean; hasPausable?: boolean; pausableProtected?: boolean
-    usesOZ?: boolean; hasProxy?: boolean
+    usesOZ?: boolean; hasProxy?: boolean; solidityVersion?: string
+    // Multi-chain fields
+    codeLanguage?: string; network?: string; linesOfCode?: number; isNonEVM?: boolean
   } | null>(null)
   const [apiScoreBreakdown, setApiScoreBreakdown] = useState<Record<string, number> | null>(null)
   // Tier-1 sections from AI
@@ -126,6 +128,16 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const publishAudit = async () => {
     if (!project.name) {
       setPublishResult({ error: "Please enter a project name before publishing." })
+      return
+    }
+    // Integrity guard: require actual code analysis before publishing
+    const actualLOC = (aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 0
+    if (actualLOC === 0 && aiRes.length === 0) {
+      setPublishResult({ error: "Cannot publish: no source code was analyzed. Run Skynet AI analysis first with actual contract code." })
+      return
+    }
+    if (!aiCode.trim() && aiRes.length === 0) {
+      setPublishResult({ error: "Cannot publish: no code was provided for analysis. Paste source code or use Auto-Fetch before publishing." })
       return
     }
     setPublishing(true)
@@ -259,10 +271,14 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       trustAssumptions: trustAssumptions.length > 0 ? trustAssumptions : undefined,
       architectureOverview: architectureOverview || undefined,
       attackSurface: attackSurface.length > 0 ? attackSurface : undefined,
-      toolingUsed: toolingUsed.length > 0 ? toolingUsed : [
+      toolingUsed: toolingUsed.length > 0 ? toolingUsed : contractMeta?.isNonEVM ? [
+        "Solay39 Manual Review",
+        `${contractMeta?.codeLanguage || currentNetwork} Static Analysis`,
+        "AI-Guided Verification (GPT-4o)",
+      ] : [
         "Solay39 Manual Review",
         "Solay39 Static Analyzer",
-        "AI-Guided Verification",
+        "AI-Guided Verification (GPT-4o)",
       ],
       onChainValidation: contractAddr ? [
         { label: "Source Code Verified", status: "pass" as const },
@@ -277,16 +293,16 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       integrationRisks: integrationRisks.length > 0 ? integrationRisks : undefined,
       invariantsChecked: invariantsChecked.length > 0 ? invariantsChecked : undefined,
       testingMethodology: testingMethodology || undefined,
-      // Halborn-style
+      // Halborn-style -- network-aware, honest metadata
       engagement: {
         auditDate: project.date || new Date().toISOString().slice(0, 10),
         deliveryDate: new Date().toISOString().slice(0, 10),
-        auditDurationDays: (aiEngagement?.auditDurationDays as number) || 3,
+        auditDurationDays: (aiEngagement?.auditDurationDays as number) || 1,
         numberOfAuditors: 1,
         leadAuditor: "Solay39 Founder",
-        compilerVersionUsed: (aiEngagement?.compilerVersionUsed as string) || contractMeta?.solidityVersion || "N/A",
+        compilerVersionUsed: (aiEngagement?.compilerVersionUsed as string) || contractMeta?.codeLanguage || contractMeta?.solidityVersion || "N/A",
         contractsReviewed: 1,
-        linesOfCode: (aiEngagement?.linesOfCode as number) || 0,
+        linesOfCode: (aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 0,
         commitHash: project.commit || "N/A — verified deployed bytecode",
         repositoryUrl: contractAddr ? getExplorer(currentNetwork).addressUrl(contractAddr) : undefined,
         objectives: (aiEngagement?.objectives as string[]) || [
@@ -298,15 +314,15 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       scopeTable: aiScopeTable ? aiScopeTable.map((s) => ({
         contract: String(s.contract || project.name),
         address: contractAddr || "N/A",
-        commit: project.commit || "Etherscan verified",
-        linesOfCode: Number(s.linesOfCode) || 0,
-        language: String(s.language || "Solidity"),
+        commit: project.commit || `${getExplorer(currentNetwork).name} verified`,
+        linesOfCode: Number(s.linesOfCode) || contractMeta?.linesOfCode || 0,
+        language: String(s.language || contractMeta?.codeLanguage || "Solidity"),
       })) : contractAddr ? [{
-        contract: `${project.name}.sol`,
+        contract: `${project.name}${contractMeta?.isNonEVM ? "" : ".sol"}`,
         address: contractAddr,
-        commit: project.commit || "Etherscan verified",
-        linesOfCode: (aiEngagement?.linesOfCode as number) || 0,
-        language: contractMeta?.solidityVersion ? `Solidity ${contractMeta.solidityVersion}` : "Solidity",
+        commit: project.commit || `${getExplorer(currentNetwork).name} verified`,
+        linesOfCode: (aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 0,
+        language: contractMeta?.codeLanguage || (contractMeta?.solidityVersion ? `Solidity ${contractMeta.solidityVersion}` : "Solidity"),
       }] : undefined,
       riskModel: {
         methodology: "Likelihood x Impact severity matrix following OWASP and Halborn classification standards.",
@@ -322,8 +338,12 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       auditorProfile: {
         firmName: "Solay39",
         description: "Independent smart contract security firm specializing in manual adversarial review combined with AI-guided static analysis.",
-        methodology: "Manual adversarial review + automated static analysis (Slither, Mythril) + symbolic execution + on-chain bytecode verification.",
-        experience: ["ERC-20/ERC-721 security reviews", "DeFi protocol analysis", "Proxy & upgradeability audits"],
+        methodology: contractMeta?.isNonEVM
+          ? `Manual adversarial review + ${contractMeta.codeLanguage} static analysis + AI-assisted pattern detection + on-chain program verification.`
+          : "Manual adversarial review + automated static analysis (Slither, Mythril) + AI-assisted pattern detection + on-chain bytecode verification.",
+        experience: contractMeta?.isNonEVM
+          ? [`${contractMeta.network} program security reviews`, "Cross-chain protocol analysis", "Token program audits"]
+          : ["ERC-20/ERC-721 security reviews", "DeFi protocol analysis", "Proxy & upgradeability audits"],
         contactEmail: "solay2126@gmail.com",
         telegram: "https://t.me/Solay39audit",
       },

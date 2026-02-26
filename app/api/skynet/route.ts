@@ -12,7 +12,7 @@ interface Finding {
 }
 
 interface ContractMeta {
-  contractType: "erc20" | "erc721" | "defi-protocol" | "proxy" | "generic"
+  contractType: "erc20" | "erc721" | "defi-protocol" | "proxy" | "generic" | "spl-token" | "solana-program" | "move-module" | "cosmwasm" | "non-evm"
   isERC20: boolean
   hasProxy: boolean
   hasOwner: boolean
@@ -32,11 +32,90 @@ interface ContractMeta {
   scopeLabel: string
   centralizationLevel: "Low" | "Medium" | "High"
   centralizationRisk: "Low" | "Medium" | "High"
+  // Multi-chain fields
+  codeLanguage: string
+  network: string
+  linesOfCode: number
+  isNonEVM: boolean
 }
 
 /* ───────── contract metadata extraction ───────── */
 
-function extractContractMeta(code: string): ContractMeta {
+function detectCodeLanguage(network: string): string {
+  if (network === "Solana") return "Rust/Anchor"
+  if (["Sui", "Aptos"].includes(network)) return "Move"
+  if (["Cosmos", "Injective", "Sei"].includes(network)) return "CosmWasm (Rust)"
+  if (network === "Near") return "Rust/near-sdk"
+  if (network === "Ton") return "FunC/Tact"
+  if (network === "Starknet") return "Cairo"
+  return "Solidity"
+}
+
+const NON_EVM_CHAINS = ["Solana", "Sui", "Aptos", "Cosmos", "Injective", "Sei", "Near", "Ton", "Starknet"]
+
+function extractContractMeta(code: string, network: string): ContractMeta {
+  const isNonEVM = NON_EVM_CHAINS.includes(network)
+  const codeLanguage = detectCodeLanguage(network)
+  const linesOfCode = code.split("\n").filter(l => l.trim().length > 0).length
+
+  // ── Non-EVM: detect program type from code patterns ──
+  if (isNonEVM) {
+    let contractType: ContractMeta["contractType"] = "non-evm"
+    let scopeLabel = `${network} Program`
+
+    if (network === "Solana") {
+      const isAnchor = /use\s+anchor_lang|#\[program\]|#\[derive\(Accounts\)\]/.test(code)
+      const isSPLToken = /spl_token|token::mint|MintTo|token_program|TokenAccount/.test(code)
+      const hasIDL = /"instructions"\s*:\s*\[|"accounts"\s*:\s*\[/.test(code)
+
+      if (isSPLToken || hasIDL) {
+        contractType = "spl-token"
+        scopeLabel = "Solana SPL Token Program"
+      } else if (isAnchor) {
+        contractType = "solana-program"
+        scopeLabel = "Solana Anchor Program"
+      } else {
+        contractType = "solana-program"
+        scopeLabel = "Solana Program"
+      }
+    } else if (["Sui", "Aptos"].includes(network)) {
+      contractType = "move-module"
+      scopeLabel = `${network} Move Module`
+    } else if (["Cosmos", "Injective", "Sei"].includes(network)) {
+      contractType = "cosmwasm"
+      scopeLabel = `${network} CosmWasm Contract`
+    }
+
+    // Non-EVM: check for authority/admin patterns
+    const hasOwner = network === "Solana"
+      ? /authority|admin|owner|has_one\s*=\s*authority|constraint\s*=\s*.*authority/.test(code)
+      : /admin|owner|authority|governance/.test(code.toLowerCase())
+
+    const hasMintOutsideConstructor = network === "Solana"
+      ? /mint_to|MintTo|token::mint_to/.test(code)
+      : /mint|create_token/.test(code.toLowerCase())
+
+    return {
+      contractType, isERC20: false, hasProxy: false,
+      hasOwner, ownerRenounced: false,
+      hasMintOutsideConstructor, hasConstructorOnlyMint: false,
+      hasPausable: /pause|freeze|frozen/.test(code.toLowerCase()),
+      pausableProtected: false,
+      hasBlacklist: /blacklist|blocklist|freeze_account/.test(code.toLowerCase()),
+      hasSetFee: /set_fee|update_fee|fee_rate/.test(code.toLowerCase()),
+      hasSelfDestruct: false, hasDelegatecall: false,
+      hasExternalCalls: /invoke|CPI|cross_program|cpi_call/.test(code),
+      usesOZ: false,
+      solidityVersion: "N/A",
+      hasSafeMath: true, // Rust has built-in overflow checks
+      scopeLabel,
+      centralizationLevel: hasOwner ? "Medium" : "Low",
+      centralizationRisk: hasOwner ? "Medium" : "Low",
+      codeLanguage, network, linesOfCode, isNonEVM: true,
+    }
+  }
+
+  // ── EVM: existing Solidity analysis ──
   const isERC20 = /is\s+(ERC20|IERC20|BEP20)|function\s+transfer\s*\(.*address.*uint/.test(code)
     && /function\s+approve\s*\(/.test(code)
     && /balances|_balances|balanceOf/.test(code)
@@ -73,25 +152,21 @@ function extractContractMeta(code: string): ContractMeta {
   const hasDelegatecall = /delegatecall/.test(code)
   const hasExternalCalls = /\.call\{value|\.call\(|\.transfer\(|\.send\(/.test(code)
 
-  // Extract Solidity version
   const pragmaMatch = code.match(/pragma solidity\s+[\^~]?(0\.(\d+)\.?\d*)/)
   const solidityVersion = pragmaMatch ? pragmaMatch[1] : "unknown"
 
-  // Determine contract type
   let contractType: ContractMeta["contractType"] = "generic"
   if (hasProxy) contractType = "proxy"
   else if (isERC721) contractType = "erc721"
   else if (isERC20 && !hasDeFiLogic) contractType = "erc20"
   else if (hasDeFiLogic) contractType = "defi-protocol"
 
-  // Determine scope label
   let scopeLabel = "Smart Contract"
   if (contractType === "erc20") scopeLabel = "ERC-20 Token Contract"
   else if (contractType === "erc721") scopeLabel = "ERC-721 NFT Contract"
   else if (contractType === "proxy") scopeLabel = "Upgradeable Proxy Contract"
   else if (contractType === "defi-protocol") scopeLabel = "DeFi Protocol Contract"
 
-  // Determine centralization
   let centralizationLevel: ContractMeta["centralizationLevel"] = "Low"
   let centralizationRisk: ContractMeta["centralizationRisk"] = "Low"
 
@@ -112,6 +187,7 @@ function extractContractMeta(code: string): ContractMeta {
     pausableProtected, hasBlacklist, hasSetFee, hasSelfDestruct,
     hasDelegatecall, hasExternalCalls, usesOZ, solidityVersion,
     hasSafeMath, scopeLabel, centralizationLevel, centralizationRisk,
+    codeLanguage, network, linesOfCode, isNonEVM: false,
   }
 }
 
@@ -194,6 +270,29 @@ function computeScoreBreakdown(
 
 function staticAnalysis(code: string, meta: ContractMeta): Finding[] {
   const findings: Finding[] = []
+
+  // Non-EVM: basic pattern checks instead of Solidity-specific analysis
+  if (meta.isNonEVM) {
+    if (meta.network === "Solana") {
+      // Solana-specific checks
+      if (/invoke\(|invoke_signed\(/.test(code) && !/AccountInfo.*is_signer/.test(code)) {
+        findings.push({ title: "CPI Without Signer Verification", severity: "MEDIUM", location: "invoke/invoke_signed call", description: "Cross-Program Invocation detected without explicit signer verification on the invoking account.", impact: "A malicious account could potentially trigger CPI calls without proper authorization.", recommendation: "Ensure all CPI calls verify the signer constraint on the authority account." })
+      }
+      if (/pub\s+authority/.test(code) && !/has_one\s*=\s*authority|constraint\s*=.*authority/.test(code)) {
+        findings.push({ title: "Missing Authority Constraint", severity: "HIGH", location: "Account struct definition", description: "An authority field exists in the account struct but no has_one or constraint validation is applied.", impact: "Any account could be passed as the authority, bypassing access control.", recommendation: "Add #[account(has_one = authority)] or a manual constraint check." })
+      }
+      if (/is_initialized/.test(code) && !/if\s+.*is_initialized/.test(code)) {
+        findings.push({ title: "Potential Reinitialization Vulnerability", severity: "MEDIUM", location: "Account initialization", description: "An is_initialized field exists but may not be properly checked before initialization.", impact: "An attacker could reinitialize an account, overwriting existing data.", recommendation: "Add explicit is_initialized check before any initialization logic." })
+      }
+    }
+    if (meta.hasOwner) {
+      findings.push({ title: "Centralized Authority Control", severity: "MEDIUM", location: "Authority/admin account", description: `The program has an authority/admin account that controls privileged operations on ${meta.network}.`, impact: "If the authority key is compromised, an attacker gains full control over privileged operations.", recommendation: "Consider using a multisig or governance mechanism for the authority account." })
+    }
+    if (findings.length === 0) {
+      findings.push({ title: `${meta.codeLanguage} Static Analysis — Limited Coverage`, severity: "INFO", location: "Full program", description: `Pattern-based static analysis on ${meta.codeLanguage} code has limited coverage. The AI analysis provides the primary security assessment for non-Solidity programs.`, impact: "Some vulnerability patterns specific to ${meta.network} may require manual review.", recommendation: "Rely primarily on the AI-guided analysis results. Consider a specialized ${meta.network} security audit for production deployments." })
+    }
+    return findings
+  }
 
   const { isERC20, hasSafeMath, hasConstructorOnlyMint, hasExternalCalls,
     usesOZ, hasPausable, pausableProtected, hasOwner } = meta
@@ -453,27 +552,53 @@ function staticAnalysis(code: string, meta: ContractMeta): Finding[] {
 
 const SYSTEM_PROMPT = `You are an elite smart contract security auditor using the Solay39 Manual-First Audit Framework.
 
-CRITICAL RULES — you MUST follow these to avoid false positives:
+ABSOLUTE INTEGRITY RULES — NEVER VIOLATE THESE:
+
+0. HONESTY IS NON-NEGOTIABLE:
+   - You MUST accurately identify the blockchain network and programming language from the CONTRACT METADATA provided.
+   - If the code is Rust/Anchor (Solana), you MUST say language is "Rust/Anchor", NOT "Solidity".
+   - If the code is Move (Sui/Aptos), you MUST say language is "Move", NOT "Solidity".
+   - The "scopeTable[].language" field MUST match the ACTUAL language of the code provided.
+   - The "engagement.compilerVersionUsed" MUST match the actual compiler (e.g., "rustc 1.75 + Anchor 0.29" for Solana, NOT "Solidity X.Y.Z").
+   - The "engagement.linesOfCode" MUST be the ACTUAL line count from the CONTRACT METADATA. NEVER report 0 if code was provided.
+   - File extensions: Solana = ".rs", Move = ".move", CosmWasm = ".rs", Cairo = ".cairo", Solidity = ".sol".
+   - If you cannot determine something with certainty, say "Unverified" — NEVER fabricate data.
 
 1. UNDERSTAND THE CONTRACT TYPE FIRST. Before listing any findings, determine:
-   - Is it a standard ERC-20/BEP-20? (has transfer, approve, balanceOf, allowance)
-   - Is it upgradeable? (has delegatecall, proxy pattern, EIP-1967 slots)
-   - Does it handle ETH? (has payable, .call{value}, .transfer, .send)
-   - Does it have admin functions? (pause, blacklist, setFee, mint outside constructor)
+   - For EVM: Is it ERC-20/BEP-20? Upgradeable? Does it handle ETH? Has admin functions?
+   - For Solana: Is it an SPL Token? Anchor program? Native Solana program? What instructions does it expose?
+   - For Move: Is it a coin module? Object-based? What entry functions exist?
+   - For CosmWasm: What execute/query handlers exist? What storage patterns?
 
 2. SCOPE ACCURACY IS CRITICAL:
-   - If the contract is a simple ERC-20 token, your scope is "ERC-20 Token Contract" — NOT "protocol", "DEX", "trading platform", "vault", etc.
-   - You are auditing ONLY the code provided. Do not claim to audit infrastructure, matching engines, or protocol logic that is NOT in the code.
+   - The scope label MUST match the actual program type and chain. Examples:
+     - Solana SPL Token: "Solana SPL Token Program" (NOT "ERC-20 Token Contract")
+     - Solana DEX: "Solana Anchor DEX Program"
+     - EVM ERC-20: "ERC-20 Token Contract"
+   - You are auditing ONLY the code provided. Do not claim to audit what is NOT in the code.
    - The scope description must match what the code actually contains.
 
 3. DO NOT FLAG as vulnerabilities:
+   EVM/Solidity:
    - "Missing access control" on standard ERC-20 functions (transfer, approve, transferFrom) — these are SUPPOSED to be public
-   - "Missing access control" on contracts using OpenZeppelin modules (ERC20Pausable, Ownable, AccessControl, PauserRole, MinterRole) — OZ has BUILT-IN role-based access control
+   - "Missing access control" on contracts using OpenZeppelin modules — OZ has BUILT-IN role-based access control
    - "Reentrancy" on contracts that only update mappings and emit events without external calls
-   - "Centralized minting" or "Unrestricted minting" if _mint() is ONLY called inside the constructor (fixed supply). Check: is there a function mint() that is public/external OUTSIDE the constructor? If NO, it's fixed supply.
-   - "Integer overflow" if the contract uses SafeMath (look for: "library SafeMath", "using SafeMath for uint256", .add(), .sub(), .mul(), .div()) or targets Solidity >= 0.8.0. CHECK THE ENTIRE CONTRACT for SafeMath before flagging overflow risk.
-   - Known ERC-20 limitations as HIGH/CRITICAL (e.g., approve race condition is LOW at most)
-   - "Missing access control on pause" if the contract inherits ERC20Pausable from OpenZeppelin — the PauserRole modifier is inherited
+   - "Centralized minting" if _mint() is ONLY inside the constructor (fixed supply)
+   - "Integer overflow" if SafeMath is used or Solidity >= 0.8.0
+   - Known ERC-20 limitations as HIGH/CRITICAL (approve race condition is LOW at most)
+   
+   Solana/Anchor:
+   - "Integer overflow" — Rust has built-in overflow checks in debug mode, and Anchor uses checked math
+   - "Reentrancy" — Solana's execution model prevents traditional reentrancy
+   - Do NOT reference Solidity concepts (delegatecall, selfdestruct, msg.sender, require()) when analyzing Rust code
+   
+   Move (Sui/Aptos):
+   - Resource safety issues that Move's type system already prevents
+   - Do NOT reference Solidity concepts when analyzing Move code
+   
+   General:
+   - Do NOT claim to have run Slither/Mythril on non-Solidity code — those tools only work on Solidity
+   - Do NOT reference ".sol" files for non-Solidity programs
 
 4. Each finding MUST be unique. Never repeat the same finding twice.
 
@@ -536,7 +661,8 @@ CRITICAL RULES — you MUST follow these to avoid false positives:
     - The exact vulnerable code snippet (file name, line numbers)
     - A concrete exploit scenario with step-by-step attack flow
     - Numeric impact estimate where applicable
-    - Tool output that confirms the finding (e.g., "Slither: integer overflow at line 63")
+    - Tool output that confirms the finding (e.g., for Solidity: "Slither: integer overflow at line 63", for Rust: "cargo-audit/clippy: unchecked arithmetic at line 45")
+    - For non-Solidity: reference the correct tools (cargo-audit, clippy for Rust; Move prover for Move; cosmwasm-check for CosmWasm)
     This is what separates a Tier-1 audit from a Tier-2. Do NOT generate findings without proof.
 
 15. TESTING METHODOLOGY (MUST generate):
@@ -609,7 +735,7 @@ You MUST respond ONLY with valid JSON (no markdown, no code fences):
     "auditDurationDays": number
   },
   "scopeTable": [
-    { "contract": "ContractName.sol", "linesOfCode": number, "language": "Solidity X.Y.Z" }
+    { "contract": "ContractName.sol or ProgramName.rs", "linesOfCode": number, "language": "ACTUAL language from metadata (Solidity X.Y.Z / Rust/Anchor / Move / etc.)" }
   ]
 }
 
@@ -626,18 +752,10 @@ export async function POST(req: Request) {
 
     const truncatedCode = code.slice(0, 15000)
 
-    // Detect the programming language from the network
-    const isEVM = !["Solana", "Sui", "Aptos", "Cosmos", "Injective", "Sei", "Near", "Ton", "Starknet"].includes(chainNetwork)
-    const codeLanguage = chainNetwork === "Solana" ? "Rust/Anchor"
-      : ["Sui", "Aptos"].includes(chainNetwork) ? "Move"
-      : ["Cosmos", "Injective", "Sei"].includes(chainNetwork) ? "CosmWasm (Rust)"
-      : chainNetwork === "Near" ? "Rust/AssemblyScript"
-      : chainNetwork === "Ton" ? "FunC/Tact"
-      : chainNetwork === "Starknet" ? "Cairo"
-      : "Solidity"
-
-    // Extract contract metadata FIRST -- this drives everything
-    const meta = extractContractMeta(truncatedCode)
+    // Extract contract metadata FIRST -- this drives everything (now network-aware)
+    const meta = extractContractMeta(truncatedCode, chainNetwork)
+    const isEVM = !meta.isNonEVM
+    const codeLanguage = meta.codeLanguage
 
     // Build a metadata context preamble for the AI
     const metaContext = isEVM ? [
@@ -664,14 +782,28 @@ export async function POST(req: Request) {
         ? `This is a SIMPLE ERC-20 TOKEN. Do NOT claim you're auditing a "protocol", "DEX", "vault", or "trading platform". The scope is ONLY the token contract. Architecture risk and governance risk should reflect this limited scope.`
         : ``,
     ].join("\n") : [
-      `CONTRACT METADATA:`,
+      `CONTRACT METADATA (pre-analyzed):`,
       `- Network: ${chainNetwork}`,
       `- Language: ${codeLanguage}`,
-      `- This is NOT a Solidity contract. Analyze it according to ${codeLanguage} best practices and common vulnerabilities.`,
-      `- Focus on: access control, arithmetic safety, state mutation safety, program authority/signer verification, token account validation, CPI (Cross-Program Invocation) safety.`,
-      chainNetwork === "Solana" ? `- For Solana/Anchor programs: check account constraint validation, signer checks, PDA derivation, CPI guard, reinitialization attacks, type cosplay, missing close constraints.` : "",
-      ["Sui", "Aptos"].includes(chainNetwork) ? `- For Move programs: check capability patterns, object ownership, resource safety, phantom type abuse, entry function validation.` : "",
-      ["Cosmos", "Injective", "Sei"].includes(chainNetwork) ? `- For CosmWasm contracts: check instantiate/execute/query handler safety, storage patterns, submessage reply handling, migration safety.` : "",
+      `- Lines of Code: ${meta.linesOfCode}`,
+      `- Type: ${meta.contractType} (${meta.scopeLabel})`,
+      `- Has Authority/Admin: ${meta.hasOwner}`,
+      `- Has Mint: ${meta.hasMintOutsideConstructor}`,
+      `- Has Pausable/Freeze: ${meta.hasPausable}`,
+      `- Has External Calls/CPI: ${meta.hasExternalCalls}`,
+      `- Centralization: ${meta.centralizationLevel}`,
+      ``,
+      `CRITICAL: This is a ${codeLanguage} program on ${chainNetwork}, NOT Solidity/Ethereum.`,
+      `- Do NOT reference Solidity concepts (pragma, constructor, ERC-20, OpenZeppelin, SafeMath, delegatecall, selfdestruct).`,
+      `- Do NOT say the language is "Solidity" or reference ".sol" files.`,
+      `- The file extension for ${codeLanguage} is ${chainNetwork === "Solana" ? ".rs" : chainNetwork === "Starknet" ? ".cairo" : chainNetwork === "Ton" ? ".fc/.tact" : ["Sui","Aptos"].includes(chainNetwork) ? ".move" : ".rs"}.`,
+      `- The "engagement.compilerVersionUsed" must reflect ${codeLanguage}, NOT Solidity. Example: "rustc 1.75 + Anchor 0.29" for Solana.`,
+      `- The "scopeTable[].language" must be "${codeLanguage}", NOT "Solidity".`,
+      `- The "engagement.linesOfCode" must be ${meta.linesOfCode} (actual count from provided code).`,
+      ``,
+      chainNetwork === "Solana" ? `For Solana/Anchor programs specifically analyze: account constraint validation (#[account(...)]), signer checks (has_one, constraint), PDA derivation seeds, CPI guard (invoke/invoke_signed safety), reinitialization attacks (is_initialized), type cosplay attacks, missing close constraints, authority validation.` : "",
+      ["Sui", "Aptos"].includes(chainNetwork) ? `For Move programs: check capability patterns, object ownership, resource safety, phantom type abuse, entry function validation, module access control.` : "",
+      ["Cosmos", "Injective", "Sei"].includes(chainNetwork) ? `For CosmWasm contracts: check instantiate/execute/query handler safety, storage patterns (Item/Map), submessage reply handling, migration safety, admin key management.` : "",
     ].join("\n")
 
     // Adapt the analysis prompt for the code language
@@ -836,21 +968,25 @@ export async function POST(req: Request) {
         limitations: Array.isArray(parsed.testingMethodology.limitations) ? parsed.testingMethodology.limitations.map(String) : [],
       } : null
 
-      // Extract engagement data from AI
+      // Extract engagement data from AI -- always use real LOC from code analysis
+      const realLOC = meta.linesOfCode
+      const defaultCompiler = isEVM
+        ? (meta.solidityVersion !== "unknown" ? `Solidity ${meta.solidityVersion}` : "Solidity (version undetected)")
+        : codeLanguage
       const aiEngagement = parsed.engagement ? {
-        compilerVersionUsed: String(parsed.engagement.compilerVersionUsed || meta.solidityVersion || "N/A"),
-        linesOfCode: Number(parsed.engagement.linesOfCode) || 0,
+        compilerVersionUsed: String(parsed.engagement.compilerVersionUsed || defaultCompiler),
+        linesOfCode: realLOC > 0 ? realLOC : (Number(parsed.engagement.linesOfCode) || 0),
         objectives: Array.isArray(parsed.engagement.objectives) ? parsed.engagement.objectives.map(String) : [],
-        auditDurationDays: Number(parsed.engagement.auditDurationDays) || 3,
-      } : null
+        auditDurationDays: Number(parsed.engagement.auditDurationDays) || 1,
+      } : { compilerVersionUsed: defaultCompiler, linesOfCode: realLOC, objectives: [], auditDurationDays: 1 }
 
       const aiScopeTable = Array.isArray(parsed.scopeTable)
         ? parsed.scopeTable.map((s: Record<string, unknown>) => ({
             contract: String(s.contract || ""),
-            linesOfCode: Number(s.linesOfCode) || 0,
-            language: String(s.language || ""),
+            linesOfCode: Number(s.linesOfCode) || realLOC,
+            language: String(s.language || codeLanguage),
           }))
-        : null
+        : [{ contract: meta.scopeLabel, linesOfCode: realLOC, language: codeLanguage }]
 
       // Compute realistic score breakdown
       const fCount = {
