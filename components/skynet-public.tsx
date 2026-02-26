@@ -147,6 +147,104 @@ function SevPill({ sev, count }: { sev: SeverityLevel; count: number }) {
   )
 }
 
+// ── SVG Radar Chart — 6 categories (SOLAY39 Security Rating Model) ──
+function RadarChart({ data, size = 220 }: { data: { label: string; value: number; color: string }[]; size?: number }) {
+  const cx = size / 2
+  const cy = size / 2
+  const R = size / 2 - 30
+  const levels = [20, 40, 60, 80, 100]
+  const n = data.length
+  const angleStep = (2 * Math.PI) / n
+  const startAngle = -Math.PI / 2 // start from top
+
+  const getPoint = (i: number, r: number) => {
+    const angle = startAngle + i * angleStep
+    return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) }
+  }
+
+  // Build polygon points for each level ring
+  const levelPolygons = levels.map(level => {
+    const r = (level / 100) * R
+    return data.map((_, i) => getPoint(i, r)).map(p => `${p.x},${p.y}`).join(" ")
+  })
+
+  // Data polygon
+  const dataPoints = data.map((d, i) => getPoint(i, (d.value / 100) * R))
+  const dataPolygon = dataPoints.map(p => `${p.x},${p.y}`).join(" ")
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="block">
+        {/* Level rings */}
+        {levelPolygons.map((pts, li) => (
+          <polygon key={li} points={pts} fill="none" stroke="#1a2233" strokeWidth={li === levels.length - 1 ? 1 : 0.5} />
+        ))}
+
+        {/* Axis lines */}
+        {data.map((_, i) => {
+          const p = getPoint(i, R)
+          return <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="#1a2233" strokeWidth={0.5} />
+        })}
+
+        {/* Data polygon fill */}
+        <polygon points={dataPolygon} fill="#00ff8818" stroke="#00ff88" strokeWidth={1.5} />
+
+        {/* Data points */}
+        {dataPoints.map((p, i) => (
+          <circle key={i} cx={p.x} cy={p.y} r={3} fill={data[i].color} stroke="#0a0e14" strokeWidth={1.5} />
+        ))}
+
+        {/* Labels */}
+        {data.map((d, i) => {
+          const labelR = R + 18
+          const p = getPoint(i, labelR)
+          const anchor = p.x < cx - 5 ? "end" : p.x > cx + 5 ? "start" : "middle"
+          return (
+            <g key={`label-${i}`}>
+              <text x={p.x} y={p.y - 4} textAnchor={anchor} fill="#7a8c9e" fontSize="7" fontFamily="monospace" letterSpacing="0.5px">
+                {d.label.toUpperCase()}
+              </text>
+              <text x={p.x} y={p.y + 7} textAnchor={anchor} fill={d.value >= 90 ? "#00ff88" : d.value >= 70 ? "#ffd600" : "#ff2d55"} fontSize="9" fontFamily="monospace" fontWeight="bold">
+                {d.value}
+              </text>
+            </g>
+          )
+        })}
+      </svg>
+    </div>
+  )
+}
+
+// ── Security Badge (copyable) ───────────────────────────────────
+function SecurityBadge({ rating, score, name }: { rating: string; score: number; name: string }) {
+  const [copied, setCopied] = useState(false)
+  const badgeText = `SOLAY39 Rating: ${rating} (${score}) — ${name}`
+  const sc = scoreColor(score)
+
+  return (
+    <button
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(badgeText)
+          setCopied(true)
+          setTimeout(() => setCopied(false), 2000)
+        } catch { /* fallback */ }
+      }}
+      className="flex items-center gap-2 bg-s39-bg2 border px-3 py-1.5 cursor-pointer hover:bg-s39-bg1 transition-colors group"
+      style={{ borderColor: `${sc}30` }}
+      title="Click to copy badge text"
+    >
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1L2 4v5l4 2 4-2V4L6 1z" stroke={sc} strokeWidth="1" fill={`${sc}15`}/></svg>
+      <span className="text-[9px] font-bold font-mono tracking-wider" style={{ color: sc }}>
+        SOLAY39 Rating: {rating} ({score})
+      </span>
+      <span className="text-[7px] text-s39-dim group-hover:text-s39-mid transition-colors ml-1">
+        {copied ? "COPIED!" : "COPY"}
+      </span>
+    </button>
+  )
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // PROJECT DETAIL PAGE — CertiK-inspired
 // ═══════════════════════════════════════════════════════════════════
@@ -278,6 +376,19 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
   const openCount = p.findings?.filter((f) => f.status === "OPEN").length ?? 0
   const ackCount = p.findings?.filter((f) => f.status === "ACKNOWLEDGED").length ?? 0
 
+  // Client Display Mode: hides internal scoring details, shows clean public view
+  const [clientMode, setClientMode] = useState(false)
+
+  // Radar chart data (6 categories)
+  const radarData = bd ? [
+    { label: "Code Security", value: bd.codeSecurity, color: "#00ff88" },
+    { label: "Architecture", value: bd.architectureRisk, color: "#00e5ff" },
+    { label: "Governance", value: bd.governanceRisk, color: "#4488ff" },
+    { label: "On-Chain", value: bd.centralization, color: "#ffd600" },
+    { label: "Economic", value: Math.round((bd.codeSecurity + bd.centralization) / 2), color: "#ff6b00" },
+    { label: "Operations", value: bd.testingCoverage, color: "#aa44ff" },
+  ] : []
+
   return (
     <div className="min-h-dvh bg-s39-bg0">
       {/* ── Top Header ── */}
@@ -327,8 +438,29 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                 {p.tags?.map((t) => (
                   <span key={t} className="text-[8px] text-s39-dim border border-s39-border px-2 py-1">{t}</span>
                 ))}
+                {/* Client Mode Toggle */}
+                <button
+                  onClick={() => setClientMode(!clientMode)}
+                  className="flex items-center gap-1.5 text-[8px] bg-transparent border px-2.5 py-1 tracking-wider cursor-pointer transition-colors font-mono"
+                  style={{
+                    color: clientMode ? "#00ff88" : "#7a8c9e",
+                    borderColor: clientMode ? "#00ff8833" : "#334455",
+                    background: clientMode ? "#00ff8808" : "transparent",
+                  }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                    <rect x="1" y="2" width="8" height="6" rx="1" stroke="currentColor" strokeWidth="1" />
+                    <circle cx="5" cy="5" r="1.5" fill="currentColor" />
+                  </svg>
+                  {clientMode ? "CLIENT VIEW" : "DETAILED VIEW"}
+                </button>
                 {/* Share Button */}
                 <ShareButton auditId={p.id} name={p.name} />
+              </div>
+
+              {/* Security Badge (copyable) */}
+              <div className="mb-4">
+                <SecurityBadge rating={p.rating} score={p.score} name={p.name} />
               </div>
 
               {/* Price + Market Cap row */}
@@ -366,10 +498,17 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               )}
             </div>
 
-            {/* Score Arc + Sub-Score Breakdown */}
+            {/* Score Arc + Radar Chart */}
             <div className="shrink-0 flex flex-col items-center gap-2">
               <div className="text-[8px] text-s39-dim tracking-[0.15em]">SOLAY39 SECURITY SCORE</div>
-              <ScoreArc score={Math.min(p.score, 100)} size={160} />
+              <div className="flex items-center gap-4">
+                <ScoreArc score={Math.min(p.score, 100)} size={160} />
+                {radarData.length > 0 && (
+                  <div className="hidden lg:block">
+                    <RadarChart data={radarData} size={180} />
+                  </div>
+                )}
+              </div>
               {/* Risk Outlook Badge */}
               {(() => {
                 const hasOpen = p.findings?.some(f => f.severity === "CRITICAL" && f.status === "OPEN")
@@ -384,6 +523,13 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               })()}
             </div>
           </div>
+
+          {/* Mobile Radar Chart */}
+          {radarData.length > 0 && (
+            <div className="lg:hidden flex justify-center mt-4">
+              <RadarChart data={radarData} size={220} />
+            </div>
+          )}
 
           {/* Sub-Score Breakdown — 6 categories (SOLAY39 Security Rating Model) */}
           {p.scoreBreakdown && (
@@ -492,6 +638,111 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
           </div>
         )}
 
+        {/* ═══════════ CLIENT MODE: Clean summary block ═══════════ */}
+        {clientMode && bd && (
+          <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
+            <div className="flex items-center gap-2 mb-5">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M6 1L2 4v5l4 2 4-2V4L6 1z" stroke="#00ff88" strokeWidth="1" fill="#00ff8815" transform="translate(1,0)"/></svg>
+              <span className="text-[9px] text-s39-green tracking-[0.15em]">SOLAY39 SECURITY RATING — PUBLIC</span>
+              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">CLIENT DISPLAY</span>
+            </div>
+
+            {/* Rating Badge */}
+            <div className="flex items-center gap-6 mb-6 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div className="text-4xl font-bold font-mono" style={{ color: sc }}>{p.score}</div>
+                <div>
+                  <div className="text-lg font-bold" style={{ color: sc }}>{p.rating}</div>
+                  <div className="text-[8px] text-s39-dim tracking-widest">
+                    {p.score >= 95 ? "Exceptional Security" : p.score >= 90 ? "Very Strong Security" : p.score >= 80 ? "Strong Security" : p.score >= 70 ? "Adequate Security" : p.score >= 60 ? "Below Average" : "Needs Improvement"}
+                  </div>
+                </div>
+              </div>
+              <SecurityBadge rating={p.rating} score={p.score} name={p.name} />
+            </div>
+
+            {/* Category Breakdown Table — Clean */}
+            <div className="overflow-x-auto mb-5">
+              <table className="w-full text-[10px]">
+                <thead>
+                  <tr className="bg-s39-bg2">
+                    <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">CATEGORY</th>
+                    <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">WEIGHT</th>
+                    <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">SCORE</th>
+                    <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">ASSESSMENT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {radarData.map((d, i) => {
+                    const weights = ["35%", "20%", "15%", "10%", "10%", "10%"]
+                    const assessment = d.value >= 90 ? "Excellent" : d.value >= 80 ? "Good" : d.value >= 70 ? "Adequate" : d.value >= 60 ? "Fair" : "Needs Work"
+                    const assessCol = d.value >= 90 ? "#00ff88" : d.value >= 80 ? "#00e5ff" : d.value >= 70 ? "#ffd600" : d.value >= 60 ? "#ff6b00" : "#ff2d55"
+                    return (
+                      <tr key={i} className="border-b border-s39-border last:border-0">
+                        <td className="px-3 py-2.5 font-bold" style={{ color: d.color }}>{d.label}</td>
+                        <td className="px-3 py-2.5 text-s39-dim font-mono">{weights[i]}</td>
+                        <td className="px-3 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold font-mono" style={{ color: d.value >= 90 ? "#00ff88" : d.value >= 70 ? "#ffd600" : "#ff2d55" }}>{d.value}</span>
+                            <div className="w-16 h-1.5 bg-s39-bg0">
+                              <div className="h-full" style={{ width: `${d.value}%`, background: d.color, opacity: 0.7 }} />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <span className="text-[8px] font-bold px-2 py-0.5 border" style={{ color: assessCol, borderColor: `${assessCol}40`, background: `${assessCol}10` }}>
+                            {assessment}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Risk Outlook */}
+            {(() => {
+              const hasOpen = p.findings?.some(f => f.severity === "CRITICAL" && f.status === "OPEN")
+              const outlook = hasOpen ? "HIGH RISK" : (p.centralizationRisk === "High" ? "HIGH RISK" : p.centralizationRisk === "Medium" ? "MODERATE RISK" : "LOW RISK")
+              const olColor = outlook === "LOW RISK" ? "#00ff88" : outlook === "MODERATE RISK" ? "#ffd600" : "#ff2d55"
+              return (
+                <div className="flex items-center gap-3 mb-4 bg-s39-bg2 border border-s39-border p-3">
+                  <div className="text-[8px] text-s39-dim tracking-widest">RISK OUTLOOK</div>
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 border" style={{ color: olColor, borderColor: `${olColor}40`, background: `${olColor}08` }}>
+                    {outlook}
+                  </span>
+                  <div className="text-[8px] text-s39-dim ml-auto">
+                    {totalFindings} findings | {resolvedCount} resolved | {openCount} open
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Findings Summary — No details, just counts */}
+            <div className="flex gap-3 flex-wrap">
+              {([
+                ["Critical", p.criticals, "#ff2d55"],
+                ["High", p.highs, "#ff6b00"],
+                ["Medium", p.mediums, "#ffd600"],
+                ["Low", p.lows, "#00e5ff"],
+                ["Info", p.infos, "#00ff88"],
+              ] as [string, number, string][]).map(([label, count, color]) => (
+                <div key={label} className="bg-s39-bg2 border border-s39-border px-3 py-2 text-center min-w-[60px]">
+                  <div className="text-lg font-bold font-mono" style={{ color: count > 0 ? color : "#334455" }}>{count}</div>
+                  <div className="text-[7px] text-s39-dim tracking-widest">{label.toUpperCase()}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 text-[8px] text-s39-dim italic border-t border-s39-border pt-3">
+              {'This is the public client view. Toggle "Detailed View" above for full audit analysis including finding details, proof of concept, and security architecture.'}
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════ DETAILED VIEW (hidden in client mode) ═══════════ */}
+        {!clientMode && <>
         {/* ── Code Audit Section ── */}
         <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
           <div className="flex items-center gap-2 mb-4">
@@ -1531,7 +1782,10 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
           </div>
         )}
 
-        {/* ── ABOUT THE AUDITOR ── */}
+        </>}
+        {/* ═══════════ END OF DETAILED VIEW ═══════════ */}
+
+        {/* ── ABOUT THE AUDITOR ── (always visible) */}
         {p.auditorProfile && (
           <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
             <div className="flex items-center gap-2 mb-4">
@@ -1670,45 +1924,76 @@ function MethodologyPage() {
         </div>
       ))}
 
-      {/* Score Formula */}
+      {/* 6-Category Weighted Scoring Model */}
       <div className="bg-s39-bg1 border border-s39-green/20 p-6 mt-8">
-        <div className="text-[9px] text-s39-green tracking-[0.15em] mb-3">TRANSPARENT SCORE FORMULA</div>
-        <div className="text-[10px] sm:text-[11px] text-s39-lite font-mono mb-2 break-words">
-          {"Score = min(98, Base - (Critical x 25) - (High x 10) - (Medium x 3) - (Low x 1) - CentralizationRisk - GovernancePenalty)"}
+        <div className="text-[9px] text-s39-green tracking-[0.15em] mb-3">SOLAY39 SECURITY RATING MODEL</div>
+        <div className="text-[8px] text-s39-dim tracking-wider mb-4">6 CATEGORIES / WEIGHTED / TRANSPARENT</div>
+
+        <div className="text-[10px] sm:text-[11px] text-s39-lite font-mono mb-4 break-words bg-s39-bg2 p-4 border border-s39-border">
+          {"Final Score = (Code Security x 0.35) + (Architecture x 0.20) + (Governance x 0.15) + (On-Chain x 0.10) + (Economic x 0.10) + (Operations x 0.10)"}
         </div>
-        <div className="text-[9px] text-s39-dim mb-4 italic">
-          {"Maximum score: 98 — security is risk reduction, not perfection."}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+          {([
+            ["Code Security", "35%", "#00ff88", "Vulnerability density, reentrancy, overflow, access-control, input validation, business-logic integrity."],
+            ["Architecture", "20%", "#00e5ff", "Separation of concerns, upgrade pattern, library usage, modularity, trust boundary design."],
+            ["Governance", "15%", "#4488ff", "Admin key model, timelock, multisig, proposal lifecycle, decentralization trajectory."],
+            ["On-Chain", "10%", "#ffd600", "Ownership status, mint/pause ability, supply model, on-chain verification, proxy detection."],
+            ["Economic", "10%", "#ff6b00", "Token distribution, MEV exposure, oracle dependency, flash-loan risk, supply concentration."],
+            ["Operations", "10%", "#aa44ff", "Static analysis coverage, fuzzing, symbolic execution, manual review hours, CI/CD maturity."],
+          ] as [string, string, string, string][]).map(([cat, weight, color, desc]) => (
+            <div key={cat} className="bg-s39-bg2 border border-s39-border p-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[10px] font-bold" style={{ color }}>{cat}</span>
+                <span className="text-[9px] text-s39-dim font-mono">{weight}</span>
+              </div>
+              <div className="text-[9px] text-s39-mid leading-relaxed">{desc}</div>
+            </div>
+          ))}
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+
+        <div className="text-[9px] text-s39-dim italic mb-4">
+          {"Maximum score: 98. Security is risk reduction, not perfection. Each category is independently assessed by the lead auditor on a 0-100 scale."}
+        </div>
+
+        {/* Finding Penalties */}
+        <div className="text-[8px] text-s39-dim tracking-[0.15em] mb-2">FINDING SEVERITY PENALTIES</div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
           {([
             ["CRITICAL", "-25pts", "#ff2d55"],
             ["HIGH", "-10pts", "#ff6b00"],
             ["MEDIUM", "-3pts", "#ffd600"],
-            ["LOW/INFO", "-0pts", "#00e5ff"],
-          ] as [string, string, string][]).map(([s, p, c]) => (
+            ["LOW/INFO", "-1pt", "#00e5ff"],
+          ] as [string, string, string][]).map(([s, pts, c]) => (
             <div key={s} className="bg-s39-bg2 px-3 py-2.5 text-center">
               <div className="text-[8px] font-bold tracking-widest" style={{ color: c }}>{s}</div>
-              <div className="text-sm font-bold text-s39-lite mt-1">{p}</div>
+              <div className="text-sm font-bold text-s39-lite mt-1">{pts}</div>
             </div>
           ))}
+        </div>
+        <div className="text-[8px] text-s39-dim">
+          {"Resolved findings restore partial credit: CRITICAL +15, HIGH +7, MEDIUM +2. Penalties stack additively onto the weighted base score."}
         </div>
       </div>
 
       {/* Rating Scale */}
       <div className="bg-s39-bg1 border border-s39-border p-6 mt-4">
         <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">RATING SCALE</div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap mb-4">
           {([
-            ["AAA", "95-100", "#00ff88"],
-            ["AA", "90-94", "#00ff88"],
-            ["A", "80-89", "#00e5ff"],
-            ["BBB", "70-79", "#ffd600"],
-            ["BB", "60-69", "#ff6b00"],
-            ["B", "<60", "#ff2d55"],
-          ] as [string, string, string][]).map(([r, range, c]) => (
-            <div key={r} className="bg-s39-bg2 px-3.5 py-2 text-center min-w-[70px]">
-              <div className="text-[13px] font-bold" style={{ color: c }}>{r}</div>
-              <div className="text-[8px] text-s39-dim">{range}</div>
+            ["AAA", "95-100", "#00ff88", "Exceptional — near-zero risk, renounced ownership, verified immutable."],
+            ["AA", "90-94", "#00ff88", "Very Strong — minimal findings, robust architecture."],
+            ["A", "80-89", "#00e5ff", "Strong — well-designed, minor issues resolved."],
+            ["BBB", "70-79", "#ffd600", "Adequate — functional but has centralization or governance concerns."],
+            ["BB", "60-69", "#ff6b00", "Below Average — significant findings or centralization risk."],
+            ["B", "<60", "#ff2d55", "Needs Improvement — critical vulnerabilities or unresolved issues."],
+          ] as [string, string, string, string][]).map(([r, range, c, desc]) => (
+            <div key={r} className="bg-s39-bg2 px-3.5 py-2 min-w-[90px]">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="text-[13px] font-bold" style={{ color: c }}>{r}</div>
+                <div className="text-[8px] text-s39-dim font-mono">{range}</div>
+              </div>
+              <div className="text-[8px] text-s39-dim leading-relaxed">{desc}</div>
             </div>
           ))}
         </div>
