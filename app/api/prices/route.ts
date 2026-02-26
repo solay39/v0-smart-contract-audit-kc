@@ -1,20 +1,12 @@
 // ═══════════════════════════════════════════════════════════════════
 // SOLAY39 — Live Token Prices via GeckoTerminal API (Multi-Chain)
-// Supports: Ethereum, BSC, Arbitrum, Optimism, Polygon, Base,
-//           Avalanche, Fantom, Solana, and all GeckoTerminal chains
+// Efficient: batches by network, limits pool calls, respects rate limits
 // ═══════════════════════════════════════════════════════════════════
-
-// Base set of known audited tokens: TICKER -> { address, network }
-const BASE_TOKENS: Record<string, { address: string; network: string }> = {
-  INJ: { address: "0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30", network: "eth" },
-  FET: { address: "0xaea46A60368A7bD060eec7DF8CBa43b7EF41Ad85", network: "eth" },
-  CHZ: { address: "0x3506424F91fD33084466F402d5D97f05F8e3b4AF", network: "eth" },
-}
 
 const GECKO_BASE = "https://api.geckoterminal.com/api/v2"
 
 // Map user-facing network names to GeckoTerminal network IDs
-function mapNetworkToGeckoId(network: string): string {
+function toGeckoNet(network: string): string {
   const map: Record<string, string> = {
     Ethereum: "eth", eth: "eth",
     BSC: "bsc", "BNB Chain": "bsc", "Binance Smart Chain": "bsc", bsc: "bsc",
@@ -24,217 +16,210 @@ function mapNetworkToGeckoId(network: string): string {
     Avalanche: "avax", "Avalanche C-Chain": "avax", avax: "avax",
     Base: "base", base: "base",
     Fantom: "ftm", ftm: "ftm",
-    Cronos: "cro", cro: "cro",
-    Gnosis: "xdai", xdai: "xdai",
-    Celo: "celo", celo: "celo",
-    Mantle: "mantle", mantle: "mantle",
-    Linea: "linea", linea: "linea",
-    Scroll: "scroll", scroll: "scroll",
-    zkSync: "zksync", "zkSync Era": "zksync", zksync: "zksync",
-    Blast: "blast", blast: "blast",
     Solana: "solana", solana: "solana",
     Tron: "tron", tron: "tron",
-    Moonbeam: "moonbeam", moonbeam: "moonbeam",
   }
   return map[network] || network.toLowerCase().replace(/\s+/g, "-")
 }
 
-interface TokenPriceData {
+interface PriceResult {
   ticker: string
   address: string
   network: string
   price: string
   priceNum: number
+  change24h?: string
+  volume24h?: string
+  marketCap?: string
 }
 
-// Cache to respect GeckoTerminal 10 calls/min limit
-let priceCache: { data: Record<string, TokenPriceData>; timestamp: number; key: string } | null = null
-const CACHE_TTL = 60_000 // 60 seconds
+// ── In-memory cache (60s TTL) ───────────────────────────────────
+let cache: { data: Record<string, PriceResult>; ts: number; key: string } | null = null
+const TTL = 60_000
 
 export async function GET(req: Request) {
-  // Accept extra tokens: ?extra=TICKER:address:network,TICKER2:address2:network2
-  // Also supports legacy format: ?extra=TICKER:address (defaults to eth)
   const url = new URL(req.url)
   const extraParam = url.searchParams.get("extra") || ""
-  const TOKEN_MAP: Record<string, { address: string; network: string }> = { ...BASE_TOKENS }
+
+  // Parse tokens from ?extra=TICKER:address:network,...
+  const tokens: { ticker: string; address: string; network: string }[] = []
 
   if (extraParam) {
     for (const pair of extraParam.split(",")) {
       const parts = pair.split(":")
-      const ticker = parts[0]
-      const addr = parts[1]
-      const net = parts[2] || "eth" // default to eth for backward compat
-      if (ticker && addr) {
-        TOKEN_MAP[ticker.toUpperCase()] = {
-          address: addr,
-          network: mapNetworkToGeckoId(net),
-        }
+      if (parts.length >= 2 && parts[0] && parts[1]) {
+        tokens.push({
+          ticker: parts[0].toUpperCase(),
+          address: parts[1],
+          network: toGeckoNet(parts[2] || "eth"),
+        })
       }
     }
   }
 
-  // Build cache key
-  const cacheKey = Object.entries(TOKEN_MAP)
-    .map(([t, v]) => `${t}:${v.network}:${v.address}`)
-    .sort()
-    .join(",")
+  console.log("[v0] Prices API called with", tokens.length, "tokens:", tokens.map(t => `${t.ticker}(${t.network})`).join(", "))
 
-  // Return cached data if fresh
-  if (priceCache && Date.now() - priceCache.timestamp < CACHE_TTL && priceCache.key === cacheKey) {
-    return Response.json({ prices: priceCache.data, cached: true })
+  if (tokens.length === 0) {
+    return Response.json({ prices: {}, cached: false })
   }
+
+  // Cache key
+  const cacheKey = tokens.map(t => `${t.ticker}:${t.network}:${t.address}`).sort().join("|")
+  if (cache && Date.now() - cache.ts < TTL && cache.key === cacheKey) {
+    return Response.json({ prices: cache.data, cached: true })
+  }
+
+  const prices: Record<string, PriceResult> = {}
 
   try {
-    // Group tokens by network for batched GeckoTerminal calls
-    const byNetwork: Record<string, { ticker: string; address: string }[]> = {}
-    for (const [ticker, { address, network }] of Object.entries(TOKEN_MAP)) {
-      if (!byNetwork[network]) byNetwork[network] = []
-      byNetwork[network].push({ ticker, address })
+    // ── Step 1: Group by network ────────────────────────────────
+    const byNet: Record<string, typeof tokens> = {}
+    for (const t of tokens) {
+      if (!byNet[t.network]) byNet[t.network] = []
+      byNet[t.network].push(t)
     }
 
-    const prices: Record<string, TokenPriceData> = {}
+    // ── Step 2: Batch simple price per network ──────────────────
+    // GeckoTerminal allows up to 30 addresses per call
+    const simplePromises: Promise<void>[] = []
 
-    // Fetch prices per network (GeckoTerminal simple price endpoint)
-    for (const [netId, tokens] of Object.entries(byNetwork)) {
-      try {
-        // EVM addresses are case-insensitive -> lowercase is fine.
-        // Solana addresses are base58 (case-sensitive) -> must preserve original case.
-        const isCaseSensitive = netId === "solana" || netId === "tron"
-        const addresses = tokens.map(t => isCaseSensitive ? t.address : t.address.toLowerCase()).join(",")
-        const priceUrl = `${GECKO_BASE}/simple/networks/${netId}/token_price/${addresses}`
+    // GeckoTerminal allows ~30 addresses per simple price call but some
+    // chains have issues with large batches. Chunk into groups of 8 max.
+    const CHUNK = 8
 
-        const res = await fetch(priceUrl, {
-          headers: { Accept: "application/json;version=20230203" },
-          next: { revalidate: 60 },
-        })
+    for (const [netId, netTokens] of Object.entries(byNet)) {
+      const caseSensitive = netId === "solana" || netId === "tron"
 
-        if (!res.ok) {
-          console.error(`[v0] GeckoTerminal ${netId} responded ${res.status}`)
-          for (const t of tokens) {
-            prices[t.ticker] = { ticker: t.ticker, address: t.address, network: netId, price: "N/A", priceNum: 0 }
+      for (let ci = 0; ci < netTokens.length; ci += CHUNK) {
+        const chunk = netTokens.slice(ci, ci + CHUNK)
+        simplePromises.push((async () => {
+          try {
+            const addrs = chunk.map(t => caseSensitive ? t.address : t.address.toLowerCase()).join(",")
+            const res = await fetch(
+              `${GECKO_BASE}/simple/networks/${netId}/token_price/${addrs}`,
+              { headers: { Accept: "application/json;version=20230203" }, next: { revalidate: 60 } }
+            )
+            if (!res.ok) {
+              console.log(`[v0] GeckoTerminal simple price ${netId} HTTP ${res.status}`)
+              throw new Error(`${res.status}`)
+            }
+            const json = await res.json()
+            const priceMap: Record<string, string> = json?.data?.attributes?.token_prices ?? {}
+            console.log(`[v0] Simple price ${netId}: got ${Object.keys(priceMap).length} prices from ${chunk.length} tokens`)
+
+            for (const t of chunk) {
+              const raw = priceMap[t.address] ?? priceMap[t.address.toLowerCase()]
+              const num = raw ? parseFloat(raw) : 0
+              if (!raw) {
+                console.log(`[v0] No simple price for ${t.ticker} addr=${t.address.slice(0, 10)}... on ${netId}`)
+              }
+              prices[t.ticker] = {
+                ticker: t.ticker, address: t.address, network: netId,
+                price: num > 0 ? fmtPrice(num) : "N/A",
+                priceNum: num,
+              }
+            }
+          } catch {
+            for (const t of chunk) {
+              if (!prices[t.ticker]) {
+                prices[t.ticker] = { ticker: t.ticker, address: t.address, network: netId, price: "N/A", priceNum: 0 }
+              }
+            }
           }
-          continue
-        }
-
-        const json = await res.json()
-        const tokenPrices: Record<string, string> = json?.data?.attributes?.token_prices ?? {}
-
-        for (const t of tokens) {
-          // Look up with original case first, then lowercase fallback (GeckoTerminal may return either)
-          const rawPrice = tokenPrices[t.address] ?? tokenPrices[t.address.toLowerCase()]
-          const priceNum = rawPrice ? parseFloat(rawPrice) : 0
-
-          prices[t.ticker] = {
-            ticker: t.ticker,
-            address: t.address,
-            network: netId,
-            price: priceNum > 0
-              ? `$${priceNum < 0.01 ? priceNum.toFixed(6) : priceNum < 1 ? priceNum.toFixed(4) : priceNum.toFixed(2)}`
-              : "N/A",
-            priceNum,
-          }
-        }
-      } catch (e) {
-        console.error(`[v0] Price fetch error for network ${netId}:`, e)
-        for (const t of tokens) {
-          prices[t.ticker] = { ticker: t.ticker, address: t.address, network: netId, price: "N/A", priceNum: 0 }
-        }
+        })())
       }
     }
 
-    // Enrich with 24h change, volume, market cap
-    const pricesWithChange = await enrichWith24hChange(prices)
+    // Run simple price fetches in parallel (max ~3 concurrent)
+    await Promise.all(simplePromises)
 
-    priceCache = { data: pricesWithChange, timestamp: Date.now(), key: cacheKey }
-    return Response.json({ prices: pricesWithChange, cached: false })
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
-    console.error("[v0] Price fetch error:", msg)
+    // ── Step 3: Enrich with pool data ───────────────────────────
+    // Only fetch pool data for tokens that need it:
+    // - All tokens get change24h / volume / mcap from pools
+    // - N/A tokens get price fallback from pool data
+    // Process max 4 at a time to respect GeckoTerminal 30 req/min limit
+    const allTickers = Object.keys(prices)
+    const POOL_BATCH = 4
+    for (let i = 0; i < allTickers.length; i += POOL_BATCH) {
+      const batch = allTickers.slice(i, i + POOL_BATCH)
+      await Promise.all(batch.map(async (ticker) => {
+        const d = prices[ticker]
+        try {
+          const caseSensitive = d.network === "solana" || d.network === "tron"
+          const addrForUrl = caseSensitive ? d.address : d.address.toLowerCase()
+          const res = await fetch(
+            `${GECKO_BASE}/networks/${d.network}/tokens/${addrForUrl}/pools?page=1`,
+            { headers: { Accept: "application/json;version=20230203" }, next: { revalidate: 60 } }
+          )
+          if (!res.ok) return
+          const json = await res.json()
+          const pool = json?.data?.[0]
+          const attr = pool?.attributes
+          if (!attr) return
 
-    if (priceCache) {
-      return Response.json({ prices: priceCache.data, cached: true, stale: true })
+          // Extract 24h data
+          const change = attr.price_change_percentage?.h24
+          const vol = attr.volume_usd?.h24
+          const mcap = attr.market_cap_usd ?? attr.fdv_usd
+
+          // Price fallback from pool if simple endpoint failed
+          let price = d.price
+          let priceNum = d.priceNum
+          if (priceNum === 0 || price === "N/A") {
+            // Determine which side of the pool our token is on
+            const baseId = pool?.relationships?.base_token?.data?.id || ""
+            const quoteId = pool?.relationships?.quote_token?.data?.id || ""
+
+            const isBase = baseId.includes(d.address) || baseId.toLowerCase().includes(d.address.toLowerCase())
+            const isQuote = quoteId.includes(d.address) || quoteId.toLowerCase().includes(d.address.toLowerCase())
+
+            let pp = 0
+            if (isBase) pp = parseFloat(attr.base_token_price_usd || "0")
+            else if (isQuote) pp = parseFloat(attr.quote_token_price_usd || "0")
+            else pp = parseFloat(attr.base_token_price_usd || "0") || parseFloat(attr.quote_token_price_usd || "0")
+
+            if (pp > 0) {
+              priceNum = pp; price = fmtPrice(pp)
+              console.log(`[v0] Pool fallback price for ${ticker}: ${price}`)
+            } else {
+              console.log(`[v0] Pool fallback FAILED for ${ticker}: basePrice=${attr.base_token_price_usd}, quotePrice=${attr.quote_token_price_usd}, isBase=${isBase}, isQuote=${isQuote}`)
+            }
+          }
+
+          prices[ticker] = {
+            ...d, price, priceNum,
+            change24h: change != null ? `${parseFloat(change) >= 0 ? "+" : ""}${parseFloat(change).toFixed(2)}%` : undefined,
+            volume24h: vol ? `$${fmtCompact(parseFloat(vol))}` : undefined,
+            marketCap: mcap ? `$${fmtCompact(parseFloat(mcap))}` : undefined,
+          }
+        } catch { /* non-critical */ }
+      }))
+
+      // Delay between pool batches to stay within rate limits
+      if (i + POOL_BATCH < allTickers.length) {
+        await new Promise(r => setTimeout(r, 500))
+      }
     }
 
+    cache = { data: prices, ts: Date.now(), key: cacheKey }
+    return Response.json({ prices, cached: false })
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    if (cache) return Response.json({ prices: cache.data, cached: true, stale: true })
     return Response.json({ error: msg, prices: {} }, { status: 500 })
   }
 }
 
-async function enrichWith24hChange(
-  prices: Record<string, TokenPriceData>
-): Promise<Record<string, TokenPriceData & { change24h?: string; volume24h?: string; marketCap?: string }>> {
-  const enriched: Record<string, TokenPriceData & { change24h?: string; volume24h?: string; marketCap?: string }> = { ...prices }
-
-  for (const [ticker, data] of Object.entries(prices)) {
-    try {
-      // Use the correct network for pool lookup
-      const netId = data.network || "eth"
-      const poolsUrl = `${GECKO_BASE}/networks/${netId}/tokens/${data.address.toLowerCase()}/pools?page=1`
-      const poolsRes = await fetch(poolsUrl, {
-        headers: { Accept: "application/json;version=20230203" },
-        next: { revalidate: 60 },
-      })
-
-      if (!poolsRes.ok) continue
-
-      const poolsJson = await poolsRes.json()
-      const topPool = poolsJson?.data?.[0]?.attributes
-      if (!topPool) continue
-
-      const change = topPool.price_change_percentage?.h24
-      const vol = topPool.volume_usd?.h24
-      const mcap = topPool.market_cap_usd ?? topPool.fdv_usd
-
-      // Fallback: if simple price endpoint returned N/A, extract price from pool data.
-      // GeckoTerminal pool relationship IDs use format "network_address" (e.g. "solana_orcaEK...").
-      // Solana addresses are base58 (case-sensitive), so we can't just .toLowerCase() everything.
-      // Strategy: check if our address appears in the pool's base/quote token ID,
-      // then use the corresponding price. If no match, try base first then quote.
-      let finalPrice = data.price
-      let finalPriceNum = data.priceNum
-      if (data.priceNum === 0 || data.price === "N/A") {
-        const poolBaseId = poolsJson?.data?.[0]?.relationships?.base_token?.data?.id || ""
-        const poolQuoteId = poolsJson?.data?.[0]?.relationships?.quote_token?.data?.id || ""
-        const addr = data.address
-
-        // Check both case-sensitive (Solana) and case-insensitive (EVM)
-        const isBase = poolBaseId.includes(addr) || poolBaseId.toLowerCase().includes(addr.toLowerCase())
-        const isQuote = poolQuoteId.includes(addr) || poolQuoteId.toLowerCase().includes(addr.toLowerCase())
-
-        let poolPrice: number | null = null
-        if (isBase) {
-          poolPrice = parseFloat(topPool.base_token_price_usd || "0")
-        } else if (isQuote) {
-          poolPrice = parseFloat(topPool.quote_token_price_usd || "0")
-        } else {
-          // No ID match — try base_token_price_usd first (most common), then quote
-          poolPrice = parseFloat(topPool.base_token_price_usd || "0") || parseFloat(topPool.quote_token_price_usd || "0")
-        }
-
-        if (poolPrice && poolPrice > 0) {
-          finalPriceNum = poolPrice
-          finalPrice = `$${poolPrice < 0.0001 ? poolPrice.toFixed(8) : poolPrice < 0.01 ? poolPrice.toFixed(6) : poolPrice < 1 ? poolPrice.toFixed(4) : poolPrice.toFixed(2)}`
-        }
-      }
-
-      enriched[ticker] = {
-        ...data,
-        price: finalPrice,
-        priceNum: finalPriceNum,
-        change24h: change != null ? `${parseFloat(change) >= 0 ? "+" : ""}${parseFloat(change).toFixed(2)}%` : undefined,
-        volume24h: vol ? `$${formatCompact(parseFloat(vol))}` : undefined,
-        marketCap: mcap ? `$${formatCompact(parseFloat(mcap))}` : undefined,
-      }
-    } catch {
-      // Individual pool fetch failure is non-critical
-    }
-  }
-
-  return enriched
+function fmtPrice(n: number): string {
+  if (n < 0.0001) return `$${n.toFixed(8)}`
+  if (n < 0.01) return `$${n.toFixed(6)}`
+  if (n < 1) return `$${n.toFixed(4)}`
+  return `$${n.toFixed(2)}`
 }
 
-function formatCompact(n: number): string {
-  if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(2) + "B"
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + "M"
-  if (n >= 1_000) return (n / 1_000).toFixed(2) + "K"
+function fmtCompact(n: number): string {
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + "B"
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + "M"
+  if (n >= 1e3) return (n / 1e3).toFixed(2) + "K"
   return n.toFixed(2)
 }
