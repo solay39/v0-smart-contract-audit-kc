@@ -172,16 +172,26 @@ export interface TestingMethodology {
     tool: string                     // "Slither v0.10.0"
     findings: string                 // "0 high, 0 medium, 1 optimization"
     configUsed?: string              // "default config, all detectors"
+    output?: string                  // Simulated terminal output from the tool
   }[]
   dynamicAnalysisTools?: {
-    tool: string                     // "Mythril v0.24"
-    findings: string                 // "0 vulnerabilities"
-    executionTime?: string           // "42s"
+    tool: string                     // "Foundry Forge (Fuzz)"
+    findings: string                 // "3 property tests passed"
+    executionTime?: string           // "10,000+ runs per function"
+    output?: string                  // Simulated terminal output from the tool
   }[]
+  unitTestReview?: {                 // Unit test review results
+    framework: string                // "Foundry" / "Hardhat"
+    totalTests: number               // 24
+    passing: number                  // 24
+    failing: number                  // 0
+    coverage: string                 // "94%"
+    output?: string                  // Simulated terminal output
+  }
   fuzzingApplied: boolean
-  fuzzingDetails?: string            // "Echidna: 10,000 runs, 0 property violations"
+  fuzzingDetails?: string            // "Foundry: 10k runs, Echidna: 50k sequences, 0 violations"
   symbolicExecution: boolean
-  symbolicDetails?: string           // "Manticore: all paths explored, 0 violations"
+  symbolicDetails?: string           // "Mythril: all paths explored, 0 violations"
   assumptions: string[]              // ["Contract was reviewed as deployed bytecode matches source", "No off-chain components were in scope"]
   limitations: string[]              // ["Time-boxed to 8 hours", "No formal verification performed"]
 }

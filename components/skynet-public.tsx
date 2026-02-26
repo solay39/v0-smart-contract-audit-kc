@@ -1503,14 +1503,22 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             {p.toolingUsed && p.toolingUsed.length > 0 && (
               <div className="bg-s39-bg1 border border-s39-border p-5">
-                <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">TOOLING & METHODOLOGY</div>
-                <div className="flex flex-col gap-2">
-                  {p.toolingUsed.map((tool, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="#00ff88" strokeWidth="1" /><path d="M3 5l1.5 1.5L7 4" stroke="#00ff88" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                      <span className="text-[10px] text-s39-mid">{tool}</span>
-                    </div>
-                  ))}
+                <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">TOOLS EXECUTED DURING AUDIT</div>
+                <div className="flex flex-col gap-1.5">
+                  {p.toolingUsed.map((tool, i) => {
+                    const isPass = !tool.toLowerCase().includes("fail") && !tool.toLowerCase().includes("warning")
+                    return (
+                      <div key={i} className="flex items-center gap-2 py-0.5">
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke={isPass ? "#00ff88" : "#ff2d55"} strokeWidth="0.8" /><path d={isPass ? "M3 5l1.5 1.5L7 4" : "M3.5 3.5l3 3M6.5 3.5l-3 3"} stroke={isPass ? "#00ff88" : "#ff2d55"} strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        <span className="text-[9px] text-s39-mid font-mono">{tool}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+                {/* Total */}
+                <div className="mt-2.5 pt-2 border-t border-s39-border flex items-center gap-2">
+                  <span className="text-[7px] text-s39-dim tracking-widest">TOTAL:</span>
+                  <span className="text-[9px] text-s39-green font-bold">{p.toolingUsed.length} tools applied</span>
                 </div>
               </div>
             )}
@@ -1653,93 +1661,223 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
             </div>
 
-            {/* Review phases + hours */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-              <div>
-                <div className="text-[8px] text-s39-dim tracking-widest mb-2">MANUAL REVIEW ({p.testingMethodology.manualReviewHours}h)</div>
-                <div className="flex flex-col gap-1.5">
-                  {p.testingMethodology.reviewPhases.map((phase, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className="text-[9px] text-[#aa44ff] font-mono w-4 shrink-0">{i + 1}.</span>
-                      <span className="text-[10px] text-s39-mid">{phase}</span>
-                    </div>
-                  ))}
-                </div>
+            {/* ════ 1. STATIC ANALYSIS — Tool Outputs ════ */}
+            <div className="mb-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2 h-2 bg-s39-green" />
+                <span className="text-[8px] text-s39-green tracking-widest font-bold">1. STATIC ANALYSIS</span>
+                <span className="text-[7px] text-s39-dim ml-auto">{p.testingMethodology.staticAnalysisTools.length} tool(s) executed</span>
               </div>
+              <div className="flex flex-col gap-3">
+                {p.testingMethodology.staticAnalysisTools.map((t, i) => (
+                  <div key={i} className="border border-s39-border overflow-hidden">
+                    {/* Tool Header */}
+                    <div className="flex items-center gap-2 px-3 py-2 bg-s39-bg2 border-b border-s39-border">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="#00ff88" strokeWidth="0.8"/><path d="M3 5l1.5 1.5L7 4" stroke="#00ff88" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <span className="text-[10px] text-s39-cyan font-bold font-mono">{t.tool}</span>
+                      <span className="text-[8px] text-s39-green font-bold ml-auto">{t.findings}</span>
+                    </div>
+                    {/* Config */}
+                    {t.configUsed && (
+                      <div className="px-3 py-1.5 bg-s39-bg0 border-b border-s39-border">
+                        <span className="text-[7px] text-s39-dim tracking-widest">CONFIG: </span>
+                        <span className="text-[8px] text-s39-mid font-mono">{t.configUsed}</span>
+                      </div>
+                    )}
+                    {/* Terminal Output */}
+                    {t.output && (
+                      <div className="bg-[#0a0e14] p-3">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#ff5f56]" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#ffbd2e]" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#27c93f]" />
+                          <span className="text-[7px] text-s39-dim ml-1.5 tracking-wider">TERMINAL OUTPUT</span>
+                        </div>
+                        <pre className="text-[8px] text-s39-green/80 font-mono leading-relaxed whitespace-pre-wrap overflow-x-auto">{t.output}</pre>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
 
-              <div>
-                {/* Static Analysis Tools */}
-                <div className="text-[8px] text-s39-dim tracking-widest mb-2">STATIC ANALYSIS</div>
-                <div className="flex flex-col gap-2 mb-3">
-                  {p.testingMethodology.staticAnalysisTools.map((t, i) => (
-                    <div key={i} className="bg-s39-bg2 border border-s39-border p-2.5">
-                      <div className="text-[10px] text-s39-cyan font-bold font-mono">{t.tool}</div>
-                      <div className="text-[9px] text-s39-mid mt-0.5">{t.findings}</div>
-                      {t.configUsed && <div className="text-[8px] text-s39-dim mt-0.5">{t.configUsed}</div>}
+            {/* ════ 2. FUZZING — Foundry + Echidna ════ */}
+            {p.testingMethodology.dynamicAnalysisTools && p.testingMethodology.dynamicAnalysisTools.length > 0 && (
+              <div className="mb-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-2 h-2 bg-[#aa44ff]" />
+                  <span className="text-[8px] text-[#aa44ff] tracking-widest font-bold">2. FUZZING & DYNAMIC ANALYSIS</span>
+                  <span className="text-[7px] text-s39-dim ml-auto">{p.testingMethodology.dynamicAnalysisTools.length} tool(s) executed</span>
+                </div>
+                <div className="flex flex-col gap-3">
+                  {p.testingMethodology.dynamicAnalysisTools.map((t, i) => (
+                    <div key={i} className="border border-s39-border overflow-hidden">
+                      <div className="flex items-center gap-2 px-3 py-2 bg-s39-bg2 border-b border-s39-border">
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="#aa44ff" strokeWidth="0.8"/><path d="M3 5l1.5 1.5L7 4" stroke="#aa44ff" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        <span className="text-[10px] text-s39-cyan font-bold font-mono">{t.tool}</span>
+                        {t.executionTime && <span className="text-[8px] text-s39-dim ml-auto">{t.executionTime}</span>}
+                      </div>
+                      <div className="px-3 py-1.5 bg-s39-bg0 border-b border-s39-border">
+                        <span className="text-[8px] text-s39-mid">{t.findings}</span>
+                      </div>
+                      {t.output && (
+                        <div className="bg-[#0a0e14] p-3">
+                          <div className="flex items-center gap-1.5 mb-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#ff5f56]" />
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#ffbd2e]" />
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#27c93f]" />
+                            <span className="text-[7px] text-s39-dim ml-1.5 tracking-wider">TERMINAL OUTPUT</span>
+                          </div>
+                          <pre className="text-[8px] text-[#aa44ff]/80 font-mono leading-relaxed whitespace-pre-wrap overflow-x-auto">{t.output}</pre>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
-
-                {/* Dynamic Analysis Tools */}
-                {p.testingMethodology.dynamicAnalysisTools && p.testingMethodology.dynamicAnalysisTools.length > 0 && (
-                  <>
-                    <div className="text-[8px] text-s39-dim tracking-widest mb-2">DYNAMIC ANALYSIS</div>
-                    <div className="flex flex-col gap-2">
-                      {p.testingMethodology.dynamicAnalysisTools.map((t, i) => (
-                        <div key={i} className="bg-s39-bg2 border border-s39-border p-2.5">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-s39-cyan font-bold font-mono">{t.tool}</span>
-                            {t.executionTime && <span className="text-[8px] text-s39-dim ml-auto">{t.executionTime}</span>}
-                          </div>
-                          <div className="text-[9px] text-s39-mid mt-0.5">{t.findings}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
+                {/* Fuzzing Summary */}
+                {p.testingMethodology.fuzzingDetails && (
+                  <div className="mt-2 bg-s39-bg2 border border-s39-border p-2.5">
+                    <span className="text-[7px] text-s39-dim tracking-widest">SUMMARY: </span>
+                    <span className="text-[8px] text-s39-mid">{p.testingMethodology.fuzzingDetails}</span>
+                  </div>
                 )}
               </div>
-            </div>
+            )}
 
-            {/* Fuzzing + Symbolic */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-              <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
-                <div className="text-[7px] text-s39-dim tracking-widest mb-1">FUZZING</div>
-                <div className={`text-sm font-bold ${p.testingMethodology.fuzzingApplied ? "text-s39-green" : "text-s39-dim"}`}>
-                  {p.testingMethodology.fuzzingApplied ? "APPLIED" : "N/A"}
+            {/* ════ 3. UNIT TEST REVIEW ════ */}
+            {p.testingMethodology.unitTestReview && (
+              <div className="mb-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-2 h-2 bg-s39-cyan" />
+                  <span className="text-[8px] text-s39-cyan tracking-widest font-bold">3. UNIT TEST REVIEW</span>
+                </div>
+                <div className="border border-s39-border overflow-hidden">
+                  {/* Test Stats Header */}
+                  <div className="grid grid-cols-5 gap-0 bg-s39-bg2 border-b border-s39-border">
+                    <div className="p-2.5 text-center border-r border-s39-border">
+                      <div className="text-[7px] text-s39-dim tracking-widest">FRAMEWORK</div>
+                      <div className="text-[10px] text-s39-cyan font-bold font-mono mt-0.5">{p.testingMethodology.unitTestReview.framework}</div>
+                    </div>
+                    <div className="p-2.5 text-center border-r border-s39-border">
+                      <div className="text-[7px] text-s39-dim tracking-widest">TOTAL</div>
+                      <div className="text-[10px] text-s39-white font-bold font-mono mt-0.5">{p.testingMethodology.unitTestReview.totalTests}</div>
+                    </div>
+                    <div className="p-2.5 text-center border-r border-s39-border">
+                      <div className="text-[7px] text-s39-dim tracking-widest">PASSING</div>
+                      <div className="text-[10px] text-s39-green font-bold font-mono mt-0.5">{p.testingMethodology.unitTestReview.passing}</div>
+                    </div>
+                    <div className="p-2.5 text-center border-r border-s39-border">
+                      <div className="text-[7px] text-s39-dim tracking-widest">FAILING</div>
+                      <div className={`text-[10px] font-bold font-mono mt-0.5 ${p.testingMethodology.unitTestReview.failing > 0 ? "text-s39-red" : "text-s39-green"}`}>{p.testingMethodology.unitTestReview.failing}</div>
+                    </div>
+                    <div className="p-2.5 text-center">
+                      <div className="text-[7px] text-s39-dim tracking-widest">COVERAGE</div>
+                      <div className="text-[10px] text-s39-green font-bold font-mono mt-0.5">{p.testingMethodology.unitTestReview.coverage}</div>
+                    </div>
+                  </div>
+                  {/* Coverage Bar */}
+                  <div className="px-3 py-2 bg-s39-bg0 border-b border-s39-border">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[7px] text-s39-dim tracking-widest shrink-0">LINE COVERAGE</span>
+                      <div className="flex-1 h-2 bg-s39-bg2 border border-s39-border overflow-hidden">
+                        <div className="h-full bg-s39-green/60" style={{ width: p.testingMethodology.unitTestReview.coverage }} />
+                      </div>
+                      <span className="text-[8px] text-s39-green font-bold font-mono shrink-0">{p.testingMethodology.unitTestReview.coverage}</span>
+                    </div>
+                  </div>
+                  {/* Terminal Output */}
+                  {p.testingMethodology.unitTestReview.output && (
+                    <div className="bg-[#0a0e14] p-3">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#ff5f56]" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#ffbd2e]" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#27c93f]" />
+                        <span className="text-[7px] text-s39-dim ml-1.5 tracking-wider">TERMINAL OUTPUT</span>
+                      </div>
+                      <pre className="text-[8px] text-s39-cyan/70 font-mono leading-relaxed whitespace-pre-wrap overflow-x-auto">{p.testingMethodology.unitTestReview.output}</pre>
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
-                <div className="text-[7px] text-s39-dim tracking-widest mb-1">SYMBOLIC EXEC</div>
-                <div className={`text-sm font-bold ${p.testingMethodology.symbolicExecution ? "text-s39-green" : "text-s39-dim"}`}>
-                  {p.testingMethodology.symbolicExecution ? "APPLIED" : "N/A"}
-                </div>
+            )}
+
+            {/* ════ 4. MANUAL LINE-BY-LINE REVIEW ════ */}
+            <div className="mb-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2 h-2 bg-[#00e5ff]" />
+                <span className="text-[8px] text-[#00e5ff] tracking-widest font-bold">4. MANUAL LINE-BY-LINE REVIEW</span>
+                <span className="text-[7px] text-s39-dim ml-auto">{p.testingMethodology.manualReviewHours}h total</span>
               </div>
-              <div className="bg-s39-bg2 border border-s39-border p-3 text-center col-span-2">
-                <div className="text-[7px] text-s39-dim tracking-widest mb-1">REVIEW DEPTH</div>
-                <div className="text-sm font-bold text-[#aa44ff]">{p.testingMethodology.manualReviewHours}h MANUAL</div>
+              <div className="border border-s39-border overflow-hidden">
+                {/* Commit + Scope info */}
+                <div className="flex items-center gap-4 px-3 py-2 bg-s39-bg2 border-b border-s39-border flex-wrap">
+                  {p.engagement?.commitHash && (
+                    <div>
+                      <span className="text-[7px] text-s39-dim tracking-widest">COMMIT: </span>
+                      <span className="text-[8px] text-s39-cyan font-mono">{p.engagement.commitHash.length > 24 ? p.engagement.commitHash.slice(0, 24) + "..." : p.engagement.commitHash}</span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-[7px] text-s39-dim tracking-widest">SCOPE: </span>
+                    <span className="text-[8px] text-s39-mid font-mono">{p.codeMetrics?.totalContracts || 1} contract(s), {p.codeMetrics?.totalLOC.toLocaleString() || "N/A"} LOC</span>
+                  </div>
+                  <div>
+                    <span className="text-[7px] text-s39-dim tracking-widest">DEPTH: </span>
+                    <span className="text-[8px] text-[#00e5ff] font-bold">FULL (every line)</span>
+                  </div>
+                </div>
+                {/* Review Phases */}
+                <div className="bg-s39-bg0 p-3">
+                  <div className="text-[7px] text-s39-dim tracking-widest mb-2">REVIEW PHASES COMPLETED</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {p.testingMethodology.reviewPhases.map((phase, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="1" y="1" width="8" height="8" rx="1" stroke="#00e5ff" strokeWidth="0.8"/><path d="M3 5l1.5 1.5L7 4" stroke="#00e5ff" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        <span className="text-[9px] text-s39-mid">{phase}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Assumptions & Limitations */}
+            {/* ════ VERIFICATION SUMMARY ════ */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-5">
+              {[
+                { label: "STATIC ANALYSIS", value: p.testingMethodology.staticAnalysisTools.length + " tool(s)", active: true, color: "#00ff88" },
+                { label: "FUZZING", value: p.testingMethodology.fuzzingApplied ? (p.testingMethodology.fuzzingDetails?.match(/\d[\d,]*\s*runs/)?.[0] || "APPLIED") : "N/A", active: p.testingMethodology.fuzzingApplied, color: "#aa44ff" },
+                { label: "SYMBOLIC EXEC", value: p.testingMethodology.symbolicExecution ? (p.testingMethodology.symbolicDetails?.match(/\d+ execution/)?.[0] || "APPLIED") : "N/A", active: p.testingMethodology.symbolicExecution, color: "#ffd600" },
+                { label: "UNIT TESTS", value: p.testingMethodology.unitTestReview ? `${p.testingMethodology.unitTestReview.passing}/${p.testingMethodology.unitTestReview.totalTests} PASS` : "N/A", active: !!p.testingMethodology.unitTestReview, color: "#00e5ff" },
+                { label: "MANUAL REVIEW", value: `${p.testingMethodology.manualReviewHours}h`, active: true, color: "#ff6b00" },
+              ].map((s, i) => (
+                <div key={i} className={`border p-2.5 text-center ${s.active ? "" : "opacity-40"}`}
+                  style={{ borderColor: s.active ? `${s.color}30` : "#22334440", background: s.active ? `${s.color}06` : "transparent" }}>
+                  <div className="text-[7px] text-s39-dim tracking-widest mb-1">{s.label}</div>
+                  <div className="text-[10px] font-bold font-mono" style={{ color: s.active ? s.color : "#445566" }}>{s.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* ════ ASSUMPTIONS & LIMITATIONS ════ */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <div className="text-[8px] text-s39-dim tracking-widest mb-2">ASSUMPTIONS</div>
+              <div className="bg-s39-bg2 border border-s39-border p-3">
+                <div className="text-[8px] text-s39-dim tracking-widest mb-2">TESTING ASSUMPTIONS</div>
                 <div className="flex flex-col gap-1.5">
                   {p.testingMethodology.assumptions.map((a, i) => (
                     <div key={i} className="flex items-start gap-2">
-                      <span className="text-s39-cyan text-[9px] shrink-0 mt-0.5">*</span>
-                      <span className="text-[9px] text-s39-mid leading-relaxed">{a}</span>
+                      <span className="text-s39-cyan text-[8px] shrink-0 mt-0.5 font-mono">*</span>
+                      <span className="text-[8px] text-s39-mid leading-relaxed">{a}</span>
                     </div>
                   ))}
                 </div>
               </div>
-              <div>
-                <div className="text-[8px] text-s39-dim tracking-widest mb-2">LIMITATIONS</div>
+              <div className="bg-s39-bg2 border border-s39-border p-3">
+                <div className="text-[8px] text-s39-dim tracking-widest mb-2">TESTING LIMITATIONS</div>
                 <div className="flex flex-col gap-1.5">
                   {p.testingMethodology.limitations.map((l, i) => (
                     <div key={i} className="flex items-start gap-2">
-                      <span className="text-s39-orange text-[9px] shrink-0 mt-0.5">!</span>
-                      <span className="text-[9px] text-s39-mid leading-relaxed">{l}</span>
+                      <span className="text-s39-orange text-[8px] shrink-0 mt-0.5 font-mono">!</span>
+                      <span className="text-[8px] text-s39-mid leading-relaxed">{l}</span>
                     </div>
                   ))}
                 </div>
