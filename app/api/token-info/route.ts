@@ -43,21 +43,24 @@ export async function POST(req: Request) {
       return Response.json({ error: "Missing contract address" }, { status: 400 })
     }
 
-    const addrLower = address.toLowerCase().trim()
-    const netId = mapNetworkToGeckoId(network || "Ethereum")
+    const net = network || "Ethereum"
+    const netId = mapNetworkToGeckoId(net)
+    // Solana/Near/Cosmos addresses are case-sensitive; only lowercase EVM addresses
+    const isEvmChain = !["Solana", "Sui", "Aptos", "Cosmos", "Injective", "Sei", "Near", "Ton", "Starknet", "Tron"].includes(net)
+    const addrNormalized = isEvmChain ? address.toLowerCase().trim() : address.trim()
 
     // Check cache
-    const cacheKey = `${netId}:${addrLower}`
+    const cacheKey = `${netId}:${addrNormalized}`
     const cached = infoCache.get(cacheKey)
     if (cached && Date.now() - cached.ts < CACHE_TTL) {
       return Response.json({ token: cached.data, cached: true })
     }
 
     // ── Step 1: GeckoTerminal token info ──
-    const geckoInfo = await fetchGeckoTerminalInfo(netId, addrLower)
+    const geckoInfo = await fetchGeckoTerminalInfo(netId, addrNormalized)
 
     // ── Step 2: CoinGecko for logo, description, links ──
-    const coingeckoInfo = await fetchCoinGeckoInfo(addrLower, netId)
+    const coingeckoInfo = await fetchCoinGeckoInfo(addrNormalized, netId)
 
     // ── Step 3: Merge all data ──
     const token: TokenInfo = {

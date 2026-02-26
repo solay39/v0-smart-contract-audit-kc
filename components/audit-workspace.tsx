@@ -666,10 +666,15 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
                     </select>
                   </div>
                   <S39Input
-                    label="Contract Address"
+                    label="Contract / Program Address"
                     value={project.commit}
                     onChange={(e) => setProject((p) => ({ ...p, commit: e.target.value }))}
-                    placeholder="0x3506424F91fD33..."
+                    placeholder={
+                      project.network === "Solana" ? "JUPyiwrYJFskUPiHa7hkeR8..."
+                      : project.network === "Tron" ? "T9yD14Nj9j7xAB4..."
+                      : project.network === "Near" ? "contract.near"
+                      : "0x3506424F91fD33..."
+                    }
                   />
                   <S39Input
                     label="Audit Date"
