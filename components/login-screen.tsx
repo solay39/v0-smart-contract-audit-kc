@@ -50,6 +50,36 @@ export function LoginScreen({
   return (
     <main className="min-h-dvh bg-s39-bg0 text-s39-lite">
 
+      {/* ══════════════ TOP NAV BAR ══════════════ */}
+      <nav className="sticky top-0 z-40 bg-s39-bg0/90 backdrop-blur-md border-b border-s39-border">
+        <div className="max-w-5xl mx-auto px-4 h-12 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <svg width="16" height="19" viewBox="0 0 40 48" fill="none">
+              <path d="M20 2L4 10v14c0 11.2 6.8 21.6 16 24 9.2-2.4 16-12.8 16-24V10L20 2z"
+                stroke="#00ff88" strokeWidth="2" fill="#00ff8808" />
+              <path d="M16 24l4 4 8-10" stroke="#00ff88" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="text-[11px] text-s39-green font-bold tracking-wider">SOLAY39</span>
+            <span className="text-[8px] text-s39-dim tracking-widest hidden sm:inline">SECURITY RATING</span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onGuest}
+              className="text-[9px] text-s39-mid tracking-wider hover:text-s39-white transition-colors bg-transparent border-none cursor-pointer font-mono"
+            >
+              View Ratings
+            </button>
+            <button
+              onClick={() => setShowLogin(true)}
+              className="text-[9px] text-s39-green tracking-wider font-bold border border-s39-green/30 bg-s39-green/5 px-3 py-1.5 hover:bg-s39-green/10 transition-colors cursor-pointer font-mono"
+            >
+              Founder Access
+            </button>
+          </div>
+        </div>
+      </nav>
+
       {/* ══════════════ HERO ══════════════ */}
       <section className="relative flex flex-col items-center justify-center text-center px-4 pt-20 pb-16 sm:pt-28 sm:pb-20 overflow-hidden">
         {/* Subtle grid background */}
@@ -347,9 +377,9 @@ export function LoginScreen({
             </a>
             <button
               onClick={() => setShowLogin(true)}
-              className="text-[7px] text-s39-dim/50 hover:text-s39-dim transition-colors cursor-pointer bg-transparent border-none font-mono tracking-wider"
+              className="text-[9px] text-s39-green/70 hover:text-s39-green transition-colors cursor-pointer bg-transparent border border-s39-green/20 px-2.5 py-1 font-mono tracking-wider"
             >
-              Founder
+              Founder Access
             </button>
           </div>
         </div>
