@@ -203,9 +203,20 @@ async function fetchCoinGeckoInfo(address: string, netId: string) {
     const mcap = mcData?.market_cap?.usd
     const totalSupply = mcData?.total_supply
 
-    // Clean description (remove HTML)
+    // Clean description (remove HTML) and truncate at sentence boundary
     const rawDesc = data.description?.en || ""
-    const cleanDesc = rawDesc.replace(/<[^>]*>/g, "").slice(0, 500)
+    const stripped = rawDesc.replace(/<[^>]*>/g, "")
+    let cleanDesc = stripped
+    if (stripped.length > 500) {
+      // Find the last sentence-ending punctuation before 500 chars
+      const truncated = stripped.slice(0, 500)
+      const lastSentence = Math.max(
+        truncated.lastIndexOf(". "),
+        truncated.lastIndexOf("! "),
+        truncated.lastIndexOf("? ")
+      )
+      cleanDesc = lastSentence > 100 ? truncated.slice(0, lastSentence + 1) : truncated.slice(0, truncated.lastIndexOf(" ")) + "..."
+    }
 
     // Genesis date
     const genesis = data.genesis_date || ""

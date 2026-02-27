@@ -62,9 +62,13 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const [aiError, setAiError] = useState("")
   const [contractMeta, setContractMeta] = useState<{
     contractType?: string; scopeLabel?: string; centralizationLevel?: string
-    centralizationRisk?: string; isERC20?: boolean; hasOwner?: boolean
+    centralizationRisk?: string; isERC20?: boolean; isERC721?: boolean; hasOwner?: boolean
     ownerRenounced?: boolean; hasPausable?: boolean; pausableProtected?: boolean
     usesOZ?: boolean; hasProxy?: boolean; solidityVersion?: string
+    // Mint / burn / supply
+    hasMint?: boolean; mintGuarded?: boolean; hasConstructorOnlyMint?: boolean
+    hasBurn?: boolean; hasMaxSupply?: boolean; hasBlacklist?: boolean
+    hasPause?: boolean; hasSetFee?: boolean; hasSelfDestruct?: boolean
     // Multi-chain fields
     codeLanguage?: string; network?: string; linesOfCode?: number; isNonEVM?: boolean
   } | null>(null)
@@ -262,7 +266,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         { label: "Open Source", value: true },
         { label: "Proxy Contract", value: !!contractMeta.hasProxy },
         { label: "External Call Risk", value: false },
-        { label: "Mint Function", value: !contractMeta.isERC20 || false },
+        { label: "Mint Function", value: !!contractMeta.hasMint },
         { label: "Self Destruct", value: false },
       ] : undefined,
       ownerPrivilege: contractMeta ? [
@@ -652,9 +656,16 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       if (data.findings && Array.isArray(data.findings)) {
         setAiRes(data.findings)
       }
-      // Capture contract metadata and score breakdown from analyzer
-      if (data.contractMeta) {
-        setContractMeta(data.contractMeta)
+  // Capture contract metadata and score breakdown from analyzer
+  if (data.contractMeta) {
+  // Map API field names to workspace field names
+  const rawMeta = data.contractMeta
+  const mappedMeta = {
+    ...rawMeta,
+    hasMint: rawMeta.hasMintOutsideConstructor ?? rawMeta.hasMint ?? false,
+    mintGuarded: rawMeta.mintGuarded ?? false,
+  }
+  setContractMeta(mappedMeta)
         // Auto-set scope if not manually entered
         const detectedScope = data.contractMeta.scopeLabel
         if (!project.scope && detectedScope) {
