@@ -268,7 +268,7 @@ export interface PortfolioProject {
   twitter?: string
   discord?: string
   auditTimeline?: { label: string; date: string }[]
-  contractUncertainty?: { label: string; value: boolean }[]
+  contractUncertainty?: { label: string; value: boolean; attention?: string }[]
   ownerPrivilege?: { label: string; value: string | boolean }[]
   tokenAge?: string
   creatorAddress?: string

@@ -91,7 +91,13 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
 
   const allChecks = Object.values(checks).flatMap((c) => Object.values(c))
   // SINGLE SOURCE OF TRUTH: always use V2 engine for score computation
-  const v2Result = computeScoreV2({ findings })
+  const v2Result = computeScoreV2({
+    findings,
+    mintability: contractMeta?.hasMint
+      ? (contractMeta?.mintGuarded ? "controlled" : "unrestricted")
+      : "disabled",
+    ownershipType: contractMeta?.ownerRenounced ? "renounced" : contractMeta?.hasOwner ? "eoa" : "renounced",
+  })
   const score = v2Result.final
   const done = allChecks.filter(Boolean).length
   const total = allChecks.length
@@ -266,7 +272,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         { label: "Open Source", value: true },
         { label: "Proxy Contract", value: !!contractMeta.hasProxy },
         { label: "External Call Risk", value: false },
-        { label: "Mint Function", value: !!contractMeta.hasMint },
+        { label: "Mint Function", value: !!contractMeta.hasMint, attention: contractMeta.hasMint && contractMeta.mintGuarded ? "GUARDED" : contractMeta.hasMint ? "UNGUARDED" : undefined },
         { label: "Self Destruct", value: false },
       ] : undefined,
       ownerPrivilege: contractMeta ? [

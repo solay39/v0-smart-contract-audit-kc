@@ -151,6 +151,7 @@ function extractContractMeta(code: string, network: string): ContractMeta {
   const hasSelfDestruct = /selfdestruct|suicide/.test(code)
   const hasDelegatecall = /delegatecall/.test(code)
   const hasExternalCalls = /\.call\{value|\.call\(|\.transfer\(|\.send\(/.test(code)
+  const mintGuarded = hasMintOutsideConstructor && (hasOZAccessControl || /onlyOwner|onlyMinter|onlyRole|require\s*\(.*msg\.sender/.test(code))
 
   const pragmaMatch = code.match(/pragma solidity\s+[\^~]?(0\.(\d+)\.?\d*)/)
   const solidityVersion = pragmaMatch ? pragmaMatch[1] : "unknown"
@@ -183,8 +184,8 @@ function extractContractMeta(code: string, network: string): ContractMeta {
 
   return {
     contractType, isERC20, hasProxy, hasOwner, ownerRenounced,
-    hasMintOutsideConstructor, hasConstructorOnlyMint, hasPausable,
-    pausableProtected, hasBlacklist, hasSetFee, hasSelfDestruct,
+    hasMintOutsideConstructor, hasConstructorOnlyMint, mintGuarded,
+    hasPausable, pausableProtected, hasBlacklist, hasSetFee, hasSelfDestruct,
     hasDelegatecall, hasExternalCalls, usesOZ, solidityVersion,
     hasSafeMath, scopeLabel, centralizationLevel, centralizationRisk,
     codeLanguage, network, linesOfCode, isNonEVM: false,

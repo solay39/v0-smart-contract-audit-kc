@@ -2497,12 +2497,20 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
               {p.contractUncertainty.map((c, i) => {
                 const isGood = c.label === "Open Source" ? c.value : !c.value
+                const att = c.attention
                 return (
                   <div key={i} className="flex justify-between items-center py-2 border-b border-s39-border last:border-0">
                     <span className="text-[10px] text-s39-mid">{c.label}</span>
-                    <span className={`text-[10px] font-bold ${isGood ? "text-s39-green" : "text-s39-orange"}`}>
-                      {c.value ? "Yes" : "No"}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {att && (
+                        <span className={`text-[7px] font-bold px-1.5 py-0.5 border ${att === "GUARDED" ? "text-s39-yellow border-s39-yellow/25 bg-s39-yellow/5" : "text-s39-red border-s39-red/25 bg-s39-red/5"}`}>
+                          {att}
+                        </span>
+                      )}
+                      <span className={`text-[10px] font-bold ${isGood ? "text-s39-green" : "text-s39-orange"}`}>
+                        {c.value ? "Yes" : "No"}
+                      </span>
+                    </div>
                   </div>
                 )
               })}
