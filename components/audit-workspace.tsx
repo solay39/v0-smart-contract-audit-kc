@@ -306,7 +306,40 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       // Tier-1 sections
       privilegedRoles: privilegedRoles.length > 0 ? privilegedRoles : undefined,
       trustAssumptions: trustAssumptions.length > 0 ? trustAssumptions : undefined,
-      architectureOverview: architectureOverview || undefined,
+      architectureOverview: architectureOverview || (contractMeta ? (() => {
+        const parts: string[] = []
+        // Contract type & standard
+        const ctype = contractMeta.contractType || (contractMeta.isERC20 ? "ERC-20 Token" : "Smart Contract")
+        parts.push(`${project.name} is implemented as a ${ctype} on ${project.network || "Ethereum"}.`)
+        // Solidity version
+        if (contractMeta.solidityVersion) parts.push(`The contract is compiled with Solidity ${contractMeta.solidityVersion}.`)
+        // Libraries
+        if (contractMeta.usesOZ) parts.push("It inherits from OpenZeppelin's audited library contracts for standardized functionality.")
+        // Proxy
+        if (contractMeta.hasProxy) {
+          parts.push("The contract uses a proxy pattern, making the implementation upgradeable.")
+        } else {
+          parts.push("The contract is non-upgradeable with no proxy pattern detected.")
+        }
+        // Ownership
+        if (contractMeta.ownerRenounced) {
+          parts.push("Ownership has been renounced to the zero address, making the contract immutable and trustless.")
+        } else if (contractMeta.hasOwner) {
+          parts.push("An owner role exists with privileged access to administrative functions.")
+        }
+        // Supply model
+        if (contractMeta.hasMint) {
+          parts.push(`A mint function is present${contractMeta.mintGuarded ? " with role-based access control restricting minting to authorized addresses" : ", requiring careful access control review"}.`)
+        } else if (contractMeta.isERC20) {
+          parts.push("The token follows a fixed supply model with no external mint capability.")
+        }
+        // Pause / Blacklist
+        if (contractMeta.hasPausable) parts.push("A pause mechanism is implemented allowing the contract to halt transfers in emergency situations.")
+        if (contractMeta.hasBlacklist) parts.push("A blacklist mechanism exists enabling the operator to restrict specific addresses from transfers.")
+        // Lines of code
+        if (contractMeta.linesOfCode) parts.push(`The contract scope comprises ${contractMeta.linesOfCode} lines of code.`)
+        return parts.join(" ")
+      })() : undefined),
       attackSurface: attackSurface.length > 0 ? attackSurface : [
         // Privileged Role Abuse
         ...(contractMeta?.hasOwner ? [{
@@ -323,20 +356,38 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
             ? "owner() returned 0x0000...0000 — ownership confirmed renounced."
             : `Attempted: owner().call({from: attacker}) -> Reverted: "Ownable: caller is not the owner". Access control functioning correctly.`,
         }] : []),
-        // Economic Attack Vector
+        // Economic Attack Vector — fully adapted to contract characteristics
         {
-          title: "Supply Manipulation -> Infinite Mint Attack",
+          title: contractMeta?.hasMint
+            ? (contractMeta?.mintGuarded
+              ? "Supply Manipulation -> Authorized Mint Abuse"
+              : "Supply Manipulation -> Unrestricted Mint Exploit")
+            : (contractMeta?.hasBurn
+              ? "Supply Manipulation -> Deflationary Burn Analysis"
+              : "Supply Manipulation -> Fixed Supply Verification"),
           type: "economic" as const,
           description: contractMeta?.hasMint
-            ? "The contract exposes a mint() function. If the access control on this function is weak or the minter key is compromised, an attacker could inflate the token supply to arbitrary levels, diluting all existing holders and crashing the market price to zero."
-            : "The contract uses a fixed supply model with no mint function. Tokens can only be redistributed, not created. This eliminates the supply inflation attack vector entirely.",
-          narrativeImpact: contractMeta?.hasMint ? "Total supply dilution — token price driven to zero" : "No impact — fixed supply model",
-          mitigation: contractMeta?.hasMint ? (contractMeta?.mintGuarded ? "Mint restricted to authorized role" : "No mitigation — unrestricted mint") : "Fixed supply — no mint function",
+            ? (contractMeta?.mintGuarded
+              ? `The contract exposes a mint() function protected by access control (${contractMeta?.ownerRenounced ? "note: ownership renounced, so mint is effectively disabled" : "restricted to authorized roles"}). If the minter key or authorized role is compromised, an attacker could inflate the token supply, diluting all existing holders. The risk severity depends on the security of the key management infrastructure.`
+              : "The contract exposes a mint() function without adequate access control restrictions. An attacker could invoke this function to inflate the token supply to arbitrary levels, diluting all existing holders and crashing the market price to zero. This represents a critical economic vulnerability.")
+            : (contractMeta?.hasBurn
+              ? `The contract implements a fixed supply model with no mint function but includes a burn mechanism. Tokens can be permanently destroyed but not created, making the supply deflationary. The burn function ${contractMeta?.hasOwner ? "should be reviewed for access control to prevent unauthorized token destruction" : "is available to token holders for voluntary supply reduction"}.`
+              : `The contract implements a fixed supply model. No mint function is present in the bytecode — tokens were allocated at deployment and can only be transferred, not created. This architecture eliminates the supply inflation attack vector entirely. Total supply is immutable and verifiable on-chain.`),
+          narrativeImpact: contractMeta?.hasMint
+            ? (contractMeta?.mintGuarded ? "Potential supply dilution if authorized role is compromised" : "Critical — total supply dilution, token price driven to zero")
+            : "No supply inflation risk — fixed or deflationary supply model",
+          mitigation: contractMeta?.hasMint
+            ? (contractMeta?.mintGuarded
+              ? `Mint restricted to authorized role. ${contractMeta?.ownerRenounced ? "Ownership renounced — mint effectively disabled." : "Recommend multisig control and supply cap implementation."}`
+              : "CRITICAL: No access control on mint — immediate remediation required")
+            : (contractMeta?.hasBurn
+              ? "Fixed supply with burn mechanism — no mint vector. Burn access control verified."
+              : "No mint function detected — supply fixed at deployment. No mitigation needed."),
           likelihood: (contractMeta?.hasMint && !contractMeta?.mintGuarded ? "High" : "Low") as "High" | "Medium" | "Low",
           mitigated: !contractMeta?.hasMint || !!contractMeta?.mintGuarded,
           simulationResult: contractMeta?.hasMint
-            ? `Attempted: mint(attacker, maxUint256) -> ${contractMeta?.mintGuarded ? "Reverted: access control prevents unauthorized minting." : "WARNING: Unrestricted mint detected."}`
-            : "No mint function present. Supply is fixed at deployment.",
+            ? `Attempted: mint(attacker, maxUint256) -> ${contractMeta?.mintGuarded ? "Reverted: access control prevents unauthorized minting. Role-based restriction confirmed." : "WARNING: Unrestricted mint detected — no access control revert."}`
+            : `No mint() function found in contract ABI or bytecode. Supply is fixed at ${contractMeta?.isERC20 ? "totalSupply()" : "deployment"} — verified immutable.`,
         },
         // Governance Takeover
         ...(contractMeta?.hasGovernance || false ? [{
@@ -670,6 +721,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     ...rawMeta,
     hasMint: rawMeta.hasMintOutsideConstructor ?? rawMeta.hasMint ?? false,
     mintGuarded: rawMeta.mintGuarded ?? false,
+    hasBurn: rawMeta.hasBurn ?? false,
   }
   setContractMeta(mappedMeta)
         // Auto-set scope if not manually entered

@@ -147,6 +147,7 @@ function extractContractMeta(code: string, network: string): ContractMeta {
   const hasPausable = /pause|unpause|Pausable/.test(code)
   const pausableProtected = hasPausable && (hasOZPausable || /onlyOwner|onlyPauser|onlyRole/.test(code))
   const hasBlacklist = /blacklist|blocklist|isBlocked|deny/.test(code.toLowerCase())
+  const hasBurn = /function\s+burn\s*\(|_burn\s*\(/.test(code)
   const hasSetFee = /setFee|setTax|_taxRate|_fee\s*=/.test(code)
   const hasSelfDestruct = /selfdestruct|suicide/.test(code)
   const hasDelegatecall = /delegatecall/.test(code)
@@ -185,7 +186,7 @@ function extractContractMeta(code: string, network: string): ContractMeta {
   return {
     contractType, isERC20, hasProxy, hasOwner, ownerRenounced,
     hasMintOutsideConstructor, hasConstructorOnlyMint, mintGuarded,
-    hasPausable, pausableProtected, hasBlacklist, hasSetFee, hasSelfDestruct,
+    hasPausable, pausableProtected, hasBlacklist, hasBurn, hasSetFee, hasSelfDestruct,
     hasDelegatecall, hasExternalCalls, usesOZ, solidityVersion,
     hasSafeMath, scopeLabel, centralizationLevel, centralizationRisk,
     codeLanguage, network, linesOfCode, isNonEVM: false,
