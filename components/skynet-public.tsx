@@ -1380,7 +1380,45 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
             </div>
 
             {/* Architecture Overview — Visual Diagram + Text */}
-            {p.architectureOverview && (
+            {(() => {
+              // Build architecture overview at render time if not stored in data
+              const archText = p.architectureOverview || (() => {
+                const parts: string[] = []
+                // Contract type
+                const ctype = p.scopeTable?.[0]?.language === "Solidity" ? "ERC-20 Token" : (p.scope || "Smart Contract")
+                parts.push(`${p.name} is deployed as a ${ctype} on ${p.network || "Ethereum"}.`)
+                // Solidity version
+                if (p.engagement?.solidityVersion) parts.push(`Compiled with Solidity ${p.engagement.solidityVersion}.`)
+                // Libraries — detect from contractUncertainty or onChainValidation
+                const usesOZ = p.engagement?.openZeppelinVersion || p.onChainValidation?.some(v => v.detail?.toLowerCase().includes("openzeppelin"))
+                if (usesOZ) parts.push(`Inherits from OpenZeppelin's audited library contracts${p.engagement?.openZeppelinVersion ? ` (v${p.engagement.openZeppelinVersion})` : ""}.`)
+                // Proxy
+                if (p.upgradeabilityAnalysis?.isUpgradeable) {
+                  parts.push(`Uses a ${p.upgradeabilityAnalysis.proxyPattern || "proxy"} upgrade pattern — implementation is upgradeable.`)
+                } else {
+                  parts.push("Non-upgradeable with no proxy pattern detected.")
+                }
+                // Ownership
+                const ownerRenouncedOnChain = p.onChainValidation?.some(v => v.label.toLowerCase().includes("owner") && v.detail?.toLowerCase().includes("renounced"))
+                if (ownerRenouncedOnChain) {
+                  parts.push("Ownership renounced to the zero address, making the contract fully trustless.")
+                } else if (p.privilegedRoles && p.privilegedRoles.length > 0) {
+                  const roles = p.privilegedRoles.map(r => r.role).join(", ")
+                  parts.push(`Privileged roles detected: ${roles}.`)
+                }
+                // Supply model
+                const hasMintVal = p.contractUncertainty?.find(c => c.label === "Mint Function")
+                if (hasMintVal?.value) {
+                  parts.push(`A mint function is present${hasMintVal.attention === "GUARDED" ? " with role-based access control" : ""}.`)
+                } else {
+                  parts.push("Fixed supply model with no external mint capability.")
+                }
+                // LoC
+                if (p.scopeTable?.[0]?.linesOfCode) parts.push(`The contract scope comprises ${p.scopeTable[0].linesOfCode} lines of code.`)
+                return parts.join(" ")
+              })()
+
+              return (
               <div className="mb-5">
                 <div className="text-[8px] text-s39-dim tracking-widest mb-2">SYSTEM ARCHITECTURE</div>
 
@@ -1433,14 +1471,14 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                             </div>
                           </div>
 
-                          {/* Libraries */}
-                          {p.architectureOverview.toLowerCase().includes('openzeppelin') && (
+                          {/* Libraries — detect from archText OR engagement data */}
+                          {(archText.toLowerCase().includes('openzeppelin') || p.engagement?.openZeppelinVersion) && (
                             <div className="bg-[#001608] border border-s39-green/20 px-3 py-2 text-center">
                               <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">LIBRARY</div>
-                              <div className="text-[9px] text-s39-green font-bold">OpenZeppelin</div>
+                              <div className="text-[9px] text-s39-green font-bold">OpenZeppelin{p.engagement?.openZeppelinVersion ? ` v${p.engagement.openZeppelinVersion}` : ''}</div>
                             </div>
                           )}
-                          {p.architectureOverview.toLowerCase().includes('safemath') && !p.architectureOverview.toLowerCase().includes('no safemath') && (
+                          {archText.toLowerCase().includes('safemath') && !archText.toLowerCase().includes('no safemath') && (
                             <div className="bg-[#001608] border border-s39-green/20 px-3 py-2 text-center">
                               <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">MATH</div>
                               <div className="text-[9px] text-s39-green font-bold">SafeMath</div>
@@ -1516,10 +1554,10 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
 
                 {/* Text description */}
                 <div className="bg-s39-bg2 border border-s39-border p-4">
-                  <p className="text-[10px] text-s39-mid leading-relaxed">{p.architectureOverview}</p>
+                  <p className="text-[10px] text-s39-mid leading-relaxed">{archText}</p>
                 </div>
               </div>
-            )}
+            )})()}
 
             {/* Trust Assumptions -- BEFORE Privileged Roles (explicit trust model first) */}
             {p.trustAssumptions && p.trustAssumptions.length > 0 && (
