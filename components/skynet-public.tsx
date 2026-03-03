@@ -1008,36 +1008,39 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
             )}
 
-            {/* ENTERPRISE: Audit ID */}
+            {/* Audit ID */}
             {p.engagement?.auditId && (
-              <div className="p-3 bg-s39-bg2 border border-s39-border mt-4">
+              <div className="p-3 rounded bg-s39-bg0 border border-s39-border col-span-2">
                 <div className="text-[8px] text-s39-dim font-mono tracking-wider mb-1">AUDIT ID</div>
-                <div className="text-[9px] text-s39-cyan font-mono">{p.engagement.auditId}</div>
+                <div className="text-[9px] text-s39-cyan font-mono tracking-wide">
+                  {p.engagement.auditId}
+                </div>
               </div>
             )}
 
-            {/* ENTERPRISE: Review Team */}
+            {/* Review Team */}
             {p.engagement?.reviewTeam && (
-              <div className="p-3 bg-s39-bg2 border border-s39-border mt-3">
+              <div className="p-3 rounded bg-s39-bg0 border border-s39-border col-span-2">
                 <div className="text-[8px] text-s39-dim font-mono tracking-wider mb-2">REVIEW TEAM</div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-[8px] text-emerald-400 font-mono px-1.5 py-0.5 bg-emerald-950/40 border border-emerald-800/40">LEAD</span>
-                    <span className="text-[9px] text-s39-lite">{p.engagement.reviewTeam.leadAuditor?.name}</span>
+                    <span className="text-[8px] text-emerald-400 font-mono px-1.5 py-0.5 rounded bg-emerald-950/40 border border-emerald-800/40">
+                      LEAD
+                    </span>
+                    <span className="text-[9px] text-s39-lite">
+                      {p.engagement.reviewTeam.leadAuditor?.name}
+                    </span>
                     {p.engagement.reviewTeam.leadAuditor?.signedOff && (
-                      <span className="text-[7px] text-emerald-400 font-mono ml-auto">{'SIGNED OFF '}{p.engagement.reviewTeam.leadAuditor.signOffDate}</span>
+                      <span className="text-[7px] text-emerald-400 font-mono ml-auto">
+                        {'\u2713 SIGNED OFF '}{p.engagement.reviewTeam.leadAuditor.signOffDate}
+                      </span>
                     )}
                   </div>
-                  {p.engagement.reviewTeam.secondReviewer ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[8px] text-blue-400 font-mono px-1.5 py-0.5 bg-blue-950/40 border border-blue-800/40">2ND</span>
-                      <span className="text-[9px] text-s39-lite">{p.engagement.reviewTeam.secondReviewer.name}</span>
-                    </div>
-                  ) : p.engagement.reviewTeam.note ? (
-                    <div className="text-[8px] text-s39-dim font-mono italic">
+                  {p.engagement.reviewTeam.note && (
+                    <div className="text-[8px] text-s39-dim italic">
                       {p.engagement.reviewTeam.note}
                     </div>
-                  ) : null}
+                  )}
                 </div>
               </div>
             )}
@@ -1812,26 +1815,39 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                   })}
                 </div>
 
-                {/* ENTERPRISE: Attacker Profiles */}
+                {/* Attacker Profiles */}
                 {p.attackerProfiles && p.attackerProfiles.length > 0 && (
-                  <div className="mt-4">
-                    <div className="text-[8px] text-s39-dim font-mono tracking-wider mb-3">ATTACKER PROFILES CONSIDERED</div>
+                  <div className="mt-6">
+                    <div className="text-[8px] text-s39-dim font-mono tracking-wider mb-3 flex items-center gap-2">
+                      <span className="w-3 h-px bg-s39-border"/>
+                      ATTACKER PROFILES CONSIDERED
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {p.attackerProfiles.map((profile: {
-                        type: string; description: string; capabilities: string[]; goal: string
+                        type: string
+                        description: string
+                        capabilities: string[]
+                        goal: string
                       }) => (
-                        <div key={profile.type} className="p-3 bg-s39-bg0 border border-s39-border">
-                          <div className="text-[9px] font-bold text-s39-lite font-mono mb-1">{profile.type}</div>
-                          <div className="text-[8px] text-s39-mid mb-2">{profile.description}</div>
-                          <div className="text-[7px] text-s39-dim font-mono tracking-wider mb-1">CAPABILITIES</div>
-                          <ul className="space-y-0.5">
+                        <div key={profile.type} className="p-3 rounded bg-s39-bg0 border border-s39-border">
+                          <div className="text-[9px] font-bold text-s39-lite font-mono mb-1">
+                            {profile.type}
+                          </div>
+                          <div className="text-[8px] text-s39-mid mb-2 leading-relaxed">
+                            {profile.description}
+                          </div>
+                          <div className="text-[7px] text-s39-dim font-mono tracking-wider mb-1">
+                            CAPABILITIES
+                          </div>
+                          <ul className="space-y-0.5 mb-2">
                             {profile.capabilities.map((cap: string, i: number) => (
                               <li key={i} className="text-[8px] text-s39-mid flex items-start gap-1">
-                                <span className="text-s39-orange mt-0.5">{'>'}</span>{cap}
+                                <span className="text-s39-orange mt-0.5 shrink-0">{'\u203A'}</span>
+                                {cap}
                               </li>
                             ))}
                           </ul>
-                          <div className="mt-2 text-[8px]">
+                          <div className="text-[8px] pt-2 border-t border-s39-border">
                             <span className="text-s39-dim font-mono">{'GOAL: '}</span>
                             <span className="text-s39-orange">{profile.goal}</span>
                           </div>
@@ -1841,23 +1857,47 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                   </div>
                 )}
 
-                {/* ENTERPRISE: Assets at Risk */}
+                {/* Assets at Risk */}
                 {p.assetsAtRisk && p.assetsAtRisk.length > 0 && (
                   <div className="mt-4">
-                    <div className="text-[8px] text-s39-dim font-mono tracking-wider mb-2">ASSETS AT RISK</div>
+                    <div className="text-[8px] text-s39-dim font-mono tracking-wider mb-2 flex items-center gap-2">
+                      <span className="w-3 h-px bg-s39-border"/>
+                      ASSETS AT RISK
+                    </div>
                     <div className="space-y-1">
                       {p.assetsAtRisk.map((a: { asset: string; risk: string }) => (
-                        <div key={a.asset} className="flex items-center justify-between px-3 py-1.5 bg-s39-bg0 border border-s39-border">
+                        <div
+                          key={a.asset}
+                          className="flex items-center justify-between px-3 py-1.5 rounded bg-s39-bg0 border border-s39-border"
+                        >
                           <span className="text-[9px] text-s39-lite font-mono">{a.asset}</span>
                           <span className={[
                             "text-[8px] font-bold font-mono",
                             a.risk.startsWith("HIGH")     ? "text-red-400"    :
                             a.risk.startsWith("MEDIUM")   ? "text-yellow-400" :
                             a.risk.startsWith("CRITICAL") ? "text-red-500"    : "text-emerald-400",
-                          ].join(" ")}>{a.risk.split(" -- ")[0]}</span>
+                          ].join(" ")}>{a.risk.split(" \u2014 ")[0]}</span>
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Trust Assumptions */}
+                {p.enterpriseTrustAssumptions && p.enterpriseTrustAssumptions.length > 0 && (
+                  <div className="mt-4">
+                    <div className="text-[8px] text-s39-dim font-mono tracking-wider mb-2 flex items-center gap-2">
+                      <span className="w-3 h-px bg-s39-border"/>
+                      TRUST ASSUMPTIONS
+                    </div>
+                    <ul className="space-y-1">
+                      {p.enterpriseTrustAssumptions.map((assumption: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-[8px] text-s39-mid">
+                          <span className="text-s39-cyan mt-0.5 shrink-0 font-mono">{i + 1}.</span>
+                          {assumption}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </div>
@@ -2604,14 +2644,21 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                       )}
                     </div>
 
-                    {/* ENTERPRISE: Remediation Code Example */}
+                    {/* Remediation Code Example */}
                     {f.remediationExample && (
                       <div className="mt-3 bg-[#0a0e14] border border-emerald-900/30 overflow-hidden rounded">
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-950/20 border-b border-emerald-900/20">
-                          <span className="text-[8px] text-emerald-400 font-mono tracking-widest">REMEDIATION CODE EXAMPLE</span>
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                            <path d="M3 5l1.5 1.5L7 3.5" stroke="#00cc88" strokeWidth="0.8" strokeLinecap="round"/>
+                          </svg>
+                          <span className="text-[8px] text-emerald-400 font-mono tracking-widest">
+                            REMEDIATION CODE EXAMPLE
+                          </span>
                           <span className="text-[7px] text-s39-dim ml-auto">Solidity</span>
                         </div>
-                        <pre className="text-[8px] text-slate-300 font-mono whitespace-pre-wrap p-3 overflow-x-auto leading-relaxed">{f.remediationExample}</pre>
+                        <pre className="text-[8px] text-slate-300 font-mono whitespace-pre-wrap p-3 overflow-x-auto leading-relaxed">
+                          {f.remediationExample}
+                        </pre>
                       </div>
                     )}
 
@@ -3197,77 +3244,106 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </section>
             )}
 
-            {/* ── SECTION: FORMAL VERIFICATION ── */}
+            {/* FORMAL VERIFICATION */}
             {p.formalVerification && (
               <section className="border border-s39-border rounded-xl p-6 bg-s39-bg1 mt-6">
                 <div className="text-[9px] font-mono tracking-widest text-s39-dim uppercase mb-4 flex items-center gap-2">
-                  <span className="w-4 h-px bg-s39-border" />
+                  <span className="w-4 h-px bg-s39-border"/>
                   {'Formal Verification & Invariant Testing'}
-                  <span className="flex-1 h-px bg-s39-border" />
+                  <span className="flex-1 h-px bg-s39-border"/>
                 </div>
                 <div className="space-y-2 mb-4">
                   {(p.formalVerification.invariantsTested || []).map((inv: {
-                    invariant: string; result: string; method: string
+                    invariant: string
+                    result: string
+                    method: string
                   }) => (
-                    <div key={inv.invariant} className="flex items-start gap-3 p-2.5 bg-s39-bg0 border border-s39-border">
+                    <div
+                      key={inv.invariant}
+                      className="flex items-start gap-3 p-2.5 rounded bg-s39-bg0 border border-s39-border"
+                    >
                       <span className={[
-                        "text-[9px] font-black font-mono mt-0.5 shrink-0",
-                        inv.result.startsWith("PASS") ? "text-emerald-400" :
-                        inv.result.startsWith("FAIL") ? "text-red-400" : "text-yellow-400",
+                        "text-[11px] font-black mt-0.5 shrink-0",
+                        inv.result.startsWith("PASS")   ? "text-emerald-400" :
+                        inv.result.startsWith("FAIL")   ? "text-red-400"     :
+                                                          "text-yellow-400",
                       ].join(" ")}>
-                        {inv.result.startsWith("PASS") ? "PASS" : inv.result.startsWith("FAIL") ? "FAIL" : "REVIEW"}
+                        {inv.result.startsWith("PASS") ? "\u2713" :
+                         inv.result.startsWith("FAIL") ? "\u2717" : "\u26A0"}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <div className="text-[9px] text-s39-lite">{inv.invariant}</div>
-                        <div className="text-[8px] text-s39-dim font-mono mt-0.5">{inv.method}</div>
+                        <div className="text-[9px] text-s39-lite leading-relaxed">
+                          {inv.invariant}
+                        </div>
+                        <div className="text-[7px] text-s39-dim font-mono mt-0.5">
+                          {inv.method}
+                        </div>
                       </div>
                       <span className={[
                         "text-[8px] font-bold font-mono shrink-0",
-                        inv.result.startsWith("PASS") ? "text-emerald-400" :
-                        inv.result.startsWith("FAIL") ? "text-red-400" : "text-yellow-400",
-                      ].join(" ")}>{inv.result.split(" -- ")[0]}</span>
+                        inv.result.startsWith("PASS")   ? "text-emerald-400" :
+                        inv.result.startsWith("FAIL")   ? "text-red-400"     :
+                                                          "text-yellow-400",
+                      ].join(" ")}>{inv.result.split(" \u2014 ")[0]}</span>
                     </div>
                   ))}
                 </div>
-                <div className="text-[8px] text-s39-dim font-mono p-2 bg-s39-bg0 border border-s39-border">
+                <div className="text-[8px] text-s39-dim font-mono p-2.5 rounded bg-s39-bg0 border border-s39-border leading-relaxed">
                   {p.formalVerification.verificationMethod}
                 </div>
               </section>
             )}
 
-            {/* ── SECTION: RESIDUAL RISK ── */}
+            {/* RESIDUAL RISK */}
             {p.residualRisk && (
               <section className="border border-s39-border rounded-xl p-6 bg-s39-bg1 mt-6">
                 <div className="text-[9px] font-mono tracking-widest text-s39-dim uppercase mb-4 flex items-center gap-2">
-                  <span className="w-4 h-px bg-s39-border" />
-                  {'Residual Risk Assessment'}
-                  <span className="flex-1 h-px bg-s39-border" />
+                  <span className="w-4 h-px bg-s39-border"/>
+                  Residual Risk Assessment
+                  <span className="flex-1 h-px bg-s39-border"/>
                 </div>
                 <div className="space-y-3 mb-4">
                   {(p.residualRisk.items || []).map((item: {
-                    category: string; description: string
-                    likelihood: string; impact: string; mitigation: string
+                    category: string
+                    description: string
+                    likelihood: string
+                    impact: string
+                    mitigation: string
                   }) => (
-                    <div key={item.category} className="p-3 bg-s39-bg0 border border-s39-border">
+                    <div key={item.category} className="p-3 rounded bg-s39-bg0 border border-s39-border">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-[9px] font-bold text-s39-lite">{item.category}</span>
-                        <span className={[
-                          "ml-auto text-[8px] font-mono font-bold",
-                          item.impact.startsWith("High") || item.impact.startsWith("Critical") ? "text-red-400" :
-                          item.impact.startsWith("Medium") ? "text-yellow-400" : "text-emerald-400",
-                        ].join(" ")}>{'IMPACT: '}{item.impact.split(" -- ")[0].toUpperCase()}</span>
+                        <div className="ml-auto flex items-center gap-1.5">
+                          <span className="text-[7px] text-s39-dim font-mono">IMPACT</span>
+                          <span className={[
+                            "text-[8px] font-bold font-mono",
+                            item.impact.startsWith("High") || item.impact.startsWith("Critical")
+                              ? "text-red-400"
+                              : item.impact.startsWith("Medium")
+                              ? "text-yellow-400"
+                              : "text-emerald-400",
+                          ].join(" ")}>
+                            {item.impact.split(" \u2014 ")[0].toUpperCase()}
+                          </span>
+                        </div>
                       </div>
-                      <p className="text-[8px] text-s39-mid mb-2">{item.description}</p>
-                      <div className="text-[8px]">
+                      <p className="text-[8px] text-s39-mid mb-2 leading-relaxed">
+                        {item.description}
+                      </p>
+                      <div className="text-[8px] pt-2 border-t border-s39-border">
                         <span className="text-emerald-400 font-mono">{'MITIGATION: '}</span>
                         <span className="text-s39-mid">{item.mitigation}</span>
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className="p-3 bg-emerald-950/20 border border-emerald-800/30">
-                  <div className="text-[8px] text-s39-dim font-mono tracking-wider mb-1">OVERALL RESIDUAL RISK</div>
-                  <div className="text-[9px] text-emerald-400 font-medium">{p.residualRisk.overallResidualRisk}</div>
+                <div className="p-3 rounded bg-emerald-950/20 border border-emerald-800/30">
+                  <div className="text-[7px] text-s39-dim font-mono tracking-wider mb-1">
+                    OVERALL RESIDUAL RISK
+                  </div>
+                  <div className="text-[9px] text-emerald-400 font-medium leading-relaxed">
+                    {p.residualRisk.overallResidualRisk}
+                  </div>
                 </div>
               </section>
             )}
@@ -3425,7 +3501,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
   )
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════��══════════════════════════
 // METHODOLOGY PAGE
 // ═══════════════════════════════════════════════════════════════════
 function MethodologyPage() {

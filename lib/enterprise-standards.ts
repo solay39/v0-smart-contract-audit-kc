@@ -649,15 +649,15 @@ export function generateRemediationExample(findingTitle: string, severity: strin
 
   if (t.includes("pragma") || t.includes("floating")) return [
     '// Fix: Pin exact compiler version',
-    '// BEFORE:',
-    '// pragma solidity ^0.8.20;  // floating, allows 0.8.21, 0.8.22, etc.',
+    '// BEFORE (floating \u2014 allows any 0.8.x):',
+    '// pragma solidity ^0.8.20;',
     '',
-    '// AFTER:',
-    'pragma solidity 0.8.20;  // pinned to exact version',
+    '// AFTER (pinned \u2014 deterministic compilation):',
+    'pragma solidity 0.8.20;',
     '',
-    '// Also update hardhat.config.ts / foundry.toml:',
-    '// hardhat: solidity: { version: "0.8.20", settings: { optimizer: { enabled: true, runs: 200 } } }',
-    '// foundry:  solc = "0.8.20"',
+    '// Also update your build config:',
+    '// foundry.toml  \u2192 solc = "0.8.20"',
+    '// hardhat.config.ts \u2192 solidity: { version: "0.8.20" }',
   ].join("\n")
 
   if (t.includes("selfdestruct") || t.includes("self destruct")) return [
