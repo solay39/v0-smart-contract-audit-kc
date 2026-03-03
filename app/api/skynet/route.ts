@@ -758,8 +758,11 @@ Be thorough but PRECISE. Quality over quantity. A report with 2 real findings is
 
 export async function POST(req: Request) {
   try {
-    const { code, network } = await req.json()
+    const { code, network, contractAddress: rawAddr } = await req.json()
     const chainNetwork: string = network || "Ethereum"
+    const contractAddr: string = rawAddr && typeof rawAddr === "string" && rawAddr.startsWith("0x") && rawAddr.length >= 10
+      ? rawAddr
+      : "0x_VERIFY_ON_EXPLORER"
 
     if (!code || typeof code !== "string" || code.trim().length === 0) {
       return Response.json({ error: "No code provided" }, { status: 400 })
@@ -1029,10 +1032,10 @@ export async function POST(req: Request) {
         cwe: getCWE(f.title),
         swc: getSWC(f.title),
         foundryPoC: (f.severity === "CRITICAL" || f.severity === "HIGH")
-          ? generateFoundryPoC(f.title, meta.scopeLabel || "Target", "0xTARGET")
-          : undefined,
+        ? generateFoundryPoC(f.title, meta.scopeLabel || "Target", contractAddr)
+        : undefined,
       }))
-
+  
       // ── ENTERPRISE: Economic Attack Analysis ──
       const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
         hasProxy:         meta.hasProxy,
@@ -1094,10 +1097,10 @@ export async function POST(req: Request) {
         cwe: getCWE(f.title),
         swc: getSWC(f.title),
         foundryPoC: (f.severity === "CRITICAL" || f.severity === "HIGH")
-          ? generateFoundryPoC(f.title, meta.scopeLabel || "Target", "0xTARGET")
-          : undefined,
+        ? generateFoundryPoC(f.title, meta.scopeLabel || "Target", contractAddr)
+        : undefined,
       }))
-
+  
       const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
         hasProxy:         meta.hasProxy,
         hasMint:          meta.hasMintOutsideConstructor,

