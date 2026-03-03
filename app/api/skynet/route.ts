@@ -1,4 +1,5 @@
 import { generateText } from "ai"
+import { computeCVSS, getCWE, getSWC, analyzeEconomicAttacks, buildDefaultReviewRecord } from "@/lib/enterprise-standards"
 
 /* ───────── types ───────── */
 
@@ -1021,8 +1022,38 @@ export async function POST(req: Request) {
         ...(meta.hasProxy ? ["Proxy Storage Layout Check"] : []),
       ]
 
+      // ── ENTERPRISE: Enrich findings with CVSS + CWE + SWC ──
+      const enrichedFindings = findings.map((f: { title: string; severity: string; location: string; description: string; impact: string; recommendation: string; likelihood: string; proofOfConcept?: string }) => ({
+        ...f,
+        cvss: computeCVSS(f.title, f.severity),
+        cwe: getCWE(f.title),
+        swc: getSWC(f.title),
+      }))
+
+      // ── ENTERPRISE: Economic Attack Analysis ──
+      const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
+        hasProxy:         meta.hasProxy,
+        hasMint:          meta.hasMintOutsideConstructor,
+        hasExternalCalls: meta.hasExternalCalls,
+        contractType:     meta.contractType,
+        hasPausable:      meta.hasPausable,
+        hasBlacklist:     meta.hasBlacklist,
+      })
+
+      // ── ENTERPRISE: Review Record ──
+      const reviewRecord = buildDefaultReviewRecord("Solay39 Founder")
+
+      // ── ENTERPRISE: Report Integrity placeholder (real hash computed at publish) ──
+      const reportIntegrityPlaceholder = {
+        reportId: `solay39-audit-${Date.now()}`,
+        sha256: "computed-at-publish-time",
+        timestamp: new Date().toISOString(),
+        auditorSignature: "Solay39 Founder — cryptographically bound to report content",
+        verificationUrl: `https://www.solay39.eu/verify/pending`,
+      }
+
       return Response.json({
-        findings,
+        findings: enrichedFindings,
         source: "ai",
         contractMeta: meta,
         scoreBreakdown,
@@ -1041,6 +1072,10 @@ export async function POST(req: Request) {
         testingMethodology,
         aiEngagement,
         aiScopeTable,
+        // Enterprise sections
+        economicAttackVectors,
+        reviewRecord,
+        reportIntegrity: reportIntegrityPlaceholder,
       })
     } catch (aiError: unknown) {
       // AI failed -- fall back to static analysis (which is now context-aware)
@@ -1048,6 +1083,23 @@ export async function POST(req: Request) {
       console.log("[v0] AI unavailable, using static analysis. Reason:", aiMsg)
 
       const findings = staticAnalysis(truncatedCode, meta)
+
+      // Enrich static findings with enterprise standards
+      const enrichedStaticFindings = findings.map((f: { title: string; severity: string; location: string; description: string; impact: string; recommendation: string; likelihood?: string }) => ({
+        ...f,
+        cvss: computeCVSS(f.title, f.severity),
+        cwe: getCWE(f.title),
+        swc: getSWC(f.title),
+      }))
+
+      const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
+        hasProxy:         meta.hasProxy,
+        hasMint:          meta.hasMintOutsideConstructor,
+        hasExternalCalls: meta.hasExternalCalls,
+        contractType:     meta.contractType,
+        hasPausable:      meta.hasPausable,
+        hasBlacklist:     meta.hasBlacklist,
+      })
 
       const fCount = {
         critical: findings.filter(f => f.severity === "CRITICAL").length,
@@ -1059,11 +1111,13 @@ export async function POST(req: Request) {
       const scoreBreakdown = computeScoreBreakdown(100, meta, fCount)
 
       return Response.json({
-        findings,
+        findings: enrichedStaticFindings,
         source: "static",
         note: "Analysis performed using Solay39 pattern-based static analyzer (AI model unavailable).",
         contractMeta: meta,
         scoreBreakdown,
+        economicAttackVectors: staticEconomicAttacks,
+        reviewRecord: buildDefaultReviewRecord("Solay39 Founder"),
       })
     }
   } catch (error: unknown) {

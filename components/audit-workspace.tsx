@@ -17,6 +17,7 @@ import { isValidAddress, getExplorer, chainLanguage } from "@/lib/explorers"
 import { ScoreRing, S39Input, S39Btn, SevBadge } from "@/components/solay39-ui"
 import { exportPDF } from "@/lib/export-pdf"
 import { savePublishedAudit } from "@/components/skynet-public"
+import { computeReportHash, buildReportIntegrity } from "@/lib/enterprise-standards"
 import Solay39Validator from "@/components/solay39-validator"
 import { useAuditValidator, ValidationPanel } from "@/components/validation-panel"
 
@@ -734,15 +735,21 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       },
     }
 
-    // ── Step 3: Save to local portfolio store ──
-    savePublishedAudit(portfolioEntry)
+    // ── Step 3: Compute SHA-256 report integrity before saving ──
+    const reportJson = JSON.stringify(portfolioEntry)
+    const sha256 = await computeReportHash(reportJson)
+    const reportIntegrity = buildReportIntegrity(portfolioEntry.id, reportJson, sha256)
+    const enrichedEntry = { ...portfolioEntry, reportIntegrity }
+
+    // ── Step 3.1: Save to local portfolio store ──
+    savePublishedAudit(enrichedEntry)
 
     // ── Step 3.5: Save to Vercel Blob for server-side persistence ──
     try {
       await fetch("/api/audits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audit: portfolioEntry }),
+        body: JSON.stringify({ audit: enrichedEntry }),
       })
     } catch {
       // Non-critical: localStorage is the primary fallback

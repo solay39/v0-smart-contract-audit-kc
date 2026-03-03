@@ -2477,6 +2477,42 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                         </span>
                       )}
                     </div>
+                    {/* ENTERPRISE: CVSS + CWE + SWC badges */}
+                    {f.cvss && (
+                      <div className="flex gap-2 mt-1 mb-2 flex-wrap">
+                        <div className="flex items-center gap-1 px-2 py-0.5 bg-s39-bg0 border border-s39-border">
+                          <span className="text-[9px] text-s39-dim font-mono tracking-wider">CVSS</span>
+                          <span className={`text-[10px] font-black font-mono ${
+                            f.cvss.baseScore >= 9 ? "text-s39-red" :
+                            f.cvss.baseScore >= 7 ? "text-s39-orange" :
+                            f.cvss.baseScore >= 4 ? "text-s39-yellow" : "text-s39-dim"
+                          }`}>{f.cvss.baseScore.toFixed(1)}</span>
+                        </div>
+                        <div className="px-2 py-0.5 bg-s39-bg0 border border-s39-border">
+                          <span className="text-[8px] text-s39-dim font-mono">{f.cvss.vectorString}</span>
+                        </div>
+                        {f.cwe && (
+                          <a
+                            href={f.cwe.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 px-2 py-0.5 bg-[#001a33] border border-[#0066cc40] hover:border-[#0066cc80] transition-colors"
+                          >
+                            <span className="text-[9px] text-[#4488ff] font-mono font-bold">{f.cwe.id}</span>
+                          </a>
+                        )}
+                        {f.swc && (
+                          <a
+                            href={f.swc.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 px-2 py-0.5 bg-[#1a0033] border border-[#8844cc40] hover:border-[#8844cc80] transition-colors"
+                          >
+                            <span className="text-[9px] text-[#aa66ff] font-mono font-bold">{f.swc.id}</span>
+                          </a>
+                        )}
+                      </div>
+                    )}
                     <div className="text-[10px] text-s39-mid leading-relaxed mb-3">{f.description}</div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {f.impact && (
@@ -2965,7 +3001,102 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
         </>}
         {/* ═══════════ END OF DETAILED VIEW ═══════════ */}
 
-        {/* ── SECTION 18: ABOUT SOLAY39 ── (always visible) */}
+        {/* ── SECTION 17A: REPORT INTEGRITY ── */}
+            {p.reportIntegrity && (
+              <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1L12 4v3c0 3.5-2.5 5.5-5 6.5-2.5-1-5-3-5-6.5V4L7 1z" stroke="#00ff88" strokeWidth="0.8" strokeLinejoin="round"/><path d="M5 7l1.5 1.5L9 5.5" stroke="#00ff88" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <span className="text-[9px] text-s39-green tracking-[0.15em]">REPORT INTEGRITY & VERIFICATION</span>
+                  <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 17A</span>
+                </div>
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="flex items-start gap-3 p-3 bg-s39-bg2 border border-s39-border">
+                    <div className="text-s39-green text-lg mt-0.5 shrink-0">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="6" width="12" height="8" rx="1" stroke="#00ff88" strokeWidth="1"/><path d="M5 6V4a3 3 0 016 0v2" stroke="#00ff88" strokeWidth="1" strokeLinecap="round"/></svg>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[8px] text-s39-dim font-mono tracking-widest mb-1">SHA-256 REPORT HASH</div>
+                      <code className="text-[9px] text-s39-green font-mono break-all block">{p.reportIntegrity.sha256}</code>
+                      <div className="text-[8px] text-s39-dim mt-1">
+                        {"Hash of the complete report JSON at time of publication. Any modification changes this hash."}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-s39-bg2 border border-s39-border">
+                      <div className="text-[8px] text-s39-dim font-mono tracking-widest mb-1">REPORT ID</div>
+                      <div className="text-[9px] text-s39-lite font-mono">{p.reportIntegrity.reportId}</div>
+                    </div>
+                    <div className="p-3 bg-s39-bg2 border border-s39-border">
+                      <div className="text-[8px] text-s39-dim font-mono tracking-widest mb-1">PUBLISHED</div>
+                      <div className="text-[9px] text-s39-lite font-mono">
+                        {new Date(p.reportIntegrity.timestamp).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-s39-bg2 border border-s39-border">
+                    <div className="text-[8px] text-s39-dim font-mono tracking-widest mb-1">AUDITOR SIGNATURE</div>
+                    <div className="text-[9px] text-s39-lite">{p.reportIntegrity.auditorSignature}</div>
+                  </div>
+
+                  <a
+                    href={p.reportIntegrity.verificationUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 p-2 border border-s39-green/30 bg-s39-green/5 text-s39-green text-[9px] font-mono hover:bg-s39-green/10 transition-colors"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    {"Verify Report Integrity"}
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* ── SECTION 17B: ECONOMIC ATTACK SURFACE ── */}
+            {p.economicAttackVectors && p.economicAttackVectors.some((v: { applicable: boolean }) => v.applicable) && (
+              <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12M4 4l6 6M10 4l-6 6" stroke="#ff6b00" strokeWidth="0.8" strokeLinecap="round"/></svg>
+                  <span className="text-[9px] text-s39-orange tracking-[0.15em]">ECONOMIC ATTACK SURFACE ANALYSIS</span>
+                  <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 17B</span>
+                </div>
+                <div className="space-y-3">
+                  {p.economicAttackVectors
+                    .filter((v: { applicable: boolean }) => v.applicable)
+                    .map((v: { type: string; title: string; severity: string; description: string; exploitCondition: string; estimatedLoss: string; mitigation: string; pocSketch: string }) => (
+                    <div key={v.type} className="p-4 bg-s39-bg2 border border-s39-border">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className={`text-[8px] font-black font-mono px-2 py-0.5 border ${
+                          v.severity === "High" ? "text-s39-orange border-s39-orange/30 bg-s39-orange/5" :
+                          v.severity === "Medium" ? "text-s39-yellow border-s39-yellow/30 bg-s39-yellow/5" :
+                          "text-s39-dim border-s39-border bg-s39-bg0"
+                        }`}>{v.severity.toUpperCase()}</span>
+                        <span className="text-[10px] font-medium text-s39-lite">{v.title}</span>
+                      </div>
+                      <p className="text-[9px] text-s39-mid mb-2 leading-relaxed">{v.description}</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[9px]">
+                        <div>
+                          <span className="text-s39-dim font-mono text-[8px]">{"CONDITION: "}</span>
+                          <span className="text-s39-mid">{v.exploitCondition}</span>
+                        </div>
+                        <div>
+                          <span className="text-s39-dim font-mono text-[8px]">{"EST. LOSS: "}</span>
+                          <span className="text-s39-orange">{v.estimatedLoss}</span>
+                        </div>
+                      </div>
+                      <div className="mt-2 text-[9px]">
+                        <span className="text-s39-green font-mono text-[8px]">{"MITIGATION: "}</span>
+                        <span className="text-s39-mid">{v.mitigation}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── SECTION 18: ABOUT SOLAY39 ── (always visible) */}
         {p.auditorProfile && (
           <div className="bg-s39-bg1 border border-s39-cyan/15 p-5 sm:p-6 mb-4">
             <div className="flex items-center gap-2 mb-5">
