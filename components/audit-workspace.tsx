@@ -91,6 +91,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const [testingMethodology, setTestingMethodology] = useState<Record<string, unknown> | null>(null)
   const [aiEngagement, setAiEngagement] = useState<Record<string, unknown> | null>(null)
   const [aiScopeTable, setAiScopeTable] = useState<Record<string, unknown>[] | null>(null)
+  // Enterprise Standards
+  const [economicAttackVectors, setEconomicAttackVectors] = useState<Record<string, unknown>[] | null>(null)
+  const [reviewRecord, setReviewRecord] = useState<Record<string, unknown> | null>(null)
 
   const allChecks = Object.values(checks).flatMap((c) => Object.values(c))
   // SINGLE SOURCE OF TRUTH: always use V2 engine for score computation
@@ -737,6 +740,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         ],
         remediationCommit: findings.some(f => f.status === "RESOLVED") ? (project.commit || "verified on-chain") : undefined,
       },
+      // Enterprise Standards
+      economicAttackVectors: (economicAttackVectors as PortfolioProject["economicAttackVectors"]) || undefined,
+      reviewRecord: (reviewRecord as PortfolioProject["reviewRecord"]) || undefined,
     }
 
     // ── Step 3: Compute SHA-256 report integrity before saving ──
@@ -861,6 +867,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       if (data.testingMethodology) setTestingMethodology(data.testingMethodology)
       if (data.aiEngagement) setAiEngagement(data.aiEngagement)
       if (data.aiScopeTable) setAiScopeTable(data.aiScopeTable)
+      // Enterprise Standards
+      if (data.economicAttackVectors) setEconomicAttackVectors(data.economicAttackVectors)
+      if (data.reviewRecord) setReviewRecord(data.reviewRecord)
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error"
       setAiError(`Network error: ${msg}. Check your connection and try again.`)
@@ -1009,6 +1018,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       ],
       disclaimer: "DISCLAIMER: Report provided as-is. Solay39 makes no warranties regarding completeness or accuracy.",
     },
+    // Enterprise Standards
+    economicAttackVectors: (economicAttackVectors as PortfolioProject["economicAttackVectors"]) || undefined,
+    reviewRecord: (reviewRecord as PortfolioProject["reviewRecord"]) || undefined,
   })}
                   className="w-full"
                 >

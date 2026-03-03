@@ -3071,7 +3071,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                           v.severity === "Medium" ? "bg-yellow-500/15 text-yellow-400 border border-yellow-500/30" :
                                                     "bg-slate-500/15 text-slate-400 border border-slate-500/30"
                         }`}>{v.severity.toUpperCase()}</span>
-                        <span className="text-xs font-medium text-s39-text font-mono">{v.title}</span>
+                        <span className="text-xs font-medium text-s39-lite font-mono">{v.title}</span>
                       </div>
                       <p className="text-[10px] text-s39-mid mb-3 leading-relaxed">{v.description}</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] mb-2">

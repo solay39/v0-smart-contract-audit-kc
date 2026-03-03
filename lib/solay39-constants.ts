@@ -309,6 +309,34 @@ export interface PortfolioProject {
   trustModel?: TrustModelEntry[]
   finalAssessment?: FinalAssessment
   methodologySteps?: string[]       // 6-phase methodology steps
+  // ── Enterprise Standards ──
+  reportIntegrity?: {
+    reportId: string
+    sha256: string
+    timestamp: string
+    auditorSignature: string
+    verificationUrl: string
+  }
+  economicAttackVectors?: {
+    type: string
+    title: string
+    applicable: boolean
+    severity: string
+    description: string
+    exploitCondition: string
+    estimatedLoss: string
+    mitigation: string
+    pocSketch: string
+  }[]
+  reviewRecord?: {
+    leadAuditor: { name: string; role: string; credentials: string; signedOff: boolean; signOffDate?: string }
+    secondReviewer?: { name: string; role: string; credentials: string; signedOff: boolean; signOffDate?: string }
+    qaApprover?: { name: string; role: string; credentials: string; signedOff: boolean; signOffDate?: string }
+    reviewStatus: string
+    conflictsFound: string[]
+    consensusReached: boolean
+  }
+  contractMeta?: Record<string, unknown>
 }
 
 // Keep backward compat alias
