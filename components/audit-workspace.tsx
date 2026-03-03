@@ -91,12 +91,24 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
 
   const allChecks = Object.values(checks).flatMap((c) => Object.values(c))
   // SINGLE SOURCE OF TRUTH: always use V2 engine for score computation
+  // Derive governance parameters from contract metadata
+  const hasCriticalAdmin = contractMeta?.hasMint || contractMeta?.hasPausable || contractMeta?.hasBlacklist
+  const adminPower = !contractMeta?.hasOwner ? "none" as const
+    : (hasCriticalAdmin ? "critical" as const : "limited" as const)
+  const trustModel = contractMeta?.ownerRenounced ? "trustless" as const
+    : (contractMeta?.hasOwner ? "single-admin" as const : "trustless" as const)
+
   const v2Result = computeScoreV2({
     findings,
     mintability: contractMeta?.hasMint
       ? (contractMeta?.mintGuarded ? "controlled" : "unrestricted")
       : "disabled",
     ownershipType: contractMeta?.ownerRenounced ? "renounced" : contractMeta?.hasOwner ? "eoa" : "renounced",
+    adminPower,
+    trustModel,
+    // Only penalize timelock/multisig if we know there's an active admin
+    timelockHours: contractMeta?.hasOwner && !contractMeta?.ownerRenounced ? 0 : undefined,
+    multisigSigners: contractMeta?.hasOwner && !contractMeta?.ownerRenounced ? 1 : undefined,
   })
   const score = v2Result.final
   const done = allChecks.filter(Boolean).length

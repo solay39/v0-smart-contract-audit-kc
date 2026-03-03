@@ -975,7 +975,7 @@ function approve(address spender, uint256 value) public returns (bool) {
       },
       {
         title: "Fixed Supply (Constructor-Only Mint)", severity: "INFO", status: "OPEN",
-        location: "constructor() — _mint(msg.sender, 8888888888 * 10**18) (Lines 28-30)",
+        location: "constructor() �� _mint(msg.sender, 8888888888 * 10**18) (Lines 28-30)",
         description: "Total supply of 8,888,888,888 CHZ minted to deployer in constructor. grep for 'function mint' and 'function _mint' outside constructor returns 0 public/external matches.",
         impact: "Supply is immutable. No inflation risk. Verified on-chain: totalSupply() = 8888888888000000000000000000.",
         recommendation: "No action needed. Secure fixed-supply pattern.",
@@ -1209,22 +1209,25 @@ function calcArchitecture(input: ScoringInput): number {
 
 function calcGovernance(input: ScoringInput): number {
   let score = 100
-  const adminPenalty = { none: 0, limited: -5, critical: -15 }
+  const adminPenalty = { none: 0, limited: -3, critical: -10 }
   score += adminPenalty[input.adminPower || "none"] || 0
-  // Timelock
+  // Timelock — only penalize if admin is active and we confirmed no timelock
   const h = input.timelockHours
-  if (h === undefined || h === null) score -= 0 // no admin = no timelock needed
+  if (h === undefined || h === null) score -= 0 // unknown or no admin = no penalty
   else if (h >= 48) score -= 0
-  else if (h >= 24) score -= 3
-  else if (h > 0) score -= 7
-  else score -= 12
-  // Multisig
+  else if (h >= 24) score -= 2
+  else if (h > 0) score -= 5
+  else score -= 8 // no timelock confirmed
+  // Multisig — only penalize if admin is active
   const s = input.multisigSigners
   if (s === undefined || s === null) score -= 0
   else if (s >= 5) score -= 0
-  else if (s >= 3) score -= 4
-  else if (s >= 2) score -= 10
-  else score -= 15 // EOA
+  else if (s >= 3) score -= 3
+  else if (s >= 2) score -= 6
+  else score -= 10 // EOA single signer
+  // Centralized minting authority — governance risk proportional to control
+  const mintGovPenalty = { disabled: 0, controlled: -6, unrestricted: -15 }
+  score += mintGovPenalty[input.mintability || "disabled"] || 0
   return Math.max(0, Math.min(100, score))
 }
 

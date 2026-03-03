@@ -126,14 +126,26 @@ function extractContractMeta(code: string, network: string): ContractMeta {
 
   const hasSafeMath = /library\s+SafeMath|SafeMath\s+for\s+uint|using\s+SafeMath|\.add\(|\.sub\(|\.mul\(|\.div\(/.test(code)
 
+  // Detect if mint capability exists outside the constructor
+  // Key signals that mint is NOT constructor-only:
+  // 1. MinterRole / isMinter / addMinter / changeMinter / onlyMinter — role-based mint system
+  // 2. Public/external function with "mint" in its name
+  // 3. Mint function callable by a role or owner
+  const hasMintRoleSystem = /MinterRole|isMinter|addMinter|changeMinter|removeMinter|onlyMinter|MINTER_ROLE/.test(code)
+
   const hasConstructorOnlyMint = (() => {
     if (!/_mint|mint/.test(code)) return false
-    const mintOutsideConstructor = code
-      .replace(/constructor\s*\([^)]*\)[^{]*\{[^}]*\}/gs, "")
-      .replace(/function\s+\w+\s*\([^)]*\)[^{]*\{[^}]*_mint[^}]*\}/gs, "")
-    const hasPublicMint = /function\s+\w*[Mm]int\s*\([^)]*\)\s*(public|external)/.test(mintOutsideConstructor)
-    const hasInternalMintCall = /function\s+\w*[Mm]int\s*\(/.test(mintOutsideConstructor)
-    return !hasPublicMint && (!hasInternalMintCall || /function\s+_mint\s*\(.*internal/.test(code))
+    // If there's a role-based mint system, it's definitely not constructor-only
+    if (hasMintRoleSystem) return false
+    // Check for public/external mint functions in the full code
+    const hasPublicMint = /function\s+\w*[Mm]int\s*\([^)]*\)\s*(public|external)/.test(code)
+    if (hasPublicMint) return false
+    // Strip constructor and check if _mint is called elsewhere
+    const withoutConstructor = code.replace(/constructor\s*\([^)]*\)[^{]*\{[^}]*\}/gs, "")
+    // If _mint appears only inside internal function definitions and nowhere else callable, it's constructor-only
+    const hasCallableMint = /function\s+\w*[Mm]int\s*\(/.test(withoutConstructor)
+      && !/function\s+_mint\s*\(.*internal/.test(withoutConstructor)
+    return !hasCallableMint
   })()
 
   const hasMintOutsideConstructor = /_mint|mint/.test(code) && !hasConstructorOnlyMint
@@ -154,7 +166,7 @@ function extractContractMeta(code: string, network: string): ContractMeta {
   const hasExternalCalls = /\.call\{value|\.call\(|\.transfer\(|\.send\(/.test(code)
   const mintGuarded = hasMintOutsideConstructor && (hasOZAccessControl || /onlyOwner|onlyMinter|onlyRole|require\s*\(.*msg\.sender/.test(code))
 
-  const pragmaMatch = code.match(/pragma solidity\s+[\^~]?(0\.(\d+)\.?\d*)/)
+  const pragmaMatch = code.match(/pragma solidity\s+[\^~>=<]*\s*(0\.\d+\.\d+)/)
   const solidityVersion = pragmaMatch ? pragmaMatch[1] : "unknown"
 
   let contractType: ContractMeta["contractType"] = "generic"
