@@ -205,11 +205,11 @@ export async function computeReportHash(reportJson: string): Promise<string> {
 
 export function buildReportIntegrity(auditId: string, sha256: string): ReportIntegrity {
   return {
-    reportId: `solay39-audit-${auditId}`,
+    reportId: "solay39-audit-" + auditId,
     sha256,
     timestamp: new Date().toISOString(),
-    auditorSignature: "Solay39 Founder — cryptographically bound to report content",
-    verificationUrl: `https://www.solay39.eu/verify/${auditId}`,
+    auditorSignature: "Solay39 Founder \u2014 cryptographically bound to report content",
+    verificationUrl: "https://www.solay39.eu/verify/" + auditId,
   }
 }
 
@@ -241,10 +241,11 @@ export function analyzeEconomicAttacks(
     hasPausable?: boolean
     hasBlacklist?: boolean
     contractType?: string
+    isDeFiByTags?: boolean
   }
 ): EconomicAttackVector[] {
   const src = sourceCode.toLowerCase()
-  const isDeFi = (
+  const isDeFi = !!meta.isDeFiByTags || (
     /function\s+swap|function\s+addLiquidity|function\s+removeLiquidity/i.test(src) ||
     /function\s+deposit|function\s+withdraw|function\s+borrow/i.test(src) ||
     /IUniswap|IPancakeRouter|IPool|IVault/i.test(src)
@@ -255,7 +256,7 @@ export function analyzeEconomicAttacks(
     /function\s+queue\s*\(|function\s+execute\s*\(|TimelockController/i.test(src) ||
     (/governance|IGovernor|GovernorBravo/i.test(src) && /function\s+\w+\s*\(/i.test(src))
   )
-  const hasLiq = (
+  const hasLiq = isDeFi || (
     /function\s+addLiquidity|function\s+removeLiquidity/i.test(src) ||
     /IUniswapV[23]Pair|IPancakePair/i.test(src)
   )
@@ -276,15 +277,17 @@ export function analyzeEconomicAttacks(
       mitigation: isDeFi
         ? "Use TWAP oracles (Uniswap v3 TWAP, Chainlink), add reentrancy guards, validate price bounds"
         : "No action required",
-      pocSketch: isDeFi ? `// Foundry PoC — Flash Loan Attack
-contract FlashLoanAttack {
-  function attack() external {
-    // 1. Borrow tokens via Aave flash loan
-    // 2. Manipulate pool price via large swap
-    // 3. Call vulnerable function at manipulated price
-    // 4. Repay flash loan + extract profit
-  }
-}` : "N/A — not applicable",
+      pocSketch: isDeFi ? [
+        "// Foundry PoC \u2014 Flash Loan Attack",
+        "contract FlashLoanAttack {",
+        "  function attack() external {",
+        "    // 1. Borrow tokens via Aave flash loan",
+        "    // 2. Manipulate pool price via large swap",
+        "    // 3. Call vulnerable function at manipulated price",
+        "    // 4. Repay flash loan + extract profit",
+        "  }",
+        "}",
+      ].join("\n") : "N/A \u2014 not applicable",
     },
     {
       type: "oracle-manipulation",
@@ -301,10 +304,12 @@ contract FlashLoanAttack {
       mitigation: hasOracle
         ? "Implement Chainlink with staleness check: require(updatedAt > block.timestamp - 3600). Use TWAP for DEX pricing."
         : "No action required",
-      pocSketch: hasOracle ? `// Oracle staleness bypass
-// If: (, int price,,,) = oracle.latestRoundData();
-// Without checking updatedAt → stale price accepted
-// Attack during oracle downtime period` : "N/A",
+      pocSketch: hasOracle ? [
+        "// Oracle staleness bypass",
+        "// If: (, int price,,,) = oracle.latestRoundData();",
+        "// Without checking updatedAt \u2192 stale price accepted",
+        "// Attack during oracle downtime period",
+      ].join("\n") : "N/A",
     },
     {
       type: "mev-sandwich",
@@ -317,11 +322,13 @@ contract FlashLoanAttack {
       exploitCondition: "Mempool visibility + no slippage protection + no deadline parameter",
       estimatedLoss: "0.1% - 5% per transaction depending on liquidity depth",
       mitigation: "Enforce slippage tolerance (amountOutMin), add deadline parameter, use Flashbots Protect",
-      pocSketch: hasLiq ? `// MEV Sandwich
-// 1. Detect victim swap in public mempool
-// 2. Front-run: buy token, push price up
-// 3. Victim executes at worse price
-// 4. Back-run: sell at inflated price` : "N/A",
+      pocSketch: hasLiq ? [
+        "// MEV Sandwich",
+        "// 1. Detect victim swap in public mempool",
+        "// 2. Front-run: buy token, push price up",
+        "// 3. Victim executes at worse price",
+        "// 4. Back-run: sell at inflated price",
+      ].join("\n") : "N/A",
     },
     {
       type: "governance-takeover",
@@ -338,11 +345,13 @@ contract FlashLoanAttack {
       mitigation: hasGov
         ? "Use vote-escrowed tokens (veToken), implement 48h+ timelock, require quorum > flash loan capacity"
         : "No action required",
-      pocSketch: hasGov ? `// Governance takeover
-// 1. Flash loan governance tokens
-// 2. Create + self-vote malicious proposal
-// 3. No timelock → execute immediately
-// 4. Drain treasury / alter critical params` : "N/A",
+      pocSketch: hasGov ? [
+        "// Governance takeover",
+        "// 1. Flash loan governance tokens",
+        "// 2. Create + self-vote malicious proposal",
+        "// 3. No timelock \u2192 execute immediately",
+        "// 4. Drain treasury / alter critical params",
+      ].join("\n") : "N/A",
     },
     {
       type: "liquidity-drain",
@@ -355,11 +364,13 @@ contract FlashLoanAttack {
       exploitCondition: "Compromised minter key + active DEX liquidity pool",
       estimatedLoss: "Up to 100% of pool liquidity",
       mitigation: "Supply cap, multisig for minter role, timelock on mint operations",
-      pocSketch: meta.hasMint ? `// Liquidity drain via compromised mint
-// 1. Attacker compromises minter key
-// 2. mint(attacker, MAX_UINT256)
-// 3. Swap minted tokens into DEX pool
-// 4. Extract paired asset (ETH/USDC)` : "N/A",
+      pocSketch: meta.hasMint ? [
+        "// Liquidity drain via compromised mint",
+        "// 1. Attacker compromises minter key",
+        "// 2. mint(attacker, MAX_UINT256)",
+        "// 3. Swap minted tokens into DEX pool",
+        "// 4. Extract paired asset (ETH/USDC)",
+      ].join("\n") : "N/A",
     },
   ]
 }

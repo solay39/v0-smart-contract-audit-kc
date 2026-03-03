@@ -823,7 +823,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       const res = await fetch("/api/skynet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: aiCode, network: project.network || "Ethereum", contractAddress: project.commit?.trim() || "" }),
+        body: JSON.stringify({ code: aiCode, network: project.network || "Ethereum", contractAddress: project.commit?.trim() || "", tags: project.tags || [] }),
       })
       const data = await res.json().catch(() => null)
       if (!data) {

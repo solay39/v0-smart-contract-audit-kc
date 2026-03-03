@@ -768,7 +768,11 @@ Be thorough but PRECISE. Quality over quantity. A report with 2 real findings is
 
 export async function POST(req: Request) {
   try {
-    const { code, network, contractAddress: rawAddr } = await req.json()
+    const { code, network, contractAddress: rawAddr, tags: clientTags } = await req.json()
+    const projectTags: string[] = Array.isArray(clientTags) ? clientTags : []
+    const isDeFiByTags = projectTags.some((c: string) =>
+      /dex|defi|swap|perpetual|yield|lending|amm|liquidity|staking/i.test(c)
+    )
     const chainNetwork: string = network || "Ethereum"
     const contractAddr: string = rawAddr && typeof rawAddr === "string" && rawAddr.startsWith("0x") && rawAddr.length >= 10
       ? rawAddr
@@ -1065,14 +1069,15 @@ export async function POST(req: Request) {
       }))
   
       // ── ENTERPRISE: Economic Attack Analysis ──
-      const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
-        hasProxy:         meta.hasProxy,
-        hasMint:          meta.hasMintOutsideConstructor,
-        hasExternalCalls: meta.hasExternalCalls,
-        contractType:     meta.contractType,
-        hasPausable:      meta.hasPausable,
-        hasBlacklist:     meta.hasBlacklist,
-      })
+const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
+  hasProxy:         meta.hasProxy,
+  hasMint:          meta.hasMintOutsideConstructor,
+  hasExternalCalls: meta.hasExternalCalls,
+  contractType:     meta.contractType,
+  hasPausable:      meta.hasPausable,
+  hasBlacklist:     meta.hasBlacklist,
+  isDeFiByTags,
+  })
 
       // ── ENTERPRISE: Review Record ──
       const reviewRecord = buildDefaultReviewRecord("Solay39 Founder")
@@ -1275,14 +1280,15 @@ export async function POST(req: Request) {
         remediationExample: generateRemediationExample(f.title, f.severity),
       }))
   
-      const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
-        hasProxy:         meta.hasProxy,
-        hasMint:          meta.hasMintOutsideConstructor,
-        hasExternalCalls: meta.hasExternalCalls,
-        contractType:     meta.contractType,
-        hasPausable:      meta.hasPausable,
-        hasBlacklist:     meta.hasBlacklist,
-      })
+const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
+  hasProxy:         meta.hasProxy,
+  hasMint:          meta.hasMintOutsideConstructor,
+  hasExternalCalls: meta.hasExternalCalls,
+  contractType:     meta.contractType,
+  hasPausable:      meta.hasPausable,
+  hasBlacklist:     meta.hasBlacklist,
+  isDeFiByTags,
+  })
 
       const fCount = {
         critical: findings.filter(f => f.severity === "CRITICAL").length,
