@@ -385,14 +385,18 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
   // Client Display Mode: hides internal scoring details, shows clean public view
   const [clientMode, setClientMode] = useState(false)
 
+  // Single source of truth for Economic and Operations scores
+  const economicScore = bd ? (bd.economic ?? Math.round((bd.codeSecurity + bd.centralization) / 2)) : computedScore
+  const operationsScore = bd ? (bd.testingCoverage ?? computedScore) : computedScore
+
   // Radar chart data (6 categories)
   const radarData = bd ? [
     { label: "Code Security", value: bd.codeSecurity, color: "#00ff88" },
     { label: "Architecture", value: bd.architectureRisk, color: "#00e5ff" },
     { label: "Governance", value: bd.governanceRisk, color: "#4488ff" },
     { label: "On-Chain", value: bd.centralization, color: "#ffd600" },
-    { label: "Economic", value: Math.round((bd.codeSecurity + bd.centralization) / 2), color: "#ff6b00" },
-    { label: "Operations", value: bd.testingCoverage, color: "#aa44ff" },
+    { label: "Economic", value: economicScore, color: "#ff6b00" },
+    { label: "Operations", value: operationsScore, color: "#aa44ff" },
   ] : []
 
   return (
@@ -449,16 +453,20 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                   onClick={() => setClientMode(!clientMode)}
                   className="flex items-center gap-1.5 text-[8px] bg-transparent border px-2.5 py-1 tracking-wider cursor-pointer transition-colors font-mono"
                   style={{
-                    color: clientMode ? "#00ff88" : "#7a8c9e",
-                    borderColor: clientMode ? "#00ff8833" : "#334455",
-                    background: clientMode ? "#00ff8808" : "transparent",
+                    color: clientMode ? "#00e5ff" : "#00ff88",
+                    borderColor: clientMode ? "#00e5ff33" : "#00ff8833",
+                    background: clientMode ? "#00e5ff08" : "#00ff8808",
                   }}
+                  title={clientMode ? "Switch to full technical audit view" : "Switch to executive summary view"}
                 >
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                    <rect x="1" y="2" width="8" height="6" rx="1" stroke="currentColor" strokeWidth="1" />
-                    <circle cx="5" cy="5" r="1.5" fill="currentColor" />
+                    {clientMode ? (
+                      <>{/* Expand icon */}<path d="M2 5h6M5 2v6" stroke="currentColor" strokeWidth="1" strokeLinecap="round" /></>
+                    ) : (
+                      <>{/* Collapse icon */}<rect x="1" y="2" width="8" height="6" rx="1" stroke="currentColor" strokeWidth="1" /><path d="M3 5h4" stroke="currentColor" strokeWidth="1" strokeLinecap="round" /></>
+                    )}
                   </svg>
-                  {clientMode ? "CLIENT VIEW" : "DETAILED VIEW"}
+                  {clientMode ? "SHOW FULL REPORT" : "EXECUTIVE SUMMARY"}
                 </button>
                 {/* Share Button */}
                 <ShareButton auditId={p.id} name={p.name} />
@@ -547,12 +555,12 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {([
-                  ["Code Security", p.scoreBreakdown.codeSecurity, "#00ff88", "35%"],
-                  ["Architecture", p.scoreBreakdown.architectureRisk, "#00e5ff", "20%"],
-                  ["Governance", p.scoreBreakdown.governanceRisk, "#4488ff", "15%"],
-                  ["On-Chain", p.scoreBreakdown.centralization, "#ffd600", "10%"],
-                  ["Economic", p.scoreBreakdown.economic ?? Math.round((p.scoreBreakdown.codeSecurity + p.scoreBreakdown.centralization) / 2), "#ff6b00", "10%"],
-                  ["Operations", p.scoreBreakdown.testingCoverage, "#aa44ff", "10%"],
+  ["Code Security", p.scoreBreakdown.codeSecurity, "#00ff88", "35%"],
+  ["Architecture", p.scoreBreakdown.architectureRisk, "#00e5ff", "20%"],
+  ["Governance", p.scoreBreakdown.governanceRisk, "#4488ff", "15%"],
+  ["On-Chain", p.scoreBreakdown.centralization, "#ffd600", "10%"],
+  ["Economic", economicScore, "#ff6b00", "10%"],
+  ["Operations", operationsScore, "#aa44ff", "10%"],
                 ] as [string, number, string, string][]).map(([label, val, color, weight]) => (
                   <div key={label} className="bg-s39-bg2 border border-s39-border p-3">
                     <div className="flex justify-between items-center mb-1">
@@ -2745,12 +2753,12 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                   // SINGLE SOURCE OF TRUTH: read from p.scoreBreakdown (same data as header)
                   const sb = p.scoreBreakdown
                   const cats = [
-                    { name: "Code Security", weight: 0.35, color: "#00ff88", score: sb?.codeSecurity ?? p.score },
-                    { name: "Architecture", weight: 0.20, color: "#00e5ff", score: sb?.architectureRisk ?? p.score },
-                    { name: "Governance", weight: 0.15, color: "#4488ff", score: sb?.governanceRisk ?? p.score },
-                    { name: "On-Chain Verification", weight: 0.10, color: "#ffd600", score: sb?.centralization ?? p.score },
-                    { name: "Economic Model", weight: 0.10, color: "#ff6b00", score: sb?.economic ?? (sb ? Math.round((sb.codeSecurity + sb.centralization) / 2) : p.score) },
-                    { name: "Operational Security", weight: 0.10, color: "#aa44ff", score: sb?.testingCoverage ?? p.score },
+  { name: "Code Security", weight: 0.35, color: "#00ff88", score: sb?.codeSecurity ?? computedScore },
+  { name: "Architecture", weight: 0.20, color: "#00e5ff", score: sb?.architectureRisk ?? computedScore },
+  { name: "Governance", weight: 0.15, color: "#4488ff", score: sb?.governanceRisk ?? computedScore },
+  { name: "On-Chain Verification", weight: 0.10, color: "#ffd600", score: sb?.centralization ?? computedScore },
+  { name: "Economic Model", weight: 0.10, color: "#ff6b00", score: economicScore },
+  { name: "Operational Security", weight: 0.10, color: "#aa44ff", score: operationsScore },
                   ]
                   return cats.map((cat, i) => {
                     const catScore = cat.score

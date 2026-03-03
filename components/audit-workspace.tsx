@@ -159,9 +159,10 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     // ── TIER-1 SANITY CHECK: Pre-publish consistency validation ──
     const sanityErrors: string[] = []
     // 1. Engineering hours coherence
-    const pubDays = (aiEngagement?.auditDurationDays as number) || 3
-    const pubEngineers = 1
-    const pubHours = pubDays * pubEngineers * 10
+  const loc = (aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 200
+  const pubDays = (aiEngagement?.auditDurationDays as number) || (loc > 1000 ? 5 : loc > 500 ? 4 : loc > 200 ? 3 : 2)
+  const pubEngineers = 1
+  const pubHours = pubDays * pubEngineers * 8
     if (pubHours > pubDays * 12 * pubEngineers) {
       sanityErrors.push(`Hours (${pubHours}) exceed max ${pubDays * 12 * pubEngineers}h for ${pubDays} days / ${pubEngineers} engineers`)
     }
@@ -525,10 +526,22 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       engagement: {
         auditDate: project.date || new Date().toISOString().slice(0, 10),
         deliveryDate: new Date().toISOString().slice(0, 10),
-        auditDurationDays: (aiEngagement?.auditDurationDays as number) || 1,
-        numberOfAuditors: 1,
-        engineeringHours: ((aiEngagement?.auditDurationDays as number) || 3) * 1 * 10,
-        securityEngineersInvolved: 1,
+  auditDurationDays: (() => {
+    const aiDays = (aiEngagement?.auditDurationDays as number)
+    if (aiDays && aiDays > 1) return aiDays
+    // Derive realistic duration from LoC: <200 = 2d, 200-500 = 3d, 500-1000 = 4d, 1000+ = 5d
+    const loc = (aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 200
+    return loc > 1000 ? 5 : loc > 500 ? 4 : loc > 200 ? 3 : 2
+  })(),
+  numberOfAuditors: 1,
+  engineeringHours: (() => {
+    const loc = (aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 200
+    const days = loc > 1000 ? 5 : loc > 500 ? 4 : loc > 200 ? 3 : 2
+    const aiDays = (aiEngagement?.auditDurationDays as number)
+    const actualDays = (aiDays && aiDays > 1) ? aiDays : days
+    return actualDays * 1 * 8 // 8 hours per day per engineer
+  })(),
+  securityEngineersInvolved: 1,
         leadAuditor: "Solay39 Founder",
         compilerVersionUsed: (aiEngagement?.compilerVersionUsed as string) || contractMeta?.codeLanguage || contractMeta?.solidityVersion || "N/A",
         contractsReviewed: 1,
@@ -601,11 +614,20 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         totalLOC: (aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 0,
         totalContracts: (aiScopeTable?.length) || 1,
         functionsReviewed: Math.round(((aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 200) / 8),
-        externalDependencies: [
-          ...(contractMeta?.usesOZ ? ["OpenZeppelin Contracts v4.x"] : []),
-          ...(contractMeta?.hasProxy ? ["Proxy pattern (EIP-1967)"] : []),
-          ...(contractMeta?.usesSafemath ? ["SafeMath library"] : []),
-        ],
+  externalDependencies: [
+  ...(contractMeta?.usesOZ ? [(() => {
+    // Derive compatible OZ version from Solidity version
+    const sv = contractMeta?.solidityVersion || ""
+    const minor = parseInt(sv.split(".")[1] || "8", 10)
+    const patch = parseInt(sv.split(".")[2] || "0", 10)
+    if (minor < 6) return "OpenZeppelin Contracts v2.x"
+    if (minor < 8) return "OpenZeppelin Contracts v3.x"
+    if (minor === 8 && patch >= 20) return "OpenZeppelin Contracts v5.x"
+    return "OpenZeppelin Contracts v4.x"
+  })()] : []),
+  ...(contractMeta?.hasProxy ? ["Proxy pattern (EIP-1967)"] : []),
+  ...(contractMeta?.usesSafemath ? ["SafeMath library"] : []),
+  ],
         upgradeabilityPattern: contractMeta?.hasProxy ? "TransparentProxy" : "none",
         standardUsed: contractMeta?.usesOZ ? "OpenZeppelin" : "Custom Implementation",
         compilerVersion: contractMeta?.solidityVersion ? `solc ${contractMeta.solidityVersion}` : contractMeta?.codeLanguage || "N/A",
@@ -852,10 +874,21 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     engagement: aiEngagement ? {
       auditDate: project.date || new Date().toISOString().slice(0, 10),
       deliveryDate: new Date().toISOString().slice(0, 10),
-      auditDurationDays: (aiEngagement.auditDurationDays as number) || 3,
-      numberOfAuditors: 1,
-      engineeringHours: ((aiEngagement.auditDurationDays as number) || 3) * 1 * 10,
-      securityEngineersInvolved: 1,
+  auditDurationDays: (() => {
+    const aiDays = (aiEngagement.auditDurationDays as number)
+    if (aiDays && aiDays > 1) return aiDays
+    const loc = (aiEngagement.linesOfCode as number) || contractMeta?.linesOfCode || 200
+    return loc > 1000 ? 5 : loc > 500 ? 4 : loc > 200 ? 3 : 2
+  })(),
+  numberOfAuditors: 1,
+  engineeringHours: (() => {
+    const loc = (aiEngagement.linesOfCode as number) || contractMeta?.linesOfCode || 200
+    const days = loc > 1000 ? 5 : loc > 500 ? 4 : loc > 200 ? 3 : 2
+    const aiDays = (aiEngagement.auditDurationDays as number)
+    const actualDays = (aiDays && aiDays > 1) ? aiDays : days
+    return actualDays * 1 * 8
+  })(),
+  securityEngineersInvolved: 1,
       leadAuditor: "Solay39 Founder",
       compilerVersionUsed: (aiEngagement.compilerVersionUsed as string) || "N/A",
       contractsReviewed: 1,
@@ -907,8 +940,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
                 <div className="w-full bg-s39-bg2 border border-s39-border p-3 mb-1">
                   <div className="text-[8px] text-s39-cyan tracking-[0.15em] mb-2">AUDIT CONSISTENCY CHECK</div>
                   {(() => {
-                    const days = (aiEngagement?.auditDurationDays as number) || 3
-                    const hrs = days * 1 * 10
+  const ccLoc = (aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 200
+  const days = (aiEngagement?.auditDurationDays as number) || (ccLoc > 1000 ? 5 : ccLoc > 500 ? 4 : ccLoc > 200 ? 3 : 2)
+  const hrs = days * 1 * 8
                     const checks = [
                       { label: "Score in valid range (0-100)", ok: score >= 0 && score <= 100 },
                       { label: `Hours coherent: ${hrs}h for ${days}d / 1 eng`, ok: hrs <= days * 12 },
@@ -1269,16 +1303,17 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
                 No findings added. That&apos;s a good sign.
               </div>
             ) : (
-              findings.map((f, i) => {
+              (() => {
+                // Pre-compute per-severity counters for proper finding IDs (H-01, M-01, M-02, L-01)
+                const sevCounters: Record<string, number> = {}
+                const findingIds = findings.map(f => {
+                  const prefix = ({ CRITICAL: "C", HIGH: "H", MEDIUM: "M", LOW: "L", INFO: "I" } as Record<string, string>)[f.severity] || "F"
+                  sevCounters[prefix] = (sevCounters[prefix] || 0) + 1
+                  return `${prefix}-${String(sevCounters[prefix]).padStart(2, "0")}`
+                })
+                return findings.map((f, i) => {
                 const s = SEV_CONFIG[f.severity] || SEV_CONFIG.INFO
-                const sevAbbr: Record<string, string> = {
-                  CRITICAL: "C",
-                  HIGH: "H",
-                  MEDIUM: "M",
-                  LOW: "L",
-                  INFO: "I",
-                }
-                const fnum = `${sevAbbr[f.severity] || "F"}-${String(i + 1).padStart(2, "0")}`
+                const fnum = findingIds[i]
                 return (
                   <div
                     key={f.id}
@@ -1351,6 +1386,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
                   </div>
                 )
               })
+              })()
             )}
           </div>
         )}

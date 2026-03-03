@@ -310,12 +310,14 @@ export type DemoProject = PortfolioProject
 export function getWeightedScore(p: PortfolioProject): number {
   const sb = p.scoreBreakdown
   if (!sb) return p.score
+  // Derive Economic from code + on-chain average if not explicitly set
+  const economic = sb.economic ?? Math.round((sb.codeSecurity + sb.centralization) / 2)
   return Math.round(
     (sb.codeSecurity ?? p.score) * 0.35 +
     (sb.architectureRisk ?? p.score) * 0.20 +
     (sb.governanceRisk ?? p.score) * 0.15 +
     (sb.centralization ?? p.score) * 0.10 +
-    (sb.economic ?? p.score) * 0.10 +
+    economic * 0.10 +
     (sb.testingCoverage ?? p.score) * 0.10
   )
 }
@@ -975,7 +977,7 @@ function approve(address spender, uint256 value) public returns (bool) {
       },
       {
         title: "Fixed Supply (Constructor-Only Mint)", severity: "INFO", status: "OPEN",
-        location: "constructor() �� _mint(msg.sender, 8888888888 * 10**18) (Lines 28-30)",
+        location: "constructor() ��� _mint(msg.sender, 8888888888 * 10**18) (Lines 28-30)",
         description: "Total supply of 8,888,888,888 CHZ minted to deployer in constructor. grep for 'function mint' and 'function _mint' outside constructor returns 0 public/external matches.",
         impact: "Supply is immutable. No inflation risk. Verified on-chain: totalSupply() = 8888888888000000000000000000.",
         recommendation: "No action needed. Secure fixed-supply pattern.",
