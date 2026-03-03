@@ -1541,13 +1541,16 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                       </div>
                       <div className="bg-s39-bg1 border border-s39-border px-3 py-2 text-center">
                         <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">SUPPLY</div>
-                        <div className={`text-[9px] font-bold ${
-                          p.onChainValidation?.some(v => v.label.toLowerCase().includes('mint') && v.status === 'pass')
-                            ? 'text-s39-green' : 'text-s39-yellow'
-                        }`}>
-                          {p.onChainValidation?.some(v => v.label.toLowerCase().includes('mint') && v.status === 'pass')
-                            ? 'FIXED' : 'MINTABLE'}
-                        </div>
+                        {(() => {
+                          const isMintable = p.contractMeta?.hasMintOutsideConstructor || p.contractMeta?.hasMint
+                          const isFixed = !isMintable && (p.contractMeta?.hasConstructorOnlyMint ||
+                            !p.onChainValidation?.some(v => v.label.toLowerCase().includes('mint') && v.status === 'pass'))
+                          return (
+                            <div className={`text-[9px] font-bold ${isFixed ? 'text-s39-green' : 'text-s39-yellow'}`}>
+                              {isFixed ? 'FIXED' : 'MINTABLE'}
+                            </div>
+                          )
+                        })()}
                       </div>
                       <div className="bg-s39-bg1 border border-s39-border px-3 py-2 text-center">
                         <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">PROXY</div>

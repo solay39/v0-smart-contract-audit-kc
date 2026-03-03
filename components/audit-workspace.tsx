@@ -18,6 +18,7 @@ import { ScoreRing, S39Input, S39Btn, SevBadge } from "@/components/solay39-ui"
 import { exportPDF } from "@/lib/export-pdf"
 import { savePublishedAudit } from "@/components/skynet-public"
 import Solay39Validator from "@/components/solay39-validator"
+import { useAuditValidator, ValidationPanel } from "@/components/validation-panel"
 
 // ════════════════════════════════════════════════════════════════
 // AUDIT WORKSPACE — Founder Only
@@ -137,9 +138,78 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const updStatus = (id: number, s: FindingStatus) =>
     setFindings((p) => p.map((f) => (f.id === id ? { ...f, status: s } : f)))
 
+  // ── Validation ──
+  const { validate, result: validationResult, isValidating, reset: resetValidation } = useAuditValidator()
+
   // ── Publish to Portfolio + GitHub ──
   const [publishing, setPublishing] = useState(false)
   const [publishResult, setPublishResult] = useState<{ success?: boolean; githubUrl?: string; githubError?: string; error?: string } | null>(null)
+
+  const handleValidateAndPublish = async () => {
+    const currentNetwork = project.network || "Ethereum"
+    const contractAddr = project.commit?.trim()
+    const threatModelText = (() => {
+      const parts: string[] = []
+      if (contractMeta?.hasMint && !contractMeta?.mintGuarded) parts.push("Unrestricted mint function present — supply manipulation risk.")
+      else if (contractMeta?.hasMint && contractMeta?.mintGuarded) parts.push("Mint function with role-based access control present.")
+      else parts.push("No mint function present — fixed supply model.")
+      if (contractMeta?.hasPausable) parts.push("Pausable contract — centralization risk.")
+      if (contractMeta?.hasProxy) parts.push("Upgradeable proxy pattern detected.")
+      if (contractMeta?.hasSelfDestruct) parts.push("Self-destruct capability detected.")
+      return parts.join(" ")
+    })()
+
+    const loc = (aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 0
+    const durationDays = (() => {
+      const aiDays = (aiEngagement?.auditDurationDays as number)
+      if (aiDays && aiDays > 1) return aiDays
+      return loc > 1000 ? 5 : loc > 500 ? 4 : loc > 200 ? 3 : 2
+    })()
+    const engHours = (() => {
+      if (loc < 50) return 2
+      if (loc < 200) return Math.round(loc / 15)
+      if (loc < 500) return Math.round(loc / 20)
+      return Math.round(loc / 25)
+    })()
+
+    const validation = await validate(
+      aiCode,
+      {
+        network: currentNetwork,
+        mintFunction: contractMeta?.hasMint ?? null,
+        proxyContract: contractMeta?.hasProxy ?? null,
+        selfDestruct: contractMeta?.hasSelfDestruct ?? null,
+        supplyType: contractMeta?.hasMint
+          ? (contractMeta?.mintGuarded ? "MINTABLE" : "MINTABLE")
+          : (contractMeta?.hasBurn ? "DEFLATIONARY" : "FIXED"),
+        centralizationLevel: contractMeta?.centralizationLevel || "Low",
+        compilerVersion: contractMeta?.solidityVersion ? `solc ${contractMeta.solidityVersion}` : undefined,
+        ozVersion: contractMeta?.usesOZ ? "OpenZeppelin Contracts v4.x" : undefined,
+        threatModelText,
+        auditDateStart: project.date || new Date().toISOString().slice(0, 10),
+        auditDateEnd: new Date().toISOString().slice(0, 10),
+        durationDays,
+        engineeringHours: engHours,
+        numberOfAuditors: 1,
+        linesOfCode: loc,
+        codeSecurityScore: v2Result.codeSecurity,
+        architectureScore: v2Result.architecture,
+        governanceScore: v2Result.governance,
+        onChainScore: v2Result.onChain,
+        economicScore: v2Result.economic,
+        operationsScore: v2Result.operations,
+        finalScore: v2Result.final,
+        findings: findings.map(f => ({ severity: f.severity, status: f.status })),
+      },
+      contractMeta?.solidityVersion,
+    )
+
+    // If validation blocked (CRITICAL/HIGH), show panel and stop
+    if (!validation?.canPublish) return
+
+    // Otherwise proceed with publish
+    await publishAudit()
+  }
 
   const publishAudit = async () => {
     if (!project.name) {
@@ -524,25 +594,22 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         ],
       },
       // Halborn-style -- network-aware, honest metadata
-      engagement: {
-        auditDate: project.date || new Date().toISOString().slice(0, 10),
-        deliveryDate: new Date().toISOString().slice(0, 10),
-  auditDurationDays: (() => {
-    const aiDays = (aiEngagement?.auditDurationDays as number)
-    if (aiDays && aiDays > 1) return aiDays
-    // Derive realistic duration from LoC: <200 = 2d, 200-500 = 3d, 500-1000 = 4d, 1000+ = 5d
-    const loc = (aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 200
-    return loc > 1000 ? 5 : loc > 500 ? 4 : loc > 200 ? 3 : 2
-  })(),
-  numberOfAuditors: 1,
-  engineeringHours: (() => {
-    const loc = (aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 200
-    const days = loc > 1000 ? 5 : loc > 500 ? 4 : loc > 200 ? 3 : 2
-    const aiDays = (aiEngagement?.auditDurationDays as number)
-    const actualDays = (aiDays && aiDays > 1) ? aiDays : days
-    return actualDays * 1 * 8 // 8 hours per day per engineer
-  })(),
-  securityEngineersInvolved: 1,
+      engagement: (() => {
+        const auditDate = project.date || new Date().toISOString().slice(0, 10)
+        const deliveryDate = new Date().toISOString().slice(0, 10)
+        const start = new Date(auditDate)
+        const end = new Date(deliveryDate)
+        const realDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1)
+        const loc = (aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 200
+        const locDays = loc > 1000 ? 5 : loc > 500 ? 4 : loc > 200 ? 3 : 2
+        const finalDays = realDays > 1 ? realDays : locDays
+        return {
+        auditDate,
+        deliveryDate,
+        auditDurationDays: realDays,
+        numberOfAuditors: 1,
+        engineeringHours: finalDays * 1 * 8,
+        securityEngineersInvolved: 1,
         leadAuditor: "Solay39 Founder",
         compilerVersionUsed: (aiEngagement?.compilerVersionUsed as string) || contractMeta?.codeLanguage || contractMeta?.solidityVersion || "N/A",
         contractsReviewed: 1,
@@ -554,7 +621,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
           "Assess centralization and privilege risks",
           "Evaluate standard compliance and edge cases",
         ],
-      },
+      }})(),
       scopeTable: aiScopeTable ? aiScopeTable.map((s) => ({
         contract: String(s.contract || project.name),
         address: contractAddr || "N/A",
@@ -873,31 +940,29 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     integrationRisks: integrationRisks.length > 0 ? integrationRisks : undefined,
     invariantsChecked: invariantsChecked.length > 0 ? invariantsChecked : undefined,
     testingMethodology: testingMethodology || undefined,
-    engagement: aiEngagement ? {
-      auditDate: project.date || new Date().toISOString().slice(0, 10),
-      deliveryDate: new Date().toISOString().slice(0, 10),
-  auditDurationDays: (() => {
-    const aiDays = (aiEngagement.auditDurationDays as number)
-    if (aiDays && aiDays > 1) return aiDays
-    const loc = (aiEngagement.linesOfCode as number) || contractMeta?.linesOfCode || 200
-    return loc > 1000 ? 5 : loc > 500 ? 4 : loc > 200 ? 3 : 2
-  })(),
-  numberOfAuditors: 1,
-  engineeringHours: (() => {
-    const loc = (aiEngagement.linesOfCode as number) || contractMeta?.linesOfCode || 200
-    const days = loc > 1000 ? 5 : loc > 500 ? 4 : loc > 200 ? 3 : 2
-    const aiDays = (aiEngagement.auditDurationDays as number)
-    const actualDays = (aiDays && aiDays > 1) ? aiDays : days
-    return actualDays * 1 * 8
-  })(),
-  securityEngineersInvolved: 1,
+    engagement: aiEngagement ? (() => {
+      const auditDate = project.date || new Date().toISOString().slice(0, 10)
+      const deliveryDate = new Date().toISOString().slice(0, 10)
+      const start = new Date(auditDate)
+      const end = new Date(deliveryDate)
+      const realDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1)
+      const loc = (aiEngagement.linesOfCode as number) || contractMeta?.linesOfCode || 200
+      const locDays = loc > 1000 ? 5 : loc > 500 ? 4 : loc > 200 ? 3 : 2
+      const finalDays = realDays > 1 ? realDays : locDays
+      return {
+      auditDate,
+      deliveryDate,
+      auditDurationDays: realDays,
+      numberOfAuditors: 1,
+      engineeringHours: finalDays * 1 * 8,
+      securityEngineersInvolved: 1,
       leadAuditor: "Solay39 Founder",
       compilerVersionUsed: (aiEngagement.compilerVersionUsed as string) || "N/A",
       contractsReviewed: 1,
       linesOfCode: (aiEngagement.linesOfCode as number) || 0,
       commitHash: project.commit || "N/A",
       objectives: (aiEngagement.objectives as string[]) || [],
-    } : undefined,
+    }})() : undefined,
     scopeTable: aiScopeTable ? aiScopeTable.map((s) => ({
       contract: String(s.contract || ""),
       address: project.scope || "N/A",
@@ -975,11 +1040,11 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
                 </div>
                 <S39Btn
                   small
-                  onClick={publishAudit}
-                  disabled={publishing || !project.name}
+                  onClick={handleValidateAndPublish}
+                  disabled={publishing || isValidating || !project.name}
                   className="w-full !text-s39-green !border-s39-green/40 hover:!bg-s39-green/10"
                 >
-                  {publishing ? "Publishing..." : "Publish to Portfolio"}
+                  {isValidating ? "Validating..." : publishing ? "Publishing..." : "Validate & Publish"}
                 </S39Btn>
                 {publishResult && (
                   <div className={`text-[9px] p-2.5 w-full ${
@@ -1573,6 +1638,38 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
       </div>
+
+      {/* Validation overlay */}
+      {validationResult && (
+        <ValidationPanel
+          result={validationResult}
+          onApplyFix={(field, value) => {
+            // Map validation fields back to workspace state
+            if (field === "mintFunction") setContractMeta(prev => prev ? { ...prev, hasMint: value as boolean } : prev)
+            else if (field === "selfDestruct") setContractMeta(prev => prev ? { ...prev, hasSelfDestruct: value as boolean } : prev)
+            else if (field === "proxyContract") setContractMeta(prev => prev ? { ...prev, hasProxy: value as boolean } : prev)
+            else if (field === "centralizationLevel") setContractMeta(prev => prev ? { ...prev, centralizationLevel: value as string } : prev)
+            else if (field === "compilerVersion") setContractMeta(prev => prev ? { ...prev, solidityVersion: (value as string).replace("solc ", "") } : prev)
+          }}
+          onApplyAllFixes={(fixes) => {
+            setContractMeta(prev => {
+              if (!prev) return prev
+              const updated = { ...prev }
+              if ("mintFunction" in fixes) updated.hasMint = fixes.mintFunction as boolean
+              if ("selfDestruct" in fixes) updated.hasSelfDestruct = fixes.selfDestruct as boolean
+              if ("proxyContract" in fixes) updated.hasProxy = fixes.proxyContract as boolean
+              if ("centralizationLevel" in fixes) updated.centralizationLevel = fixes.centralizationLevel as string
+              if ("compilerVersion" in fixes) updated.solidityVersion = (fixes.compilerVersion as string).replace("solc ", "")
+              return updated
+            })
+          }}
+          onDismiss={resetValidation}
+          onForcePublish={async () => {
+            resetValidation()
+            await publishAudit()
+          }}
+        />
+      )}
     </div>
   )
 }
