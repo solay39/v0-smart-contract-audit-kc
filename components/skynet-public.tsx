@@ -2477,38 +2477,30 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                         </span>
                       )}
                     </div>
-                    {/* ENTERPRISE: CVSS + CWE + SWC badges */}
+                    {/* ENTERPRISE STANDARDS BADGES */}
                     {f.cvss && (
-                      <div className="flex gap-2 mt-1 mb-2 flex-wrap">
-                        <div className="flex items-center gap-1 px-2 py-0.5 bg-s39-bg0 border border-s39-border">
-                          <span className="text-[9px] text-s39-dim font-mono tracking-wider">CVSS</span>
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-900 border border-slate-700">
+                          <span className="text-[8px] text-slate-500 font-mono tracking-wider">CVSS</span>
                           <span className={`text-[10px] font-black font-mono ${
-                            f.cvss.baseScore >= 9 ? "text-s39-red" :
-                            f.cvss.baseScore >= 7 ? "text-s39-orange" :
-                            f.cvss.baseScore >= 4 ? "text-s39-yellow" : "text-s39-dim"
+                            f.cvss.baseScore >= 9   ? "text-red-400"    :
+                            f.cvss.baseScore >= 7   ? "text-orange-400" :
+                            f.cvss.baseScore >= 4   ? "text-yellow-400" : "text-slate-400"
                           }`}>{f.cvss.baseScore.toFixed(1)}</span>
                         </div>
-                        <div className="px-2 py-0.5 bg-s39-bg0 border border-s39-border">
-                          <span className="text-[8px] text-s39-dim font-mono">{f.cvss.vectorString}</span>
+                        <div className="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 hidden sm:block">
+                          <span className="text-[8px] text-slate-600 font-mono">{f.cvss.vectorString}</span>
                         </div>
                         {f.cwe && (
-                          <a
-                            href={f.cwe.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 px-2 py-0.5 bg-[#001a33] border border-[#0066cc40] hover:border-[#0066cc80] transition-colors"
-                          >
-                            <span className="text-[9px] text-[#4488ff] font-mono font-bold">{f.cwe.id}</span>
+                          <a href={f.cwe.url} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1 px-2 py-0.5 rounded bg-blue-950/60 border border-blue-700/50 hover:border-blue-500 transition-colors">
+                            <span className="text-[9px] text-blue-400 font-mono font-bold">{f.cwe.id}</span>
                           </a>
                         )}
                         {f.swc && (
-                          <a
-                            href={f.swc.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 px-2 py-0.5 bg-[#1a0033] border border-[#8844cc40] hover:border-[#8844cc80] transition-colors"
-                          >
-                            <span className="text-[9px] text-[#aa66ff] font-mono font-bold">{f.swc.id}</span>
+                          <a href={f.swc.url} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1 px-2 py-0.5 rounded bg-purple-950/60 border border-purple-700/50 hover:border-purple-500 transition-colors">
+                            <span className="text-[9px] text-purple-400 font-mono font-bold">{f.swc.id}</span>
                           </a>
                         )}
                       </div>
@@ -2560,6 +2552,17 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                             <div className="text-[9px] text-s39-mid leading-relaxed p-3 font-mono">{f.fixVerification}</div>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* FOUNDRY PoC per HIGH/CRITICAL */}
+                    {f.foundryPoC && (
+                      <div className="mt-3 bg-[#0a0e14] border border-orange-900/40 overflow-hidden rounded">
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-orange-950/20 border-b border-orange-900/30">
+                          <span className="text-[8px] text-orange-400 font-mono tracking-widest">FOUNDRY EXPLOIT PoC</span>
+                          <span className="text-[7px] text-slate-600 font-mono ml-auto">{'forge test --match-test testExploit'}</span>
+                        </div>
+                        <pre className="text-[8px] text-slate-300 font-mono whitespace-pre-wrap p-3 overflow-x-auto leading-relaxed">{f.foundryPoC}</pre>
                       </div>
                     )}
                   </div>
@@ -3001,99 +3004,102 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
         </>}
         {/* ═══════════ END OF DETAILED VIEW ═══════════ */}
 
-        {/* ── SECTION 17A: REPORT INTEGRITY ── */}
+        {/* ── SECTION 17A: REPORT INTEGRITY & VERIFICATION ── */}
             {p.reportIntegrity && (
-              <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1L12 4v3c0 3.5-2.5 5.5-5 6.5-2.5-1-5-3-5-6.5V4L7 1z" stroke="#00ff88" strokeWidth="0.8" strokeLinejoin="round"/><path d="M5 7l1.5 1.5L9 5.5" stroke="#00ff88" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  <span className="text-[9px] text-s39-green tracking-[0.15em]">REPORT INTEGRITY & VERIFICATION</span>
-                  <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 17A</span>
+              <section className="border border-s39-border rounded-xl p-6 bg-s39-bg1 mt-6">
+                <div className="text-[9px] font-mono tracking-widest text-s39-dim uppercase mb-4 flex items-center gap-2">
+                  <span className="w-4 h-px bg-s39-border" />
+                  {'Report Integrity & Verification'}
+                  <span className="flex-1 h-px bg-s39-border" />
                 </div>
-                <div className="grid grid-cols-1 gap-3">
-                  <div className="flex items-start gap-3 p-3 bg-s39-bg2 border border-s39-border">
-                    <div className="text-s39-green text-lg mt-0.5 shrink-0">
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="6" width="12" height="8" rx="1" stroke="#00ff88" strokeWidth="1"/><path d="M5 6V4a3 3 0 016 0v2" stroke="#00ff88" strokeWidth="1" strokeLinecap="round"/></svg>
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-[8px] text-s39-dim font-mono tracking-widest mb-1">SHA-256 REPORT HASH</div>
-                      <code className="text-[9px] text-s39-green font-mono break-all block">{p.reportIntegrity.sha256}</code>
-                      <div className="text-[8px] text-s39-dim mt-1">
-                        {"Hash of the complete report JSON at time of publication. Any modification changes this hash."}
-                      </div>
+                <div className="space-y-3">
+                  <div className="p-3 rounded bg-s39-bg0 border border-emerald-900/40">
+                    <div className="text-[8px] text-emerald-400 font-mono tracking-wider mb-1">SHA-256 REPORT HASH</div>
+                    <code className="text-[9px] text-emerald-300 font-mono break-all leading-relaxed">
+                      {p.reportIntegrity.sha256}
+                    </code>
+                    <div className="text-[8px] text-s39-dim mt-1">
+                      {'Cryptographic hash of the complete report at publication time. Any tampering changes this value.'}
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 bg-s39-bg2 border border-s39-border">
-                      <div className="text-[8px] text-s39-dim font-mono tracking-widest mb-1">REPORT ID</div>
-                      <div className="text-[9px] text-s39-lite font-mono">{p.reportIntegrity.reportId}</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-3 rounded bg-s39-bg0 border border-s39-border">
+                      <div className="text-[8px] text-s39-dim font-mono tracking-wider mb-1">REPORT ID</div>
+                      <div className="text-[9px] text-s39-mid font-mono">{p.reportIntegrity.reportId}</div>
                     </div>
-                    <div className="p-3 bg-s39-bg2 border border-s39-border">
-                      <div className="text-[8px] text-s39-dim font-mono tracking-widest mb-1">PUBLISHED</div>
-                      <div className="text-[9px] text-s39-lite font-mono">
+                    <div className="p-3 rounded bg-s39-bg0 border border-s39-border">
+                      <div className="text-[8px] text-s39-dim font-mono tracking-wider mb-1">PUBLISHED</div>
+                      <div className="text-[9px] text-s39-mid font-mono">
                         {new Date(p.reportIntegrity.timestamp).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
                       </div>
                     </div>
                   </div>
-
-                  <div className="p-3 bg-s39-bg2 border border-s39-border">
-                    <div className="text-[8px] text-s39-dim font-mono tracking-widest mb-1">AUDITOR SIGNATURE</div>
-                    <div className="text-[9px] text-s39-lite">{p.reportIntegrity.auditorSignature}</div>
+                  <div className="p-3 rounded bg-s39-bg0 border border-s39-border">
+                    <div className="text-[8px] text-s39-dim font-mono tracking-wider mb-1">AUDITOR SIGNATURE</div>
+                    <div className="text-[9px] text-s39-mid">{p.reportIntegrity.auditorSignature}</div>
                   </div>
-
-                  <a
-                    href={p.reportIntegrity.verificationUrl}
+                  <a href={p.reportIntegrity.verificationUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 p-2 border border-s39-green/30 bg-s39-green/5 text-s39-green text-[9px] font-mono hover:bg-s39-green/10 transition-colors"
-                  >
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    {"Verify Report Integrity"}
+                    className="flex items-center justify-center gap-2 p-2.5 rounded border border-emerald-700/50 bg-emerald-950/20 text-emerald-400 text-[9px] font-mono tracking-wider hover:bg-emerald-950/40 transition-colors">
+                    {'Verify Report Integrity →'}
                   </a>
                 </div>
-              </div>
+              </section>
             )}
 
             {/* ── SECTION 17B: ECONOMIC ATTACK SURFACE ── */}
-            {p.economicAttackVectors && p.economicAttackVectors.some((v: { applicable: boolean }) => v.applicable) && (
-              <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12M4 4l6 6M10 4l-6 6" stroke="#ff6b00" strokeWidth="0.8" strokeLinecap="round"/></svg>
-                  <span className="text-[9px] text-s39-orange tracking-[0.15em]">ECONOMIC ATTACK SURFACE ANALYSIS</span>
-                  <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 17B</span>
+            {p.economicAttackVectors?.some((v: { applicable: boolean }) => v.applicable) && (
+              <section className="border border-s39-border rounded-xl p-6 bg-s39-bg1 mt-6">
+                <div className="text-[9px] font-mono tracking-widest text-s39-dim uppercase mb-4 flex items-center gap-2">
+                  <span className="w-4 h-px bg-s39-border" />
+                  {'Economic Attack Surface Analysis'}
+                  <span className="flex-1 h-px bg-s39-border" />
                 </div>
                 <div className="space-y-3">
                   {p.economicAttackVectors
                     .filter((v: { applicable: boolean }) => v.applicable)
-                    .map((v: { type: string; title: string; severity: string; description: string; exploitCondition: string; estimatedLoss: string; mitigation: string; pocSketch: string }) => (
-                    <div key={v.type} className="p-4 bg-s39-bg2 border border-s39-border">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className={`text-[8px] font-black font-mono px-2 py-0.5 border ${
-                          v.severity === "High" ? "text-s39-orange border-s39-orange/30 bg-s39-orange/5" :
-                          v.severity === "Medium" ? "text-s39-yellow border-s39-yellow/30 bg-s39-yellow/5" :
-                          "text-s39-dim border-s39-border bg-s39-bg0"
+                    .map((v: {
+                      type: string; title: string; severity: string
+                      description: string; exploitCondition: string
+                      estimatedLoss: string; mitigation: string; pocSketch: string
+                    }) => (
+                    <div key={v.type} className="p-4 rounded-lg bg-s39-bg0 border border-s39-border">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`text-[9px] font-black font-mono px-2 py-0.5 rounded ${
+                          v.severity === "High"   ? "bg-orange-500/15 text-orange-400 border border-orange-500/30" :
+                          v.severity === "Medium" ? "bg-yellow-500/15 text-yellow-400 border border-yellow-500/30" :
+                                                    "bg-slate-500/15 text-slate-400 border border-slate-500/30"
                         }`}>{v.severity.toUpperCase()}</span>
-                        <span className="text-[10px] font-medium text-s39-lite">{v.title}</span>
+                        <span className="text-xs font-medium text-s39-text font-mono">{v.title}</span>
                       </div>
-                      <p className="text-[9px] text-s39-mid mb-2 leading-relaxed">{v.description}</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[9px]">
-                        <div>
-                          <span className="text-s39-dim font-mono text-[8px]">{"CONDITION: "}</span>
+                      <p className="text-[10px] text-s39-mid mb-3 leading-relaxed">{v.description}</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] mb-2">
+                        <div className="p-2 rounded bg-s39-bg1 border border-s39-border">
+                          <span className="text-s39-dim font-mono">{'CONDITION: '}</span>
                           <span className="text-s39-mid">{v.exploitCondition}</span>
                         </div>
-                        <div>
-                          <span className="text-s39-dim font-mono text-[8px]">{"EST. LOSS: "}</span>
+                        <div className="p-2 rounded bg-s39-bg1 border border-s39-border">
+                          <span className="text-s39-dim font-mono">{'EST. LOSS: '}</span>
                           <span className="text-s39-orange">{v.estimatedLoss}</span>
                         </div>
                       </div>
-                      <div className="mt-2 text-[9px]">
-                        <span className="text-s39-green font-mono text-[8px]">{"MITIGATION: "}</span>
+                      <div className="text-[10px] p-2 rounded bg-s39-bg1 border border-s39-border mb-2">
+                        <span className="text-s39-green font-mono">{'MITIGATION: '}</span>
                         <span className="text-s39-mid">{v.mitigation}</span>
                       </div>
+                      {v.pocSketch !== "N/A" && v.pocSketch !== "N/A — not applicable" && (
+                        <div className="bg-[#0a0e14] border border-s39-border overflow-hidden rounded">
+                          <div className="px-3 py-1 border-b border-s39-border">
+                            <span className="text-[8px] text-s39-cyan font-mono tracking-wider">ATTACK SKETCH</span>
+                          </div>
+                          <pre className="text-[8px] text-s39-mid font-mono whitespace-pre-wrap p-3 leading-relaxed">{v.pocSketch}</pre>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
-              </div>
+              </section>
             )}
 
             {/* ── SECTION 18: ABOUT SOLAY39 ── (always visible) */}

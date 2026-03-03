@@ -24,6 +24,10 @@ export interface Finding {
   proofOfConcept?: string
   clientResponse?: string         // "Team acknowledged; will implement in next release"
   fixVerification?: string        // "Verified in commit abc123 — mint guard added"
+  foundryPoC?: string             // Foundry exploit PoC for HIGH/CRITICAL
+  cvss?: { vectorString: string; baseScore: number; severity: string; [key: string]: unknown }
+  cwe?: { id: string; name: string; url: string }
+  swc?: { id: string; name: string; url: string } | null
 }
 
 // ── Code Quality & Complexity Metrics ────────────────────────
@@ -247,6 +251,10 @@ export interface PortfolioProject {
     proofOfConcept?: string
     clientResponse?: string
     fixVerification?: string
+    foundryPoC?: string
+    cvss?: { vectorString: string; baseScore: number; severity: string }
+    cwe?: { id: string; name: string; url: string }
+    swc?: { id: string; name: string; url: string } | null
   }[]
   scoreBreakdown?: {
     codeSecurity: number

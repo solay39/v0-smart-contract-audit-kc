@@ -1,5 +1,5 @@
 import { generateText } from "ai"
-import { computeCVSS, getCWE, getSWC, analyzeEconomicAttacks, buildDefaultReviewRecord } from "@/lib/enterprise-standards"
+import { computeCVSS, getCWE, getSWC, analyzeEconomicAttacks, buildDefaultReviewRecord, generateFoundryPoC } from "@/lib/enterprise-standards"
 
 /* ───────── types ───────── */
 
@@ -1028,6 +1028,9 @@ export async function POST(req: Request) {
         cvss: computeCVSS(f.title, f.severity),
         cwe: getCWE(f.title),
         swc: getSWC(f.title),
+        foundryPoC: (f.severity === "CRITICAL" || f.severity === "HIGH")
+          ? generateFoundryPoC(f.title, meta.scopeLabel || "Target", "0xTARGET")
+          : undefined,
       }))
 
       // ── ENTERPRISE: Economic Attack Analysis ──
@@ -1090,6 +1093,9 @@ export async function POST(req: Request) {
         cvss: computeCVSS(f.title, f.severity),
         cwe: getCWE(f.title),
         swc: getSWC(f.title),
+        foundryPoC: (f.severity === "CRITICAL" || f.severity === "HIGH")
+          ? generateFoundryPoC(f.title, meta.scopeLabel || "Target", "0xTARGET")
+          : undefined,
       }))
 
       const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {

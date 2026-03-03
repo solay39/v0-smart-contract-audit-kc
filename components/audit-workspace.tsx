@@ -387,6 +387,10 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         proofOfConcept: f.proofOfConcept || undefined,
         clientResponse: f.clientResponse || undefined,
         fixVerification: f.fixVerification || undefined,
+        foundryPoC: f.foundryPoC || undefined,
+        cvss: f.cvss || undefined,
+        cwe: f.cwe || undefined,
+        swc: f.swc || undefined,
       })),
       // Tier-1 sections
       privilegedRoles: privilegedRoles.length > 0 ? privilegedRoles : undefined,
@@ -738,7 +742,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     // ── Step 3: Compute SHA-256 report integrity before saving ──
     const reportJson = JSON.stringify(portfolioEntry)
     const sha256 = await computeReportHash(reportJson)
-    const reportIntegrity = buildReportIntegrity(portfolioEntry.id, reportJson, sha256)
+    const reportIntegrity = buildReportIntegrity(portfolioEntry.id, sha256)
     const enrichedEntry = { ...portfolioEntry, reportIntegrity }
 
     // ── Step 3.1: Save to local portfolio store ──
