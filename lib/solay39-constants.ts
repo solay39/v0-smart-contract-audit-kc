@@ -247,6 +247,11 @@ export interface PortfolioProject {
     proofOfConcept?: string
     clientResponse?: string
     fixVerification?: string
+    // Enterprise-grade fields (CertiK/OpenZeppelin standard)
+    cwe?: string              // e.g. "CWE-284: Improper Access Control"
+    cvss?: number             // CVSS v3.1 score (0-10)
+    cvssVector?: string       // e.g. "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+    testCase?: string         // "PASS" | "FAIL" | "N/A"
   }[]
   scoreBreakdown?: {
     codeSecurity: number
@@ -301,6 +306,39 @@ export interface PortfolioProject {
   trustModel?: TrustModelEntry[]
   finalAssessment?: FinalAssessment
   methodologySteps?: string[]       // 6-phase methodology steps
+  // ── Enterprise-grade: Auditor Signature & Certificate ──
+  auditCertificate?: AuditCertificate
+  // ── Enterprise-grade: Formal Verification ──
+  formalVerification?: FormalVerificationReport
+}
+
+export interface FormalVerificationReport {
+  smtSolverUsed: string            // "Z3 4.12.4" | "CVC5"
+  executionPathsExplored: number   // total paths explored
+  solverQueries: number            // SMT queries executed
+  propertiesVerified: {
+    property: string               // "No integer overflow in transfer()"
+    result: "VERIFIED" | "VIOLATED" | "TIMEOUT"
+    confidence: "High" | "Medium" | "Low"
+    technique: string              // "Bounded Model Checking" | "Symbolic Execution"
+  }[]
+  storageLayoutVerified: boolean   // Storage slot collision check
+  storageNotes?: string            // Details on storage layout verification
+  mathematicalProofs?: string[]    // "totalSupply == sum(balances)" etc.
+  boundedModelCheckingDepth: number // e.g. 50
+  executionTime: string            // "14.2s"
+  violations: number               // 0 if clean
+}
+
+export interface AuditCertificate {
+  reportHash: string              // SHA-256 of the audit report data
+  signedBy: string                // "Solay39 Security Team"
+  signatureDate: string           // ISO date
+  signatureMethod: string         // "SHA-256 + HMAC-based Report Integrity"
+  certificateId: string           // Unique audit certificate ID
+  integrityStatus: "VERIFIED" | "UNVERIFIED"
+  ipfsHash?: string               // Optional IPFS anchoring
+  verificationUrl?: string        // URL to verify
 }
 
 // Keep backward compat alias

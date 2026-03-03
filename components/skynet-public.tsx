@@ -2322,6 +2322,81 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
           </div>
         )}
 
+        {/* ── ENTERPRISE: FORMAL VERIFICATION REPORT ── */}
+        {p.formalVerification && (
+          <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
+            <div className="flex items-center gap-2 mb-5">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 1v12M1 7h12" stroke="#00e5ff" strokeWidth="0.5" opacity="0.3"/>
+                <circle cx="7" cy="7" r="5.5" stroke="#00e5ff" strokeWidth="1"/>
+                <path d="M4.5 7l1.7 1.7 3.3-3.3" stroke="#00ff88" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className="text-[9px] text-s39-cyan tracking-[0.15em]">FORMAL VERIFICATION</span>
+              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">ENTERPRISE</span>
+            </div>
+
+            {/* Summary stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
+              {[
+                ["SMT SOLVER", p.formalVerification.smtSolverUsed.split(" + ")[0], "#00e5ff"],
+                ["PATHS", String(p.formalVerification.executionPathsExplored), "#00ff88"],
+                ["QUERIES", String(p.formalVerification.solverQueries), "#4488ff"],
+                ["BMC DEPTH", String(p.formalVerification.boundedModelCheckingDepth), "#ffd600"],
+                ["VIOLATIONS", String(p.formalVerification.violations), p.formalVerification.violations > 0 ? "#ff2d55" : "#00ff88"],
+              ].map(([label, val, col], i) => (
+                <div key={i} className="bg-s39-bg2 border border-s39-border p-3 text-center">
+                  <div className="text-[7px] text-s39-dim tracking-widest mb-1">{label}</div>
+                  <div className="text-sm font-bold font-mono" style={{ color: col as string }}>{val}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Properties verified */}
+            <div className="text-[8px] text-s39-dim tracking-widest mb-2">VERIFIED PROPERTIES</div>
+            <div className="flex flex-col gap-1.5 mb-4">
+              {p.formalVerification.propertiesVerified.map((prop, i) => (
+                <div key={i} className="flex items-center gap-3 bg-s39-bg2 border border-s39-border px-3 py-2">
+                  <div className={`w-2 h-2 shrink-0 ${prop.result === "VERIFIED" ? "bg-s39-green" : prop.result === "VIOLATED" ? "bg-s39-red" : "bg-s39-yellow"}`} />
+                  <span className="text-[9px] text-s39-lite flex-1">{prop.property}</span>
+                  <span className={`text-[7px] font-bold font-mono ${prop.result === "VERIFIED" ? "text-s39-green" : "text-s39-red"}`}>{prop.result}</span>
+                  <span className="text-[7px] text-s39-dim tracking-wider">{prop.technique}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Storage layout */}
+            <div className="flex items-center gap-3 bg-s39-bg2 border border-s39-border px-3 py-2.5 mb-4">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <rect x="1" y="1" width="8" height="8" stroke={p.formalVerification.storageLayoutVerified ? "#00ff88" : "#ff2d55"} strokeWidth="0.8"/>
+                <path d="M1 4h8M4 1v8" stroke={p.formalVerification.storageLayoutVerified ? "#00ff88" : "#ff2d55"} strokeWidth="0.5" opacity="0.4"/>
+              </svg>
+              <div className="flex-1">
+                <div className="text-[8px] text-s39-dim tracking-widest mb-0.5">STORAGE LAYOUT VERIFICATION</div>
+                <div className="text-[9px] text-s39-mid">{p.formalVerification.storageNotes}</div>
+              </div>
+              <span className={`text-[8px] font-bold ${p.formalVerification.storageLayoutVerified ? "text-s39-green" : "text-s39-red"}`}>
+                {p.formalVerification.storageLayoutVerified ? "COLLISION-FREE" : "COLLISION DETECTED"}
+              </span>
+            </div>
+
+            {/* Mathematical proofs */}
+            {p.formalVerification.mathematicalProofs && p.formalVerification.mathematicalProofs.length > 0 && (
+              <div>
+                <div className="text-[8px] text-s39-dim tracking-widest mb-2">MATHEMATICAL INVARIANTS</div>
+                <div className="bg-[#0a0e14] border border-s39-border p-3">
+                  <pre className="text-[9px] text-s39-cyan font-mono leading-relaxed whitespace-pre-wrap">{p.formalVerification.mathematicalProofs.map((p, i) => `[${i + 1}] ${p}`).join("\n")}</pre>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-3 flex items-center gap-2 text-[8px] text-s39-dim">
+              <span>Execution time: {p.formalVerification.executionTime}</span>
+              <span className="text-s39-border">|</span>
+              <span>Solver: {p.formalVerification.smtSolverUsed}</span>
+            </div>
+          </div>
+        )}
+
         {/* ── TIER-1: Severity / Likelihood Matrix ── */}
         {p.findings && p.findings.length > 0 && p.findings.some(f => f.likelihood) && (
           <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
@@ -2473,7 +2548,37 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                           {f.likelihood.toUpperCase()} LIKELIHOOD
                         </span>
                       )}
+                      {/* Enterprise CWE / CVSS badges */}
+                      {f.cwe && (
+                        <span className="text-[7px] tracking-wider px-1.5 py-0.5 border border-s39-cyan/25 bg-s39-cyan/5 text-s39-cyan font-mono">
+                          {f.cwe.split(":")[0]}
+                        </span>
+                      )}
+                      {typeof f.cvss === "number" && f.cvss > 0 && (
+                        <span className={`text-[7px] tracking-wider px-1.5 py-0.5 border font-mono font-bold ${
+                          f.cvss >= 9 ? "text-s39-red border-s39-red/25 bg-s39-red/5" :
+                          f.cvss >= 7 ? "text-s39-orange border-s39-orange/25 bg-s39-orange/5" :
+                          f.cvss >= 4 ? "text-s39-yellow border-s39-yellow/25 bg-s39-yellow/5" :
+                          "text-s39-green border-s39-green/25 bg-s39-green/5"
+                        }`}>
+                          CVSS {f.cvss.toFixed(1)}
+                        </span>
+                      )}
+                      {f.testCase && f.testCase !== "N/A" && (
+                        <span className={`text-[7px] tracking-wider px-1.5 py-0.5 border ${
+                          f.testCase === "PASS" ? "text-s39-green border-s39-green/25 bg-s39-green/5" : "text-s39-red border-s39-red/25 bg-s39-red/5"
+                        }`}>
+                          TEST: {f.testCase}
+                        </span>
+                      )}
                     </div>
+                    {/* CWE detail + CVSS vector (collapsed detail row) */}
+                    {(f.cwe || f.cvssVector) && (
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
+                        {f.cwe && <span className="text-[8px] text-s39-dim font-mono">{f.cwe}</span>}
+                        {f.cvssVector && <span className="text-[7px] text-s39-dim font-mono">({f.cvssVector})</span>}
+                      </div>
+                    )}
                     <div className="text-[10px] text-s39-mid leading-relaxed mb-3">{f.description}</div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {f.impact && (
@@ -3119,12 +3224,14 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
 // METHODOLOGY PAGE
 // ═══════════════════════════════════════════════════════════════════
 function MethodologyPage() {
-  const phases: [string, string, string, string][] = [
-    ["01", "System Comprehension", "#00e5ff", "Complete architectural analysis: trust boundaries, funds flow, actor model, threat surface and external dependencies."],
-    ["02", "Threat Modeling", "#00ff88", "Systematic mapping of attack surfaces: privilege escalation, economic attack vectors, oracle risks and MEV exposure."],
-    ["03", "Manual Code Review", "#ffd600", "Function-by-function review: invariant validation, state transitions, business logic and verification of every critical path."],
-    ["04", "AI-Guided Verification", "#ff6b00", "Use of the Solay39 AI Copilot for coverage gaps, invariant generation, pattern detection and next-best-action analysis."],
-    ["05", "Remediation Validation", "#ff2d55", "Verification of every fix: regression review, score recomputation and final signature on the audit report."],
+  const phases: [string, string, string, string, string[]][] = [
+    ["01", "System Comprehension", "#00e5ff", "Complete architectural analysis: trust boundaries, funds flow, actor model, threat surface and external dependencies.", ["Architecture diagram", "Trust boundary mapping", "Dependency graph", "Actor model analysis"]],
+    ["02", "Threat Modeling", "#00ff88", "Adaptive threat modeling per protocol: attacker profiling, custom abuse-case scenarios, likelihood-impact matrix (CVSS v3.1).", ["Attacker profiling", "Custom abuse cases", "CVSS scoring", "MITRE/CWE mapping"]],
+    ["03", "Manual Code Review", "#ffd600", "Double-blind independent review: two reviewers analyze the codebase separately. Function-by-function invariant validation, state transitions, and business logic verification.", ["Line-by-line review", "Peer verification", "State transition analysis", "Business logic validation"]],
+    ["04", "Formal Verification", "#aa44ff", "SMT solver-based property checking (Z3/CVC5), bounded model checking, storage layout verification, and mathematical invariant proofs.", ["SMT solving", "Invariant proofs", "Storage layout check", "Bounded model checking"]],
+    ["05", "AI-Guided Verification", "#ff6b00", "Use of the Solay39 AI engine for coverage gaps, pattern detection, PoC exploit generation for HIGH/CRITICAL findings, and next-best-action analysis.", ["Coverage gap analysis", "PoC exploit generation", "Pattern detection", "Cross-reference validation"]],
+    ["06", "Remediation Validation", "#ff2d55", "Verification of every fix: regression review, re-testing of resolved findings, score recomputation, and digital signature on the final audit report.", ["Fix re-testing", "Regression analysis", "Score recomputation", "Certificate issuance"]],
+    ["07", "Post-Audit Certificate", "#00e5ff", "Issuance of a digitally signed audit certificate with SHA-256 report hash, unique certificate ID, and integrity verification endpoint.", ["Report hash (SHA-256)", "Digital signature", "Certificate ID", "Verification URL"]],
   ]
 
   return (
@@ -3132,18 +3239,67 @@ function MethodologyPage() {
       <h1 className="text-xl sm:text-2xl font-bold text-s39-white mb-2 text-balance">
         Solay39 Manual-First Audit Framework
       </h1>
-      <p className="text-[11px] text-s39-mid mb-10">
-        Five structured phases. Human review first, AI in support.
+      <p className="text-[11px] text-s39-mid mb-3">
+        Seven structured phases. Human review first, formal verification, AI in support.
+      </p>
+      <p className="text-[9px] text-s39-dim mb-10">
+        CVSS v3.1 scoring | CWE/MITRE classification | Proof-of-Concept for HIGH/CRITICAL | Digital certificate with SHA-256 integrity
       </p>
 
-      {phases.map(([n, t, c, d]) => (
-        <div key={n} className="flex gap-5 mb-5 bg-s39-bg1 border border-s39-border p-5 sm:p-6">
+      {/* ── Visual Audit Flow Diagram ── */}
+      <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-8">
+        <div className="text-[8px] text-s39-dim tracking-widest mb-4">AUDIT LIFECYCLE FLOW</div>
+        <div className="flex items-center justify-between gap-1 overflow-x-auto pb-2">
+          {phases.map(([n, t, c], i) => (
+            <div key={n} className="flex items-center gap-1 shrink-0">
+              <div className="flex flex-col items-center">
+                <div className="w-8 h-8 border-2 flex items-center justify-center text-[10px] font-bold font-mono" style={{ borderColor: c, color: c, background: `${c}08` }}>
+                  {n}
+                </div>
+                <div className="text-[6px] text-s39-dim mt-1 text-center max-w-[70px] leading-tight">{t}</div>
+              </div>
+              {i < phases.length - 1 && (
+                <svg width="20" height="10" viewBox="0 0 20 10" className="shrink-0 mt-[-12px]">
+                  <path d="M0 5h16M13 2l4 3-4 3" stroke="#334455" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 h-px bg-s39-border" />
+        <div className="mt-3 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-s39-green" />
+            <span className="text-[8px] text-s39-dim">Human-driven phases</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-[#aa44ff]" />
+            <span className="text-[8px] text-s39-dim">Automated verification</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-s39-cyan" />
+            <span className="text-[8px] text-s39-dim">Certification</span>
+          </div>
+        </div>
+      </div>
+
+      {phases.map(([n, t, c, d, items]) => (
+        <div key={n} className="flex gap-5 mb-4 bg-s39-bg1 border border-s39-border p-5 sm:p-6" style={{ borderLeftColor: c, borderLeftWidth: 3 }}>
           <div className="text-2xl font-bold opacity-30 leading-none shrink-0 w-9" style={{ color: c }}>
             {n}
           </div>
-          <div>
+          <div className="flex-1">
             <div className="text-[12px] font-bold mb-1.5" style={{ color: c }}>{t}</div>
-            <div className="text-[10px] text-s39-mid leading-relaxed">{d}</div>
+            <div className="text-[10px] text-s39-mid leading-relaxed mb-3">{d}</div>
+            {items && items.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {items.map((item, i) => (
+                  <span key={i} className="text-[7px] tracking-wider px-2 py-0.5 border" style={{ color: c, borderColor: `${c}33`, background: `${c}08` }}>
+                    {item}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       ))}
@@ -3717,9 +3873,98 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                 No results found.
               </div>
             )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* ── SECTION 18: AUDIT CERTIFICATE & DIGITAL SIGNATURE ── */}
+        {p.auditCertificate && (
+          <div className="bg-s39-bg1 border-2 border-s39-cyan/30 p-5 sm:p-6 mb-4">
+            <div className="flex items-center gap-2 mb-5">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <rect x="2" y="1" width="10" height="12" rx="1" stroke="#00e5ff" strokeWidth="1" />
+                <path d="M5 5h4M5 7h4M5 9h2" stroke="#00e5ff" strokeWidth="0.8" strokeLinecap="round" />
+                <circle cx="10" cy="10" r="3" fill="#0a0e14" stroke="#00ff88" strokeWidth="1" />
+                <path d="M9 10l0.7 0.7 1.5-1.5" stroke="#00ff88" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span className="text-[9px] text-s39-cyan tracking-[0.15em]">AUDIT CERTIFICATE</span>
+              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 18</span>
+            </div>
+
+            {/* Certificate visual */}
+            <div className="bg-[#0a0e14] border border-s39-cyan/20 p-5 relative overflow-hidden mb-4">
+              {/* Background watermark */}
+              <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
+                <span className="text-[120px] font-bold text-s39-cyan font-mono tracking-widest">S39</span>
+              </div>
+
+              <div className="relative z-10">
+                <div className="text-center mb-5">
+                  <div className="text-[7px] text-s39-dim tracking-[0.3em] mb-2">CERTIFICATE OF COMPLETION</div>
+                  <div className="text-[14px] text-s39-cyan font-bold tracking-wider">SECURITY AUDIT REPORT</div>
+                  <div className="text-[10px] text-s39-mid mt-1">{p.name}</div>
+                </div>
+
+                <div className="h-px bg-s39-cyan/20 mb-4" />
+
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <div className="text-[7px] text-s39-dim tracking-widest mb-1">CERTIFICATE ID</div>
+                    <div className="text-[10px] text-s39-cyan font-mono font-bold">{p.auditCertificate.certificateId}</div>
+                  </div>
+                  <div>
+                    <div className="text-[7px] text-s39-dim tracking-widest mb-1">INTEGRITY STATUS</div>
+                    <div className={`text-[10px] font-bold ${p.auditCertificate.integrityStatus === "VERIFIED" ? "text-s39-green" : "text-s39-red"}`}>
+                      {p.auditCertificate.integrityStatus === "VERIFIED" ? "VERIFIED" : "UNVERIFIED"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[7px] text-s39-dim tracking-widest mb-1">SIGNED BY</div>
+                    <div className="text-[10px] text-s39-lite">{p.auditCertificate.signedBy}</div>
+                  </div>
+                  <div>
+                    <div className="text-[7px] text-s39-dim tracking-widest mb-1">SIGNATURE DATE</div>
+                    <div className="text-[10px] text-s39-lite">{new Date(p.auditCertificate.signatureDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div>
+                  </div>
+                </div>
+
+                <div className="bg-s39-bg2 border border-s39-border p-3 mb-4">
+                  <div className="text-[7px] text-s39-dim tracking-widest mb-1">REPORT HASH (SHA-256)</div>
+                  <div className="text-[9px] text-s39-cyan font-mono break-all leading-relaxed">{p.auditCertificate.reportHash}</div>
+                </div>
+
+                <div className="bg-s39-bg2 border border-s39-border p-3 mb-4">
+                  <div className="text-[7px] text-s39-dim tracking-widest mb-1">SIGNATURE METHOD</div>
+                  <div className="text-[9px] text-s39-mid">{p.auditCertificate.signatureMethod}</div>
+                </div>
+
+                {p.auditCertificate.ipfsHash && (
+                  <div className="bg-s39-bg2 border border-s39-border p-3 mb-4">
+                    <div className="text-[7px] text-s39-dim tracking-widest mb-1">IPFS ANCHORING</div>
+                    <div className="text-[9px] text-s39-cyan font-mono break-all">{p.auditCertificate.ipfsHash}</div>
+                  </div>
+                )}
+
+                <div className="h-px bg-s39-cyan/20 mb-4" />
+
+                <div className="flex items-center justify-between">
+                  <div className="text-[8px] text-s39-dim">
+                    This certificate attests that the audit was completed according to the Solay39 Manual-First Audit Framework.
+                  </div>
+                  {p.auditCertificate.integrityStatus === "VERIFIED" && (
+                    <div className="flex items-center gap-1.5 shrink-0 ml-3">
+                      <div className="w-3 h-3 border border-s39-green bg-s39-green/10 flex items-center justify-center">
+                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M2 4l1.5 1.5L6 3" stroke="#00ff88" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </div>
+                      <span className="text-[8px] text-s39-green font-bold tracking-wider">SIGNED</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
 
       {tab === "methodology" && <MethodologyPage />}
 
