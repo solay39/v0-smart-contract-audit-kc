@@ -607,61 +607,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         "Manual line-by-line code review",
         "Privilege & access control analysis",
         "Economic attack surface review",
-        "Formal verification (invariants + SMT solver)",
         "On-chain deployment verification & bytecode match",
         "Remediation validation & fix re-testing",
       ],
-      // ── Enterprise: Formal Verification Report ──
-      formalVerification: (() => {
-        const fvLoc = (aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 200
-        const paths = Math.round(fvLoc / 5)
-        const queries = Math.round(fvLoc * 2)
-        const properties: { property: string; result: "VERIFIED" | "VIOLATED"; confidence: "High" | "Medium"; technique: string }[] = [
-          { property: "No integer overflow in arithmetic operations", result: "VERIFIED", confidence: "High", technique: "Bounded Model Checking" },
-          { property: "Access control enforced on privileged functions", result: contractMeta?.hasDangerousFunctions && !contractMeta?.hasOwnable ? "VIOLATED" : "VERIFIED", confidence: "High", technique: "Symbolic Execution" },
-        ]
-        if (contractMeta?.hasMint) {
-          properties.push({ property: "Minting restricted to authorized roles", result: contractMeta?.hasOwnable ? "VERIFIED" : "VIOLATED", confidence: "High", technique: "Symbolic Execution" })
-        }
-        if (contractMeta?.hasBurn) {
-          properties.push({ property: "Burn does not underflow balances", result: "VERIFIED", confidence: "High", technique: "Bounded Model Checking" })
-        }
-        if (contractMeta?.hasMaxSupply) {
-          properties.push({ property: "totalSupply <= maxSupply invariant holds", result: "VERIFIED", confidence: "High", technique: "Invariant Checking" })
-        }
-        properties.push(
-          { property: "totalSupply == sum(all balances)", result: "VERIFIED", confidence: "High", technique: "Invariant Checking" },
-          { property: "Transfer preserves total supply", result: "VERIFIED", confidence: "High", technique: "Bounded Model Checking" },
-          { property: "No unauthorized state transitions", result: "VERIFIED", confidence: "Medium", technique: "Symbolic Execution" },
-        )
-        if (contractMeta?.hasProxy) {
-          properties.push(
-            { property: "Storage layout collision-free across proxy", result: "VERIFIED", confidence: "High", technique: "Static Analysis" },
-            { property: "Implementation initializer prevents re-initialization", result: "VERIFIED", confidence: "Medium", technique: "Symbolic Execution" },
-          )
-        }
-        const mathProofs = [
-          "totalSupply == sum(balanceOf[addr]) for all addresses",
-          "transfer(to, amount): balanceOf[from] -= amount && balanceOf[to] += amount",
-        ]
-        if (contractMeta?.hasBurn) mathProofs.push("burn(amount): totalSupply -= amount && balanceOf[msg.sender] -= amount")
-        if (contractMeta?.hasMaxSupply) mathProofs.push(`totalSupply <= MAX_SUPPLY (bounded upper limit)`)
-
-        return {
-          smtSolverUsed: "Z3 4.12.4 + Mythril SMT Engine",
-          executionPathsExplored: paths,
-          solverQueries: queries,
-          propertiesVerified: properties,
-          storageLayoutVerified: true,
-          storageNotes: contractMeta?.hasProxy
-            ? "EIP-1967 proxy storage slots verified collision-free. Implementation storage layout is compatible with proxy pattern."
-            : "No proxy pattern detected. Standard storage layout verified.",
-          mathematicalProofs: mathProofs,
-          boundedModelCheckingDepth: 50,
-          executionTime: `${(paths * 0.035).toFixed(1)}s`,
-          violations: properties.filter(p => p.result === "VIOLATED").length,
-        }
-      })(),
       codeMetrics: {
         totalLOC: (aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 0,
         totalContracts: (aiScopeTable?.length) || 1,
@@ -718,33 +666,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       },
     }
 
-    // ── Step 3: Generate audit certificate with integrity hash ──
-    const certData = JSON.stringify({
-      name: portfolioEntry.name,
-      score: portfolioEntry.score,
-      findings: portfolioEntry.findings?.length ?? 0,
-      date: portfolioEntry.date,
-      contractAddress: portfolioEntry.contractAddress,
-    })
-    // Simple hash: convert to base-16 checksum
-    let hash = 0
-    for (let i = 0; i < certData.length; i++) {
-      const ch = certData.charCodeAt(i)
-      hash = ((hash << 5) - hash + ch) | 0
-    }
-    const reportHash = Math.abs(hash).toString(16).padStart(16, "0").toUpperCase()
-    const certId = `S39-${new Date().getFullYear()}-${reportHash.slice(0, 8)}`
-
-    portfolioEntry.auditCertificate = {
-      reportHash: `SHA256:${reportHash}${reportHash}${reportHash}${reportHash}`.slice(0, 71),
-      signedBy: "Solay39 Security Team",
-      signatureDate: new Date().toISOString(),
-      signatureMethod: "SHA-256 + HMAC-based Report Integrity Verification",
-      certificateId: certId,
-      integrityStatus: "VERIFIED",
-      verificationUrl: `https://solay39.com/verify/${certId}`,
-    }
-
+    // ── Step 3: Save to local portfolio store ──
     savePublishedAudit(portfolioEntry)
 
     // ── Step 3.5: Save to Vercel Blob for server-side persistence ──
