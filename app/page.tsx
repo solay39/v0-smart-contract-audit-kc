@@ -9,6 +9,7 @@ type Screen = "login" | "skynet" | "workspace"
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("login")
+  console.log("[v0] Home rendered, screen:", screen)
 
   return (
     <>
