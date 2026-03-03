@@ -94,6 +94,11 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   // Enterprise Standards
   const [economicAttackVectors, setEconomicAttackVectors] = useState<Record<string, unknown>[] | null>(null)
   const [reviewRecord, setReviewRecord] = useState<Record<string, unknown> | null>(null)
+  const [attackerProfiles, setAttackerProfiles] = useState<Record<string, unknown>[] | null>(null)
+  const [assetsAtRisk, setAssetsAtRisk] = useState<Record<string, unknown>[] | null>(null)
+  const [enterpriseTrustAssumptions, setEnterpriseTrustAssumptions] = useState<string[] | null>(null)
+  const [formalVerification, setFormalVerification] = useState<Record<string, unknown> | null>(null)
+  const [residualRisk, setResidualRisk] = useState<Record<string, unknown> | null>(null)
 
   const allChecks = Object.values(checks).flatMap((c) => Object.values(c))
   // SINGLE SOURCE OF TRUTH: always use V2 engine for score computation
@@ -743,6 +748,16 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       // Enterprise Standards
       economicAttackVectors: (economicAttackVectors as PortfolioProject["economicAttackVectors"]) || undefined,
       reviewRecord: (reviewRecord as PortfolioProject["reviewRecord"]) || undefined,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      attackerProfiles: (attackerProfiles as any) || undefined,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      assetsAtRisk: (assetsAtRisk as any) || undefined,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      enterpriseTrustAssumptions: (enterpriseTrustAssumptions as any) || undefined,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      formalVerification: (formalVerification as any) || undefined,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      residualRisk: (residualRisk as any) || undefined,
     }
 
     // ── Step 3: Compute SHA-256 report integrity before saving ──
@@ -870,6 +885,11 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       // Enterprise Standards
       if (data.economicAttackVectors) setEconomicAttackVectors(data.economicAttackVectors)
       if (data.reviewRecord) setReviewRecord(data.reviewRecord)
+      if (data.attackerProfiles) setAttackerProfiles(data.attackerProfiles)
+      if (data.assetsAtRisk) setAssetsAtRisk(data.assetsAtRisk)
+      if (data.enterpriseTrustAssumptions) setEnterpriseTrustAssumptions(data.enterpriseTrustAssumptions)
+      if (data.formalVerification) setFormalVerification(data.formalVerification)
+      if (data.residualRisk) setResidualRisk(data.residualRisk)
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error"
       setAiError(`Network error: ${msg}. Check your connection and try again.`)
@@ -1021,6 +1041,16 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     // Enterprise Standards
     economicAttackVectors: (economicAttackVectors as PortfolioProject["economicAttackVectors"]) || undefined,
     reviewRecord: (reviewRecord as PortfolioProject["reviewRecord"]) || undefined,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    attackerProfiles: (attackerProfiles as any) || undefined,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    assetsAtRisk: (assetsAtRisk as any) || undefined,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    enterpriseTrustAssumptions: (enterpriseTrustAssumptions as any) || undefined,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    formalVerification: (formalVerification as any) || undefined,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    residualRisk: (residualRisk as any) || undefined,
   })}
                   className="w-full"
                 >

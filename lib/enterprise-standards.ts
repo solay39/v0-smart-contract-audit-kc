@@ -568,3 +568,178 @@ export function generateFoundryPoC(
     "}",
   ].join("\n")
 }
+
+// ─── REMEDIATION CODE GENERATOR ──────────────────────────────────
+
+export function generateRemediationExample(findingTitle: string, severity: string): string | null {
+  const t = findingTitle.toLowerCase()
+  if (severity === "INFO") return null
+
+  if (t.includes("reentrancy")) return [
+    '// Fix: Apply Checks-Effects-Interactions pattern + ReentrancyGuard',
+    'import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";',
+    '',
+    'contract Fixed is ReentrancyGuard {',
+    '    mapping(address => uint256) private balances;',
+    '',
+    '    // BEFORE (vulnerable):',
+    '    // function withdraw() external {',
+    '    //     uint256 amount = balances[msg.sender];',
+    '    //     (bool success,) = msg.sender.call{value: amount}("");',
+    '    //     balances[msg.sender] = 0;  // state update AFTER call',
+    '    // }',
+    '',
+    '    // AFTER (fixed):',
+    '    function withdraw() external nonReentrant {',
+    '        uint256 amount = balances[msg.sender];',
+    '        balances[msg.sender] = 0;                    // state update FIRST',
+    '        (bool success,) = msg.sender.call{value: amount}("");  // external call LAST',
+    '        require(success, "Transfer failed");',
+    '    }',
+    '}',
+  ].join("\n")
+
+  if (t.includes("unrestricted") && t.includes("mint")) return [
+    '// Fix: Add access control to mint function',
+    'import "@openzeppelin/contracts/access/AccessControl.sol";',
+    '',
+    'contract Fixed is ERC20, AccessControl {',
+    '    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");',
+    '',
+    '    constructor() {',
+    '        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);',
+    '        _grantRole(MINTER_ROLE, msg.sender);',
+    '    }',
+    '',
+    '    // BEFORE (vulnerable):',
+    '    // function mint(address to, uint256 amount) external {',
+    '    //     _mint(to, amount);  // no access control',
+    '    // }',
+    '',
+    '    // AFTER (fixed):',
+    '    function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {',
+    '        _mint(to, amount);',
+    '    }',
+    '}',
+  ].join("\n")
+
+  if (t.includes("access control") || t.includes("centrali")) return [
+    '// Fix: Implement multisig governance + timelock',
+    '// Deploy Gnosis Safe (https://safe.global) as admin',
+    '// Then wrap critical functions with timelock:',
+    '',
+    'import "@openzeppelin/contracts/governance/TimelockController.sol";',
+    '',
+    '// In your deployment script:',
+    '// 1. Deploy TimelockController(minDelay=48h, proposers=[multisig], executors=[multisig])',
+    '// 2. Transfer contract ownership to TimelockController address',
+    '// 3. All admin operations now require 48h delay + multisig approval',
+    '',
+    'modifier onlyGovernance() {',
+    '    require(msg.sender == address(timelockController), "Use governance");',
+    '    _;',
+    '}',
+    '',
+    '// Example protected function:',
+    'function setParameter(uint256 newValue) external onlyGovernance {',
+    '    parameter = newValue;',
+    '    emit ParameterChanged(newValue);',
+    '}',
+  ].join("\n")
+
+  if (t.includes("pragma") || t.includes("floating")) return [
+    '// Fix: Pin exact compiler version',
+    '// BEFORE:',
+    '// pragma solidity ^0.8.20;  // floating, allows 0.8.21, 0.8.22, etc.',
+    '',
+    '// AFTER:',
+    'pragma solidity 0.8.20;  // pinned to exact version',
+    '',
+    '// Also update hardhat.config.ts / foundry.toml:',
+    '// hardhat: solidity: { version: "0.8.20", settings: { optimizer: { enabled: true, runs: 200 } } }',
+    '// foundry:  solc = "0.8.20"',
+  ].join("\n")
+
+  if (t.includes("selfdestruct") || t.includes("self destruct")) return [
+    '// Fix: Remove selfdestruct or add strict access control',
+    '// Option A - Remove entirely (recommended):',
+    '// Delete the selfdestruct() call. Use a pause mechanism instead.',
+    '',
+    '// Option B - Restrict with multisig + timelock:',
+    'function emergencyShutdown() external onlyRole(EMERGENCY_ROLE) {',
+    '    require(',
+    '        IMultisig(multisig).hasApproval(SHUTDOWN_OPERATION_ID, REQUIRED_APPROVALS),',
+    '        "Requires multisig approval"',
+    '    );',
+    '    selfdestruct(payable(treasury));',
+    '}',
+  ].join("\n")
+
+  if (t.includes("tx.origin")) return [
+    '// Fix: Replace tx.origin with msg.sender',
+    '// BEFORE (vulnerable):',
+    '// require(tx.origin == owner, "Not owner");  // phishable',
+    '',
+    '// AFTER (fixed):',
+    'require(msg.sender == owner, "Not owner");',
+    '',
+    '// If you need to distinguish EOA from contract caller, use:',
+    'require(msg.sender == tx.origin, "No contract callers");  // restricts to EOA only',
+    '// OR use OpenZeppelin EIP-712 signatures for meta-transactions',
+  ].join("\n")
+
+  if (t.includes("overflow") || t.includes("underflow")) return [
+    '// Fix: Upgrade to Solidity >= 0.8.0 (built-in overflow checks)',
+    '// BEFORE (Solidity < 0.8.0):',
+    '// pragma solidity ^0.4.18;',
+    '// uint256 result = a + b;  // silent overflow possible',
+    '',
+    '// Option A - Upgrade compiler (recommended):',
+    'pragma solidity 0.8.20;',
+    'uint256 result = a + b;  // reverts on overflow automatically',
+    '',
+    '// Option B - If stuck on old compiler, use SafeMath:',
+    'import "@openzeppelin/contracts/utils/math/SafeMath.sol";',
+    'using SafeMath for uint256;',
+    'uint256 result = a.add(b);  // explicit overflow check',
+  ].join("\n")
+
+  if (t.includes("oracle")) return [
+    '// Fix: Implement Chainlink oracle with staleness check',
+    'import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";',
+    '',
+    'contract Fixed {',
+    '    AggregatorV3Interface internal priceFeed;',
+    '    uint256 constant STALENESS_THRESHOLD = 3600; // 1 hour',
+    '',
+    '    function getPrice() internal view returns (int256) {',
+    '        (',
+    '            uint80 roundId,',
+    '            int256 price,',
+    '            uint256 startedAt,',
+    '            uint256 updatedAt,',
+    '            uint80 answeredInRound',
+    '        ) = priceFeed.latestRoundData();',
+    '',
+    '        require(price > 0, "Invalid price");',
+    '        require(updatedAt >= block.timestamp - STALENESS_THRESHOLD, "Stale price");',
+    '        require(answeredInRound >= roundId, "Incomplete round");',
+    '',
+    '        return price;',
+    '    }',
+    '}',
+  ].join("\n")
+
+  // Generic fix
+  return [
+    "// Fix recommendation for: " + findingTitle,
+    "// Severity: " + severity,
+    "//",
+    "// 1. Review the identified vulnerability in context",
+    "// 2. Apply principle of least privilege",
+    "// 3. Add appropriate access controls",
+    "// 4. Add input validation where missing",
+    "// 5. Test fix with: forge test --match-test testFix -vvvv",
+    "// 6. Request re-audit of modified function",
+  ].join("\n")
+}
