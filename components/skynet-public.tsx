@@ -1371,7 +1371,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
         )}
 
         {/* ── TIER-1: Security Architecture ── */}
-        {(p.privilegedRoles || p.trustAssumptions || p.architectureOverview || p.attackSurface) && (
+        {(p.privilegedRoles || p.trustAssumptions || p.architectureOverview || p.attackSurface || p.scopeTable || p.onChainValidation) && (
           <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
             <div className="flex items-center gap-2 mb-5">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1L1 4v4l6 3 6-3V4L7 1z" stroke="#00e5ff" strokeWidth="1" strokeLinejoin="round"/><path d="M1 4l6 3m0 0l6-3M7 7v6" stroke="#00e5ff" strokeWidth="1"/></svg>
@@ -1384,37 +1384,42 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               // Build architecture overview at render time if not stored in data
               const archText = p.architectureOverview || (() => {
                 const parts: string[] = []
-                // Contract type
-                const ctype = p.scopeTable?.[0]?.language === "Solidity" ? "ERC-20 Token" : (p.scope || "Smart Contract")
-                parts.push(`${p.name} is deployed as a ${ctype} on ${p.network || "Ethereum"}.`)
-                // Solidity version
-                if (p.engagement?.solidityVersion) parts.push(`Compiled with Solidity ${p.engagement.solidityVersion}.`)
-                // Libraries — detect from contractUncertainty or onChainValidation
-                const usesOZ = p.engagement?.openZeppelinVersion || p.onChainValidation?.some(v => v.detail?.toLowerCase().includes("openzeppelin"))
-                if (usesOZ) parts.push(`Inherits from OpenZeppelin's audited library contracts${p.engagement?.openZeppelinVersion ? ` (v${p.engagement.openZeppelinVersion})` : ""}.`)
+                // Contract type from scope or tags
+                const lang = p.scopeTable?.[0]?.language || "Solidity"
+                const isERC20 = p.tags?.some(t => t.toLowerCase().includes("erc-20")) || p.scope?.toLowerCase().includes("erc")
+                const ctype = isERC20 ? "ERC-20 Token" : (p.scope || "Smart Contract")
+                parts.push(`${p.name} is deployed as a ${ctype} on the ${p.network || "Ethereum"} network.`)
+                // Compiler version from engagement
+                if (p.engagement?.compilerVersionUsed) parts.push(`Compiled with ${p.engagement.compilerVersionUsed}.`)
+                // Libraries — detect from tooling, description, or onChainValidation details
+                const ozHint = p.toolingUsed?.some(t => t.toLowerCase().includes("openzeppelin"))
+                  || p.onChainValidation?.some(v => v.detail?.toLowerCase().includes("openzeppelin"))
+                  || p.description?.toLowerCase().includes("openzeppelin")
+                if (ozHint) parts.push("Inherits from OpenZeppelin's audited library contracts for standardized functionality.")
                 // Proxy
                 if (p.upgradeabilityAnalysis?.isUpgradeable) {
-                  parts.push(`Uses a ${p.upgradeabilityAnalysis.proxyPattern || "proxy"} upgrade pattern — implementation is upgradeable.`)
+                  parts.push(`Uses a ${p.upgradeabilityAnalysis.proxyPattern || "proxy"} upgrade pattern, making the implementation upgradeable.`)
                 } else {
                   parts.push("Non-upgradeable with no proxy pattern detected.")
                 }
                 // Ownership
                 const ownerRenouncedOnChain = p.onChainValidation?.some(v => v.label.toLowerCase().includes("owner") && v.detail?.toLowerCase().includes("renounced"))
                 if (ownerRenouncedOnChain) {
-                  parts.push("Ownership renounced to the zero address, making the contract fully trustless.")
+                  parts.push("Ownership renounced to the zero address, making the contract immutable and trustless.")
                 } else if (p.privilegedRoles && p.privilegedRoles.length > 0) {
                   const roles = p.privilegedRoles.map(r => r.role).join(", ")
-                  parts.push(`Privileged roles detected: ${roles}.`)
+                  parts.push(`Privileged roles detected: ${roles}. Key management is critical for ongoing security.`)
                 }
-                // Supply model
-                const hasMintVal = p.contractUncertainty?.find(c => c.label === "Mint Function")
-                if (hasMintVal?.value) {
-                  parts.push(`A mint function is present${hasMintVal.attention === "GUARDED" ? " with role-based access control" : ""}.`)
-                } else {
-                  parts.push("Fixed supply model with no external mint capability.")
+                // Supply model from contractUncertainty
+                const mintEntry = p.contractUncertainty?.find(c => c.label === "Mint Function")
+                if (mintEntry?.value) {
+                  parts.push(`A mint function is present${mintEntry.attention === "GUARDED" ? " with role-based access control restricting minting to authorized addresses" : ", requiring careful access control review"}.`)
+                } else if (isERC20) {
+                  parts.push("The token follows a fixed supply model with no external mint capability. Total supply is immutable.")
                 }
-                // LoC
-                if (p.scopeTable?.[0]?.linesOfCode) parts.push(`The contract scope comprises ${p.scopeTable[0].linesOfCode} lines of code.`)
+                // Lines of code
+                const loc = p.scopeTable?.[0]?.linesOfCode || p.engagement?.linesOfCode
+                if (loc) parts.push(`The audited scope comprises ${loc} lines of ${lang} code.`)
                 return parts.join(" ")
               })()
 
@@ -1471,11 +1476,11 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                             </div>
                           </div>
 
-                          {/* Libraries — detect from archText OR engagement data */}
-                          {(archText.toLowerCase().includes('openzeppelin') || p.engagement?.openZeppelinVersion) && (
+                          {/* Libraries — detect from archText, tooling, or onChainValidation */}
+                          {(archText.toLowerCase().includes('openzeppelin') || p.toolingUsed?.some(t => t.toLowerCase().includes('openzeppelin'))) && (
                             <div className="bg-[#001608] border border-s39-green/20 px-3 py-2 text-center">
                               <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">LIBRARY</div>
-                              <div className="text-[9px] text-s39-green font-bold">OpenZeppelin{p.engagement?.openZeppelinVersion ? ` v${p.engagement.openZeppelinVersion}` : ''}</div>
+                              <div className="text-[9px] text-s39-green font-bold">OpenZeppelin</div>
                             </div>
                           )}
                           {archText.toLowerCase().includes('safemath') && !archText.toLowerCase().includes('no safemath') && (
