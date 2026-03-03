@@ -25,6 +25,7 @@ export interface Finding {
   clientResponse?: string         // "Team acknowledged; will implement in next release"
   fixVerification?: string        // "Verified in commit abc123 — mint guard added"
   foundryPoC?: string             // Foundry exploit PoC for HIGH/CRITICAL
+  remediationExample?: string | null  // Solidity code example for fixing the vulnerability
   cvss?: { vectorString: string; baseScore: number; severity: string; [key: string]: unknown }
   cwe?: { id: string; name: string; url: string }
   swc?: { id: string; name: string; url: string } | null
@@ -75,6 +76,26 @@ export interface AuditEngagement {
   commitHash: string                 // "0xabc123...verified on Etherscan"
   repositoryUrl?: string             // "https://etherscan.io/address/0x..."
   objectives: string[]               // ["Identify security vulnerabilities", "Assess centralization risks"]
+  // Enterprise fields
+  auditId?: string                   // "SOL-2026-TOKENNAME-01"
+  reviewTeam?: {
+    leadAuditor: {
+      name: string
+      role: string
+      credentials: string
+      signedOff: boolean
+      signOffDate?: string
+    }
+    secondReviewer?: {
+      name: string
+      role: string
+      credentials: string
+      signedOff: boolean
+      signOffDate?: string
+    }
+    reviewStatus: string
+    note?: string
+  } | null
 }
 
 export interface ScopeEntry {
@@ -252,6 +273,7 @@ export interface PortfolioProject {
     clientResponse?: string
     fixVerification?: string
     foundryPoC?: string
+    remediationExample?: string | null
     cvss?: { vectorString: string; baseScore: number; severity: string }
     cwe?: { id: string; name: string; url: string }
     swc?: { id: string; name: string; url: string } | null
@@ -337,6 +359,37 @@ export interface PortfolioProject {
     consensusReached: boolean
   }
   contractMeta?: Record<string, unknown>
+  // Enterprise: Second Round fields
+  attackerProfiles?: {
+    type: string
+    description: string
+    capabilities: string[]
+    goal: string
+  }[]
+  assetsAtRisk?: {
+    asset: string
+    risk: string
+  }[]
+  enterpriseTrustAssumptions?: string[]
+  formalVerification?: {
+    invariantsTested: {
+      invariant: string
+      result: string
+      method: string
+    }[]
+    allPassed: boolean
+    verificationMethod: string
+  }
+  residualRisk?: {
+    items: {
+      category: string
+      description: string
+      likelihood: string
+      impact: string
+      mitigation: string
+    }[]
+    overallResidualRisk: string
+  }
 }
 
 // Keep backward compat alias

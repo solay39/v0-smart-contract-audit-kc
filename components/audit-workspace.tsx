@@ -396,6 +396,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         clientResponse: f.clientResponse || undefined,
         fixVerification: f.fixVerification || undefined,
         foundryPoC: f.foundryPoC || undefined,
+        remediationExample: f.remediationExample || undefined,
         cvss: f.cvss || undefined,
         cwe: f.cwe || undefined,
         swc: f.swc || undefined,
@@ -748,16 +749,11 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       // Enterprise Standards
       economicAttackVectors: (economicAttackVectors as PortfolioProject["economicAttackVectors"]) || undefined,
       reviewRecord: (reviewRecord as PortfolioProject["reviewRecord"]) || undefined,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      attackerProfiles: (attackerProfiles as any) || undefined,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      assetsAtRisk: (assetsAtRisk as any) || undefined,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      enterpriseTrustAssumptions: (enterpriseTrustAssumptions as any) || undefined,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      formalVerification: (formalVerification as any) || undefined,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      residualRisk: (residualRisk as any) || undefined,
+      attackerProfiles: (attackerProfiles as PortfolioProject["attackerProfiles"]) || undefined,
+      assetsAtRisk: (assetsAtRisk as PortfolioProject["assetsAtRisk"]) || undefined,
+      enterpriseTrustAssumptions: (enterpriseTrustAssumptions as PortfolioProject["enterpriseTrustAssumptions"]) || undefined,
+      formalVerification: (formalVerification as PortfolioProject["formalVerification"]) || undefined,
+      residualRisk: (residualRisk as PortfolioProject["residualRisk"]) || undefined,
     }
 
     // ── Step 3: Compute SHA-256 report integrity before saving ──
@@ -1041,16 +1037,11 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     // Enterprise Standards
     economicAttackVectors: (economicAttackVectors as PortfolioProject["economicAttackVectors"]) || undefined,
     reviewRecord: (reviewRecord as PortfolioProject["reviewRecord"]) || undefined,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    attackerProfiles: (attackerProfiles as any) || undefined,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    assetsAtRisk: (assetsAtRisk as any) || undefined,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    enterpriseTrustAssumptions: (enterpriseTrustAssumptions as any) || undefined,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    formalVerification: (formalVerification as any) || undefined,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    residualRisk: (residualRisk as any) || undefined,
+    attackerProfiles: (attackerProfiles as PortfolioProject["attackerProfiles"]) || undefined,
+    assetsAtRisk: (assetsAtRisk as PortfolioProject["assetsAtRisk"]) || undefined,
+    enterpriseTrustAssumptions: (enterpriseTrustAssumptions as PortfolioProject["enterpriseTrustAssumptions"]) || undefined,
+    formalVerification: (formalVerification as PortfolioProject["formalVerification"]) || undefined,
+    residualRisk: (residualRisk as PortfolioProject["residualRisk"]) || undefined,
   })}
                   className="w-full"
                 >
