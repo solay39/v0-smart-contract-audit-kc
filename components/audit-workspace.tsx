@@ -17,12 +17,13 @@ import { isValidAddress, getExplorer, chainLanguage } from "@/lib/explorers"
 import { ScoreRing, S39Input, S39Btn, SevBadge } from "@/components/solay39-ui"
 import { exportPDF } from "@/lib/export-pdf"
 import { savePublishedAudit } from "@/components/skynet-public"
+import Solay39Validator from "@/components/solay39-validator"
 
 // ════════════════════════════════════════════════════════════════
 // AUDIT WORKSPACE — Founder Only
 // ════════════════════════════════════════════════════════════════
 
-type TabId = "dashboard" | "checklist" | "findings" | "skynet"
+type TabId = "dashboard" | "checklist" | "findings" | "skynet" | "validator"
 
 export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const [tab, setTab] = useState<TabId>("dashboard")
@@ -807,6 +808,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     ["checklist", "Checklist"],
     ["findings", "Findings"],
     ["skynet", "Skynet AI"],
+    ["validator", "Validator"],
   ]
 
   return (
@@ -1562,6 +1564,12 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
                 })}
               </div>
             )}
+          </div>
+        )}
+        {/* ── VALIDATOR ── */}
+        {tab === "validator" && (
+          <div className="animate-[fadeUp_0.4s_ease] -mx-4 sm:-mx-8 -mb-6">
+            <Solay39Validator />
           </div>
         )}
       </div>
