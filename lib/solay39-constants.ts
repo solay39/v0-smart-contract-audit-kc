@@ -390,6 +390,25 @@ export interface PortfolioProject {
     }[]
     overallResidualRisk: string
   }
+  // Enterprise: ECDSA Signature
+  signedReport?: {
+    reportHash: string
+    signature: string
+    auditorAddress: string
+    timestamp: string
+    auditId: string
+  }
+  // Enterprise: On-Chain Record
+  onChainRecord?: {
+    success?: boolean
+    onChain?: boolean
+    txHash?: string
+    blockNumber?: number
+    explorerUrl?: string
+    verificationUrl?: string
+    offChainRecord?: Record<string, unknown>
+    [key: string]: unknown
+  } | null
 }
 
 // Keep backward compat alias
@@ -516,7 +535,7 @@ export const CHECKLIST: Record<string, { id: string; text: string; sev: Severity
   ],
 }
 
-// ── Shared Halborn-style configs ──────────────────────����──────
+// ── Shared Halborn-style configs ────────��─────────────����──────
 export const SOLAY39_RISK_MODEL: RiskModelConfig = {
   methodology: "Likelihood x Impact severity matrix following OWASP and Halborn classification standards. Each finding is independently assessed for exploitability (likelihood) and damage potential (impact), then mapped to a composite severity level.",
   severityMatrix: [

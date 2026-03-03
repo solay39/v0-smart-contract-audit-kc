@@ -1626,7 +1626,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
             )}
 
-            {/* ── SECTION 6: PRIVILEGED ROLES & ACCESS CONTROL ── */}
+            {/* ── SECTION 6: PRIVILEGED ROLES & ACCESS CONTROL ���─ */}
             {p.privilegedRoles && p.privilegedRoles.length > 0 && (
               <div className="mb-5">
                 <div className="text-[8px] text-s39-dim tracking-widest mb-2">ACCESS CONTROL MATRIX</div>
@@ -3186,6 +3186,82 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                     className="flex items-center justify-center gap-2 p-2.5 rounded border border-emerald-700/50 bg-emerald-950/20 text-emerald-400 text-[9px] font-mono tracking-wider hover:bg-emerald-950/40 transition-colors">
                     {'Verify Report Integrity →'}
                   </a>
+                </div>
+              </section>
+            )}
+
+            {/* ── SECTION 17A-bis: ECDSA CRYPTOGRAPHIC SIGNATURE ── */}
+            {p.signedReport?.signature && p.signedReport.signature !== "0x_CONFIGURE_AUDITOR_PRIVATE_KEY_IN_ENV" && (
+              <section className="border border-s39-border rounded-xl p-6 bg-s39-bg1 mt-6">
+                <div className="text-[9px] font-mono tracking-widest text-s39-dim uppercase mb-4 flex items-center gap-2">
+                  <span className="w-4 h-px bg-s39-border"/>
+                  {'ECDSA Cryptographic Signature'}
+                  <span className="flex-1 h-px bg-s39-border"/>
+                </div>
+                <div className="space-y-3">
+                  <div className="p-3 rounded bg-s39-bg0 border border-purple-900/40">
+                    <div className="text-[8px] text-purple-400 font-mono tracking-wider mb-1">
+                      ECDSA SIGNATURE (EIP-191)
+                    </div>
+                    <code className="text-[8px] text-purple-300 font-mono break-all leading-relaxed block">
+                      {p.signedReport.signature}
+                    </code>
+                    <div className="text-[8px] text-s39-dim mt-1">
+                      {'EIP-191 personal_sign \u2014 recoverable via ethers.verifyMessage()'}
+                    </div>
+                  </div>
+
+                  {p.signedReport.auditorAddress && p.signedReport.auditorAddress !== "0x_NOT_CONFIGURED" && (
+                    <div className="p-3 rounded bg-s39-bg0 border border-s39-border">
+                      <div className="text-[8px] text-s39-dim font-mono tracking-wider mb-1">AUDITOR WALLET</div>
+                      <a
+                        href={"https://etherscan.io/address/" + p.signedReport.auditorAddress}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[9px] text-blue-400 font-mono hover:text-blue-300 transition-colors"
+                      >
+                        {p.signedReport.auditorAddress}{' \u2197'}
+                      </a>
+                    </div>
+                  )}
+
+                  {p.signedReport.reportHash && (
+                    <div className="p-3 rounded bg-s39-bg0 border border-emerald-900/40">
+                      <div className="text-[8px] text-emerald-400 font-mono tracking-wider mb-1">SIGNED REPORT HASH</div>
+                      <code className="text-[8px] text-emerald-300 font-mono break-all leading-relaxed block">
+                        {p.signedReport.reportHash}
+                      </code>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* ── SECTION 17A-ter: ON-CHAIN ATTESTATION ── */}
+            {p.onChainRecord?.txHash && (
+              <section className="border border-s39-border rounded-xl p-6 bg-s39-bg1 mt-6">
+                <div className="text-[9px] font-mono tracking-widest text-s39-dim uppercase mb-4 flex items-center gap-2">
+                  <span className="w-4 h-px bg-s39-border"/>
+                  {'On-Chain Attestation'}
+                  <span className="flex-1 h-px bg-s39-border"/>
+                </div>
+                <div className="space-y-3">
+                  <div className="p-3 rounded bg-s39-bg0 border border-blue-900/40">
+                    <div className="text-[8px] text-blue-400 font-mono tracking-wider mb-1">
+                      TRANSACTION HASH
+                    </div>
+                    <a
+                      href={p.onChainRecord.explorerUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[9px] text-blue-300 font-mono hover:text-blue-200 transition-colors break-all block"
+                    >
+                      {p.onChainRecord.txHash}{' \u2197'}
+                    </a>
+                    <div className="text-[8px] text-s39-dim mt-1">
+                      {'Block #'}{p.onChainRecord.blockNumber}{' \u2014 BSC Mainnet'}
+                    </div>
+                  </div>
                 </div>
               </section>
             )}

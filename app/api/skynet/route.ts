@@ -10,6 +10,7 @@ import {
   computeReportHash,
   buildReportIntegrity,
 } from "@/lib/enterprise-standards"
+import { signReport } from "@/lib/report-signing"
 
 /* ───────── types ───────── */
 
@@ -1230,6 +1231,38 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
           "LOW \u2014 no systemic code exploit risk identified. Residual risk is operational in nature.",
       }
 
+      // ── ENTERPRISE: Firma crittografica ECDSA ──────────────
+      const reportJsonToSign = JSON.stringify({
+        auditId,
+        projectName: meta.scopeLabel,
+        findings: enrichedFindings,
+        score: scoreBreakdown.finalScore,
+        timestamp: new Date().toISOString(),
+      })
+
+      const signedReport = await signReport(reportJsonToSign, auditId)
+
+      // ── ENTERPRISE: Registrazione on-chain (opzionale) ────
+      let onChainRecord = null
+      if (process.env.AUDIT_REGISTRY_ADDRESS && process.env.AUDITOR_PRIVATE_KEY) {
+        try {
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.solay39.eu"
+          const registryRes = await fetch(baseUrl + "/api/registry", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              projectName: meta.scopeLabel || "Unknown",
+              reportHash: signedReport.reportHash,
+              commitHash: contractAddr || "0x0",
+              auditId,
+            }),
+          })
+          onChainRecord = await registryRes.json()
+        } catch (e) {
+          console.warn("[Skynet] On-chain registration failed:", e)
+        }
+      }
+
       return Response.json({
         findings: enrichedFindings,
         source: "ai",
@@ -1260,6 +1293,9 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
         enterpriseTrustAssumptions,
         formalVerification,
         residualRisk,
+        // Enterprise: ECDSA Signature + On-Chain
+        signedReport,
+        onChainRecord,
       })
     } catch (aiError: unknown) {
       // AI failed -- fall back to static analysis (which is now context-aware)

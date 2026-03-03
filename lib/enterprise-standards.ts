@@ -580,7 +580,7 @@ export function generateFoundryPoC(
   ].join("\n")
 }
 
-// ─── REMEDIATION CODE GENERATOR ──────────────────────────────────
+// ─── REMEDIATION CODE GENERATOR ─────────────────────────────────
 
 export function generateRemediationExample(findingTitle: string, severity: string): string | null {
   const t = findingTitle.toLowerCase()
