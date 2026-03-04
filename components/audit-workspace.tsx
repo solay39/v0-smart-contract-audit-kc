@@ -897,9 +897,13 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       if (data.residualRisk) setResidualRisk(data.residualRisk)
       if (data.signedReport) setSignedReport(data.signedReport)
       if (data.onChainRecord) setOnChainRecord(data.onChainRecord)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error"
-      setAiError(`Network error: ${msg}. Check your connection and try again.`)
+} catch (err) {
+  const msg = err instanceof Error ? err.message : "Unknown error"
+  if (msg.includes("Failed to fetch") || msg.includes("AbortError") || msg.includes("timeout")) {
+    setAiError("Analysis timed out or network error. The server may need more time for complex contracts. Please try again.")
+  } else {
+    setAiError(`Network error: ${msg}. Check your connection and try again.`)
+  }
     }
     setAiLoad(false)
   }

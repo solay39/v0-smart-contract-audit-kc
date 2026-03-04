@@ -1,3 +1,5 @@
+export const maxDuration = 60
+
 import { generateText } from "ai"
 import {
   computeCVSS,
@@ -135,7 +137,7 @@ function extractContractMeta(code: string, network: string): ContractMeta {
     && /balances|_balances|balanceOf/.test(code)
 
   const isERC721 = /ERC721|function\s+ownerOf|function\s+tokenURI/.test(code)
-  const hasProxy = /delegatecall|EIP1967|TransparentUpgradeableProxy|UUPSUpgradeable|implementation\(\)/.test(code)
+  const hasProxy = /delegatecall|EIP1967|TransparentUpgradeableProxy|UUPSUpgradeable|BeaconProxy|UpgradeableBeacon|implementation\(\)/.test(code)
   const hasDeFiLogic = /swap|liquidity|pool|vault|stake|borrow|lend|oracle|liquidat/.test(code.toLowerCase())
 
   const hasSafeMath = /library\s+SafeMath|SafeMath\s+for\s+uint|using\s+SafeMath|\.add\(|\.sub\(|\.mul\(|\.div\(/.test(code)
@@ -1369,7 +1371,7 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
     } catch (aiError: unknown) {
       // AI failed -- fall back to static analysis (which is now context-aware)
       const aiMsg = aiError instanceof Error ? aiError.message : String(aiError)
-      console.log("[v0] AI unavailable, using static analysis. Reason:", aiMsg)
+      console.log("[Skynet] AI unavailable, using static analysis. Reason:", aiMsg)
 
       const findings = staticAnalysis(truncatedCode, meta)
 
