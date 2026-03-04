@@ -68,75 +68,129 @@ export interface EconomicAttackVector {
   pocSketch: string
 }
 
+// ─── CVSS v3.1 REAL CALCULATOR (spec-compliant) ──────────────────
+
+interface CVSSv31Vector {
+  AV: "N" | "A" | "L" | "P"
+  AC: "L" | "H"
+  PR: "N" | "L" | "H"
+  UI: "N" | "R"
+  S: "U" | "C"
+  C: "H" | "L" | "N"
+  I: "H" | "L" | "N"
+  A: "H" | "L" | "N"
+}
+
+export function calculateCVSSv31(v: CVSSv31Vector): number {
+  const wAV: Record<string, number> = { N: 0.85, A: 0.62, L: 0.55, P: 0.2 }
+  const wAC: Record<string, number> = { L: 0.77, H: 0.44 }
+  const wPR: Record<string, Record<string, number>> = {
+    N: { U: 0.85, C: 0.85 },
+    L: { U: 0.62, C: 0.68 },
+    H: { U: 0.27, C: 0.5 },
+  }
+  const wUI: Record<string, number> = { N: 0.85, R: 0.62 }
+  const wS: Record<string, number> = { U: 6.42, C: 7.52 }
+  const wCIA: Record<string, number> = { N: 0, L: 0.22, H: 0.56 }
+
+  const iss = 1 - (1 - wCIA[v.C]) * (1 - wCIA[v.I]) * (1 - wCIA[v.A])
+
+  const impact = v.S === "U"
+    ? wS.U * iss
+    : wS.C * (iss - 0.029) - 3.25 * Math.pow(iss - 0.02, 15)
+
+  const exploitability =
+    8.22 * wAV[v.AV] * wAC[v.AC] * wPR[v.PR][v.S] * wUI[v.UI]
+
+  if (impact <= 0) return 0
+
+  const raw = v.S === "U"
+    ? Math.min(impact + exploitability, 10)
+    : Math.min(1.08 * (impact + exploitability), 10)
+
+  // CVSS spec: round up to nearest 0.1
+  return Math.ceil(raw * 10) / 10
+}
+
+function severityFromScore(score: number): CVSSv3["severity"] {
+  if (score >= 9.0) return "CRITICAL"
+  if (score >= 7.0) return "HIGH"
+  if (score >= 4.0) return "MEDIUM"
+  if (score > 0.0) return "LOW"
+  return "NONE"
+}
+
+function buildCVSSFromVector(v: CVSSv31Vector): CVSSv3 {
+  const score = calculateCVSSv31(v)
+  const vs = "CVSS:3.1/AV:" + v.AV + "/AC:" + v.AC + "/PR:" + v.PR +
+    "/UI:" + v.UI + "/S:" + v.S + "/C:" + v.C + "/I:" + v.I + "/A:" + v.A
+  return {
+    vectorString: vs,
+    baseScore: score,
+    severity: severityFromScore(score),
+    attackVector: v.AV,
+    attackComplexity: v.AC,
+    privilegesRequired: v.PR,
+    userInteraction: v.UI,
+    scope: v.S,
+    confidentialityImpact: v.C,
+    integrityImpact: v.I,
+    availabilityImpact: v.A,
+  }
+}
+
 // ─── CVSS AUTO-CALCULATOR ─────────────────────────────────────────
 
 export function computeCVSS(findingTitle: string, severity: string): CVSSv3 {
   const t = findingTitle.toLowerCase()
 
-  const defaults: Record<string, CVSSv3> = {
-    CRITICAL: {
-      vectorString: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
-      baseScore: 9.8, severity: "CRITICAL",
-      attackVector: "N", attackComplexity: "L", privilegesRequired: "N",
-      userInteraction: "N", scope: "U",
-      confidentialityImpact: "H", integrityImpact: "H", availabilityImpact: "H",
-    },
-    HIGH: {
-      vectorString: "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N",
-      baseScore: 8.1, severity: "HIGH",
-      attackVector: "N", attackComplexity: "L", privilegesRequired: "L",
-      userInteraction: "N", scope: "U",
-      confidentialityImpact: "H", integrityImpact: "H", availabilityImpact: "N",
-    },
-    MEDIUM: {
-      vectorString: "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:L/I:L/A:N",
-      baseScore: 4.2, severity: "MEDIUM",
-      attackVector: "N", attackComplexity: "H", privilegesRequired: "L",
-      userInteraction: "N", scope: "U",
-      confidentialityImpact: "L", integrityImpact: "L", availabilityImpact: "N",
-    },
-    LOW: {
-      vectorString: "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:N/I:L/A:N",
-      baseScore: 1.8, severity: "LOW",
-      attackVector: "L", attackComplexity: "H", privilegesRequired: "H",
-      userInteraction: "R", scope: "U",
-      confidentialityImpact: "N", integrityImpact: "L", availabilityImpact: "N",
-    },
-    INFO: {
-      vectorString: "CVSS:3.1/AV:N/AC:H/PR:H/UI:R/S:U/C:N/I:N/A:N",
-      baseScore: 0.0, severity: "NONE",
-      attackVector: "N", attackComplexity: "H", privilegesRequired: "H",
-      userInteraction: "R", scope: "U",
-      confidentialityImpact: "N", integrityImpact: "N", availabilityImpact: "N",
-    },
+  // Title-based vector lookup: each maps to real CVSS v3.1 components
+  // The baseScore is calculated by calculateCVSSv31() — never hardcoded
+  const vectorLookup: Array<{ match: (t: string) => boolean; v: CVSSv31Vector }> = [
+    { match: (s) => s.includes("reentrancy"),
+      v: { AV: "N", AC: "L", PR: "N", UI: "N", S: "U", C: "H", I: "H", A: "H" } },
+    { match: (s) => s.includes("overflow") || s.includes("underflow"),
+      v: { AV: "N", AC: "L", PR: "N", UI: "N", S: "U", C: "N", I: "H", A: "N" } },
+    { match: (s) => s.includes("selfdestruct") || s.includes("self destruct"),
+      v: { AV: "N", AC: "L", PR: "H", UI: "N", S: "C", C: "H", I: "H", A: "H" } },
+    { match: (s) => s.includes("tx.origin"),
+      v: { AV: "N", AC: "H", PR: "N", UI: "R", S: "U", C: "H", I: "H", A: "N" } },
+    { match: (s) => s.includes("unrestricted") && s.includes("mint"),
+      v: { AV: "N", AC: "L", PR: "N", UI: "N", S: "U", C: "N", I: "H", A: "N" } },
+    { match: (s) => (s.includes("mint") || s.includes("pause")) && s.includes("centrali"),
+      v: { AV: "N", AC: "L", PR: "H", UI: "N", S: "U", C: "N", I: "L", A: "N" } },
+    { match: (s) => s.includes("pragma") || s.includes("floating"),
+      v: { AV: "N", AC: "H", PR: "N", UI: "N", S: "U", C: "N", I: "L", A: "N" } },
+    { match: (s) => s.includes("delegatecall"),
+      v: { AV: "N", AC: "H", PR: "L", UI: "N", S: "C", C: "H", I: "H", A: "H" } },
+    { match: (s) => s.includes("flash loan") || s.includes("flashloan"),
+      v: { AV: "N", AC: "L", PR: "N", UI: "N", S: "U", C: "N", I: "H", A: "N" } },
+    { match: (s) => s.includes("oracle"),
+      v: { AV: "N", AC: "H", PR: "N", UI: "N", S: "U", C: "N", I: "H", A: "N" } },
+    { match: (s) => s.includes("access control") && (s.includes("missing") || s.includes("broken")),
+      v: { AV: "N", AC: "L", PR: "N", UI: "N", S: "U", C: "N", I: "H", A: "N" } },
+    { match: (s) => s.includes("front") && s.includes("run"),
+      v: { AV: "N", AC: "H", PR: "N", UI: "N", S: "U", C: "N", I: "L", A: "N" } },
+    { match: (s) => s.includes("dos") || s.includes("denial"),
+      v: { AV: "N", AC: "L", PR: "N", UI: "N", S: "U", C: "N", I: "N", A: "H" } },
+    { match: (s) => s.includes("signature") && (s.includes("replay") || s.includes("malleab")),
+      v: { AV: "N", AC: "L", PR: "N", UI: "N", S: "U", C: "N", I: "H", A: "N" } },
+  ]
+
+  for (const entry of vectorLookup) {
+    if (entry.match(t)) return buildCVSSFromVector(entry.v)
   }
 
-  let base: CVSSv3 = { ...(defaults[severity] ?? defaults["MEDIUM"]) }
+  // Fallback: build vector from severity tier using standard defaults
+  const severityVectors: Record<string, CVSSv31Vector> = {
+    CRITICAL: { AV: "N", AC: "L", PR: "N", UI: "N", S: "U", C: "H", I: "H", A: "H" },
+    HIGH:     { AV: "N", AC: "L", PR: "L", UI: "N", S: "U", C: "H", I: "H", A: "N" },
+    MEDIUM:   { AV: "N", AC: "H", PR: "L", UI: "N", S: "U", C: "L", I: "L", A: "N" },
+    LOW:      { AV: "L", AC: "H", PR: "H", UI: "R", S: "U", C: "N", I: "L", A: "N" },
+    INFO:     { AV: "N", AC: "H", PR: "H", UI: "R", S: "U", C: "N", I: "N", A: "N" },
+  }
 
-  if (t.includes("reentrancy"))
-    base = { ...base, vectorString: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H", baseScore: 9.8, severity: "CRITICAL", attackVector: "N", attackComplexity: "L", privilegesRequired: "N", confidentialityImpact: "H", integrityImpact: "H", availabilityImpact: "H" }
-  else if (t.includes("overflow") || t.includes("underflow"))
-    base = { ...base, vectorString: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N", baseScore: 7.5, severity: "HIGH", attackVector: "N", attackComplexity: "L", privilegesRequired: "N", confidentialityImpact: "N", integrityImpact: "H", availabilityImpact: "N" }
-  else if (t.includes("selfdestruct") || t.includes("self destruct"))
-    base = { ...base, vectorString: "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:C/C:H/I:H/A:H", baseScore: 9.1, severity: "CRITICAL", attackVector: "N", attackComplexity: "L", privilegesRequired: "H", scope: "C", confidentialityImpact: "H", integrityImpact: "H", availabilityImpact: "H" }
-  else if (t.includes("tx.origin"))
-    base = { ...base, vectorString: "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:H/A:N", baseScore: 7.4, severity: "HIGH", attackVector: "N", attackComplexity: "H", privilegesRequired: "N", userInteraction: "R", confidentialityImpact: "H", integrityImpact: "H", availabilityImpact: "N" }
-  else if (t.includes("unrestricted") && t.includes("mint"))
-    base = { ...base, vectorString: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N", baseScore: 7.5, severity: "HIGH", attackVector: "N", attackComplexity: "L", privilegesRequired: "N", confidentialityImpact: "N", integrityImpact: "H", availabilityImpact: "N" }
-  else if ((t.includes("mint") || t.includes("pause")) && t.includes("centrali"))
-    base = { ...base, vectorString: "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:N/I:L/A:N", baseScore: 2.7, severity: "LOW", attackVector: "N", attackComplexity: "L", privilegesRequired: "H", confidentialityImpact: "N", integrityImpact: "L", availabilityImpact: "N" }
-  else if (t.includes("pragma") || t.includes("floating"))
-    base = { ...base, vectorString: "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N", baseScore: 3.7, severity: "LOW", attackVector: "N", attackComplexity: "H", privilegesRequired: "N", confidentialityImpact: "N", integrityImpact: "L", availabilityImpact: "N" }
-  else if (t.includes("delegatecall"))
-    base = { ...base, vectorString: "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:C/C:H/I:H/A:H", baseScore: 8.5, severity: "HIGH", attackVector: "N", attackComplexity: "H", privilegesRequired: "L", scope: "C", confidentialityImpact: "H", integrityImpact: "H", availabilityImpact: "H" }
-  else if (t.includes("flash loan") || t.includes("flashloan"))
-    base = { ...base, vectorString: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N", baseScore: 7.5, severity: "HIGH", attackVector: "N", attackComplexity: "L", privilegesRequired: "N", confidentialityImpact: "N", integrityImpact: "H", availabilityImpact: "N" }
-  else if (t.includes("oracle"))
-    base = { ...base, vectorString: "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:N", baseScore: 5.9, severity: "MEDIUM", attackVector: "N", attackComplexity: "H", privilegesRequired: "N", confidentialityImpact: "N", integrityImpact: "H", availabilityImpact: "N" }
-  else if (t.includes("access control") && (t.includes("missing") || t.includes("broken")))
-    base = { ...base, vectorString: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N", baseScore: 7.5, severity: "HIGH", attackVector: "N", attackComplexity: "L", privilegesRequired: "N", confidentialityImpact: "N", integrityImpact: "H", availabilityImpact: "N" }
-
-  return base
+  return buildCVSSFromVector(severityVectors[severity] ?? severityVectors["MEDIUM"])
 }
 
 // ─── CWE MAP ──────────────────────────────────────────────────────
