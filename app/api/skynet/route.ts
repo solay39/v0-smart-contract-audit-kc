@@ -619,6 +619,17 @@ ABSOLUTE INTEGRITY RULES — NEVER VIOLATE THESE:
    - "Centralized minting" if _mint() is ONLY inside the constructor (fixed supply)
    - "Integer overflow" if SafeMath is used or Solidity >= 0.8.0
    - Known ERC-20 limitations as HIGH/CRITICAL (approve race condition is LOW at most)
+
+   CRITICAL RULE — MINT FUNCTION CLASSIFICATION:
+   - If the contract has a mint() function protected by require(msg.sender == minter)
+     or require(msg.sender == owner) or onlyOwner or onlyRole modifier →
+     classify as "Centralized Mint Authority" with severity LOW or MEDIUM, NOT CRITICAL
+   - Only classify as "Unrestricted Minting Function" CRITICAL if the mint function
+     has ZERO access control (no require, no modifier, callable by any address)
+   - The hasMintOutsideConstructor flag means mint EXISTS, not that it is unprotected
+   - Always check the actual access control pattern before assigning CRITICAL severity
+   - For contracts like Aerodrome where mint is restricted to a Minter contract address,
+     this is "Centralized Mint Authority" at MEDIUM, not "Unrestricted" CRITICAL
    
    Solana/Anchor:
    - "Integer overflow" — Rust has built-in overflow checks in debug mode, and Anchor uses checked math
@@ -1097,6 +1108,35 @@ export async function POST(req: Request) {
         : undefined,
         remediationExample: generateRemediationExample(f.title, f.severity),
       }))
+
+      // ── ANTI FALSE-POSITIVE: Final validation on enriched findings ──
+      // Catches any remaining "Unrestricted Mint" CRITICAL when on-chain data proves mint is guarded
+      const finalFindings = enrichedFindings.map((f: Record<string, unknown>) => {
+        const tl = String(f.title || "").toLowerCase()
+        if (
+          tl.includes("unrestricted") && tl.includes("mint") &&
+          f.severity === "CRITICAL"
+        ) {
+          const mintIsActuallyGuarded =
+            meta.mintGuarded === true ||
+            /require\s*\(\s*msg\.sender\s*==\s*(minter|_minter|owner|_owner)/.test(truncatedCode) ||
+            /onlyMinter|isMinter|MINTER_ROLE/.test(truncatedCode)
+
+          if (mintIsActuallyGuarded) {
+            return {
+              ...f,
+              title: "Centralized Mint Authority",
+              severity: "MEDIUM",
+              location: "Mint function with role-based access control",
+              description: "The mint() function is restricted to an authorized minter address or role. While centralized, this does not represent an open vulnerability \u2014 it requires the minter key to be compromised to inflate supply.",
+              impact: "A compromised or malicious minter key could mint additional tokens, diluting existing holders.",
+              recommendation: "Consider implementing a supply cap, timelocks, or multi-sig requirements for minting operations.",
+              cvss: { vectorString: "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:N/I:L/A:N", baseScore: 2.7, severity: "LOW" },
+            }
+          }
+        }
+        return f
+      })
   
       // ── ENTERPRISE: Economic Attack Analysis ──
 const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
@@ -1264,7 +1304,7 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
       const reportJsonToSign = JSON.stringify({
         auditId,
         projectName: meta.scopeLabel,
-        findings: enrichedFindings,
+        findings: finalFindings,
         score: scoreBreakdown.finalScore,
         timestamp: new Date().toISOString(),
       })
@@ -1293,7 +1333,7 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
       }
 
       return Response.json({
-        findings: enrichedFindings,
+        findings: finalFindings,
         source: "ai",
         contractMeta: meta,
         scoreBreakdown,
@@ -1344,6 +1384,28 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
         : undefined,
         remediationExample: generateRemediationExample(f.title, f.severity),
       }))
+
+      // ── ANTI FALSE-POSITIVE: same validation for static path ──
+      const finalStaticFindings = enrichedStaticFindings.map((f: Record<string, unknown>) => {
+        const tl = String(f.title || "").toLowerCase()
+        if (tl.includes("unrestricted") && tl.includes("mint") && f.severity === "CRITICAL") {
+          const mintIsActuallyGuarded =
+            meta.mintGuarded === true ||
+            /require\s*\(\s*msg\.sender\s*==\s*(minter|_minter|owner|_owner)/.test(truncatedCode) ||
+            /onlyMinter|isMinter|MINTER_ROLE/.test(truncatedCode)
+          if (mintIsActuallyGuarded) {
+            return {
+              ...f,
+              title: "Centralized Mint Authority",
+              severity: "MEDIUM",
+              location: "Mint function with role-based access control",
+              description: "The mint() function is restricted to an authorized minter address or role. While centralized, this does not represent an open vulnerability \u2014 it requires the minter key to be compromised to inflate supply.",
+              cvss: { vectorString: "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:N/I:L/A:N", baseScore: 2.7, severity: "LOW" },
+            }
+          }
+        }
+        return f
+      })
   
 const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
   hasProxy:         meta.hasProxy,
@@ -1365,7 +1427,7 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
       const scoreBreakdown = computeScoreBreakdown(100, meta, fCount)
 
       return Response.json({
-        findings: enrichedStaticFindings,
+        findings: finalStaticFindings,
         source: "static",
         note: "Analysis performed using Solay39 pattern-based static analyzer (AI model unavailable).",
         contractMeta: meta,
