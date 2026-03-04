@@ -892,9 +892,45 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       if (data.reviewRecord) setReviewRecord(data.reviewRecord)
       if (data.attackerProfiles) setAttackerProfiles(data.attackerProfiles)
       if (data.assetsAtRisk) setAssetsAtRisk(data.assetsAtRisk)
+      // Handle AI threatModel wrapper (new format) — map to flat fields
+      if (data.threatModel?.attackerProfiles && !data.attackerProfiles) {
+        setAttackerProfiles(data.threatModel.attackerProfiles.map((p: { type: string; privileges?: string; motivation?: string; capability?: string; relevantFindings?: string[] }) => ({
+          type: p.type,
+          description: `${p.privileges || "N/A"} — ${p.motivation || "N/A"}`,
+          capabilities: [p.capability || "Unknown"],
+          goal: p.motivation || "Unknown",
+        })))
+      }
+      if (data.threatModel?.assetsAtRisk && !data.assetsAtRisk) {
+        setAssetsAtRisk(data.threatModel.assetsAtRisk.map((a: string) => ({ asset: a, risk: "MEDIUM" })))
+      }
+      // Handle AI formalVerification new format
+      if (data.formalVerification?.invariants && !data.formalVerification?.invariantsTested) {
+        setFormalVerification({
+          invariantsTested: data.formalVerification.invariants.map((inv: { id: string; property: string; description: string; status: string; method: string }) => ({
+            invariant: `${inv.id}: ${inv.property} — ${inv.description}`,
+            result: inv.status === "VERIFIED" ? "PASS" : inv.status === "FAILED" ? "FAIL" : inv.status,
+            method: inv.method,
+          })),
+          allPassed: data.formalVerification.invariants.every((inv: { status: string }) => inv.status === "VERIFIED"),
+          verificationMethod: data.formalVerification.tool || "Foundry + Echidna invariant testing",
+        })
+      } else if (data.formalVerification) {
+        setFormalVerification(data.formalVerification)
+      }
+      // Handle AI residualRisk new format
+      if (data.residualRisk?.statement && !data.residualRisk?.overallResidualRisk) {
+        setResidualRisk({
+          items: (data.residualRisk.items || []).map((item: { category: string; description: string; likelihood: string; mitigation: string }) => ({
+            ...item,
+            impact: item.likelihood === "High" ? "High" : "Medium",
+          })),
+          overallResidualRisk: `${data.residualRisk.level || "LOW"} — ${data.residualRisk.statement}`,
+        })
+      } else if (data.residualRisk) {
+        setResidualRisk(data.residualRisk)
+      }
       if (data.enterpriseTrustAssumptions) setEnterpriseTrustAssumptions(data.enterpriseTrustAssumptions)
-      if (data.formalVerification) setFormalVerification(data.formalVerification)
-      if (data.residualRisk) setResidualRisk(data.residualRisk)
       if (data.signedReport) setSignedReport(data.signedReport)
       if (data.onChainRecord) setOnChainRecord(data.onChainRecord)
 } catch (err) {
