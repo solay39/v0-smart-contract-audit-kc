@@ -20,9 +20,18 @@ const ATTESTATION_ABI = [
   "event AuditAttested(bytes32 indexed id, string project, string reportHash, address[] auditors, bool dualReview, uint256 timestamp)",
 ]
 
+// ABI del contratto Solay39EnterpriseRegistry (publishAudit con address[] auditors)
+const ENTERPRISE_ABI = [
+  "function publishAudit(string project, string reportHash, string commitHash, address[] auditors) public returns (bytes32)",
+  "function verifyAudit(bytes32 id) external view returns (string project, string reportHash, string commitHash, address[] auditors, uint256 timestamp)",
+  "function verifyByReportHash(string reportHash) external view returns (bool found, bytes32 id)",
+  "event AuditPublished(bytes32 indexed id, string project)",
+]
+
 // Indirizzi dei contratti deployati (da env)
 const REGISTRY_ADDRESS = process.env.AUDIT_REGISTRY_ADDRESS ?? ""
 const ATTESTATION_ADDRESS = process.env.ATTESTATION_CONTRACT_ADDRESS ?? ""
+const ENTERPRISE_ADDRESS = process.env.ENTERPRISE_REGISTRY_ADDRESS ?? ""
 const AUDITOR_PRIVATE_KEY = process.env.AUDITOR_PRIVATE_KEY ?? ""
 const RPC_URL = process.env.BLOCKCHAIN_RPC_URL ?? "https://bsc-dataseed.binance.org/"
 
@@ -39,7 +48,7 @@ export async function POST(req: NextRequest) {
       : []
 
     // Se nessun registry e' configurato, ritorna un record off-chain verificabile
-    if (!AUDITOR_PRIVATE_KEY || (!REGISTRY_ADDRESS && !ATTESTATION_ADDRESS)) {
+    if (!AUDITOR_PRIVATE_KEY || (!REGISTRY_ADDRESS && !ATTESTATION_ADDRESS && !ENTERPRISE_ADDRESS)) {
       console.warn("[Registry] On-chain registry not configured -- returning off-chain record")
       return NextResponse.json({
         success: true,
@@ -61,7 +70,47 @@ export async function POST(req: NextRequest) {
     const provider = new ethers.JsonRpcProvider(RPC_URL)
     const wallet = new ethers.Wallet(AUDITOR_PRIVATE_KEY, provider)
 
-    // ── STRATEGY: Use Attestation contract if available (multi-auditor), else Registry ──
+    // ── STRATEGY: Enterprise > Attestation > Registry (in priority order) ──
+
+    // 1st priority: Solay39EnterpriseRegistry (publishAudit with address[] auditors)
+    if (ENTERPRISE_ADDRESS && auditorList.length > 0) {
+      const enterprise = new ethers.Contract(ENTERPRISE_ADDRESS, ENTERPRISE_ABI, wallet)
+
+      const gasEstimate = await enterprise.publishAudit.estimateGas(
+        projectName, reportHash, commitHash ?? reportHash, auditorList
+      )
+
+      const tx = await enterprise.publishAudit(
+        projectName,
+        reportHash,
+        commitHash ?? reportHash,
+        auditorList,
+        { gasLimit: (gasEstimate * BigInt(12)) / BigInt(10) }
+      )
+
+      const receipt = await tx.wait()
+
+      const event = receipt.logs
+        .map((log: { topics: string[]; data: string }) => {
+          try { return enterprise.interface.parseLog(log) } catch { return null }
+        })
+        .find((e: { name: string } | null) => e?.name === "AuditPublished")
+
+      return NextResponse.json({
+        success: true,
+        onChain: true,
+        contractType: "enterprise",
+        dualReview: auditorList.length >= 2,
+        auditors: auditorList,
+        txHash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+        onChainAuditId: event?.args?.id ?? null,
+        explorerUrl: "https://bscscan.com/tx/" + receipt.hash,
+        verificationUrl: "https://www.solay39.eu/verify/" + (auditId || "unknown"),
+      })
+    }
+
+    // 2nd priority: Solay39Attestation (multi-auditor attestation)
     if (ATTESTATION_ADDRESS && auditorList.length > 0) {
       // Multi-auditor attestation
       const attestation = new ethers.Contract(ATTESTATION_ADDRESS, ATTESTATION_ABI, wallet)
@@ -159,7 +208,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "auditId or reportHash required" }, { status: 400 })
   }
 
-  if (!REGISTRY_ADDRESS && !ATTESTATION_ADDRESS) {
+  if (!REGISTRY_ADDRESS && !ATTESTATION_ADDRESS && !ENTERPRISE_ADDRESS) {
     return NextResponse.json({ onChain: false, message: "Registry not configured" })
   }
 
@@ -167,7 +216,29 @@ export async function GET(req: NextRequest) {
     const { ethers } = await import("ethers")
     const provider = new ethers.JsonRpcProvider(RPC_URL)
 
-    // Try Attestation contract first (multi-auditor)
+    // Try Enterprise registry first (publishAudit with address[] auditors)
+    if (ENTERPRISE_ADDRESS && reportHash) {
+      const enterprise = new ethers.Contract(ENTERPRISE_ADDRESS, ENTERPRISE_ABI, provider)
+      const [found, id] = await enterprise.verifyByReportHash(reportHash)
+      if (found) {
+        const [project, hash, commit, auditors, timestamp] =
+          await enterprise.verifyAudit(id)
+        return NextResponse.json({
+          onChain: true,
+          contractType: "enterprise",
+          record: {
+            project,
+            reportHash: hash,
+            commitHash: commit,
+            auditors,
+            dualReview: auditors.length >= 2,
+            timestamp: new Date(Number(timestamp) * 1000).toISOString(),
+          }
+        })
+      }
+    }
+
+    // Try Attestation contract (multi-auditor)
     if (ATTESTATION_ADDRESS && reportHash) {
       const attestation = new ethers.Contract(ATTESTATION_ADDRESS, ATTESTATION_ABI, provider)
       const [found, id] = await attestation.verifyByReportHash(reportHash)

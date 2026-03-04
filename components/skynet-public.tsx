@@ -1626,7 +1626,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
             )}
 
-            {/* ── SECTION 6: PRIVILEGED ROLES & ACCESS CONTROL ���─ */}
+            {/* ── SECTION 6: PRIVILEGED ROLES & ACCESS CONTROL �����─ */}
             {p.privilegedRoles && p.privilegedRoles.length > 0 && (
               <div className="mb-5">
                 <div className="text-[8px] text-s39-dim tracking-widest mb-2">ACCESS CONTROL MATRIX</div>
@@ -3787,7 +3787,32 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
       } catch { /* non-critical */ }
 
       // 3. Merge: defaults + blob + localStorage (deduplicate by id/name)
-      const merged = [...DEFAULT_PROJECTS]
+      //    Blob/local data enriches defaults (logoUrl, description, etc.)
+      const merged = [...DEFAULT_PROJECTS.map(dp => {
+        // If blob/local has richer data for this project, merge it in
+        const blobMatch = [...blobAudits, ...cleaned].find(
+          pub => pub.id === dp.id || norm(pub.name) === norm(dp.name)
+        )
+        if (!blobMatch) return dp
+        return {
+          ...dp,
+          logoUrl: blobMatch.logoUrl || dp.logoUrl,
+          description: blobMatch.description || dp.description,
+          website: blobMatch.website || dp.website,
+          githubUrl: blobMatch.githubUrl || dp.githubUrl,
+          telegram: blobMatch.telegram || dp.telegram,
+          twitter: blobMatch.twitter || dp.twitter,
+          discord: blobMatch.discord || dp.discord,
+          price: blobMatch.price || dp.price,
+          change24h: blobMatch.change24h || dp.change24h,
+          tvl: blobMatch.tvl || dp.tvl,
+          totalSupply: blobMatch.totalSupply || dp.totalSupply,
+          tokenAge: blobMatch.tokenAge || dp.tokenAge,
+          fdv: blobMatch.fdv || dp.fdv,
+          volume24h: blobMatch.volume24h || dp.volume24h,
+          // Preserve default's structured audit data (findings, scores, etc.)
+        }
+      })]
       const allExtras = [...blobAudits, ...cleaned]
       for (const pub of allExtras) {
         if (!merged.some((m) => m.id === pub.id || norm(m.name) === norm(pub.name))) {
