@@ -765,15 +765,6 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       onChainRecord: (onChainRecord as any) || undefined,
     }
 
-    // ── Debug: verify enterprise fields are present ──
-    console.log("[v0] portfolioEntry.engagement?.auditId:", (portfolioEntry.engagement as Record<string, unknown>)?.auditId)
-    console.log("[v0] portfolioEntry.engagement?.reviewTeam:", !!(portfolioEntry.engagement as Record<string, unknown>)?.reviewTeam)
-    console.log("[v0] portfolioEntry.attackerProfiles:", !!portfolioEntry.attackerProfiles, Array.isArray(portfolioEntry.attackerProfiles) ? portfolioEntry.attackerProfiles.length : 0)
-    console.log("[v0] portfolioEntry.formalVerification:", !!portfolioEntry.formalVerification)
-    console.log("[v0] portfolioEntry.residualRisk:", !!portfolioEntry.residualRisk)
-    console.log("[v0] portfolioEntry.signedReport:", !!portfolioEntry.signedReport)
-    console.log("[v0] portfolioEntry.findings[0]?.remediationExample:", portfolioEntry.findings?.[0]?.remediationExample ? "present" : "missing")
-
     // ── Step 3: Compute SHA-256 report integrity before saving ──
     const reportJson = JSON.stringify(portfolioEntry)
     const sha256 = await computeReportHash(reportJson)
