@@ -31,6 +31,8 @@ interface ContractMeta {
   ownerRenounced: boolean
   hasMintOutsideConstructor: boolean
   hasConstructorOnlyMint: boolean
+  mintGuarded?: boolean
+  hasBurn?: boolean
   hasPausable: boolean
   pausableProtected: boolean
   hasBlacklist: boolean
@@ -511,9 +513,14 @@ function staticAnalysis(code: string, meta: ContractMeta): Finding[] {
         recommendation: "No action needed. This is a secure pattern for fixed-supply tokens.",
       })
     } else {
-      // There IS an exposed mint function
-      const hasMintGuard = /onlyOwner|onlyRole|onlyMinter/.test(code) && /function\s+\w*[Mm]int/.test(code)
-      if (!hasMintGuard) {
+      // There IS an exposed mint function — use comprehensive guard detection
+      // Check for: modifiers (onlyOwner, onlyRole, onlyMinter), require(msg.sender == X),
+      // MinterRole system, AccessControl, and inline role checks
+      const hasMintGuardComprehensive =
+        meta.mintGuarded ||  // pre-computed at meta level (covers require(msg.sender == minter))
+        /onlyOwner|onlyRole|onlyMinter|MINTER_ROLE|AccessControl/.test(code) &&
+        /function\s+\w*[Mm]int/.test(code)
+      if (!hasMintGuardComprehensive) {
         findings.push({
           title: "Unrestricted Minting Function",
           severity: "CRITICAL",
@@ -527,7 +534,7 @@ function staticAnalysis(code: string, meta: ContractMeta): Finding[] {
           title: "Centralized Minting Authority",
           severity: "MEDIUM",
           location: "Mint function with access control",
-          description: "The contract has a mint function restricted by access control. While not exploitable by the public, a compromised owner/minter can inflate supply.",
+          description: "The contract has a mint function restricted by access control (e.g. onlyMinter, require(msg.sender == minter)). While not exploitable by the public, a compromised owner/minter can inflate supply.",
           impact: "A compromised or malicious owner could mint additional tokens, diluting existing holders.",
           recommendation: "Consider implementing a supply cap, timelocks, or multi-sig requirements for minting operations.",
         })
@@ -1057,8 +1064,30 @@ export async function POST(req: Request) {
         ...(meta.hasProxy ? ["Proxy Storage Layout Check"] : []),
       ]
 
+      // ── ENTERPRISE: Validate AI findings — downgrade false positive "Unrestricted Mint" ──
+      // If AI generates "Unrestricted Mint" but static analysis detected a guard (require(msg.sender == minter),
+      // onlyMinter modifier, MINTER_ROLE, etc.), downgrade to "Centralized Minting Authority" at MEDIUM
+      const validatedFindings = findings.map((f: { title: string; severity: string; location: string; description: string; impact: string; recommendation: string; likelihood?: string; proofOfConcept?: string }) => {
+        const tl = f.title.toLowerCase()
+        if (
+          tl.includes("unrestricted") && tl.includes("mint") &&
+          meta.mintGuarded === true
+        ) {
+          return {
+            ...f,
+            title: "Centralized Minting Authority",
+            severity: "MEDIUM",
+            location: "Mint function with role-based access control",
+            description: "The contract has a mint function restricted by access control (e.g. require(msg.sender == minter), onlyMinter modifier). While not exploitable by the public, a compromised owner/minter can inflate supply.",
+            impact: "A compromised or malicious minter key could mint additional tokens, diluting existing holders.",
+            recommendation: "Consider implementing a supply cap, timelocks, or multi-sig requirements for minting operations.",
+          }
+        }
+        return f
+      })
+
       // ── ENTERPRISE: Enrich findings with CVSS + CWE + SWC ──
-      const enrichedFindings = findings.map((f: { title: string; severity: string; location: string; description: string; impact: string; recommendation: string; likelihood: string; proofOfConcept?: string }) => ({
+      const enrichedFindings = validatedFindings.map((f: { title: string; severity: string; location: string; description: string; impact: string; recommendation: string; likelihood?: string; proofOfConcept?: string }) => ({
         ...f,
         cvss: computeCVSS(f.title, f.severity),
         cwe: getCWE(f.title),

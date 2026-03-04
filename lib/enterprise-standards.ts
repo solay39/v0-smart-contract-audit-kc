@@ -175,6 +175,8 @@ const SWC_MAP: Record<string, SWCEntry> = {
   "pragma":           { id: "SWC-103", name: "Floating Pragma", url: "https://swcregistry.io/docs/SWC-103" },
   "floating":         { id: "SWC-103", name: "Floating Pragma", url: "https://swcregistry.io/docs/SWC-103" },
   "flash loan":       { id: "SWC-107", name: "Reentrancy (Flash Loan variant)", url: "https://swcregistry.io/docs/SWC-107" },
+  "unrestricted mint":{ id: "SWC-105", name: "Unprotected Ether Withdrawal", url: "https://swcregistry.io/docs/SWC-105" },
+  "minting authority": { id: "SWC-105", name: "Unprotected Ether Withdrawal", url: "https://swcregistry.io/docs/SWC-105" },
 }
 
 export function getCWE(findingTitle: string): CWEEntry {
