@@ -1626,7 +1626,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
             )}
 
-            {/* ── SECTION 6: PRIVILEGED ROLES & ACCESS CONTROL �����─ */}
+            {/* ── SECTION 6: PRIVILEGED ROLES & ACCESS CONTROL �������─ */}
             {p.privilegedRoles && p.privilegedRoles.length > 0 && (
               <div className="mb-5">
                 <div className="text-[8px] text-s39-dim tracking-widest mb-2">ACCESS CONTROL MATRIX</div>
@@ -3266,6 +3266,78 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </section>
             )}
 
+            {/* ── SECTION 17A-quater: DUAL REVIEW RECORD ── */}
+            {p.reviewRecord && (
+              <section className="border border-s39-border rounded-xl p-6 bg-s39-bg1 mt-6">
+                <div className="text-[9px] font-mono tracking-widest text-s39-dim uppercase mb-4 flex items-center gap-2">
+                  <span className="w-4 h-px bg-s39-border"/>
+                  {'Dual Review & Sign-Off Record'}
+                  <span className="flex-1 h-px bg-s39-border"/>
+                </div>
+                <div className="space-y-3">
+                  {/* Lead Auditor */}
+                  <div className="p-3 rounded bg-s39-bg0 border border-s39-border">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-[8px] text-s39-dim font-mono tracking-wider">LEAD AUDITOR</div>
+                      {p.reviewRecord.leadAuditor.signedOff && (
+                        <span className="text-[8px] text-emerald-400 font-mono">{'\u2713 SIGNED OFF'}</span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-s39-lite font-bold">{p.reviewRecord.leadAuditor.name}</div>
+                    <div className="text-[8px] text-s39-mid">{p.reviewRecord.leadAuditor.role} {'\u2014'} {p.reviewRecord.leadAuditor.credentials}</div>
+                    {p.reviewRecord.leadAuditor.signOffDate && (
+                      <div className="text-[8px] text-s39-dim mt-0.5">{p.reviewRecord.leadAuditor.signOffDate}</div>
+                    )}
+                  </div>
+                  {/* Second Reviewer */}
+                  {p.reviewRecord.secondReviewer && (
+                    <div className="p-3 rounded bg-s39-bg0 border border-s39-border">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="text-[8px] text-s39-dim font-mono tracking-wider">SECOND REVIEWER</div>
+                        {p.reviewRecord.secondReviewer.signedOff && (
+                          <span className="text-[8px] text-emerald-400 font-mono">{'\u2713 SIGNED OFF'}</span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-s39-lite font-bold">{p.reviewRecord.secondReviewer.name}</div>
+                      <div className="text-[8px] text-s39-mid">{p.reviewRecord.secondReviewer.role} {'\u2014'} {p.reviewRecord.secondReviewer.credentials}</div>
+                    </div>
+                  )}
+                  {/* QA Approver */}
+                  {p.reviewRecord.qaApprover && (
+                    <div className="p-3 rounded bg-s39-bg0 border border-s39-border">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="text-[8px] text-s39-dim font-mono tracking-wider">QA APPROVER</div>
+                        {p.reviewRecord.qaApprover.signedOff && (
+                          <span className="text-[8px] text-emerald-400 font-mono">{'\u2713 SIGNED OFF'}</span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-s39-lite font-bold">{p.reviewRecord.qaApprover.name}</div>
+                      <div className="text-[8px] text-s39-mid">{p.reviewRecord.qaApprover.role} {'\u2014'} {p.reviewRecord.qaApprover.credentials}</div>
+                    </div>
+                  )}
+                  {/* Review Status */}
+                  <div className="flex items-center gap-3 p-3 rounded bg-s39-bg0 border border-s39-border">
+                    <div className={`w-2.5 h-2.5 rounded-full ${p.reviewRecord.consensusReached ? "bg-emerald-400" : "bg-amber-400"}`}/>
+                    <div>
+                      <div className="text-[9px] text-s39-lite font-bold">{p.reviewRecord.reviewStatus}</div>
+                      {p.reviewRecord.consensusReached && (
+                        <div className="text-[8px] text-emerald-400">{'Consensus reached \u2014 all reviewers agree on findings and severity'}</div>
+                      )}
+                    </div>
+                  </div>
+                  {/* Conflicts */}
+                  {p.reviewRecord.conflictsFound?.length > 0 && (
+                    <div className="p-3 rounded bg-amber-950/20 border border-amber-800/40">
+                      <div className="text-[8px] text-amber-400 font-mono tracking-wider mb-1">REVIEW CONFLICTS</div>
+                      {p.reviewRecord.conflictsFound.map((c: string, ci: number) => (
+                        <div key={ci} className="text-[8px] text-amber-300 leading-relaxed">{'\u2022'} {c}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
             {/* ── SECTION 17B: ECONOMIC ATTACK SURFACE ── */}
             {p.economicAttackVectors?.some((v: { applicable: boolean }) => v.applicable) && (
               <section className="border border-s39-border rounded-xl p-6 bg-s39-bg1 mt-6">
@@ -3738,7 +3810,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
           setLivePrices(data.prices)
         }
       } catch {
-        // Non-critical — prices just won't update
+        // Non-critical ��� prices just won't update
       } finally {
         if (mounted) setPriceLoading(false)
       }
@@ -3787,30 +3859,25 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
       } catch { /* non-critical */ }
 
       // 3. Merge: defaults + blob + localStorage (deduplicate by id/name)
-      //    Blob/local data enriches defaults (logoUrl, description, etc.)
+      //    Blob data takes priority (it has full enterprise audit: PoC, CVSS, signatures, etc.)
+      //    Default only used as fallback for fields blob doesn't have
       const merged = [...DEFAULT_PROJECTS.map(dp => {
-        // If blob/local has richer data for this project, merge it in
         const blobMatch = [...blobAudits, ...cleaned].find(
           pub => pub.id === dp.id || norm(pub.name) === norm(dp.name)
         )
         if (!blobMatch) return dp
+        // Blob is the BASE — it has the full enriched audit data
+        // Default fills in only cosmetic fields the blob might be missing
         return {
-          ...dp,
+          ...dp,           // defaults as base (has hardcoded tags, socials, etc.)
+          ...blobMatch,    // blob OVERWRITES everything (findings, enterprise, scores, signatures)
+          // Keep default's cosmetic fields only if blob doesn't have them
           logoUrl: blobMatch.logoUrl || dp.logoUrl,
-          description: blobMatch.description || dp.description,
-          website: blobMatch.website || dp.website,
-          githubUrl: blobMatch.githubUrl || dp.githubUrl,
-          telegram: blobMatch.telegram || dp.telegram,
-          twitter: blobMatch.twitter || dp.twitter,
-          discord: blobMatch.discord || dp.discord,
-          price: blobMatch.price || dp.price,
-          change24h: blobMatch.change24h || dp.change24h,
-          tvl: blobMatch.tvl || dp.tvl,
-          totalSupply: blobMatch.totalSupply || dp.totalSupply,
-          tokenAge: blobMatch.tokenAge || dp.tokenAge,
-          fdv: blobMatch.fdv || dp.fdv,
-          volume24h: blobMatch.volume24h || dp.volume24h,
-          // Preserve default's structured audit data (findings, scores, etc.)
+          tags: blobMatch.tags || dp.tags,
+          socials: blobMatch.socials || dp.socials,
+          auditTimeline: blobMatch.auditTimeline || dp.auditTimeline,
+          contractUncertainty: blobMatch.contractUncertainty || dp.contractUncertainty,
+          ownerPrivilege: blobMatch.ownerPrivilege || dp.ownerPrivilege,
         }
       })]
       const allExtras = [...blobAudits, ...cleaned]
