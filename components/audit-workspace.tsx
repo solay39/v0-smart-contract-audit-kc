@@ -637,6 +637,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
           "Assess centralization and privilege risks",
           "Evaluate standard compliance and edge cases",
         ],
+        // Enterprise: pass through auditId + reviewTeam from AI response
+        auditId: (aiEngagement?.auditId as string) || undefined,
+        reviewTeam: (aiEngagement?.reviewTeam as Record<string, unknown>) || undefined,
       }})(),
       scopeTable: aiScopeTable ? aiScopeTable.map((s) => ({
         contract: String(s.contract || project.name),
@@ -761,6 +764,15 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onChainRecord: (onChainRecord as any) || undefined,
     }
+
+    // ── Debug: verify enterprise fields are present ──
+    console.log("[v0] portfolioEntry.engagement?.auditId:", (portfolioEntry.engagement as Record<string, unknown>)?.auditId)
+    console.log("[v0] portfolioEntry.engagement?.reviewTeam:", !!(portfolioEntry.engagement as Record<string, unknown>)?.reviewTeam)
+    console.log("[v0] portfolioEntry.attackerProfiles:", !!portfolioEntry.attackerProfiles, Array.isArray(portfolioEntry.attackerProfiles) ? portfolioEntry.attackerProfiles.length : 0)
+    console.log("[v0] portfolioEntry.formalVerification:", !!portfolioEntry.formalVerification)
+    console.log("[v0] portfolioEntry.residualRisk:", !!portfolioEntry.residualRisk)
+    console.log("[v0] portfolioEntry.signedReport:", !!portfolioEntry.signedReport)
+    console.log("[v0] portfolioEntry.findings[0]?.remediationExample:", portfolioEntry.findings?.[0]?.remediationExample ? "present" : "missing")
 
     // ── Step 3: Compute SHA-256 report integrity before saving ──
     const reportJson = JSON.stringify(portfolioEntry)
@@ -1006,6 +1018,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       linesOfCode: (aiEngagement.linesOfCode as number) || 0,
       commitHash: project.commit || "N/A",
       objectives: (aiEngagement.objectives as string[]) || [],
+      // Enterprise: pass through auditId + reviewTeam from AI response
+      auditId: (aiEngagement.auditId as string) || undefined,
+      reviewTeam: (aiEngagement.reviewTeam as Record<string, unknown>) || undefined,
     }})() : undefined,
     scopeTable: aiScopeTable ? aiScopeTable.map((s) => ({
       contract: String(s.contract || ""),
