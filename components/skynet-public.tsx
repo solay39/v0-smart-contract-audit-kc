@@ -371,32 +371,65 @@ function ShareButton({ auditId, name }: { auditId: string; name: string }) {
   )
 }
 
-export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioProject; onBack?: () => void; isLive?: boolean; backHref?: string }) {
+export function ProjectDetail({ p: rawP, onBack, isLive, backHref }: { p: PortfolioProject; onBack?: () => void; isLive?: boolean; backHref?: string }) {
+  // ── Defensive: ensure all nested properties are safe ──
+  const p: PortfolioProject = {
+    ...rawP,
+    id: rawP.id || "unknown",
+    name: rawP.name || "Unknown Contract",
+    score: rawP.score ?? 0,
+    criticals: rawP.criticals ?? rawP.findings?.filter(f => f.severity === "CRITICAL").length ?? 0,
+    highs: rawP.highs ?? rawP.findings?.filter(f => f.severity === "HIGH").length ?? 0,
+    mediums: rawP.mediums ?? rawP.findings?.filter(f => f.severity === "MEDIUM").length ?? 0,
+    lows: rawP.lows ?? rawP.findings?.filter(f => f.severity === "LOW").length ?? 0,
+    infos: rawP.infos ?? rawP.findings?.filter(f => f.severity === "INFO").length ?? 0,
+    findings: rawP.findings || [],
+    network: rawP.network || "BSC",
+    date: rawP.date || new Date().toISOString().split("T")[0],
+    codeMetrics: rawP.codeMetrics ? {
+      ...rawP.codeMetrics,
+      totalLOC: rawP.codeMetrics.totalLOC ?? 0,
+      totalContracts: rawP.codeMetrics.totalContracts ?? 1,
+      externalDependencies: rawP.codeMetrics.externalDependencies || [],
+      compilerVersion: rawP.codeMetrics.compilerVersion || "N/A",
+      upgradeabilityPattern: rawP.codeMetrics.upgradeabilityPattern || "none",
+      cyclomaticComplexity: rawP.codeMetrics.cyclomaticComplexity || "Low",
+    } : rawP.codeMetrics,
+    engagement: rawP.engagement ? {
+      ...rawP.engagement,
+      linesOfCode: rawP.engagement.linesOfCode ?? 0,
+      auditDurationDays: rawP.engagement.auditDurationDays ?? 3,
+      securityEngineersInvolved: rawP.engagement.securityEngineersInvolved ?? 1,
+    } : rawP.engagement,
+  }
+
+  console.log("[v0] ProjectDetail rendering with p:", JSON.stringify({ id: p.id, name: p.name, score: p.score, findingsLen: p.findings.length, hasBD: !!p.scoreBreakdown, hasCM: !!p.codeMetrics, hasEng: !!p.engagement }))
+
   // ── SINGLE SOURCE OF TRUTH: compute final score from weighted category sum ──
   const bd = p.scoreBreakdown
   const computedScore = getWeightedScore(p)
   const computedRating = ratingOf(computedScore)
   const sc = scoreColor(computedScore)
-  const totalFindings = (p.criticals ?? 0) + (p.highs ?? 0) + (p.mediums ?? 0) + (p.lows ?? 0) + (p.infos ?? 0) || (p.findings?.length ?? 0)
-  const resolvedCount = p.findings?.filter((f) => f.status === "RESOLVED").length ?? 0
-  const openCount = p.findings?.filter((f) => f.status === "OPEN").length ?? 0
-  const ackCount = p.findings?.filter((f) => f.status === "ACKNOWLEDGED").length ?? 0
+  const totalFindings = p.criticals + p.highs + p.mediums + p.lows + p.infos || p.findings.length
+  const resolvedCount = p.findings.filter((f) => f.status === "RESOLVED").length
+  const openCount = p.findings.filter((f) => f.status === "OPEN").length
+  const ackCount = p.findings.filter((f) => f.status === "ACKNOWLEDGED").length
 
   // Client Display Mode: hides internal scoring details, shows clean public view
   const [clientMode, setClientMode] = useState(false)
 
   // Single source of truth for Economic and Operations scores
-  const economicScore = bd ? (bd.economic ?? Math.round((bd.codeSecurity + bd.centralization) / 2)) : computedScore
+  const economicScore = bd ? (bd.economic ?? Math.round(((bd.codeSecurity ?? 0) + (bd.centralization ?? 0)) / 2)) : computedScore
   const operationsScore = bd ? (bd.testingCoverage ?? computedScore) : computedScore
 
   // Radar chart data (6 categories)
   const radarData = bd ? [
-    { label: "Code Security", value: bd.codeSecurity, color: "#00ff88" },
-    { label: "Architecture", value: bd.architectureRisk, color: "#00e5ff" },
-    { label: "Governance", value: bd.governanceRisk, color: "#4488ff" },
-    { label: "On-Chain", value: bd.centralization, color: "#ffd600" },
-    { label: "Economic", value: economicScore, color: "#ff6b00" },
-    { label: "Operations", value: operationsScore, color: "#aa44ff" },
+    { label: "Code Security", value: bd.codeSecurity ?? computedScore, color: "#00ff88" },
+    { label: "Architecture", value: bd.architectureRisk ?? computedScore, color: "#00e5ff" },
+    { label: "Governance", value: bd.governanceRisk ?? computedScore, color: "#4488ff" },
+    { label: "On-Chain", value: bd.centralization ?? computedScore, color: "#ffd600" },
+    { label: "Economic", value: economicScore ?? computedScore, color: "#ff6b00" },
+    { label: "Operations", value: operationsScore ?? computedScore, color: "#aa44ff" },
   ] : []
 
   return (
@@ -555,12 +588,12 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {([
-  ["Code Security", p.scoreBreakdown.codeSecurity, "#00ff88", "35%"],
-  ["Architecture", p.scoreBreakdown.architectureRisk, "#00e5ff", "20%"],
-  ["Governance", p.scoreBreakdown.governanceRisk, "#4488ff", "15%"],
-  ["On-Chain", p.scoreBreakdown.centralization, "#ffd600", "10%"],
-  ["Economic", economicScore, "#ff6b00", "10%"],
-  ["Operations", operationsScore, "#aa44ff", "10%"],
+  ["Code Security", p.scoreBreakdown.codeSecurity ?? computedScore, "#00ff88", "35%"],
+  ["Architecture", p.scoreBreakdown.architectureRisk ?? computedScore, "#00e5ff", "20%"],
+  ["Governance", p.scoreBreakdown.governanceRisk ?? computedScore, "#4488ff", "15%"],
+  ["On-Chain", p.scoreBreakdown.centralization ?? computedScore, "#ffd600", "10%"],
+  ["Economic", economicScore ?? computedScore, "#ff6b00", "10%"],
+  ["Operations", operationsScore ?? computedScore, "#aa44ff", "10%"],
                 ] as [string, number, string, string][]).map(([label, val, color, weight]) => (
                   <div key={label} className="bg-s39-bg2 border border-s39-border p-3">
                     <div className="flex justify-between items-center mb-1">
