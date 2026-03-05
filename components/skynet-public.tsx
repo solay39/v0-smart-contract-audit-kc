@@ -4112,17 +4112,64 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
             </div>
           )}
           {founderMode && founderAuthed && (
-            <div className="mb-6 p-3 border border-red-800/40 bg-red-950/10 rounded flex items-center justify-between">
-              <div className="text-[8px] text-red-400 tracking-[0.15em] font-mono flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                FOUNDER MODE ACTIVE -- Click the red X on any audit to delete it
+            <div className="mb-6 border border-red-800/40 bg-red-950/10 rounded overflow-hidden">
+              {/* Header */}
+              <div className="p-3 flex items-center justify-between border-b border-red-800/30">
+                <div className="text-[8px] text-red-400 tracking-[0.15em] font-mono flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                  FOUNDER MODE -- AUDIT MANAGEMENT
+                </div>
+                <button
+                  onClick={() => { setFounderMode(false); setFounderAuthed(false); setFounderKey(""); setDeleteConfirm(null) }}
+                  className="text-[8px] text-s39-dim hover:text-red-400 cursor-pointer bg-transparent border-none font-mono"
+                >
+                  EXIT
+                </button>
               </div>
-              <button
-                onClick={() => { setFounderMode(false); setFounderAuthed(false); setFounderKey(""); setDeleteConfirm(null) }}
-                className="text-[8px] text-s39-dim hover:text-red-400 cursor-pointer bg-transparent border-none font-mono"
-              >
-                EXIT
-              </button>
+              {/* Audit list for deletion */}
+              <div className="p-3">
+                <div className="text-[7px] text-s39-dim tracking-[0.15em] mb-2 font-mono">
+                  ALL AUDITS ({allProjects.length}) -- Click DELETE to remove from Blob storage
+                </div>
+                <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+                  {allProjects.map((audit) => {
+                    const isDefault = DEFAULT_PROJECTS.some(d => d.id === audit.id)
+                    const ws = getWeightedScore(audit)
+                    return (
+                      <div key={audit.id} className="flex items-center gap-3 p-2 bg-s39-bg2/50 border border-s39-border rounded hover:border-red-800/40 transition-colors group">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-s39-lite font-bold truncate">{audit.name}</span>
+                            <span className="text-[7px] font-mono px-1.5 py-px border rounded" style={{ color: scoreColor(ws), borderColor: `${scoreColor(ws)}33` }}>
+                              {ws}
+                            </span>
+                            {isDefault && (
+                              <span className="text-[6px] text-s39-dim bg-s39-bg1 px-1.5 py-px border border-s39-border rounded font-mono">DEFAULT</span>
+                            )}
+                          </div>
+                          <div className="text-[7px] text-s39-dim font-mono mt-0.5 truncate">
+                            {audit.id} | {audit.network} | {audit.date}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setDeleteConfirm(audit.id)}
+                          disabled={deleting === audit.id}
+                          className={`text-[8px] font-mono tracking-wider px-3 py-1.5 border rounded cursor-pointer transition-all bg-transparent shrink-0 ${
+                            deleting === audit.id
+                              ? "text-s39-dim border-s39-border opacity-50"
+                              : "text-red-400/70 border-red-800/40 hover:text-red-400 hover:border-red-600 hover:bg-red-500/10"
+                          }`}
+                        >
+                          {deleting === audit.id ? "..." : "DELETE"}
+                        </button>
+                      </div>
+                    )
+                  })}
+                  {allProjects.length === 0 && (
+                    <div className="text-[9px] text-s39-dim text-center py-4 font-mono">No audits found.</div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
