@@ -3979,13 +3979,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
       <nav className="sticky top-0 z-50 bg-s39-bg0/95 border-b border-s39-border backdrop-blur-sm">
         <div className="max-w-[1100px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-4 sm:gap-6">
-            <div
-              className="text-sm font-bold text-s39-green tracking-wider animate-[glow_3s_infinite] select-none"
-              onDoubleClick={(e) => {
-                e.preventDefault()
-                if (e.detail >= 2) setFounderMode(prev => !prev)
-              }}
-            >
+            <div className="text-sm font-bold text-s39-green tracking-wider animate-[glow_3s_infinite] select-none">
               SOLAY39 <span className="text-s39-dim">SKYNET</span>
               {founderMode && <span className="text-[6px] text-red-500 ml-1 tracking-wider">ADMIN</span>}
             </div>
@@ -4025,6 +4019,27 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
               className="text-[9px] text-s39-dim cursor-pointer bg-transparent border-none font-mono hover:text-s39-mid transition-colors"
             >
               {"<- Login"}
+            </button>
+            {/* Founder admin toggle - discreet lock icon */}
+            <button
+              onClick={() => {
+                if (founderAuthed) {
+                  setFounderMode(false); setFounderAuthed(false); setFounderKey(""); setDeleteConfirm(null)
+                } else {
+                  setFounderMode(prev => !prev)
+                }
+              }}
+              className={`w-6 h-6 flex items-center justify-center text-[10px] cursor-pointer bg-transparent border rounded transition-all ${
+                founderAuthed
+                  ? "text-red-400 border-red-800/60 hover:bg-red-500/10"
+                  : founderMode
+                    ? "text-yellow-500 border-yellow-800/40 hover:bg-yellow-500/10"
+                    : "text-s39-dim/40 border-transparent hover:text-s39-dim hover:border-s39-border"
+              }`}
+              title={founderAuthed ? "Exit admin mode" : "Admin"}
+            >
+              {founderAuthed ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>
+                : <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>}
             </button>
           </div>
         </div>
@@ -4108,36 +4123,6 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
               >
                 EXIT
               </button>
-            </div>
-          )}
-
-          {/* Delete Confirmation Dialog */}
-          {deleteConfirm && (
-            <div className="fixed inset-0 bg-black/80 z-[999] flex items-center justify-center p-4" onClick={() => setDeleteConfirm(null)}>
-              <div className="bg-s39-bg1 border border-red-800 p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
-                <div className="text-[9px] text-red-400 tracking-[0.15em] font-mono mb-3">CONFIRM DELETION</div>
-                <p className="text-[11px] text-s39-lite mb-1">
-                  Are you sure you want to permanently delete this audit?
-                </p>
-                <p className="text-[9px] text-s39-dim mb-4 font-mono break-all">
-                  ID: {deleteConfirm}
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => handleDeleteAudit(deleteConfirm)}
-                    disabled={deleting === deleteConfirm}
-                    className="flex-1 text-[9px] text-red-400 border border-red-500/50 py-2 font-mono tracking-wider hover:bg-red-500/20 transition-colors cursor-pointer bg-transparent disabled:opacity-50"
-                  >
-                    {deleting === deleteConfirm ? "DELETING..." : "DELETE PERMANENTLY"}
-                  </button>
-                  <button
-                    onClick={() => setDeleteConfirm(null)}
-                    className="flex-1 text-[9px] text-s39-mid border border-s39-border py-2 font-mono tracking-wider hover:border-s39-muted transition-colors cursor-pointer bg-transparent"
-                  >
-                    CANCEL
-                  </button>
-                </div>
-              </div>
             </div>
           )}
 
@@ -4441,6 +4426,39 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
           </a>
         </div>
       </footer>
+
+      {/* Delete Confirmation Dialog (fixed overlay, always on top) */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/80 z-[999] flex items-center justify-center p-4" onClick={() => setDeleteConfirm(null)}>
+          <div className="bg-s39-bg1 border border-red-800 p-6 max-w-sm w-full rounded" onClick={(e) => e.stopPropagation()}>
+            <div className="text-[9px] text-red-400 tracking-[0.15em] font-mono mb-3">CONFIRM DELETION</div>
+            <p className="text-[11px] text-s39-lite mb-1">
+              Are you sure you want to permanently delete this audit?
+            </p>
+            <p className="text-[9px] text-s39-dim mb-1 font-mono break-all">
+              ID: {deleteConfirm}
+            </p>
+            <p className="text-[8px] text-red-400/60 mb-4 font-mono">
+              This action is irreversible. The audit will be removed from Blob storage.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => handleDeleteAudit(deleteConfirm)}
+                disabled={deleting === deleteConfirm}
+                className="flex-1 text-[9px] text-red-400 border border-red-500/50 py-2 font-mono tracking-wider hover:bg-red-500/20 transition-colors cursor-pointer bg-transparent disabled:opacity-50"
+              >
+                {deleting === deleteConfirm ? "DELETING..." : "DELETE PERMANENTLY"}
+              </button>
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 text-[9px] text-s39-mid border border-s39-border py-2 font-mono tracking-wider hover:border-s39-muted transition-colors cursor-pointer bg-transparent"
+              >
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
