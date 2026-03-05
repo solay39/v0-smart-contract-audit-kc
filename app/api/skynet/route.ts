@@ -1527,38 +1527,9 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
         note: "Analysis performed using Solay39 pattern-based static analyzer (AI model unavailable).",
         contractMeta: meta,
         scoreBreakdown,
-        // Tier-1 sections (static defaults)
-        toolingUsed: [
-          "Solay39 Static Analyzer v2",
-          "Solay39 Pattern-Based Scanner",
-          ...(meta.usesOZ ? ["OpenZeppelin Contract Analysis"] : []),
-          ...(meta.hasProxy ? ["Proxy Storage Layout Check"] : []),
-        ],
-        testingMethodology: {
-          description: "Automated static analysis with manual verification of key findings.",
-          phases: [
-            "Static pattern scanning",
-            "Access control analysis",
-            "Supply mechanics verification",
-            "State variable analysis",
-          ],
-          toolingStack: ["Solay39 Static Analyzer", "Custom regex scanner"],
-          coverageTarget: "All public/external functions",
-        },
-        aiEngagement: {
-          leadAuditor: "Solay39 Founder",
-          auditDurationDays: Math.max(2, Math.ceil(meta.linesOfCode / 200)),
-          engineeringHours: Math.max(16, Math.ceil(meta.linesOfCode / 200) * 8),
-          linesOfCode: meta.linesOfCode,
-        },
-        aiScopeTable: [{
-          contract: meta.scopeLabel || "Target Contract",
-          linesOfCode: meta.linesOfCode,
-          language: meta.codeLanguage === "Solidity" ? `Solidity ${meta.solidityVersion || "^0.8.0"}` : (meta.codeLanguage || "Solidity"),
-        }],
-        // Enterprise fields
         economicAttackVectors: staticEconomicAttacks,
         reviewRecord: buildDefaultReviewRecord("Solay39 Founder"),
+        // Enterprise fields — same as AI path
         attackerProfiles: staticAttackerProfiles,
         assetsAtRisk: staticAssetsAtRisk,
         enterpriseTrustAssumptions: staticEnterpriseTrustAssumptions,

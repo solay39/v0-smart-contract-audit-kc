@@ -371,65 +371,32 @@ function ShareButton({ auditId, name }: { auditId: string; name: string }) {
   )
 }
 
-export function ProjectDetail({ p: rawP, onBack, isLive, backHref }: { p: PortfolioProject; onBack?: () => void; isLive?: boolean; backHref?: string }) {
-  // ── Defensive: ensure all nested properties are safe ──
-  const p: PortfolioProject = {
-    ...rawP,
-    id: rawP.id || "unknown",
-    name: rawP.name || "Unknown Contract",
-    score: rawP.score ?? 0,
-    criticals: rawP.criticals ?? rawP.findings?.filter(f => f.severity === "CRITICAL").length ?? 0,
-    highs: rawP.highs ?? rawP.findings?.filter(f => f.severity === "HIGH").length ?? 0,
-    mediums: rawP.mediums ?? rawP.findings?.filter(f => f.severity === "MEDIUM").length ?? 0,
-    lows: rawP.lows ?? rawP.findings?.filter(f => f.severity === "LOW").length ?? 0,
-    infos: rawP.infos ?? rawP.findings?.filter(f => f.severity === "INFO").length ?? 0,
-    findings: rawP.findings || [],
-    network: rawP.network || "BSC",
-    date: rawP.date || new Date().toISOString().split("T")[0],
-    codeMetrics: rawP.codeMetrics ? {
-      ...rawP.codeMetrics,
-      totalLOC: rawP.codeMetrics.totalLOC ?? 0,
-      totalContracts: rawP.codeMetrics.totalContracts ?? 1,
-      externalDependencies: rawP.codeMetrics.externalDependencies || [],
-      compilerVersion: rawP.codeMetrics.compilerVersion || "N/A",
-      upgradeabilityPattern: rawP.codeMetrics.upgradeabilityPattern || "none",
-      cyclomaticComplexity: rawP.codeMetrics.cyclomaticComplexity || "Low",
-    } : rawP.codeMetrics,
-    engagement: rawP.engagement ? {
-      ...rawP.engagement,
-      linesOfCode: rawP.engagement.linesOfCode ?? 0,
-      auditDurationDays: rawP.engagement.auditDurationDays ?? 3,
-      securityEngineersInvolved: rawP.engagement.securityEngineersInvolved ?? 1,
-    } : rawP.engagement,
-  }
-
-  console.log("[v0] ProjectDetail rendering with p:", JSON.stringify({ id: p.id, name: p.name, score: p.score, findingsLen: p.findings.length, hasBD: !!p.scoreBreakdown, hasCM: !!p.codeMetrics, hasEng: !!p.engagement }))
-
+export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioProject; onBack?: () => void; isLive?: boolean; backHref?: string }) {
   // ── SINGLE SOURCE OF TRUTH: compute final score from weighted category sum ──
   const bd = p.scoreBreakdown
   const computedScore = getWeightedScore(p)
   const computedRating = ratingOf(computedScore)
   const sc = scoreColor(computedScore)
-  const totalFindings = p.criticals + p.highs + p.mediums + p.lows + p.infos || p.findings.length
-  const resolvedCount = p.findings.filter((f) => f.status === "RESOLVED").length
-  const openCount = p.findings.filter((f) => f.status === "OPEN").length
-  const ackCount = p.findings.filter((f) => f.status === "ACKNOWLEDGED").length
+  const totalFindings = p.criticals + p.highs + p.mediums + p.lows + p.infos
+  const resolvedCount = p.findings?.filter((f) => f.status === "RESOLVED").length ?? 0
+  const openCount = p.findings?.filter((f) => f.status === "OPEN").length ?? 0
+  const ackCount = p.findings?.filter((f) => f.status === "ACKNOWLEDGED").length ?? 0
 
   // Client Display Mode: hides internal scoring details, shows clean public view
   const [clientMode, setClientMode] = useState(false)
 
   // Single source of truth for Economic and Operations scores
-  const economicScore = bd ? (bd.economic ?? Math.round(((bd.codeSecurity ?? 0) + (bd.centralization ?? 0)) / 2)) : computedScore
+  const economicScore = bd ? (bd.economic ?? Math.round((bd.codeSecurity + bd.centralization) / 2)) : computedScore
   const operationsScore = bd ? (bd.testingCoverage ?? computedScore) : computedScore
 
   // Radar chart data (6 categories)
   const radarData = bd ? [
-    { label: "Code Security", value: bd.codeSecurity ?? computedScore, color: "#00ff88" },
-    { label: "Architecture", value: bd.architectureRisk ?? computedScore, color: "#00e5ff" },
-    { label: "Governance", value: bd.governanceRisk ?? computedScore, color: "#4488ff" },
-    { label: "On-Chain", value: bd.centralization ?? computedScore, color: "#ffd600" },
-    { label: "Economic", value: economicScore ?? computedScore, color: "#ff6b00" },
-    { label: "Operations", value: operationsScore ?? computedScore, color: "#aa44ff" },
+    { label: "Code Security", value: bd.codeSecurity, color: "#00ff88" },
+    { label: "Architecture", value: bd.architectureRisk, color: "#00e5ff" },
+    { label: "Governance", value: bd.governanceRisk, color: "#4488ff" },
+    { label: "On-Chain", value: bd.centralization, color: "#ffd600" },
+    { label: "Economic", value: economicScore, color: "#ff6b00" },
+    { label: "Operations", value: operationsScore, color: "#aa44ff" },
   ] : []
 
   return (
@@ -588,12 +555,12 @@ export function ProjectDetail({ p: rawP, onBack, isLive, backHref }: { p: Portfo
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {([
-  ["Code Security", p.scoreBreakdown.codeSecurity ?? computedScore, "#00ff88", "35%"],
-  ["Architecture", p.scoreBreakdown.architectureRisk ?? computedScore, "#00e5ff", "20%"],
-  ["Governance", p.scoreBreakdown.governanceRisk ?? computedScore, "#4488ff", "15%"],
-  ["On-Chain", p.scoreBreakdown.centralization ?? computedScore, "#ffd600", "10%"],
-  ["Economic", economicScore ?? computedScore, "#ff6b00", "10%"],
-  ["Operations", operationsScore ?? computedScore, "#aa44ff", "10%"],
+  ["Code Security", p.scoreBreakdown.codeSecurity, "#00ff88", "35%"],
+  ["Architecture", p.scoreBreakdown.architectureRisk, "#00e5ff", "20%"],
+  ["Governance", p.scoreBreakdown.governanceRisk, "#4488ff", "15%"],
+  ["On-Chain", p.scoreBreakdown.centralization, "#ffd600", "10%"],
+  ["Economic", economicScore, "#ff6b00", "10%"],
+  ["Operations", operationsScore, "#aa44ff", "10%"],
                 ] as [string, number, string, string][]).map(([label, val, color, weight]) => (
                   <div key={label} className="bg-s39-bg2 border border-s39-border p-3">
                     <div className="flex justify-between items-center mb-1">
@@ -996,7 +963,7 @@ export function ProjectDetail({ p: rawP, onBack, isLive, backHref }: { p: Portfo
               </div>
               <div className="bg-s39-bg2 border border-s39-border p-3">
                 <div className="text-[7px] text-s39-dim tracking-widest mb-1">LINES OF CODE</div>
-                <div className="text-[11px] text-s39-white font-bold font-mono">{(p.engagement.linesOfCode ?? 0).toLocaleString()}</div>
+                <div className="text-[11px] text-s39-white font-bold font-mono">{p.engagement.linesOfCode.toLocaleString()}</div>
               </div>
             </div>
 
@@ -1187,7 +1154,7 @@ export function ProjectDetail({ p: rawP, onBack, isLive, backHref }: { p: Portfo
               <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
                 <div className="text-[7px] text-s39-dim tracking-widest mb-1">UPGRADE PATTERN</div>
                 <div className={`text-sm font-bold font-mono ${p.codeMetrics.upgradeabilityPattern === "none" ? "text-s39-green" : "text-s39-yellow"}`}>
-                  {p.codeMetrics.upgradeabilityPattern === "none" ? "IMMUTABLE" : (p.codeMetrics.upgradeabilityPattern || "N/A").toUpperCase()}
+                  {p.codeMetrics.upgradeabilityPattern === "none" ? "IMMUTABLE" : p.codeMetrics.upgradeabilityPattern.toUpperCase()}
                 </div>
               </div>
             </div>
@@ -1204,7 +1171,7 @@ export function ProjectDetail({ p: rawP, onBack, isLive, backHref }: { p: Portfo
               <div className="bg-s39-bg2 border border-s39-border p-3">
                 <div className="text-[7px] text-s39-dim tracking-widest mb-1">EXTERNAL DEPENDENCIES</div>
                 <div className="text-[10px] text-s39-mid">
-                  {(p.codeMetrics.externalDependencies?.length ?? 0) > 0 ? p.codeMetrics.externalDependencies.join(", ") : "None"}
+                  {p.codeMetrics.externalDependencies.length > 0 ? p.codeMetrics.externalDependencies.join(", ") : "None"}
                 </div>
               </div>
             </div>
@@ -1233,10 +1200,10 @@ export function ProjectDetail({ p: rawP, onBack, isLive, backHref }: { p: Portfo
                   <tbody>
                     {[
                       { metric: "Cyclomatic Complexity", value: p.codeMetrics.cyclomaticComplexity || "Low", risk: (p.codeMetrics.cyclomaticComplexity === "High" ? "HIGH" : p.codeMetrics.cyclomaticComplexity === "Medium" ? "MEDIUM" : "LOW") },
-                      { metric: "Lines of Code", value: (p.codeMetrics.totalLOC ?? 0).toLocaleString(), risk: ((p.codeMetrics.totalLOC ?? 0) > 1000 ? "MEDIUM" : "LOW") },
-                      { metric: "External Dependencies", value: String(p.codeMetrics.externalDependencies?.length ?? 0), risk: ((p.codeMetrics.externalDependencies?.length ?? 0) > 3 ? "MEDIUM" : "LOW") },
-                      { metric: "Upgradeability", value: p.codeMetrics.upgradeabilityPattern === "none" ? "Immutable" : (p.codeMetrics.upgradeabilityPattern || "N/A"), risk: (p.codeMetrics.upgradeabilityPattern === "none" ? "LOW" : "MEDIUM") },
-                      { metric: "Compiler Version", value: p.codeMetrics.compilerVersion || "N/A", risk: ((p.codeMetrics.compilerVersion || "").includes("0.8") ? "LOW" : "MEDIUM") },
+                      { metric: "Lines of Code", value: p.codeMetrics.totalLOC.toLocaleString(), risk: (p.codeMetrics.totalLOC > 1000 ? "MEDIUM" : "LOW") },
+                      { metric: "External Dependencies", value: String(p.codeMetrics.externalDependencies.length), risk: (p.codeMetrics.externalDependencies.length > 3 ? "MEDIUM" : "LOW") },
+                      { metric: "Upgradeability", value: p.codeMetrics.upgradeabilityPattern === "none" ? "Immutable" : p.codeMetrics.upgradeabilityPattern, risk: (p.codeMetrics.upgradeabilityPattern === "none" ? "LOW" : "MEDIUM") },
+                      { metric: "Compiler Version", value: p.codeMetrics.compilerVersion, risk: (p.codeMetrics.compilerVersion.includes("0.8") ? "LOW" : "MEDIUM") },
                     ].map((row, i) => {
                       const riskColor = row.risk === "HIGH" ? "#ff2d55" : row.risk === "MEDIUM" ? "#ffd600" : "#00ff88"
                       return (
@@ -1305,7 +1272,7 @@ export function ProjectDetail({ p: rawP, onBack, isLive, backHref }: { p: Portfo
                       ))
                     })()}
                     {/* External dependencies */}
-                    {(p.codeMetrics.externalDependencies || []).map((dep, i) => (
+                    {p.codeMetrics.externalDependencies.map((dep, i) => (
                       <tr key={`dep-${i}`} className="border-b border-s39-border last:border-0">
                         <td className="px-3 py-2 text-s39-dim">External Dependency</td>
                         <td className="px-3 py-2 text-s39-cyan font-mono">{dep}</td>
@@ -1659,7 +1626,7 @@ export function ProjectDetail({ p: rawP, onBack, isLive, backHref }: { p: Portfo
               </div>
             )}
 
-            {/* ── SECTION 6: PRIVILEGED ROLES & ACCESS CONTROL ���������─ */}
+            {/* ── SECTION 6: PRIVILEGED ROLES & ACCESS CONTROL �����─ */}
             {p.privilegedRoles && p.privilegedRoles.length > 0 && (
               <div className="mb-5">
                 <div className="text-[8px] text-s39-dim tracking-widest mb-2">ACCESS CONTROL MATRIX</div>
@@ -2057,19 +2024,19 @@ export function ProjectDetail({ p: rawP, onBack, isLive, backHref }: { p: Portfo
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
                 <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">CONTRACTS ANALYZED</div>
-                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.totalContracts ?? 1}</div>
+                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.totalContracts}</div>
                 </div>
                 <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">LINES OF CODE</div>
-                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{(p.codeMetrics.totalLOC ?? 0).toLocaleString()}</div>
+                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.totalLOC.toLocaleString()}</div>
                 </div>
                 <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">FUNCTIONS REVIEWED</div>
-                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.functionsReviewed || Math.round((p.codeMetrics.totalLOC ?? 0) / 8)}</div>
+                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.functionsReviewed || Math.round(p.codeMetrics.totalLOC / 8)}</div>
                 </div>
                 <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">EXT. DEPENDENCIES</div>
-                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.externalDependencies?.length ?? 0}</div>
+                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.externalDependencies.length}</div>
                 </div>
                 <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">TEST COVERAGE</div>
@@ -2259,7 +2226,7 @@ export function ProjectDetail({ p: rawP, onBack, isLive, backHref }: { p: Portfo
                   )}
                   <div>
                     <span className="text-[7px] text-s39-dim tracking-widest">SCOPE: </span>
-                    <span className="text-[8px] text-s39-mid font-mono">{p.codeMetrics?.totalContracts || 1} contract(s), {p.codeMetrics?.totalLOC?.toLocaleString() || "N/A"} LOC</span>
+                    <span className="text-[8px] text-s39-mid font-mono">{p.codeMetrics?.totalContracts || 1} contract(s), {p.codeMetrics?.totalLOC.toLocaleString() || "N/A"} LOC</span>
                   </div>
                   <div>
                     <span className="text-[7px] text-s39-dim tracking-widest">DEPTH: </span>
@@ -3299,80 +3266,6 @@ export function ProjectDetail({ p: rawP, onBack, isLive, backHref }: { p: Portfo
               </section>
             )}
 
-            {/* ── SECTION 17A-quater: DUAL REVIEW RECORD ── */}
-            {p.reviewRecord && (
-              <section className="border border-s39-border rounded-xl p-6 bg-s39-bg1 mt-6">
-                <div className="text-[9px] font-mono tracking-widest text-s39-dim uppercase mb-4 flex items-center gap-2">
-                  <span className="w-4 h-px bg-s39-border"/>
-                  {'Dual Review & Sign-Off Record'}
-                  <span className="flex-1 h-px bg-s39-border"/>
-                </div>
-                <div className="space-y-3">
-                  {/* Lead Auditor */}
-                  {p.reviewRecord.leadAuditor && (
-                  <div className="p-3 rounded bg-s39-bg0 border border-s39-border">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="text-[8px] text-s39-dim font-mono tracking-wider">LEAD AUDITOR</div>
-                      {p.reviewRecord.leadAuditor.signedOff && (
-                        <span className="text-[8px] text-emerald-400 font-mono">{'\u2713 SIGNED OFF'}</span>
-                      )}
-                    </div>
-                    <div className="text-[10px] text-s39-lite font-bold">{p.reviewRecord.leadAuditor.name}</div>
-                    <div className="text-[8px] text-s39-mid">{p.reviewRecord.leadAuditor.role} {'\u2014'} {p.reviewRecord.leadAuditor.credentials}</div>
-                    {p.reviewRecord.leadAuditor.signOffDate && (
-                      <div className="text-[8px] text-s39-dim mt-0.5">{p.reviewRecord.leadAuditor.signOffDate}</div>
-                    )}
-                  </div>
-                  )}
-                  {/* Second Reviewer */}
-                  {p.reviewRecord.secondReviewer && (
-                    <div className="p-3 rounded bg-s39-bg0 border border-s39-border">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="text-[8px] text-s39-dim font-mono tracking-wider">SECOND REVIEWER</div>
-                        {p.reviewRecord.secondReviewer.signedOff && (
-                          <span className="text-[8px] text-emerald-400 font-mono">{'\u2713 SIGNED OFF'}</span>
-                        )}
-                      </div>
-                      <div className="text-[10px] text-s39-lite font-bold">{p.reviewRecord.secondReviewer.name}</div>
-                      <div className="text-[8px] text-s39-mid">{p.reviewRecord.secondReviewer.role} {'\u2014'} {p.reviewRecord.secondReviewer.credentials}</div>
-                    </div>
-                  )}
-                  {/* QA Approver */}
-                  {p.reviewRecord.qaApprover && (
-                    <div className="p-3 rounded bg-s39-bg0 border border-s39-border">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="text-[8px] text-s39-dim font-mono tracking-wider">QA APPROVER</div>
-                        {p.reviewRecord.qaApprover.signedOff && (
-                          <span className="text-[8px] text-emerald-400 font-mono">{'\u2713 SIGNED OFF'}</span>
-                        )}
-                      </div>
-                      <div className="text-[10px] text-s39-lite font-bold">{p.reviewRecord.qaApprover.name}</div>
-                      <div className="text-[8px] text-s39-mid">{p.reviewRecord.qaApprover.role} {'\u2014'} {p.reviewRecord.qaApprover.credentials}</div>
-                    </div>
-                  )}
-                  {/* Review Status */}
-                  <div className="flex items-center gap-3 p-3 rounded bg-s39-bg0 border border-s39-border">
-                    <div className={`w-2.5 h-2.5 rounded-full ${p.reviewRecord.consensusReached ? "bg-emerald-400" : "bg-amber-400"}`}/>
-                    <div>
-                      <div className="text-[9px] text-s39-lite font-bold">{p.reviewRecord.reviewStatus}</div>
-                      {p.reviewRecord.consensusReached && (
-                        <div className="text-[8px] text-emerald-400">{'Consensus reached \u2014 all reviewers agree on findings and severity'}</div>
-                      )}
-                    </div>
-                  </div>
-                  {/* Conflicts */}
-                  {p.reviewRecord.conflictsFound?.length > 0 && (
-                    <div className="p-3 rounded bg-amber-950/20 border border-amber-800/40">
-                      <div className="text-[8px] text-amber-400 font-mono tracking-wider mb-1">REVIEW CONFLICTS</div>
-                      {p.reviewRecord.conflictsFound.map((c: string, ci: number) => (
-                        <div key={ci} className="text-[8px] text-amber-300 leading-relaxed">{'\u2022'} {c}</div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
-
             {/* ── SECTION 17B: ECONOMIC ATTACK SURFACE ── */}
             {p.economicAttackVectors?.some((v: { applicable: boolean }) => v.applicable) && (
               <section className="border border-s39-border rounded-xl p-6 bg-s39-bg1 mt-6">
@@ -3447,12 +3340,12 @@ export function ProjectDetail({ p: rawP, onBack, isLive, backHref }: { p: Portfo
                     >
                       <span className={[
                         "text-[11px] font-black mt-0.5 shrink-0",
-                        (inv.result || "").startsWith("PASS")   ? "text-emerald-400" :
-                        (inv.result || "").startsWith("FAIL")   ? "text-red-400"     :
-                                                                  "text-yellow-400",
+                        inv.result.startsWith("PASS")   ? "text-emerald-400" :
+                        inv.result.startsWith("FAIL")   ? "text-red-400"     :
+                                                          "text-yellow-400",
                       ].join(" ")}>
-                        {(inv.result || "").startsWith("PASS") ? "\u2713" :
-                         (inv.result || "").startsWith("FAIL") ? "\u2717" : "\u26A0"}
+                        {inv.result.startsWith("PASS") ? "\u2713" :
+                         inv.result.startsWith("FAIL") ? "\u2717" : "\u26A0"}
                       </span>
                       <div className="flex-1 min-w-0">
                         <div className="text-[9px] text-s39-lite leading-relaxed">
@@ -3464,10 +3357,10 @@ export function ProjectDetail({ p: rawP, onBack, isLive, backHref }: { p: Portfo
                       </div>
                       <span className={[
                         "text-[8px] font-bold font-mono shrink-0",
-                        (inv.result || "").startsWith("PASS")   ? "text-emerald-400" :
-                        (inv.result || "").startsWith("FAIL")   ? "text-red-400"     :
-                                                                  "text-yellow-400",
-                      ].join(" ")}>{(inv.result || "PASS").split(" \u2014 ")[0]}</span>
+                        inv.result.startsWith("PASS")   ? "text-emerald-400" :
+                        inv.result.startsWith("FAIL")   ? "text-red-400"     :
+                                                          "text-yellow-400",
+                      ].join(" ")}>{inv.result.split(" \u2014 ")[0]}</span>
                     </div>
                   ))}
                 </div>
@@ -3500,13 +3393,13 @@ export function ProjectDetail({ p: rawP, onBack, isLive, backHref }: { p: Portfo
                           <span className="text-[7px] text-s39-dim font-mono">IMPACT</span>
                           <span className={[
                             "text-[8px] font-bold font-mono",
-                            (item.impact || "").startsWith("High") || (item.impact || "").startsWith("Critical")
+                            item.impact.startsWith("High") || item.impact.startsWith("Critical")
                               ? "text-red-400"
-                              : (item.impact || "").startsWith("Medium")
+                              : item.impact.startsWith("Medium")
                               ? "text-yellow-400"
                               : "text-emerald-400",
                           ].join(" ")}>
-                            {(item.impact || item.likelihood || "Medium").split(" \u2014 ")[0].toUpperCase()}
+                            {item.impact.split(" \u2014 ")[0].toUpperCase()}
                           </span>
                         </div>
                       </div>
@@ -3845,7 +3738,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
           setLivePrices(data.prices)
         }
       } catch {
-        // Non-critical ��� prices just won't update
+        // Non-critical — prices just won't update
       } finally {
         if (mounted) setPriceLoading(false)
       }
@@ -3894,25 +3787,30 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
       } catch { /* non-critical */ }
 
       // 3. Merge: defaults + blob + localStorage (deduplicate by id/name)
-      //    Blob data takes priority (it has full enterprise audit: PoC, CVSS, signatures, etc.)
-      //    Default only used as fallback for fields blob doesn't have
+      //    Blob/local data enriches defaults (logoUrl, description, etc.)
       const merged = [...DEFAULT_PROJECTS.map(dp => {
+        // If blob/local has richer data for this project, merge it in
         const blobMatch = [...blobAudits, ...cleaned].find(
           pub => pub.id === dp.id || norm(pub.name) === norm(dp.name)
         )
         if (!blobMatch) return dp
-        // Blob is the BASE — it has the full enriched audit data
-        // Default fills in only cosmetic fields the blob might be missing
         return {
-          ...dp,           // defaults as base (has hardcoded tags, socials, etc.)
-          ...blobMatch,    // blob OVERWRITES everything (findings, enterprise, scores, signatures)
-          // Keep default's cosmetic fields only if blob doesn't have them
+          ...dp,
           logoUrl: blobMatch.logoUrl || dp.logoUrl,
-          tags: blobMatch.tags || dp.tags,
-          socials: blobMatch.socials || dp.socials,
-          auditTimeline: blobMatch.auditTimeline || dp.auditTimeline,
-          contractUncertainty: blobMatch.contractUncertainty || dp.contractUncertainty,
-          ownerPrivilege: blobMatch.ownerPrivilege || dp.ownerPrivilege,
+          description: blobMatch.description || dp.description,
+          website: blobMatch.website || dp.website,
+          githubUrl: blobMatch.githubUrl || dp.githubUrl,
+          telegram: blobMatch.telegram || dp.telegram,
+          twitter: blobMatch.twitter || dp.twitter,
+          discord: blobMatch.discord || dp.discord,
+          price: blobMatch.price || dp.price,
+          change24h: blobMatch.change24h || dp.change24h,
+          tvl: blobMatch.tvl || dp.tvl,
+          totalSupply: blobMatch.totalSupply || dp.totalSupply,
+          tokenAge: blobMatch.tokenAge || dp.tokenAge,
+          fdv: blobMatch.fdv || dp.fdv,
+          volume24h: blobMatch.volume24h || dp.volume24h,
+          // Preserve default's structured audit data (findings, scores, etc.)
         }
       })]
       const allExtras = [...blobAudits, ...cleaned]
