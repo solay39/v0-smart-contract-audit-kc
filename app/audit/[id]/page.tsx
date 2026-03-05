@@ -9,12 +9,21 @@ const projectMap = new Map(DEFAULT_PROJECTS.map((p) => [p.id, p]))
 // Fetch audit from Vercel Blob (server-side)
 async function fetchBlobAudit(id: string): Promise<PortfolioProject | null> {
   try {
+    console.log("[v0] fetchBlobAudit: listing blobs with prefix:", `audits/${id}.json`)
     const { blobs } = await list({ prefix: `audits/${id}.json` })
+    console.log("[v0] fetchBlobAudit: found", blobs.length, "blobs")
     if (blobs.length === 0) return null
+    console.log("[v0] fetchBlobAudit: fetching blob url:", blobs[0].url)
     const res = await fetch(blobs[0].url)
-    if (!res.ok) return null
-    return await res.json()
-  } catch {
+    if (!res.ok) {
+      console.log("[v0] fetchBlobAudit: fetch failed with status:", res.status)
+      return null
+    }
+    const data = await res.json()
+    console.log("[v0] fetchBlobAudit: parsed JSON, name:", data?.name)
+    return data
+  } catch (err) {
+    console.log("[v0] fetchBlobAudit error:", err)
     return null
   }
 }
@@ -78,15 +87,19 @@ export async function generateStaticParams() {
 
 export default async function AuditPage({ params }: Props) {
   const { id } = await params
+  console.log("[v0] AuditPage rendering for id:", id)
 
   // 1. Check hardcoded default projects
   let project: PortfolioProject | null = projectMap.get(id) || null
+  console.log("[v0] Default project found:", !!project)
 
   // 2. If not found, fetch from Vercel Blob (server-side persistence)
   if (!project) {
     project = await fetchBlobAudit(id)
+    console.log("[v0] Blob project found:", !!project)
   }
 
+  console.log("[v0] Rendering AuditDetailClient with project:", project ? project.name : "null")
   // 3. Always render client component — falls back to localStorage / Blob API
   return <AuditDetailClient project={project} auditId={id} />
 }
