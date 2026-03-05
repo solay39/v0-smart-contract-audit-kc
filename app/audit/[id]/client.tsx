@@ -75,10 +75,24 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
             (project.name || "").toLowerCase().replace(/[^a-z0-9]/g, "")
       )
       if (local) {
+        // Merge: local data on top but blob enterprise fields take priority
         setLiveProject({
           ...project,
           ...local,
           findings: local.findings?.length ? local.findings : project.findings,
+          // Enterprise fields: prefer server/blob version (more complete)
+          signedReport: project.signedReport || local.signedReport,
+          onChainRecord: project.onChainRecord || local.onChainRecord,
+          reportIntegrity: project.reportIntegrity || local.reportIntegrity,
+          scopeTable: project.scopeTable || local.scopeTable,
+          engagement: project.engagement || local.engagement,
+          reviewRecord: project.reviewRecord || local.reviewRecord,
+          attackerProfiles: project.attackerProfiles || local.attackerProfiles,
+          assetsAtRisk: project.assetsAtRisk || local.assetsAtRisk,
+          enterpriseTrustAssumptions: project.enterpriseTrustAssumptions || local.enterpriseTrustAssumptions,
+          formalVerification: project.formalVerification || local.formalVerification,
+          residualRisk: project.residualRisk || local.residualRisk,
+          economicAttackVectors: project.economicAttackVectors || local.economicAttackVectors,
         })
       }
       setLoading(false)
