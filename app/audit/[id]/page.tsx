@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { DEFAULT_PROJECTS, ratingOf, getWeightedScore } from "@/lib/solay39-constants"
+import { DEFAULT_PROJECTS, ratingOf, getWeightedScore, type PortfolioProject } from "@/lib/solay39-constants"
 import { list } from "@vercel/blob"
 import { AuditDetailClient } from "./client"
 
