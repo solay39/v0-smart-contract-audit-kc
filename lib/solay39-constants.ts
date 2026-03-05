@@ -409,6 +409,35 @@ export interface PortfolioProject {
     offChainRecord?: Record<string, unknown>
     [key: string]: unknown
   } | null
+  // Enterprise: AI Exploit Simulation
+  exploitSimulation?: {
+    summary: {
+      totalVectorsTested: number
+      safe: number
+      vulnerable: number
+      partial: number
+      notApplicable: number
+      simulationDurationMs: number
+      overallStatus: "SECURE" | "AT_RISK" | "CRITICAL_RISK"
+      estimatedTotalRiskUSD: number
+      engineVersion: string
+    }
+    vectors: {
+      id: string
+      attackType: string
+      category: "code" | "economic" | "governance" | "operational"
+      status: "SAFE" | "VULNERABLE" | "PARTIAL" | "NOT_APPLICABLE"
+      gasUsed: number
+      maxDrainableUSD: number
+      confidence: number
+      description: string
+      attackFlow: string[]
+      exploitCode?: string
+      mitigationApplied?: string
+      cvssImpact?: string
+    }[]
+    timestamp: string
+  }
 }
 
 // Keep backward compat alias

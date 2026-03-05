@@ -101,6 +101,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const [residualRisk, setResidualRisk] = useState<Record<string, unknown> | null>(null)
   const [signedReport, setSignedReport] = useState<Record<string, unknown> | null>(null)
   const [onChainRecord, setOnChainRecord] = useState<Record<string, unknown> | null>(null)
+  const [exploitSimulation, setExploitSimulation] = useState<Record<string, unknown> | null>(null)
 
   const allChecks = Object.values(checks).flatMap((c) => Object.values(c))
   // SINGLE SOURCE OF TRUTH: always use V2 engine for score computation
@@ -759,6 +760,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       enterpriseTrustAssumptions: (enterpriseTrustAssumptions as PortfolioProject["enterpriseTrustAssumptions"]) || undefined,
       formalVerification: (formalVerification as PortfolioProject["formalVerification"]) || undefined,
       residualRisk: (residualRisk as PortfolioProject["residualRisk"]) || undefined,
+      exploitSimulation: (exploitSimulation as PortfolioProject["exploitSimulation"]) || undefined,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       signedReport: (signedReport as any) || undefined,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -933,6 +935,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       if (data.enterpriseTrustAssumptions) setEnterpriseTrustAssumptions(data.enterpriseTrustAssumptions)
       if (data.signedReport) setSignedReport(data.signedReport)
       if (data.onChainRecord) setOnChainRecord(data.onChainRecord)
+      if (data.exploitSimulation) setExploitSimulation(data.exploitSimulation)
 } catch (err) {
   const msg = err instanceof Error ? err.message : "Unknown error"
   if (msg.includes("Failed to fetch") || msg.includes("AbortError") || msg.includes("timeout")) {

@@ -3626,6 +3626,202 @@ console.log("Signer:", recovered);
               </section>
             )}
 
+            {/* AI EXPLOIT SIMULATION */}
+            {p.exploitSimulation && (() => {
+              const sim = p.exploitSimulation
+              const s = sim.summary
+              const statusColor = s.overallStatus === "SECURE" ? "#00ff88" : s.overallStatus === "AT_RISK" ? "#ffa500" : "#ff4444"
+              const statusBg = s.overallStatus === "SECURE" ? "bg-emerald-950/20 border-emerald-800/40" : s.overallStatus === "AT_RISK" ? "bg-yellow-950/20 border-yellow-800/40" : "bg-red-950/20 border-red-800/40"
+              return (
+                <section className="border border-s39-border rounded-xl overflow-hidden bg-s39-bg1 mt-6">
+                  {/* Header Banner */}
+                  <div className={`p-5 sm:p-6 border-b border-s39-border ${statusBg}`}>
+                    <div className="flex items-center gap-2 mb-4">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M8 1l2 3h4l-3 3 1 4-4-2-4 2 1-4-3-3h4z" stroke={statusColor} strokeWidth="1" fill={`${statusColor}22`}/>
+                      </svg>
+                      <span className="text-[9px] tracking-[0.15em]" style={{ color: statusColor }}>AI EXPLOIT SIMULATOR</span>
+                      <span className="text-[7px] text-s39-dim bg-s39-bg1 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto font-mono">
+                        {s.engineVersion}
+                      </span>
+                    </div>
+
+                    {/* Summary Stats */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-4">
+                      <div className="bg-s39-bg0 border border-s39-border p-3 text-center">
+                        <div className="text-xl font-bold font-mono" style={{ color: statusColor }}>{s.totalVectorsTested}</div>
+                        <div className="text-[7px] text-s39-dim tracking-widest mt-0.5">VECTORS TESTED</div>
+                      </div>
+                      <div className="bg-s39-bg0 border border-emerald-900/30 p-3 text-center">
+                        <div className="text-xl font-bold text-emerald-400 font-mono">{s.safe}</div>
+                        <div className="text-[7px] text-s39-dim tracking-widest mt-0.5">SAFE</div>
+                      </div>
+                      <div className="bg-s39-bg0 border border-red-900/30 p-3 text-center">
+                        <div className="text-xl font-bold text-red-400 font-mono">{s.vulnerable}</div>
+                        <div className="text-[7px] text-s39-dim tracking-widest mt-0.5">VULNERABLE</div>
+                      </div>
+                      <div className="bg-s39-bg0 border border-yellow-900/30 p-3 text-center">
+                        <div className="text-xl font-bold text-yellow-400 font-mono">{s.partial}</div>
+                        <div className="text-[7px] text-s39-dim tracking-widest mt-0.5">PARTIAL</div>
+                      </div>
+                      <div className="bg-s39-bg0 border border-s39-border p-3 text-center">
+                        <div className="text-xl font-bold text-s39-dim font-mono">{s.notApplicable}</div>
+                        <div className="text-[7px] text-s39-dim tracking-widest mt-0.5">N/A</div>
+                      </div>
+                      <div className="bg-s39-bg0 border border-s39-border p-3 text-center">
+                        <div className="text-sm font-bold text-s39-cyan font-mono">{s.simulationDurationMs}ms</div>
+                        <div className="text-[7px] text-s39-dim tracking-widest mt-0.5">DURATION</div>
+                      </div>
+                      <div className="bg-s39-bg0 border border-s39-border p-3 text-center">
+                        <div className="text-sm font-bold font-mono" style={{ color: s.estimatedTotalRiskUSD > 0 ? "#ff4444" : "#00ff88" }}>
+                          ${s.estimatedTotalRiskUSD > 0 ? (s.estimatedTotalRiskUSD / 1_000_000).toFixed(1) + "M" : "0"}
+                        </div>
+                        <div className="text-[7px] text-s39-dim tracking-widest mt-0.5">EST. RISK</div>
+                      </div>
+                    </div>
+
+                    {/* Overall Status Badge */}
+                    <div className="flex items-center gap-3 p-3 rounded bg-s39-bg0 border" style={{ borderColor: `${statusColor}44` }}>
+                      <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: statusColor, boxShadow: `0 0 8px ${statusColor}66` }} />
+                      <div>
+                        <div className="text-[10px] font-bold font-mono tracking-wider" style={{ color: statusColor }}>
+                          {s.overallStatus === "SECURE" ? "CONTRACT SECURE" : s.overallStatus === "AT_RISK" ? "POTENTIAL RISKS IDENTIFIED" : "CRITICAL VULNERABILITIES FOUND"}
+                        </div>
+                        <div className="text-[8px] text-s39-dim mt-0.5">
+                          {s.overallStatus === "SECURE"
+                            ? "All simulated attack vectors were blocked by existing contract defenses."
+                            : s.overallStatus === "AT_RISK"
+                              ? "Some attack vectors show partial vulnerability. Review recommended."
+                              : "Active exploitation possible. Immediate remediation required."}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Individual Vectors */}
+                  <div className="p-5 sm:p-6 space-y-2">
+                    <div className="text-[7px] text-s39-dim tracking-[0.15em] mb-3 font-mono">ATTACK VECTOR RESULTS</div>
+                    {sim.vectors.map((v) => {
+                      const vc = v.status === "SAFE" ? "#00ff88" : v.status === "VULNERABLE" ? "#ff4444" : v.status === "PARTIAL" ? "#ffa500" : "#555"
+                      const catColor = v.category === "code" ? "#00e5ff" : v.category === "economic" ? "#ffd600" : v.category === "governance" ? "#aa44ff" : "#ff6b00"
+                      const [expanded, setExpanded] = React.useState ? false : false
+                      return (
+                        <details key={v.id} className="group border border-s39-border rounded overflow-hidden bg-s39-bg0 hover:border-s39-muted transition-colors">
+                          <summary className="flex items-center gap-3 px-4 py-3 cursor-pointer list-none select-none">
+                            {/* Status Indicator */}
+                            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: vc, boxShadow: v.status !== "NOT_APPLICABLE" ? `0 0 6px ${vc}88` : "none" }} />
+                            {/* ID */}
+                            <span className="text-[7px] text-s39-dim font-mono w-12 shrink-0">{v.id}</span>
+                            {/* Attack Type */}
+                            <span className="text-[10px] text-s39-white font-bold flex-1">{v.attackType}</span>
+                            {/* Category */}
+                            <span className="text-[6px] tracking-widest px-1.5 py-0.5 border rounded shrink-0 hidden sm:inline" style={{ color: catColor, borderColor: `${catColor}44` }}>
+                              {v.category.toUpperCase()}
+                            </span>
+                            {/* Confidence */}
+                            <span className="text-[7px] text-s39-dim font-mono shrink-0 hidden sm:inline">{v.confidence}%</span>
+                            {/* Status */}
+                            <span className="text-[8px] font-mono font-bold px-2 py-0.5 rounded shrink-0" style={{ color: vc, backgroundColor: `${vc}11`, border: `1px solid ${vc}33` }}>
+                              {v.status}
+                            </span>
+                            {/* Gas */}
+                            <span className="text-[7px] text-s39-dim font-mono shrink-0 hidden md:inline">{(v.gasUsed / 1000).toFixed(0)}k gas</span>
+                            {/* Expand Arrow */}
+                            <svg className="w-3 h-3 text-s39-dim group-open:rotate-180 transition-transform shrink-0" viewBox="0 0 12 12" fill="none">
+                              <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                            </svg>
+                          </summary>
+                          <div className="px-4 pb-4 pt-2 border-t border-s39-border space-y-3">
+                            {/* Description */}
+                            <div className="text-[9px] text-s39-mid leading-relaxed">{v.description}</div>
+
+                            {/* Attack Flow */}
+                            <div className="bg-s39-bg1 border border-s39-border p-3 rounded">
+                              <div className="text-[7px] text-s39-dim tracking-widest mb-2">ATTACK FLOW</div>
+                              {v.attackFlow.map((step, i) => (
+                                <div key={i} className="flex items-start gap-2 mb-1">
+                                  <span className="text-[8px] font-mono shrink-0" style={{ color: vc }}>{step.split('.')[0]}.</span>
+                                  <span className="text-[8px] text-s39-mid">{step.split('.').slice(1).join('.').trim()}</span>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Stats Row */}
+                            <div className="grid grid-cols-3 gap-2">
+                              <div className="bg-s39-bg1 border border-s39-border p-2 text-center">
+                                <div className="text-[7px] text-s39-dim tracking-widest">GAS USED</div>
+                                <div className="text-[10px] text-s39-white font-mono font-bold">{v.gasUsed.toLocaleString()}</div>
+                              </div>
+                              <div className="bg-s39-bg1 border border-s39-border p-2 text-center">
+                                <div className="text-[7px] text-s39-dim tracking-widest">MAX DRAIN</div>
+                                <div className="text-[10px] font-mono font-bold" style={{ color: v.maxDrainableUSD > 0 ? "#ff4444" : "#00ff88" }}>
+                                  ${v.maxDrainableUSD > 0 ? (v.maxDrainableUSD / 1_000_000).toFixed(1) + "M" : "0"}
+                                </div>
+                              </div>
+                              <div className="bg-s39-bg1 border border-s39-border p-2 text-center">
+                                <div className="text-[7px] text-s39-dim tracking-widest">CONFIDENCE</div>
+                                <div className="text-[10px] text-s39-cyan font-mono font-bold">{v.confidence}%</div>
+                              </div>
+                            </div>
+
+                            {/* Mitigation */}
+                            {v.mitigationApplied && (
+                              <div className="flex items-center gap-2 p-2 bg-emerald-950/10 border border-emerald-900/30 rounded">
+                                <span className="text-emerald-400 text-[10px]">{'\u2713'}</span>
+                                <span className="text-[8px] text-emerald-300">Mitigation: {v.mitigationApplied}</span>
+                              </div>
+                            )}
+
+                            {/* Exploit Code */}
+                            {v.exploitCode && (
+                              <div className="bg-[#0a0e14] border border-red-900/40 rounded overflow-hidden">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-red-950/20 border-b border-red-900/30">
+                                  <span className="text-[8px] text-red-400 font-mono tracking-widest">EXPLOIT CODE</span>
+                                  <button
+                                    onClick={() => {
+                                      const blob = new Blob([v.exploitCode!], { type: "text/plain" })
+                                      const url = URL.createObjectURL(blob)
+                                      const a = document.createElement("a")
+                                      a.href = url
+                                      a.download = `${v.id}_exploit.t.sol`
+                                      a.click()
+                                      URL.revokeObjectURL(url)
+                                    }}
+                                    className="ml-auto text-[7px] text-red-400 border border-red-700/40 px-2 py-0.5 font-mono tracking-wider hover:bg-red-500/10 transition-colors cursor-pointer bg-transparent rounded flex items-center gap-1 shrink-0"
+                                  >
+                                    <svg width="8" height="8" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 5.5l3 3 3-3M2 10h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                    DOWNLOAD
+                                  </button>
+                                </div>
+                                <pre className="text-[8px] text-slate-300 font-mono whitespace-pre-wrap p-3 leading-relaxed">{v.exploitCode}</pre>
+                              </div>
+                            )}
+
+                            {/* CVSS Impact */}
+                            {v.cvssImpact && (
+                              <div className="text-[7px] text-s39-dim font-mono">
+                                CVSS Impact: {v.cvssImpact}
+                              </div>
+                            )}
+                          </div>
+                        </details>
+                      )
+                    })}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="px-5 sm:px-6 py-3 bg-s39-bg2 border-t border-s39-border flex items-center justify-between">
+                    <div className="text-[7px] text-s39-dim font-mono">
+                      Simulation completed: {new Date(sim.timestamp).toLocaleString()}
+                    </div>
+                    <div className="text-[7px] text-s39-dim font-mono">
+                      {s.totalVectorsTested} vectors | {s.simulationDurationMs}ms | {s.engineVersion}
+                    </div>
+                  </div>
+                </section>
+              )
+            })()}
+
             {/* FORMAL VERIFICATION */}
             {p.formalVerification && (
               <section className="border border-s39-border rounded-xl p-6 bg-s39-bg1 mt-6">

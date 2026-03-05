@@ -13,6 +13,7 @@ import {
   buildReportIntegrity,
 } from "@/lib/enterprise-standards"
 import { signReport } from "@/lib/report-signing"
+import { runAttackSimulation } from "@/core/simulator/attackSimulator"
 
 /* ───────── types ───────── */
 
@@ -1344,6 +1345,24 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
           "LOW \u2014 no systemic code exploit risk identified. Residual risk is operational in nature.",
       }
 
+      // ── ENTERPRISE: AI Exploit Simulation ──────────────────
+      const exploitSimulation = runAttackSimulation(truncatedCode, {
+        hasProxy: meta.hasProxy,
+        hasMint: meta.hasMintOutsideConstructor,
+        hasMintOutsideConstructor: meta.hasMintOutsideConstructor,
+        hasExternalCalls: meta.hasExternalCalls,
+        hasPausable: meta.hasPausable,
+        hasBlacklist: meta.hasBlacklist,
+        hasReflection: meta.hasReflection,
+        hasTaxMechanism: meta.hasTaxMechanism,
+        hasDelegateCall: meta.hasDelegateCall,
+        contractType: meta.contractType,
+        solidityVersion: meta.solidityVersion ? String(meta.solidityVersion) : undefined,
+        totalLOC: meta.linesOfCode,
+        usesOZ: meta.usesOZ,
+        hasGovernance: meta.hasGovernance,
+      })
+
       // ── ENTERPRISE: Firma crittografica ECDSA ──────────────
       const reportJsonToSign = JSON.stringify({
         auditId,
@@ -1409,6 +1428,8 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
         // Enterprise: ECDSA Signature + On-Chain
         signedReport,
         onChainRecord,
+        // Enterprise: Exploit Simulation
+        exploitSimulation,
       })
     } catch (aiError: unknown) {
       // AI failed -- fall back to static analysis (which is now context-aware)
@@ -1511,6 +1532,24 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
         overallResidualRisk: "LOW \u2014 no systemic code exploit risk identified. Residual risk is operational in nature.",
       }
 
+      // Exploit Simulation for static path
+      const staticExploitSimulation = runAttackSimulation(truncatedCode, {
+        hasProxy: meta.hasProxy,
+        hasMint: meta.hasMintOutsideConstructor,
+        hasMintOutsideConstructor: meta.hasMintOutsideConstructor,
+        hasExternalCalls: meta.hasExternalCalls,
+        hasPausable: meta.hasPausable,
+        hasBlacklist: meta.hasBlacklist,
+        hasReflection: meta.hasReflection,
+        hasTaxMechanism: meta.hasTaxMechanism,
+        hasDelegateCall: meta.hasDelegateCall,
+        contractType: meta.contractType,
+        solidityVersion: meta.solidityVersion ? String(meta.solidityVersion) : undefined,
+        totalLOC: meta.linesOfCode,
+        usesOZ: meta.usesOZ,
+        hasGovernance: meta.hasGovernance,
+      })
+
       // ECDSA Signature for static path too
       const staticReportJsonToSign = JSON.stringify({
         auditId: staticAuditId,
@@ -1536,6 +1575,7 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
         formalVerification: staticFormalVerification,
         residualRisk: staticResidualRisk,
         signedReport: staticSignedReport,
+        exploitSimulation: staticExploitSimulation,
       })
     }
   } catch (error: unknown) {
