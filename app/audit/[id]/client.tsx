@@ -93,6 +93,7 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
           formalVerification: project.formalVerification || local.formalVerification,
           residualRisk: project.residualRisk || local.residualRisk,
           economicAttackVectors: project.economicAttackVectors || local.economicAttackVectors,
+          exploitSimulation: project.exploitSimulation || local.exploitSimulation,
         })
       }
       setLoading(false)

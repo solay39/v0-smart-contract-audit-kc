@@ -1099,6 +1099,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     enterpriseTrustAssumptions: (enterpriseTrustAssumptions as PortfolioProject["enterpriseTrustAssumptions"]) || undefined,
     formalVerification: (formalVerification as PortfolioProject["formalVerification"]) || undefined,
     residualRisk: (residualRisk as PortfolioProject["residualRisk"]) || undefined,
+    exploitSimulation: (exploitSimulation as PortfolioProject["exploitSimulation"]) || undefined,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     signedReport: (signedReport as any) || undefined,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

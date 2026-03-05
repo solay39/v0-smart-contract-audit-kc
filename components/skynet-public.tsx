@@ -403,6 +403,23 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
         auditDurationDays: _raw.engagement.auditDurationDays ?? 3,
         securityEngineersInvolved: _raw.engagement.securityEngineersInvolved ?? 1,
       } : _raw.engagement,
+      exploitSimulation: _raw.exploitSimulation ? {
+        ..._raw.exploitSimulation,
+        summary: {
+          ...(_raw.exploitSimulation.summary || {}),
+          totalVectorsTested: _raw.exploitSimulation.summary?.totalVectorsTested ?? 0,
+          safe: _raw.exploitSimulation.summary?.safe ?? 0,
+          vulnerable: _raw.exploitSimulation.summary?.vulnerable ?? 0,
+          partial: _raw.exploitSimulation.summary?.partial ?? 0,
+          notApplicable: _raw.exploitSimulation.summary?.notApplicable ?? 0,
+          simulationDurationMs: _raw.exploitSimulation.summary?.simulationDurationMs ?? 0,
+          overallStatus: _raw.exploitSimulation.summary?.overallStatus ?? "SECURE",
+          estimatedTotalRiskUSD: _raw.exploitSimulation.summary?.estimatedTotalRiskUSD ?? 0,
+          engineVersion: _raw.exploitSimulation.summary?.engineVersion ?? "Solay39 Attack Engine v2.1.0",
+        },
+        vectors: _raw.exploitSimulation.vectors || [],
+        timestamp: _raw.exploitSimulation.timestamp || new Date().toISOString(),
+      } : undefined,
     }
   }, [_raw])
 
@@ -3704,7 +3721,6 @@ console.log("Signer:", recovered);
                     {sim.vectors.map((v) => {
                       const vc = v.status === "SAFE" ? "#00ff88" : v.status === "VULNERABLE" ? "#ff4444" : v.status === "PARTIAL" ? "#ffa500" : "#555"
                       const catColor = v.category === "code" ? "#00e5ff" : v.category === "economic" ? "#ffd600" : v.category === "governance" ? "#aa44ff" : "#ff6b00"
-                      const [expanded, setExpanded] = React.useState ? false : false
                       return (
                         <details key={v.id} className="group border border-s39-border rounded overflow-hidden bg-s39-bg0 hover:border-s39-muted transition-colors">
                           <summary className="flex items-center gap-3 px-4 py-3 cursor-pointer list-none select-none">
