@@ -4,10 +4,13 @@
 // browsers, devices, and deployments.
 // ═══════════════════════════════════════════════════════════════
 
-import { put, list } from "@vercel/blob"
+import { put, list, del } from "@vercel/blob"
 import { type NextRequest, NextResponse } from "next/server"
 
 const BLOB_PREFIX = "audits/"
+
+// Founder password for protected operations (delete)
+const FOUNDER_KEY = process.env.SOLAY39_FOUNDER_KEY || "solay39-founder-2024"
 
 // POST — Save a published audit report
 export async function POST(request: NextRequest) {
@@ -89,6 +92,40 @@ export async function GET(request: NextRequest) {
     console.error("Blob load error:", error)
     return NextResponse.json(
       { error: "Failed to load audits" },
+      { status: 500 }
+    )
+  }
+}
+
+// DELETE — Remove a published audit (founder-only)
+export async function DELETE(request: NextRequest) {
+  try {
+    const { id, founderKey } = await request.json()
+
+    // Authenticate founder
+    if (founderKey !== FOUNDER_KEY) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: "Missing audit ID" }, { status: 400 })
+    }
+
+    // Find the blob by prefix
+    const { blobs } = await list({ prefix: `${BLOB_PREFIX}${id}.json` })
+
+    if (blobs.length === 0) {
+      return NextResponse.json({ error: "Audit not found" }, { status: 404 })
+    }
+
+    // Delete all matching blobs (usually just one)
+    await Promise.all(blobs.map((b) => del(b.url)))
+
+    return NextResponse.json({ success: true, deleted: id })
+  } catch (error) {
+    console.error("Blob delete error:", error)
+    return NextResponse.json(
+      { error: "Failed to delete audit" },
       { status: 500 }
     )
   }

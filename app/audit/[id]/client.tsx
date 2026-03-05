@@ -1,8 +1,43 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Component, type ReactNode } from "react"
 import { ProjectDetail, getPublishedAudits } from "@/components/skynet-public"
 import { type PortfolioProject } from "@/lib/solay39-constants"
+
+// Error boundary to catch rendering crashes in ProjectDetail
+class AuditErrorBoundary extends Component<{ children: ReactNode; auditId: string }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode; auditId: string }) {
+    super(props)
+    this.state = { hasError: false }
+  }
+  static getDerivedStateFromError() { return { hasError: true } }
+  componentDidCatch(error: Error) { console.error("[Solay39] ProjectDetail crash:", error.message) }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-dvh bg-s39-bg0 flex items-center justify-center">
+          <div className="text-center max-w-md mx-auto p-6">
+            <div className="text-[9px] text-red-400 tracking-[0.15em] mb-3 font-mono">RENDER ERROR</div>
+            <h1 className="text-xl font-bold text-s39-white mb-3 font-mono">Failed to render audit report</h1>
+            <p className="text-[10px] text-s39-dim mb-6 leading-relaxed">
+              The audit data may be incomplete or corrupted. Try reloading or running the audit again.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button onClick={() => { this.setState({ hasError: false }); window.location.reload() }}
+                className="text-[9px] text-s39-green border border-s39-green/30 px-4 py-2 font-mono tracking-wider hover:bg-s39-green/5 transition-colors cursor-pointer bg-transparent">
+                RELOAD
+              </button>
+              <a href="/" className="text-[9px] text-s39-cyan border border-s39-cyan/30 px-4 py-2 font-mono tracking-wider hover:bg-s39-cyan/5 transition-colors no-underline">
+                BACK TO PORTFOLIO
+              </a>
+            </div>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 export function AuditDetailClient({ project, auditId }: { project: PortfolioProject | null; auditId: string }) {
   const [liveProject, setLiveProject] = useState<PortfolioProject | null>(project)
@@ -36,8 +71,8 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
       const local = published.find(
         (p) =>
           p.id === project.id ||
-          p.name.toLowerCase().replace(/[^a-z0-9]/g, "") ===
-            project.name.toLowerCase().replace(/[^a-z0-9]/g, "")
+          (p.name || "").toLowerCase().replace(/[^a-z0-9]/g, "") ===
+            (project.name || "").toLowerCase().replace(/[^a-z0-9]/g, "")
       )
       if (local) {
         setLiveProject({
@@ -116,10 +151,12 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
   }
 
   return (
-    <ProjectDetail
-      p={liveProject}
-      backHref="/"
-      isLive={isLive}
-    />
+    <AuditErrorBoundary auditId={auditId}>
+      <ProjectDetail
+        p={liveProject}
+        backHref="/"
+        isLive={isLive}
+      />
+    </AuditErrorBoundary>
   )
 }

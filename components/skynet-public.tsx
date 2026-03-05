@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -371,30 +371,64 @@ function ShareButton({ auditId, name }: { auditId: string; name: string }) {
   )
 }
 
-export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioProject; onBack?: () => void; isLive?: boolean; backHref?: string }) {
+export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: PortfolioProject; onBack?: () => void; isLive?: boolean; backHref?: string }) {
+  // ── DEFENSIVE NORMALIZATION: ensure all nested properties are safe for rendering ──
+  const p = useMemo<PortfolioProject>(() => {
+    const findings = _raw.findings || []
+    return {
+      ..._raw,
+      id: _raw.id || "unknown",
+      name: _raw.name || "Unknown Contract",
+      score: _raw.score ?? 0,
+      network: _raw.network || "BSC",
+      date: _raw.date || new Date().toISOString().split("T")[0],
+      criticals: _raw.criticals ?? findings.filter(f => f.severity === "CRITICAL").length,
+      highs: _raw.highs ?? findings.filter(f => f.severity === "HIGH").length,
+      mediums: _raw.mediums ?? findings.filter(f => f.severity === "MEDIUM").length,
+      lows: _raw.lows ?? findings.filter(f => f.severity === "LOW").length,
+      infos: _raw.infos ?? findings.filter(f => f.severity === "INFO").length,
+      findings,
+      codeMetrics: _raw.codeMetrics ? {
+        ..._raw.codeMetrics,
+        totalLOC: _raw.codeMetrics.totalLOC ?? 0,
+        totalContracts: _raw.codeMetrics.totalContracts ?? 1,
+        externalDependencies: _raw.codeMetrics.externalDependencies || [],
+        compilerVersion: _raw.codeMetrics.compilerVersion || "N/A",
+        upgradeabilityPattern: _raw.codeMetrics.upgradeabilityPattern || "none",
+        cyclomaticComplexity: _raw.codeMetrics.cyclomaticComplexity || "Low",
+      } : _raw.codeMetrics,
+      engagement: _raw.engagement ? {
+        ..._raw.engagement,
+        linesOfCode: _raw.engagement.linesOfCode ?? 0,
+        auditDurationDays: _raw.engagement.auditDurationDays ?? 3,
+        securityEngineersInvolved: _raw.engagement.securityEngineersInvolved ?? 1,
+      } : _raw.engagement,
+    }
+  }, [_raw])
+
   // ── SINGLE SOURCE OF TRUTH: compute final score from weighted category sum ──
   const bd = p.scoreBreakdown
   const computedScore = getWeightedScore(p)
   const computedRating = ratingOf(computedScore)
   const sc = scoreColor(computedScore)
-  const totalFindings = p.criticals + p.highs + p.mediums + p.lows + p.infos
-  const resolvedCount = p.findings?.filter((f) => f.status === "RESOLVED").length ?? 0
-  const openCount = p.findings?.filter((f) => f.status === "OPEN").length ?? 0
-  const ackCount = p.findings?.filter((f) => f.status === "ACKNOWLEDGED").length ?? 0
+  const totalFindings = p.criticals + p.highs + p.mediums + p.lows + p.infos || p.findings.length
+  const resolvedCount = p.findings.filter((f) => f.status === "RESOLVED").length
+  const openCount = p.findings.filter((f) => f.status === "OPEN").length
+  const ackCount = p.findings.filter((f) => f.status === "ACKNOWLEDGED").length
 
   // Client Display Mode: hides internal scoring details, shows clean public view
   const [clientMode, setClientMode] = useState(false)
 
   // Single source of truth for Economic and Operations scores
-  const economicScore = bd ? (bd.economic ?? Math.round((bd.codeSecurity + bd.centralization) / 2)) : computedScore
+  const economicScore = bd ? (bd.economic ?? Math.round(((bd.codeSecurity ?? computedScore) + (bd.centralization ?? computedScore)) / 2)) : computedScore
   const operationsScore = bd ? (bd.testingCoverage ?? computedScore) : computedScore
 
   // Radar chart data (6 categories)
   const radarData = bd ? [
-    { label: "Code Security", value: bd.codeSecurity, color: "#00ff88" },
-    { label: "Architecture", value: bd.architectureRisk, color: "#00e5ff" },
-    { label: "Governance", value: bd.governanceRisk, color: "#4488ff" },
-    { label: "On-Chain", value: bd.centralization, color: "#ffd600" },
+    { label: "Code Security", value: bd.codeSecurity ?? computedScore, color: "#00ff88" },
+    { label: "Architecture", value: bd.architectureRisk ?? computedScore, color: "#00e5ff" },
+    { label: "Governance", value: bd.governanceRisk ?? computedScore, color: "#4488ff" },
+    { label: "On-Chain", value: bd.centralization ?? computedScore, color: "#ffd600" },
     { label: "Economic", value: economicScore, color: "#ff6b00" },
     { label: "Operations", value: operationsScore, color: "#aa44ff" },
   ] : []
@@ -555,12 +589,12 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {([
-  ["Code Security", p.scoreBreakdown.codeSecurity, "#00ff88", "35%"],
-  ["Architecture", p.scoreBreakdown.architectureRisk, "#00e5ff", "20%"],
-  ["Governance", p.scoreBreakdown.governanceRisk, "#4488ff", "15%"],
-  ["On-Chain", p.scoreBreakdown.centralization, "#ffd600", "10%"],
-  ["Economic", economicScore, "#ff6b00", "10%"],
-  ["Operations", operationsScore, "#aa44ff", "10%"],
+  ["Code Security", p.scoreBreakdown.codeSecurity ?? computedScore, "#00ff88", "35%"],
+  ["Architecture", p.scoreBreakdown.architectureRisk ?? computedScore, "#00e5ff", "20%"],
+  ["Governance", p.scoreBreakdown.governanceRisk ?? computedScore, "#4488ff", "15%"],
+  ["On-Chain", p.scoreBreakdown.centralization ?? computedScore, "#ffd600", "10%"],
+  ["Economic", economicScore ?? computedScore, "#ff6b00", "10%"],
+  ["Operations", operationsScore ?? computedScore, "#aa44ff", "10%"],
                 ] as [string, number, string, string][]).map(([label, val, color, weight]) => (
                   <div key={label} className="bg-s39-bg2 border border-s39-border p-3">
                     <div className="flex justify-between items-center mb-1">
@@ -584,6 +618,78 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
           )}
         </div>
       </div>
+
+      {/* ── ENTERPRISE VERIFICATION BANNER ── */}
+      {(() => {
+        const hasSig = p.signedReport?.signature && p.signedReport.signature !== "0x_CONFIGURE_AUDITOR_PRIVATE_KEY_IN_ENV"
+        const hasOnChain = p.onChainRecord?.txHash
+        const hasReview = p.reviewRecord?.reviewStatus
+        const hasHash = p.reportIntegrity?.sha256
+        const hasCvss = p.findings?.some(f => f.cvss)
+        const hasPoc = p.findings?.some(f => f.foundryPoC)
+        const checks = [hasSig, hasOnChain, hasReview, hasHash, hasCvss, hasPoc].filter(Boolean).length
+        if (checks === 0) return null
+        return (
+          <div className="bg-[#060d14] border-b border-s39-border">
+            <div className="max-w-[1060px] mx-auto px-4 sm:px-6 py-3">
+              <div className="flex items-center gap-2 mb-2.5">
+                <span className="text-[7px] text-s39-dim tracking-[0.2em] font-mono">ENTERPRISE TRUST VERIFICATION</span>
+                <span className="text-[7px] text-s39-green bg-s39-green/10 border border-s39-green/20 px-1.5 py-px tracking-wider font-mono">{checks}/6 VERIFIED</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                {/* ECDSA Signature */}
+                <div className={`flex items-center gap-2 p-2 border ${hasSig ? "border-emerald-800/40 bg-emerald-950/20" : "border-s39-border bg-s39-bg1"}`}>
+                  <span className={`text-[10px] ${hasSig ? "text-emerald-400" : "text-s39-dim"}`}>{hasSig ? "\u2713" : "\u2022"}</span>
+                  <div>
+                    <div className={`text-[7px] font-mono tracking-wider ${hasSig ? "text-emerald-400" : "text-s39-dim"}`}>ECDSA SIGNED</div>
+                    <div className="text-[6px] text-s39-dim">{hasSig ? `${(p.signedReport?.signature || "").slice(0, 10)}...` : "Not configured"}</div>
+                  </div>
+                </div>
+                {/* On-Chain Attestation */}
+                <div className={`flex items-center gap-2 p-2 border ${hasOnChain ? "border-emerald-800/40 bg-emerald-950/20" : "border-s39-border bg-s39-bg1"}`}>
+                  <span className={`text-[10px] ${hasOnChain ? "text-emerald-400" : "text-s39-dim"}`}>{hasOnChain ? "\u2713" : "\u2022"}</span>
+                  <div>
+                    <div className={`text-[7px] font-mono tracking-wider ${hasOnChain ? "text-emerald-400" : "text-s39-dim"}`}>ON-CHAIN</div>
+                    <div className="text-[6px] text-s39-dim">{hasOnChain ? `${(p.onChainRecord?.txHash || "").slice(0, 10)}...` : "Pending"}</div>
+                  </div>
+                </div>
+                {/* Dual Review */}
+                <div className={`flex items-center gap-2 p-2 border ${hasReview ? "border-emerald-800/40 bg-emerald-950/20" : "border-s39-border bg-s39-bg1"}`}>
+                  <span className={`text-[10px] ${hasReview ? "text-emerald-400" : "text-s39-dim"}`}>{hasReview ? "\u2713" : "\u2022"}</span>
+                  <div>
+                    <div className={`text-[7px] font-mono tracking-wider ${hasReview ? "text-emerald-400" : "text-s39-dim"}`}>DUAL REVIEW</div>
+                    <div className="text-[6px] text-s39-dim">{hasReview ? p.reviewRecord?.reviewStatus : "Pending"}</div>
+                  </div>
+                </div>
+                {/* SHA-256 Hash */}
+                <div className={`flex items-center gap-2 p-2 border ${hasHash ? "border-emerald-800/40 bg-emerald-950/20" : "border-s39-border bg-s39-bg1"}`}>
+                  <span className={`text-[10px] ${hasHash ? "text-emerald-400" : "text-s39-dim"}`}>{hasHash ? "\u2713" : "\u2022"}</span>
+                  <div>
+                    <div className={`text-[7px] font-mono tracking-wider ${hasHash ? "text-emerald-400" : "text-s39-dim"}`}>SHA-256</div>
+                    <div className="text-[6px] text-s39-dim">{hasHash ? `${(p.reportIntegrity?.sha256 || "").slice(0, 12)}...` : "N/A"}</div>
+                  </div>
+                </div>
+                {/* CVSS/CWE/SWC */}
+                <div className={`flex items-center gap-2 p-2 border ${hasCvss ? "border-emerald-800/40 bg-emerald-950/20" : "border-s39-border bg-s39-bg1"}`}>
+                  <span className={`text-[10px] ${hasCvss ? "text-emerald-400" : "text-s39-dim"}`}>{hasCvss ? "\u2713" : "\u2022"}</span>
+                  <div>
+                    <div className={`text-[7px] font-mono tracking-wider ${hasCvss ? "text-emerald-400" : "text-s39-dim"}`}>CVSS/CWE/SWC</div>
+                    <div className="text-[6px] text-s39-dim">{hasCvss ? "Mapped" : "N/A"}</div>
+                  </div>
+                </div>
+                {/* Exploit PoC */}
+                <div className={`flex items-center gap-2 p-2 border ${hasPoc ? "border-emerald-800/40 bg-emerald-950/20" : "border-s39-border bg-s39-bg1"}`}>
+                  <span className={`text-[10px] ${hasPoc ? "text-emerald-400" : "text-s39-dim"}`}>{hasPoc ? "\u2713" : "\u2022"}</span>
+                  <div>
+                    <div className={`text-[7px] font-mono tracking-wider ${hasPoc ? "text-emerald-400" : "text-s39-dim"}`}>EXPLOIT PoC</div>
+                    <div className="text-[6px] text-s39-dim">{hasPoc ? "Included" : "N/A"}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── Project Info Bar ── */}
       <div className="bg-s39-bg1 border-b border-s39-border">
@@ -1626,7 +1732,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
             )}
 
-            {/* ── SECTION 6: PRIVILEGED ROLES & ACCESS CONTROL �����─ */}
+            {/* ── SECTION 6: PRIVILEGED ROLES & ACCESS CONTROL �������─ */}
             {p.privilegedRoles && p.privilegedRoles.length > 0 && (
               <div className="mb-5">
                 <div className="text-[8px] text-s39-dim tracking-widest mb-2">ACCESS CONTROL MATRIX</div>
@@ -3717,6 +3823,34 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
   const [livePrices, setLivePrices] = useState<Record<string, LivePriceData>>({})
   const [priceLoading, setPriceLoading] = useState(true)
 
+  // Founder mode: triple-click the SOLAY39 logo to toggle
+  const [founderMode, setFounderMode] = useState(false)
+  const [founderKey, setFounderKey] = useState("")
+  const [founderAuthed, setFounderAuthed] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
+
+  const handleDeleteAudit = useCallback(async (auditId: string) => {
+    if (!founderAuthed || !founderKey) return
+    setDeleting(auditId)
+    try {
+      const res = await fetch("/api/audits", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: auditId, founderKey }),
+      })
+      if (res.ok) {
+        // Remove from local state
+        setAllProjects(prev => prev.filter(p => p.id !== auditId))
+        // Also remove from localStorage
+        const local = getPublishedAudits().filter(p => p.id !== auditId)
+        localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(local))
+        setDeleteConfirm(null)
+      }
+    } catch { /* ignore */ }
+    setDeleting(null)
+  }, [founderAuthed, founderKey])
+
   // Merge default + published audits
   const [allProjects, setAllProjects] = useState<PortfolioProject[]>(DEFAULT_PROJECTS)
 
@@ -3738,7 +3872,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
           setLivePrices(data.prices)
         }
       } catch {
-        // Non-critical — prices just won't update
+        // Non-critical ��� prices just won't update
       } finally {
         if (mounted) setPriceLoading(false)
       }
@@ -3787,30 +3921,18 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
       } catch { /* non-critical */ }
 
       // 3. Merge: defaults + blob + localStorage (deduplicate by id/name)
-      //    Blob/local data enriches defaults (logoUrl, description, etc.)
+      //    Blob data takes priority (has full enterprise audit: PoC, CVSS, signatures, etc.)
+      //    Default fills in cosmetic fields the blob is missing
       const merged = [...DEFAULT_PROJECTS.map(dp => {
-        // If blob/local has richer data for this project, merge it in
         const blobMatch = [...blobAudits, ...cleaned].find(
           pub => pub.id === dp.id || norm(pub.name) === norm(dp.name)
         )
         if (!blobMatch) return dp
         return {
-          ...dp,
+          ...dp,           // defaults as base (hardcoded tags, socials, etc.)
+          ...blobMatch,    // blob OVERWRITES everything (findings, enterprise, scores, signatures)
           logoUrl: blobMatch.logoUrl || dp.logoUrl,
-          description: blobMatch.description || dp.description,
-          website: blobMatch.website || dp.website,
-          githubUrl: blobMatch.githubUrl || dp.githubUrl,
-          telegram: blobMatch.telegram || dp.telegram,
-          twitter: blobMatch.twitter || dp.twitter,
-          discord: blobMatch.discord || dp.discord,
-          price: blobMatch.price || dp.price,
-          change24h: blobMatch.change24h || dp.change24h,
-          tvl: blobMatch.tvl || dp.tvl,
-          totalSupply: blobMatch.totalSupply || dp.totalSupply,
-          tokenAge: blobMatch.tokenAge || dp.tokenAge,
-          fdv: blobMatch.fdv || dp.fdv,
-          volume24h: blobMatch.volume24h || dp.volume24h,
-          // Preserve default's structured audit data (findings, scores, etc.)
+          tags: blobMatch.tags || dp.tags,
         }
       })]
       const allExtras = [...blobAudits, ...cleaned]
@@ -3857,8 +3979,15 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
       <nav className="sticky top-0 z-50 bg-s39-bg0/95 border-b border-s39-border backdrop-blur-sm">
         <div className="max-w-[1100px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-4 sm:gap-6">
-            <div className="text-sm font-bold text-s39-green tracking-wider animate-[glow_3s_infinite]">
+            <div
+              className="text-sm font-bold text-s39-green tracking-wider animate-[glow_3s_infinite] select-none"
+              onDoubleClick={(e) => {
+                e.preventDefault()
+                if (e.detail >= 2) setFounderMode(prev => !prev)
+              }}
+            >
               SOLAY39 <span className="text-s39-dim">SKYNET</span>
+              {founderMode && <span className="text-[6px] text-red-500 ml-1 tracking-wider">ADMIN</span>}
             </div>
             <div className="hidden sm:flex items-center gap-4">
               {(["portfolio", "methodology"] as const).map((t) => (
@@ -3945,6 +4074,72 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
               </a>
             </div>
           </div>
+
+          {/* Founder Admin Panel */}
+          {founderMode && !founderAuthed && (
+            <div className="mb-6 p-4 border border-red-800/40 bg-red-950/20 rounded">
+              <div className="text-[8px] text-red-400 tracking-[0.15em] mb-2 font-mono">FOUNDER AUTHENTICATION</div>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="password"
+                  value={founderKey}
+                  onChange={(e) => setFounderKey(e.target.value)}
+                  placeholder="Enter founder key..."
+                  className="flex-1 bg-s39-bg2 border border-s39-border text-s39-lite p-2 px-3 text-[10px] font-mono outline-none focus:border-red-500"
+                />
+                <button
+                  onClick={() => { if (founderKey.length >= 4) setFounderAuthed(true) }}
+                  className="text-[9px] text-red-400 border border-red-500/40 px-4 py-2 font-mono tracking-wider hover:bg-red-500/10 transition-colors cursor-pointer bg-transparent"
+                >
+                  AUTHENTICATE
+                </button>
+              </div>
+            </div>
+          )}
+          {founderMode && founderAuthed && (
+            <div className="mb-6 p-3 border border-red-800/40 bg-red-950/10 rounded flex items-center justify-between">
+              <div className="text-[8px] text-red-400 tracking-[0.15em] font-mono flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                FOUNDER MODE ACTIVE -- Click the red X on any audit to delete it
+              </div>
+              <button
+                onClick={() => { setFounderMode(false); setFounderAuthed(false); setFounderKey(""); setDeleteConfirm(null) }}
+                className="text-[8px] text-s39-dim hover:text-red-400 cursor-pointer bg-transparent border-none font-mono"
+              >
+                EXIT
+              </button>
+            </div>
+          )}
+
+          {/* Delete Confirmation Dialog */}
+          {deleteConfirm && (
+            <div className="fixed inset-0 bg-black/80 z-[999] flex items-center justify-center p-4" onClick={() => setDeleteConfirm(null)}>
+              <div className="bg-s39-bg1 border border-red-800 p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+                <div className="text-[9px] text-red-400 tracking-[0.15em] font-mono mb-3">CONFIRM DELETION</div>
+                <p className="text-[11px] text-s39-lite mb-1">
+                  Are you sure you want to permanently delete this audit?
+                </p>
+                <p className="text-[9px] text-s39-dim mb-4 font-mono break-all">
+                  ID: {deleteConfirm}
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleDeleteAudit(deleteConfirm)}
+                    disabled={deleting === deleteConfirm}
+                    className="flex-1 text-[9px] text-red-400 border border-red-500/50 py-2 font-mono tracking-wider hover:bg-red-500/20 transition-colors cursor-pointer bg-transparent disabled:opacity-50"
+                  >
+                    {deleting === deleteConfirm ? "DELETING..." : "DELETE PERMANENTLY"}
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirm(null)}
+                    className="flex-1 text-[9px] text-s39-mid border border-s39-border py-2 font-mono tracking-wider hover:border-s39-muted transition-colors cursor-pointer bg-transparent"
+                  >
+                    CANCEL
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Stats Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
@@ -4072,9 +4267,9 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
 
           {/* Table - Desktop */}
           <div className="hidden md:block bg-s39-bg1 border border-s39-border">
-            <div className="grid grid-cols-[32px_2fr_70px_60px_1fr_90px_80px] px-4 py-2.5 border-b border-s39-border">
-              {["#", "PROTOCOL", "SCORE", "RATING", "FINDINGS", "NETWORK", "STATUS"].map((h) => (
-                <div key={h} className="text-[7.5px] text-s39-dim tracking-[0.15em]">{h}</div>
+            <div className={`grid ${founderAuthed ? "grid-cols-[32px_2fr_70px_60px_1fr_90px_80px_40px]" : "grid-cols-[32px_2fr_70px_60px_1fr_90px_80px]"} px-4 py-2.5 border-b border-s39-border`}>
+              {[...(["#", "PROTOCOL", "SCORE", "RATING", "FINDINGS", "NETWORK", "STATUS"]), ...(founderAuthed ? [""] : [])].map((h) => (
+                <div key={h || "del"} className="text-[7.5px] text-s39-dim tracking-[0.15em]">{h}</div>
               ))}
             </div>
             {filtered.map((p, i) => {
@@ -4086,7 +4281,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                 <div
                   key={p.id}
                   onClick={() => goToAudit(p)}
-                  className="grid grid-cols-[32px_2fr_70px_60px_1fr_90px_80px] px-4 py-3 border-b border-s39-border items-center transition-colors hover:bg-s39-bg2 cursor-pointer"
+                  className={`grid ${founderAuthed ? "grid-cols-[32px_2fr_70px_60px_1fr_90px_80px_40px]" : "grid-cols-[32px_2fr_70px_60px_1fr_90px_80px]"} px-4 py-3 border-b border-s39-border items-center transition-colors hover:bg-s39-bg2 cursor-pointer`}
                 >
                   <div className={`text-[10px] font-bold ${rankColor}`}>#{i + 1}</div>
                   <div className="flex items-center gap-3 min-w-0">
@@ -4137,6 +4332,17 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                       AUDITED
                     </span>
                   </div>
+                  {founderAuthed && (
+                    <div className="flex justify-center">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDeleteConfirm(p.id) }}
+                        className="w-6 h-6 flex items-center justify-center text-red-500/60 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer bg-transparent border border-red-800/30 rounded text-[10px] font-bold"
+                        title={`Delete ${p.name}`}
+                      >
+                        X
+                      </button>
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -4195,6 +4401,14 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                     <SevPill sev="CRITICAL" count={p.criticals} />
                     <SevPill sev="HIGH" count={p.highs} />
                     <SevPill sev="MEDIUM" count={p.mediums} />
+                    {founderAuthed && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDeleteConfirm(p.id) }}
+                        className="ml-auto text-[7px] text-red-500/70 border border-red-800/40 px-2 py-0.5 font-mono tracking-wider hover:bg-red-500/10 transition-colors cursor-pointer bg-transparent"
+                      >
+                        DELETE
+                      </button>
+                    )}
                   </div>
                 </div>
               )

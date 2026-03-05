@@ -417,9 +417,10 @@ export type DemoProject = PortfolioProject
 /** Compute weighted score from scoreBreakdown — SINGLE SOURCE OF TRUTH for display */
 export function getWeightedScore(p: PortfolioProject): number {
   const sb = p.scoreBreakdown
-  if (!sb) return p.score
+  const base = p.score ?? 0
+  if (!sb) return base
   // Derive Economic from code + on-chain average if not explicitly set
-  const economic = sb.economic ?? Math.round((sb.codeSecurity + sb.centralization) / 2)
+  const economic = sb.economic ?? Math.round(((sb.codeSecurity ?? base) + (sb.centralization ?? base)) / 2)
   return Math.round(
     (sb.codeSecurity ?? p.score) * 0.35 +
     (sb.architectureRisk ?? p.score) * 0.20 +
