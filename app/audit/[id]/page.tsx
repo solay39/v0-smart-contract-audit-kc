@@ -1,10 +1,11 @@
 import type { Metadata } from "next"
 import { DEFAULT_PROJECTS, ratingOf, getWeightedScore, type PortfolioProject } from "@/lib/solay39-constants"
-import { list } from "@vercel/blob"
 import { AuditDetailClient } from "./client"
 
 // Allow dynamic audit slugs that aren't in generateStaticParams
 export const dynamicParams = true
+// Force dynamic rendering for non-default audit pages
+export const dynamic = "force-dynamic"
 
 // Build a lookup map at module scope
 const projectMap = new Map(DEFAULT_PROJECTS.map((p) => [p.id, p]))
@@ -12,9 +13,11 @@ const projectMap = new Map(DEFAULT_PROJECTS.map((p) => [p.id, p]))
 // Fetch audit from Vercel Blob (server-side) — fully resilient
 async function fetchBlobAudit(id: string): Promise<PortfolioProject | null> {
   try {
+    // Dynamic import to avoid module-level issues with @vercel/blob
+    const { list } = await import("@vercel/blob")
     const { blobs } = await list({ prefix: `audits/${id}.json`, limit: 1 })
     if (blobs.length === 0) return null
-    const res = await fetch(blobs[0].url, { next: { revalidate: 60 } })
+    const res = await fetch(blobs[0].url)
     if (!res.ok) return null
     return await res.json() as PortfolioProject
   } catch (err) {

@@ -377,7 +377,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
   const computedScore = getWeightedScore(p)
   const computedRating = ratingOf(computedScore)
   const sc = scoreColor(computedScore)
-  const totalFindings = p.criticals + p.highs + p.mediums + p.lows + p.infos
+  const totalFindings = (p.criticals ?? 0) + (p.highs ?? 0) + (p.mediums ?? 0) + (p.lows ?? 0) + (p.infos ?? 0) || (p.findings?.length ?? 0)
   const resolvedCount = p.findings?.filter((f) => f.status === "RESOLVED").length ?? 0
   const openCount = p.findings?.filter((f) => f.status === "OPEN").length ?? 0
   const ackCount = p.findings?.filter((f) => f.status === "ACKNOWLEDGED").length ?? 0
@@ -3276,6 +3276,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                 </div>
                 <div className="space-y-3">
                   {/* Lead Auditor */}
+                  {p.reviewRecord.leadAuditor && (
                   <div className="p-3 rounded bg-s39-bg0 border border-s39-border">
                     <div className="flex items-center justify-between mb-1">
                       <div className="text-[8px] text-s39-dim font-mono tracking-wider">LEAD AUDITOR</div>
@@ -3289,6 +3290,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                       <div className="text-[8px] text-s39-dim mt-0.5">{p.reviewRecord.leadAuditor.signOffDate}</div>
                     )}
                   </div>
+                  )}
                   {/* Second Reviewer */}
                   {p.reviewRecord.secondReviewer && (
                     <div className="p-3 rounded bg-s39-bg0 border border-s39-border">
