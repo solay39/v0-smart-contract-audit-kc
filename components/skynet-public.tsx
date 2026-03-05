@@ -963,7 +963,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
               <div className="bg-s39-bg2 border border-s39-border p-3">
                 <div className="text-[7px] text-s39-dim tracking-widest mb-1">LINES OF CODE</div>
-                <div className="text-[11px] text-s39-white font-bold font-mono">{p.engagement.linesOfCode.toLocaleString()}</div>
+                <div className="text-[11px] text-s39-white font-bold font-mono">{(p.engagement.linesOfCode ?? 0).toLocaleString()}</div>
               </div>
             </div>
 
@@ -1154,7 +1154,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
                 <div className="text-[7px] text-s39-dim tracking-widest mb-1">UPGRADE PATTERN</div>
                 <div className={`text-sm font-bold font-mono ${p.codeMetrics.upgradeabilityPattern === "none" ? "text-s39-green" : "text-s39-yellow"}`}>
-                  {p.codeMetrics.upgradeabilityPattern === "none" ? "IMMUTABLE" : p.codeMetrics.upgradeabilityPattern.toUpperCase()}
+                  {p.codeMetrics.upgradeabilityPattern === "none" ? "IMMUTABLE" : (p.codeMetrics.upgradeabilityPattern || "N/A").toUpperCase()}
                 </div>
               </div>
             </div>
@@ -1171,7 +1171,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               <div className="bg-s39-bg2 border border-s39-border p-3">
                 <div className="text-[7px] text-s39-dim tracking-widest mb-1">EXTERNAL DEPENDENCIES</div>
                 <div className="text-[10px] text-s39-mid">
-                  {p.codeMetrics.externalDependencies.length > 0 ? p.codeMetrics.externalDependencies.join(", ") : "None"}
+                  {(p.codeMetrics.externalDependencies?.length ?? 0) > 0 ? p.codeMetrics.externalDependencies.join(", ") : "None"}
                 </div>
               </div>
             </div>
@@ -1200,10 +1200,10 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                   <tbody>
                     {[
                       { metric: "Cyclomatic Complexity", value: p.codeMetrics.cyclomaticComplexity || "Low", risk: (p.codeMetrics.cyclomaticComplexity === "High" ? "HIGH" : p.codeMetrics.cyclomaticComplexity === "Medium" ? "MEDIUM" : "LOW") },
-                      { metric: "Lines of Code", value: p.codeMetrics.totalLOC.toLocaleString(), risk: (p.codeMetrics.totalLOC > 1000 ? "MEDIUM" : "LOW") },
-                      { metric: "External Dependencies", value: String(p.codeMetrics.externalDependencies.length), risk: (p.codeMetrics.externalDependencies.length > 3 ? "MEDIUM" : "LOW") },
-                      { metric: "Upgradeability", value: p.codeMetrics.upgradeabilityPattern === "none" ? "Immutable" : p.codeMetrics.upgradeabilityPattern, risk: (p.codeMetrics.upgradeabilityPattern === "none" ? "LOW" : "MEDIUM") },
-                      { metric: "Compiler Version", value: p.codeMetrics.compilerVersion, risk: (p.codeMetrics.compilerVersion.includes("0.8") ? "LOW" : "MEDIUM") },
+                      { metric: "Lines of Code", value: (p.codeMetrics.totalLOC ?? 0).toLocaleString(), risk: ((p.codeMetrics.totalLOC ?? 0) > 1000 ? "MEDIUM" : "LOW") },
+                      { metric: "External Dependencies", value: String(p.codeMetrics.externalDependencies?.length ?? 0), risk: ((p.codeMetrics.externalDependencies?.length ?? 0) > 3 ? "MEDIUM" : "LOW") },
+                      { metric: "Upgradeability", value: p.codeMetrics.upgradeabilityPattern === "none" ? "Immutable" : (p.codeMetrics.upgradeabilityPattern || "N/A"), risk: (p.codeMetrics.upgradeabilityPattern === "none" ? "LOW" : "MEDIUM") },
+                      { metric: "Compiler Version", value: p.codeMetrics.compilerVersion || "N/A", risk: ((p.codeMetrics.compilerVersion || "").includes("0.8") ? "LOW" : "MEDIUM") },
                     ].map((row, i) => {
                       const riskColor = row.risk === "HIGH" ? "#ff2d55" : row.risk === "MEDIUM" ? "#ffd600" : "#00ff88"
                       return (
@@ -1272,7 +1272,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                       ))
                     })()}
                     {/* External dependencies */}
-                    {p.codeMetrics.externalDependencies.map((dep, i) => (
+                    {(p.codeMetrics.externalDependencies || []).map((dep, i) => (
                       <tr key={`dep-${i}`} className="border-b border-s39-border last:border-0">
                         <td className="px-3 py-2 text-s39-dim">External Dependency</td>
                         <td className="px-3 py-2 text-s39-cyan font-mono">{dep}</td>
@@ -1626,7 +1626,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               </div>
             )}
 
-            {/* ── SECTION 6: PRIVILEGED ROLES & ACCESS CONTROL �������─ */}
+            {/* ── SECTION 6: PRIVILEGED ROLES & ACCESS CONTROL ���������─ */}
             {p.privilegedRoles && p.privilegedRoles.length > 0 && (
               <div className="mb-5">
                 <div className="text-[8px] text-s39-dim tracking-widest mb-2">ACCESS CONTROL MATRIX</div>
@@ -2024,19 +2024,19 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
                 <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">CONTRACTS ANALYZED</div>
-                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.totalContracts}</div>
+                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.totalContracts ?? 1}</div>
                 </div>
                 <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">LINES OF CODE</div>
-                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.totalLOC.toLocaleString()}</div>
+                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{(p.codeMetrics.totalLOC ?? 0).toLocaleString()}</div>
                 </div>
                 <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">FUNCTIONS REVIEWED</div>
-                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.functionsReviewed || Math.round(p.codeMetrics.totalLOC / 8)}</div>
+                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.functionsReviewed || Math.round((p.codeMetrics.totalLOC ?? 0) / 8)}</div>
                 </div>
                 <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">EXT. DEPENDENCIES</div>
-                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.externalDependencies.length}</div>
+                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.externalDependencies?.length ?? 0}</div>
                 </div>
                 <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">TEST COVERAGE</div>
@@ -2226,7 +2226,7 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                   )}
                   <div>
                     <span className="text-[7px] text-s39-dim tracking-widest">SCOPE: </span>
-                    <span className="text-[8px] text-s39-mid font-mono">{p.codeMetrics?.totalContracts || 1} contract(s), {p.codeMetrics?.totalLOC.toLocaleString() || "N/A"} LOC</span>
+                    <span className="text-[8px] text-s39-mid font-mono">{p.codeMetrics?.totalContracts || 1} contract(s), {p.codeMetrics?.totalLOC?.toLocaleString() || "N/A"} LOC</span>
                   </div>
                   <div>
                     <span className="text-[7px] text-s39-dim tracking-widest">DEPTH: </span>
@@ -3412,12 +3412,12 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                     >
                       <span className={[
                         "text-[11px] font-black mt-0.5 shrink-0",
-                        inv.result.startsWith("PASS")   ? "text-emerald-400" :
-                        inv.result.startsWith("FAIL")   ? "text-red-400"     :
-                                                          "text-yellow-400",
+                        (inv.result || "").startsWith("PASS")   ? "text-emerald-400" :
+                        (inv.result || "").startsWith("FAIL")   ? "text-red-400"     :
+                                                                  "text-yellow-400",
                       ].join(" ")}>
-                        {inv.result.startsWith("PASS") ? "\u2713" :
-                         inv.result.startsWith("FAIL") ? "\u2717" : "\u26A0"}
+                        {(inv.result || "").startsWith("PASS") ? "\u2713" :
+                         (inv.result || "").startsWith("FAIL") ? "\u2717" : "\u26A0"}
                       </span>
                       <div className="flex-1 min-w-0">
                         <div className="text-[9px] text-s39-lite leading-relaxed">
@@ -3429,10 +3429,10 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                       </div>
                       <span className={[
                         "text-[8px] font-bold font-mono shrink-0",
-                        inv.result.startsWith("PASS")   ? "text-emerald-400" :
-                        inv.result.startsWith("FAIL")   ? "text-red-400"     :
-                                                          "text-yellow-400",
-                      ].join(" ")}>{inv.result.split(" \u2014 ")[0]}</span>
+                        (inv.result || "").startsWith("PASS")   ? "text-emerald-400" :
+                        (inv.result || "").startsWith("FAIL")   ? "text-red-400"     :
+                                                                  "text-yellow-400",
+                      ].join(" ")}>{(inv.result || "PASS").split(" \u2014 ")[0]}</span>
                     </div>
                   ))}
                 </div>
@@ -3465,13 +3465,13 @@ export function ProjectDetail({ p, onBack, isLive, backHref }: { p: PortfolioPro
                           <span className="text-[7px] text-s39-dim font-mono">IMPACT</span>
                           <span className={[
                             "text-[8px] font-bold font-mono",
-                            item.impact.startsWith("High") || item.impact.startsWith("Critical")
+                            (item.impact || "").startsWith("High") || (item.impact || "").startsWith("Critical")
                               ? "text-red-400"
-                              : item.impact.startsWith("Medium")
+                              : (item.impact || "").startsWith("Medium")
                               ? "text-yellow-400"
                               : "text-emerald-400",
                           ].join(" ")}>
-                            {item.impact.split(" \u2014 ")[0].toUpperCase()}
+                            {(item.impact || item.likelihood || "Medium").split(" \u2014 ")[0].toUpperCase()}
                           </span>
                         </div>
                       </div>

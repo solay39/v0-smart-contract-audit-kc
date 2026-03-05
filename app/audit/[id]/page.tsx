@@ -3,27 +3,22 @@ import { DEFAULT_PROJECTS, ratingOf, getWeightedScore, type PortfolioProject } f
 import { list } from "@vercel/blob"
 import { AuditDetailClient } from "./client"
 
+// Allow dynamic audit slugs that aren't in generateStaticParams
+export const dynamicParams = true
+
 // Build a lookup map at module scope
 const projectMap = new Map(DEFAULT_PROJECTS.map((p) => [p.id, p]))
 
-// Fetch audit from Vercel Blob (server-side)
+// Fetch audit from Vercel Blob (server-side) — fully resilient
 async function fetchBlobAudit(id: string): Promise<PortfolioProject | null> {
   try {
-    console.log("[v0] fetchBlobAudit: listing blobs with prefix:", `audits/${id}.json`)
-    const { blobs } = await list({ prefix: `audits/${id}.json` })
-    console.log("[v0] fetchBlobAudit: found", blobs.length, "blobs")
+    const { blobs } = await list({ prefix: `audits/${id}.json`, limit: 1 })
     if (blobs.length === 0) return null
-    console.log("[v0] fetchBlobAudit: fetching blob url:", blobs[0].url)
-    const res = await fetch(blobs[0].url)
-    if (!res.ok) {
-      console.log("[v0] fetchBlobAudit: fetch failed with status:", res.status)
-      return null
-    }
-    const data = await res.json()
-    console.log("[v0] fetchBlobAudit: parsed JSON, name:", data?.name)
-    return data
+    const res = await fetch(blobs[0].url, { next: { revalidate: 60 } })
+    if (!res.ok) return null
+    return await res.json() as PortfolioProject
   } catch (err) {
-    console.log("[v0] fetchBlobAudit error:", err)
+    console.error("[Solay39] fetchBlobAudit failed for id:", id, err)
     return null
   }
 }
@@ -33,51 +28,62 @@ type Props = {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params
-  // Check default projects first, then Blob
-  const p = projectMap.get(id) || await fetchBlobAudit(id)
+  try {
+    const { id } = await params
+    const p = projectMap.get(id) || await fetchBlobAudit(id)
 
-  if (!p) {
-    return {
-      title: "Audit Not Found | Solay39",
-      description: "This audit report does not exist.",
+    if (!p) {
+      return {
+        title: "Audit Not Found | Solay39",
+        description: "This audit report does not exist.",
+      }
     }
-  }
 
-  const title = `${p.name}${p.ticker ? ` (${p.ticker})` : ""} Security Audit | Solay39`
-  const ws = getWeightedScore(p)
-  const wr = ratingOf(ws)
-  const desc = `Score: ${ws}/100 (${wr}) | ${p.criticals} Critical, ${p.highs} High, ${p.mediums} Medium, ${p.lows} Low findings. ${p.description ? p.description.slice(0, 120) : `Smart contract audit by Solay39 on ${p.network}.`}`
+    const title = `${p.name}${p.ticker ? ` (${p.ticker})` : ""} Security Audit | Solay39`
+    const ws = getWeightedScore(p)
+    const wr = ratingOf(ws)
+    const criticals = p.criticals ?? 0
+    const highs = p.highs ?? 0
+    const mediums = p.mediums ?? 0
+    const lows = p.lows ?? 0
+    const desc = `Score: ${ws}/100 (${wr}) | ${criticals} Critical, ${highs} High, ${mediums} Medium, ${lows} Low findings. ${p.description ? p.description.slice(0, 120) : `Smart contract audit by Solay39 on ${p.network || "BSC"}.`}`
 
-  const url = `https://www.solay39.eu/audit/${id}`
+    const url = `https://www.solay39.eu/audit/${id}`
 
-  return {
-    title,
-    description: desc,
-    openGraph: {
+    return {
       title,
       description: desc,
-      url,
-      siteName: "Solay39 Skynet",
-      type: "article",
-      images: [
-        {
-          url: `/audit/${id}/og`,
-          width: 1200,
-          height: 630,
-          alt: `${p.name} Security Audit by Solay39`,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description: desc,
-      images: [`/audit/${id}/og`],
-    },
-    alternates: {
-      canonical: url,
-    },
+      openGraph: {
+        title,
+        description: desc,
+        url,
+        siteName: "Solay39 Skynet",
+        type: "article",
+        images: [
+          {
+            url: `/audit/${id}/og`,
+            width: 1200,
+            height: 630,
+            alt: `${p.name} Security Audit by Solay39`,
+          },
+        ],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description: desc,
+        images: [`/audit/${id}/og`],
+      },
+      alternates: {
+        canonical: url,
+      },
+    }
+  } catch (err) {
+    console.error("[Solay39] generateMetadata failed:", err)
+    return {
+      title: "Security Audit | Solay39",
+      description: "Smart contract security audit by Solay39.",
+    }
   }
 }
 
@@ -86,20 +92,23 @@ export async function generateStaticParams() {
 }
 
 export default async function AuditPage({ params }: Props) {
-  const { id } = await params
-  console.log("[v0] AuditPage rendering for id:", id)
+  try {
+    const { id } = await params
 
-  // 1. Check hardcoded default projects
-  let project: PortfolioProject | null = projectMap.get(id) || null
-  console.log("[v0] Default project found:", !!project)
+    // 1. Check hardcoded default projects
+    let project: PortfolioProject | null = projectMap.get(id) || null
 
-  // 2. If not found, fetch from Vercel Blob (server-side persistence)
-  if (!project) {
-    project = await fetchBlobAudit(id)
-    console.log("[v0] Blob project found:", !!project)
+    // 2. If not found, fetch from Vercel Blob (server-side persistence)
+    if (!project) {
+      project = await fetchBlobAudit(id)
+    }
+
+    // 3. Always render client component — falls back to localStorage / Blob API
+    return <AuditDetailClient project={project} auditId={id} />
+  } catch (err) {
+    console.error("[Solay39] AuditPage render failed:", err)
+    // Fallback: render client with null project, it will try client-side fetch
+    const { id } = await params
+    return <AuditDetailClient project={null} auditId={id} />
   }
-
-  console.log("[v0] Rendering AuditDetailClient with project:", project ? project.name : "null")
-  // 3. Always render client component — falls back to localStorage / Blob API
-  return <AuditDetailClient project={project} auditId={id} />
 }
