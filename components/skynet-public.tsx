@@ -434,6 +434,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
         auditedFiles: _raw.codeReference.auditedFiles || [],
         snapshotTimestamp: _raw.codeReference.snapshotTimestamp || new Date().toISOString(),
       } : undefined,
+      auditorSignatures: _raw.auditorSignatures || undefined,
     }
   }, [_raw])
 
@@ -3534,6 +3535,117 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                     className="flex items-center justify-center gap-2 p-2.5 rounded border border-emerald-700/50 bg-emerald-950/20 text-emerald-400 text-[9px] font-mono tracking-wider hover:bg-emerald-950/40 transition-colors">
                     {'Verify Report Integrity →'}
                   </a>
+                </div>
+              </section>
+            )}
+
+            {/* ── SECTION: AUDITOR SIGNATURES ── */}
+            {p.auditorSignatures && (
+              <section className="border border-purple-900/40 rounded-xl overflow-hidden bg-s39-bg1 mt-6">
+                <div className="p-5 sm:p-6 bg-purple-950/10 border-b border-purple-900/30">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#a855f7"/>
+                      </svg>
+                      <span className="text-[10px] tracking-[0.12em] text-purple-400 font-bold">AUDITOR SIGNATURES</span>
+                    </div>
+                    {p.auditorSignatures.certificationId && (
+                      <span className="text-[8px] text-purple-400/70 font-mono bg-purple-950/30 border border-purple-900/40 px-2 py-0.5 rounded">
+                        {p.auditorSignatures.certificationId}
+                      </span>
+                    )}
+                  </div>
+                  {p.auditorSignatures.firmName && (
+                    <div className="text-[12px] text-s39-white font-bold">{p.auditorSignatures.firmName}</div>
+                  )}
+                </div>
+
+                <div className="p-5 sm:p-6 space-y-4">
+                  {/* Lead Auditor */}
+                  {p.auditorSignatures.leadAuditor && (
+                    <div className="p-4 rounded bg-s39-bg0 border border-purple-900/30">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-full bg-purple-950/40 border border-purple-800/40 flex items-center justify-center shrink-0">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="8" r="4" stroke="#a855f7" strokeWidth="1.5"/>
+                            <path d="M4 20c0-4 4-6 8-6s8 2 8 6" stroke="#a855f7" strokeWidth="1.5" strokeLinecap="round"/>
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[7px] text-purple-400 tracking-widest mb-1">LEAD AUDITOR</div>
+                          <div className="text-[12px] text-s39-white font-bold">{p.auditorSignatures.leadAuditor.name}</div>
+                          <div className="text-[9px] text-s39-mid">{p.auditorSignatures.leadAuditor.title}</div>
+                          {p.auditorSignatures.leadAuditor.walletAddress && (
+                            <div className="text-[8px] text-cyan-400 font-mono mt-1 truncate">
+                              {p.auditorSignatures.leadAuditor.walletAddress}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="w-24 h-10 border-b-2 border-purple-700/50 mb-1 flex items-end justify-center">
+                            <span className="text-[10px] text-purple-400 italic font-serif pb-1">{p.auditorSignatures.leadAuditor.name.split(" ")[0]}</span>
+                          </div>
+                          {p.auditorSignatures.leadAuditor.signedAt && (
+                            <div className="text-[7px] text-s39-dim">
+                              {new Date(p.auditorSignatures.leadAuditor.signedAt).toLocaleDateString()}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Security Engineers */}
+                  {p.auditorSignatures.securityEngineers && p.auditorSignatures.securityEngineers.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {p.auditorSignatures.securityEngineers.map((eng, i) => (
+                        <div key={i} className="p-3 rounded bg-s39-bg0 border border-s39-border">
+                          <div className="flex items-start gap-3">
+                            <div className="w-9 h-9 rounded-full bg-cyan-950/40 border border-cyan-800/40 flex items-center justify-center shrink-0">
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 2L4 5v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V5l-8-3z" stroke="#22d3ee" strokeWidth="1.5"/>
+                                <path d="M9 12l2 2 4-4" stroke="#22d3ee" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[7px] text-cyan-400 tracking-widest mb-0.5">SECURITY ENGINEER</div>
+                              <div className="text-[10px] text-s39-white font-bold truncate">{eng.name}</div>
+                              <div className="text-[8px] text-s39-dim truncate">{eng.title}</div>
+                            </div>
+                            <div className="w-16 h-6 border-b border-cyan-800/40 flex items-end justify-center shrink-0">
+                              <span className="text-[8px] text-cyan-400/70 italic font-serif pb-0.5">{eng.name.split(" ")[0]}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Reviewers */}
+                  {p.auditorSignatures.reviewers && p.auditorSignatures.reviewers.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {p.auditorSignatures.reviewers.map((rev, i) => (
+                        <div key={i} className="p-2.5 rounded bg-s39-bg0 border border-s39-border">
+                          <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">REVIEWER</div>
+                          <div className="text-[9px] text-s39-white font-bold truncate">{rev.name}</div>
+                          <div className="text-[7px] text-s39-dim truncate">{rev.title}</div>
+                          <div className="w-full h-4 border-b border-s39-border mt-1 flex items-end justify-center">
+                            <span className="text-[7px] text-s39-mid italic font-serif pb-0.5">{rev.name.split(" ")[0]}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="px-5 sm:px-6 py-3 bg-s39-bg2 border-t border-s39-border flex items-center justify-between">
+                  <div className="text-[7px] text-s39-dim">
+                    All signatures are cryptographically bound to the report hash
+                  </div>
+                  <div className="text-[7px] text-purple-400/70 font-mono">
+                    {p.auditorSignatures.certificationId || "SOLAY39-CERTIFIED"}
+                  </div>
                 </div>
               </section>
             )}

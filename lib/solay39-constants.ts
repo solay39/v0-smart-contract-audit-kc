@@ -472,6 +472,33 @@ export interface PortfolioProject {
     outOfScope?: string[]        // ["test/", "scripts/", "interfaces/"]
     snapshotTimestamp: string    // ISO date when code was frozen for audit
   }
+  // Enterprise: Auditor Signatures
+  auditorSignatures?: {
+    leadAuditor?: {
+      name: string
+      title: string
+      walletAddress?: string
+      signatureHash?: string
+      signedAt?: string
+    }
+    securityEngineers?: {
+      name: string
+      title: string
+      walletAddress?: string
+      signatureHash?: string
+      signedAt?: string
+    }[]
+    reviewers?: {
+      name: string
+      title: string
+      walletAddress?: string
+      signatureHash?: string
+      signedAt?: string
+    }[]
+    firmName?: string
+    firmLogo?: string
+    certificationId?: string
+  }
 }
 
 // Keep backward compat alias

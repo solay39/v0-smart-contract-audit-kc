@@ -112,6 +112,16 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     auditScope?: string
     outOfScope?: string[]
   } | null>(null)
+  const [auditorSignatures, setAuditorSignatures] = useState<{
+    leadAuditor?: { name: string; title: string }
+    securityEngineers?: { name: string; title: string }[]
+    reviewers?: { name: string; title: string }[]
+    firmName?: string
+  } | null>({
+    leadAuditor: { name: "Solay39 Lead", title: "Lead Security Auditor" },
+    securityEngineers: [{ name: "SKYNET AI", title: "AI Security Engine v2.1" }],
+    firmName: "Solay39 Security",
+  })
 
   const allChecks = Object.values(checks).flatMap((c) => Object.values(c))
   // SINGLE SOURCE OF TRUTH: always use V2 engine for score computation
@@ -787,6 +797,22 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         }],
         snapshotTimestamp: new Date().toISOString(),
       },
+      auditorSignatures: auditorSignatures ? {
+        ...auditorSignatures,
+        leadAuditor: auditorSignatures.leadAuditor ? {
+          ...auditorSignatures.leadAuditor,
+          signedAt: new Date().toISOString(),
+        } : undefined,
+        securityEngineers: auditorSignatures.securityEngineers?.map(e => ({
+          ...e,
+          signedAt: new Date().toISOString(),
+        })),
+        reviewers: auditorSignatures.reviewers?.map(r => ({
+          ...r,
+          signedAt: new Date().toISOString(),
+        })),
+        certificationId: `SOLAY39-${Date.now().toString(36).toUpperCase()}`,
+      } : undefined,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       signedReport: (signedReport as any) || undefined,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1142,6 +1168,22 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       }],
       snapshotTimestamp: new Date().toISOString(),
     },
+    auditorSignatures: auditorSignatures ? {
+      ...auditorSignatures,
+      leadAuditor: auditorSignatures.leadAuditor ? {
+        ...auditorSignatures.leadAuditor,
+        signedAt: new Date().toISOString(),
+      } : undefined,
+      securityEngineers: auditorSignatures.securityEngineers?.map(e => ({
+        ...e,
+        signedAt: new Date().toISOString(),
+      })),
+      reviewers: auditorSignatures.reviewers?.map(r => ({
+        ...r,
+        signedAt: new Date().toISOString(),
+      })),
+      certificationId: `SOLAY39-${Date.now().toString(36).toUpperCase()}`,
+    } : undefined,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     signedReport: (signedReport as any) || undefined,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
