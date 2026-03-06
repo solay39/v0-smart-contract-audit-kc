@@ -333,7 +333,12 @@ function simulateOracleManipulation(code: string, _meta: ContractMeta): AttackVe
 }
 
 function simulateProxyAttack(code: string, meta: ContractMeta): AttackVectorResult {
-  const hasProxy = meta.hasProxy || hasPattern(code, [/delegatecall|proxy|upgradeTo|implementation/i])
+  // If meta explicitly says no proxy, trust that over pattern matching
+  // (pattern matching can false-positive on imports/comments)
+  const metaExplicitlyNoProxy = meta.hasProxy === false
+  const hasProxyPatterns = hasPattern(code, [/delegatecall|upgradeTo|upgradeToAndCall|_implementation/i])
+  const hasProxy = metaExplicitlyNoProxy ? false : (meta.hasProxy || hasProxyPatterns)
+  
   const hasInitGuard = hasPattern(code, [/initializer|initialized|_initialized/i])
   const hasAdminControl = hasPattern(code, [/ProxyAdmin|_admin|upgradeToAndCall/i])
   const hasUninitialized = hasPattern(code, [/function\s+initialize.*public(?!.*initializer)/i])
@@ -352,11 +357,13 @@ function simulateProxyAttack(code: string, meta: ContractMeta): AttackVectorResu
       ? "Proxy contract with unprotected initializer. Attacker could re-initialize and take ownership."
       : hasProxy
         ? "Proxy pattern detected with proper initialization guard and admin control."
-        : "No proxy/upgrade pattern detected.",
+        : "Contract is immutable (no proxy/upgrade pattern). Proxy attacks not applicable.",
     attackFlow: isVulnerable
       ? ["1. Find uninitialized implementation", "2. Call initialize() directly", "3. Set attacker as owner", "4. Upgrade to malicious implementation", "5. Drain all user funds"]
-      : ["1. Attempt to call initialize()", "2. Initializer modifier reverts", "3. Proxy admin controls upgrade"],
-    mitigationApplied: hasInitGuard ? "OpenZeppelin Initializable" : hasAdminControl ? "ProxyAdmin" : undefined,
+      : hasProxy 
+        ? ["1. Attempt to call initialize()", "2. Initializer modifier reverts", "3. Proxy admin controls upgrade"]
+        : ["1. N/A - Contract is immutable", "2. No upgrade mechanism exists", "3. Code cannot be changed post-deployment"],
+    mitigationApplied: !hasProxy ? "Immutable contract (no proxy)" : hasInitGuard ? "OpenZeppelin Initializable" : hasAdminControl ? "ProxyAdmin" : undefined,
     cvssImpact: isVulnerable ? "AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H" : undefined,
   }
 }
