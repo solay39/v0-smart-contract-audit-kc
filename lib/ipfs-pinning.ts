@@ -72,11 +72,14 @@ export async function pinReportToIPFS(
     const data = await response.json()
     const cid = data.IpfsHash
 
+    // Use dedicated Pinata gateway if configured, otherwise public gateway
+    const dedicatedGateway = process.env.PINATA_GATEWAY_URL || "https://gateway.pinata.cloud"
+    
     return {
       success: true,
       ipfsCid: cid,
       ipfsUrl: `ipfs://${cid}`,
-      gatewayUrl: `https://gateway.pinata.cloud/ipfs/${cid}`,
+      gatewayUrl: `${dedicatedGateway}/ipfs/${cid}`,
       timestamp: new Date().toISOString(),
     }
   } catch (error) {
