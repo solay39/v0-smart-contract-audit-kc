@@ -123,6 +123,13 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     firmName: "Solay39 Security",
   })
   const [testCoverage, setTestCoverage] = useState<Record<string, unknown> | null>(null)
+  const [solanaAttestation, setSolanaAttestation] = useState<{
+    txSignature: string
+    solscanUrl: string
+    network: string
+    memo: string
+    timestamp: string
+  } | null>(null)
 
   const allChecks = Object.values(checks).flatMap((c) => Object.values(c))
   // SINGLE SOURCE OF TRUTH: always use V2 engine for score computation
@@ -819,6 +826,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onChainRecord: (onChainRecord as any) || undefined,
       testCoverage: (testCoverage as PortfolioProject["testCoverage"]) || undefined,
+      solanaAttestation: solanaAttestation || undefined,
     }
 
     // ── Step 3: Compute SHA-256 report integrity before saving ──
@@ -993,6 +1001,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       if (data.ipfsRecord) setIpfsRecord(data.ipfsRecord)
       if (data.pocScripts) setPocScripts(data.pocScripts)
       if (data.testCoverage) setTestCoverage(data.testCoverage)
+      if (data.solanaAttestation) setSolanaAttestation(data.solanaAttestation)
 } catch (err) {
   const msg = err instanceof Error ? err.message : "Unknown error"
   if (msg.includes("Failed to fetch") || msg.includes("AbortError") || msg.includes("timeout")) {
@@ -1192,6 +1201,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onChainRecord: (onChainRecord as any) || undefined,
     testCoverage: (testCoverage as PortfolioProject["testCoverage"]) || undefined,
+    solanaAttestation: solanaAttestation || undefined,
   })}
                   className="w-full"
                 >

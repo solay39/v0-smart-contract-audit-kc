@@ -99,6 +99,7 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
           codeReference: project.codeReference || local.codeReference,
           auditorSignatures: project.auditorSignatures || local.auditorSignatures,
           testCoverage: project.testCoverage || local.testCoverage,
+          solanaAttestation: project.solanaAttestation || local.solanaAttestation,
         })
       }
       setLoading(false)

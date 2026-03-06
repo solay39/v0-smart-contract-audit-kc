@@ -17,6 +17,7 @@ import { runAttackSimulation } from "@/core/simulator/attackSimulator"
 import { pinReportToIPFS } from "@/lib/ipfs-pinning"
 import { generatePoCScripts, generateHardhatPoC } from "@/core/poc/pocGenerator"
 import { analyzeTestCoverage } from "@/core/analyzer/testCoverageAnalyzer"
+import { registerAuditOnSolana } from "@/lib/solana-attestation"
 
 /* ───────── types ───────── */
 
@@ -1433,6 +1434,13 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
       }
       const ipfsRecord = await pinReportToIPFS(ipfsReportData, auditId)
 
+      // ── ENTERPRISE: Solana On-Chain Attestation ─────────────────
+      const solanaAttestation = await registerAuditOnSolana(
+        auditId,
+        signedReport?.reportHash ?? "",
+        ipfsRecord?.ipfsCid
+      )
+
       return Response.json({
         findings: finalFindings,
         source: "ai",
@@ -1474,6 +1482,8 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
         pocScripts,
         // Enterprise: Test Coverage
         testCoverage,
+        // Enterprise: Solana Attestation
+        solanaAttestation,
       })
     } catch (aiError: unknown) {
       // AI failed -- fall back to static analysis (which is now context-aware)
@@ -1639,6 +1649,13 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
       }
       const staticIpfsRecord = await pinReportToIPFS(staticIpfsReportData, staticAuditId)
 
+      // Solana Attestation for static path
+      const staticSolanaAttestation = await registerAuditOnSolana(
+        staticAuditId,
+        staticSignedReport?.reportHash ?? "",
+        staticIpfsRecord?.ipfsCid
+      )
+
       return Response.json({
         findings: finalStaticFindings,
         source: "static",
@@ -1658,6 +1675,7 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
         ipfsRecord: staticIpfsRecord,
         pocScripts: staticPocScripts,
         testCoverage: staticTestCoverage,
+        solanaAttestation: staticSolanaAttestation,
       })
     }
   } catch (error: unknown) {

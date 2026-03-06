@@ -554,6 +554,14 @@ export interface PortfolioProject {
     blockNumber?: number
     timestamp?: string
   }
+  // Enterprise: Solana On-Chain Attestation
+  solanaAttestation?: {
+    txSignature: string
+    solscanUrl: string
+    network: string
+    memo: string
+    timestamp: string
+  }
 }
 
 // Keep backward compat alias

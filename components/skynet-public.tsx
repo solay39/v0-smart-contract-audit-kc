@@ -437,6 +437,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
       } : undefined,
       auditorSignatures: _raw.auditorSignatures || undefined,
       testCoverage: _raw.testCoverage || undefined,
+      solanaAttestation: _raw.solanaAttestation || undefined,
     }
   }, [_raw])
 
@@ -2573,7 +2574,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               </div>
             </div>
 
-            {/* ════ VERIFICATION SUMMARY ════ */}
+            {/* ════ VERIFICATION SUMMARY ═���══ */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-5">
               {[
                 { label: "STATIC ANALYSIS", value: p.testingMethodology.staticAnalysisTools.length + " tool(s)", active: true, color: "#00ff88" },
@@ -3919,6 +3920,82 @@ console.log("Signer:", recovered);
                   auditedContractAddress={p.address}
                 />
               </div>
+            )}
+
+            {/* ── SECTION: SOLANA ON-CHAIN ATTESTATION ── */}
+            {p.solanaAttestation && (
+              <section className="border border-purple-900/40 rounded-xl overflow-hidden bg-s39-bg1 mt-6">
+                <div className="p-5 sm:p-6 bg-purple-950/10 border-b border-purple-900/30">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_8px_#9945ff]" />
+                      <span className="text-[10px] tracking-[0.12em] text-purple-400 font-bold">SOLANA ON-CHAIN ATTESTATION</span>
+                    </div>
+                    <span className="text-[8px] px-3 py-1 rounded-full bg-emerald-950/30 text-emerald-400 border border-emerald-900/40 font-semibold">
+                      CONFIRMED
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-5 sm:p-6 space-y-4">
+                  {/* TX Signature */}
+                  <div>
+                    <div className="text-[8px] text-s39-dim tracking-widest mb-2">TRANSACTION SIGNATURE</div>
+                    <div className="text-[10px] text-purple-400 font-mono break-all leading-relaxed">
+                      {p.solanaAttestation.txSignature}
+                    </div>
+                  </div>
+
+                  {/* Network + Timestamp */}
+                  <div className="flex flex-wrap gap-6">
+                    <div>
+                      <div className="text-[8px] text-s39-dim tracking-widest mb-1">NETWORK</div>
+                      <div className="text-[10px] text-s39-white font-bold uppercase">
+                        {p.solanaAttestation.network}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[8px] text-s39-dim tracking-widest mb-1">CONFIRMED</div>
+                      <div className="text-[10px] text-s39-white">
+                        {new Date(p.solanaAttestation.timestamp).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* What this means */}
+                  <div className="bg-s39-bg0 border border-s39-border rounded-lg p-4">
+                    <div className="text-[9px] text-s39-mid leading-relaxed">
+                      This audit report has been permanently recorded on the{" "}
+                      <span className="text-purple-400 font-semibold">Solana blockchain</span>{" "}
+                      via the Memo Program. The report hash is immutably timestamped on-chain.
+                      Transaction cost: ~$0.000005. Anyone can verify authenticity on Solscan.
+                    </div>
+                  </div>
+
+                  {/* Verify Button */}
+                  <a
+                    href={p.solanaAttestation.solscanUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-[11px] font-bold bg-purple-950/30 text-purple-400 border border-purple-900/40 hover:bg-purple-950/50 transition-colors"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+                      <polyline points="15,3 21,3 21,9"/>
+                      <line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                    Verify on Solscan
+                  </a>
+                </div>
+
+                <div className="px-5 sm:px-6 py-3 bg-s39-bg2 border-t border-s39-border">
+                  <div className="text-[7px] text-s39-dim font-mono flex items-center gap-4 flex-wrap">
+                    <span>Program: MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr</span>
+                    <span>|</span>
+                    <span>Cost: ~0.000005 SOL</span>
+                  </div>
+                </div>
+              </section>
             )}
 
             {/* ── SECTION 17B: ECONOMIC ATTACK SURFACE ── */}
