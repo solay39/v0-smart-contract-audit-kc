@@ -545,6 +545,15 @@ export interface PortfolioProject {
       totalDeploymentCost: number
     }
   }
+  // Enterprise: On-Chain Attestation Record
+  onChainAttestation?: {
+    registered: boolean
+    chain: "mainnet" | "sepolia" | "base" | "arbitrum"
+    txHash?: string
+    registryAddress?: string
+    blockNumber?: number
+    timestamp?: string
+  }
 }
 
 // Keep backward compat alias
@@ -1378,7 +1387,7 @@ export function ratingOf(s: number): string {
   return "C"
 }
 
-// ═══════════════════════════════════════��═══════════════════════
+// ═══════════════════════════════════════��═════════���═════════════
 // SOLAY39 SECURITY SCORING ENGINE v1.0
 // Penalty-based model: each category starts at 100, penalties deducted
 // Final = weighted sum of 6 categories

@@ -17,6 +17,7 @@ import {
 } from "@/lib/solay39-constants"
 import { ScoreRing, S39Btn, SevBadge } from "@/components/solay39-ui"
 import { getExplorer } from "@/lib/explorers"
+import { OnChainAttestation, OnChainVerificationBadge } from "@/components/onchain-attestation"
 
 // ── LocalStorage key for published audits ────────────────────────
 const PORTFOLIO_KEY = "solay39_portfolio"
@@ -1333,8 +1334,11 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
             {p.engagement?.auditId && (
               <div className="p-3 rounded bg-s39-bg0 border border-s39-border col-span-2">
                 <div className="text-[8px] text-s39-dim font-mono tracking-wider mb-1">AUDIT ID</div>
-                <div className="text-[9px] text-s39-cyan font-mono tracking-wide">
-                  {p.engagement.auditId}
+                <div className="flex items-center gap-3">
+                  <div className="text-[9px] text-s39-cyan font-mono tracking-wide">
+                    {p.engagement.auditId}
+                  </div>
+                  <OnChainVerificationBadge auditId={p.engagement.auditId} compact />
                 </div>
               </div>
             )}
@@ -3903,6 +3907,19 @@ console.log("Signer:", recovered);
                 )}
               </div>
             </section>
+
+            {/* ── SECTION: ON-CHAIN ATTESTATION ── */}
+            {p.signedReport?.reportHash && (
+              <div className="mt-6">
+                <OnChainAttestation
+                  auditId={p.signedReport.auditId || `SOL-${Date.now()}`}
+                  reportHash={p.signedReport.reportHash}
+                  score={typeof p.score === "number" ? p.score : 0}
+                  ipfsCid={p.ipfsRecord?.ipfsCid as string | undefined}
+                  auditedContractAddress={p.address}
+                />
+              </div>
+            )}
 
             {/* ── SECTION 17B: ECONOMIC ATTACK SURFACE ── */}
             {p.economicAttackVectors?.some((v: { applicable: boolean }) => v.applicable) && (
