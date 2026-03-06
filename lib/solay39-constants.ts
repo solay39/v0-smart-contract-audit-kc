@@ -499,6 +499,52 @@ export interface PortfolioProject {
     firmLogo?: string
     certificationId?: string
   }
+  // Enterprise: Test Coverage & Analysis Tools
+  testCoverage?: {
+    lineCoverage: number          // 0-100 percentage
+    branchCoverage: number        // 0-100 percentage
+    functionCoverage: number      // 0-100 percentage
+    statementCoverage: number     // 0-100 percentage
+    fuzzTesting: {
+      enabled: boolean
+      runsCompleted: number
+      edgeCasesFound: number
+      maxDepth: number
+      mutations: number
+      status: "PASSED" | "ISSUES_FOUND" | "NOT_RUN"
+    }
+    staticAnalysis: {
+      tool: string                // "Slither" | "Mythril" | "Solhint"
+      version: string
+      issuesFound: number
+      criticalIssues: number
+      highIssues: number
+      mediumIssues: number
+      lowIssues: number
+      informational: number
+      gasOptimizations: number
+    }[]
+    formalVerification: {
+      enabled: boolean
+      tool?: string               // "Certora" | "Halmos" | "KEVM"
+      propertiesVerified: number
+      propertiesFailed: number
+      invariantsChecked: string[]
+      status: "VERIFIED" | "PARTIAL" | "NOT_RUN"
+    }
+    symbolicExecution: {
+      enabled: boolean
+      pathsExplored: number
+      maxPathDepth: number
+      timeoutReached: boolean
+    }
+    gasAnalysis: {
+      averageGasPerFunction: number
+      mostExpensiveFunction: string
+      mostExpensiveGas: number
+      totalDeploymentCost: number
+    }
+  }
 }
 
 // Keep backward compat alias

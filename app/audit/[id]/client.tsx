@@ -98,6 +98,7 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
           pocScripts: project.pocScripts || local.pocScripts,
           codeReference: project.codeReference || local.codeReference,
           auditorSignatures: project.auditorSignatures || local.auditorSignatures,
+          testCoverage: project.testCoverage || local.testCoverage,
         })
       }
       setLoading(false)

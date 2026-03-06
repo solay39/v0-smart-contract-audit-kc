@@ -16,6 +16,7 @@ import { signReport } from "@/lib/report-signing"
 import { runAttackSimulation } from "@/core/simulator/attackSimulator"
 import { pinReportToIPFS } from "@/lib/ipfs-pinning"
 import { generatePoCScripts, generateHardhatPoC } from "@/core/poc/pocGenerator"
+import { analyzeTestCoverage } from "@/core/analyzer/testCoverageAnalyzer"
 
 /* ───────── types ───────── */
 
@@ -1415,6 +1416,9 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
           ]
         : []
 
+      // ── ENTERPRISE: Test Coverage Analysis ─────────────────────
+      const testCoverage = analyzeTestCoverage(truncatedCode, meta, finalFindings)
+
       // ── ENTERPRISE: IPFS Pinning ──────────────────────────────
       const ipfsReportData = {
         version: "2.1.0",
@@ -1468,6 +1472,8 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
         ipfsRecord,
         // Enterprise: PoC Exploit Scripts
         pocScripts,
+        // Enterprise: Test Coverage
+        testCoverage,
       })
     } catch (aiError: unknown) {
       // AI failed -- fall back to static analysis (which is now context-aware)
@@ -1616,6 +1622,9 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
           ]
         : []
 
+      // Test Coverage for static path
+      const staticTestCoverage = analyzeTestCoverage(truncatedCode, meta, finalStaticFindings)
+
       // IPFS Pinning for static path
       const staticIpfsReportData = {
         version: "2.1.0",
@@ -1648,6 +1657,7 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
         exploitSimulation: staticExploitSimulation,
         ipfsRecord: staticIpfsRecord,
         pocScripts: staticPocScripts,
+        testCoverage: staticTestCoverage,
       })
     }
   } catch (error: unknown) {

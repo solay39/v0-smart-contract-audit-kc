@@ -435,6 +435,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
         snapshotTimestamp: _raw.codeReference.snapshotTimestamp || new Date().toISOString(),
       } : undefined,
       auditorSignatures: _raw.auditorSignatures || undefined,
+      testCoverage: _raw.testCoverage || undefined,
     }
   }, [_raw])
 
@@ -4243,6 +4244,249 @@ console.log("Signer:", recovered);
                     <span>Framework: Foundry + Hardhat</span>
                     <span>|</span>
                     <span>Run locally to verify vulnerabilities</span>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* TEST COVERAGE & ANALYSIS */}
+            {p.testCoverage && (
+              <section className="border border-emerald-900/40 rounded-xl overflow-hidden bg-s39-bg1 mt-6">
+                <div className="p-5 sm:p-6 bg-emerald-950/10 border-b border-emerald-900/30">
+                  <div className="flex items-center gap-2 mb-3">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <path d="M9 12l2 2 4-4" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <circle cx="12" cy="12" r="10" stroke="#10b981" strokeWidth="1.5"/>
+                    </svg>
+                    <span className="text-[10px] tracking-[0.12em] text-emerald-400 font-bold">TEST COVERAGE & ANALYSIS</span>
+                  </div>
+                  <div className="text-[8px] text-s39-mid">
+                    Comprehensive testing metrics from automated analysis tools
+                  </div>
+                </div>
+
+                <div className="p-5 sm:p-6 space-y-5">
+                  {/* Coverage Bars */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {[
+                      { label: "Line Coverage", value: p.testCoverage.lineCoverage },
+                      { label: "Branch Coverage", value: p.testCoverage.branchCoverage },
+                      { label: "Function Coverage", value: p.testCoverage.functionCoverage },
+                      { label: "Statement Coverage", value: p.testCoverage.statementCoverage },
+                    ].map((cov, i) => (
+                      <div key={i} className="bg-s39-bg0 border border-s39-border p-3 rounded">
+                        <div className="text-[7px] text-s39-dim tracking-widest mb-2">{cov.label.toUpperCase()}</div>
+                        <div className="text-[16px] text-emerald-400 font-bold font-mono">{cov.value}%</div>
+                        <div className="h-1.5 bg-s39-bg2 rounded-full mt-2 overflow-hidden">
+                          <div 
+                            className="h-full bg-emerald-500 rounded-full transition-all"
+                            style={{ width: `${cov.value}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Fuzz Testing */}
+                  {p.testCoverage.fuzzTesting && (
+                    <div className="bg-s39-bg0 border border-cyan-900/30 p-4 rounded">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="#22d3ee" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                          <span className="text-[9px] text-cyan-400 tracking-widest font-bold">FUZZ TESTING</span>
+                        </div>
+                        <span className={`text-[7px] px-2 py-0.5 rounded font-mono ${
+                          p.testCoverage.fuzzTesting.status === "PASSED" ? "bg-emerald-950/30 text-emerald-400 border border-emerald-900/40" :
+                          p.testCoverage.fuzzTesting.status === "ISSUES_FOUND" ? "bg-yellow-950/30 text-yellow-400 border border-yellow-900/40" :
+                          "bg-s39-bg2 text-s39-dim border border-s39-border"
+                        }`}>
+                          {p.testCoverage.fuzzTesting.status}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div>
+                          <div className="text-[7px] text-s39-dim">Runs Completed</div>
+                          <div className="text-[11px] text-cyan-300 font-mono">{p.testCoverage.fuzzTesting.runsCompleted.toLocaleString()}</div>
+                        </div>
+                        <div>
+                          <div className="text-[7px] text-s39-dim">Edge Cases Found</div>
+                          <div className="text-[11px] text-cyan-300 font-mono">{p.testCoverage.fuzzTesting.edgeCasesFound}</div>
+                        </div>
+                        <div>
+                          <div className="text-[7px] text-s39-dim">Max Depth</div>
+                          <div className="text-[11px] text-cyan-300 font-mono">{p.testCoverage.fuzzTesting.maxDepth}</div>
+                        </div>
+                        <div>
+                          <div className="text-[7px] text-s39-dim">Mutations</div>
+                          <div className="text-[11px] text-cyan-300 font-mono">{p.testCoverage.fuzzTesting.mutations.toLocaleString()}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Static Analysis Tools */}
+                  {p.testCoverage.staticAnalysis && p.testCoverage.staticAnalysis.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-[8px] text-s39-dim tracking-widest">STATIC ANALYSIS TOOLS</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {p.testCoverage.staticAnalysis.map((tool, i) => (
+                          <div key={i} className="bg-s39-bg0 border border-s39-border p-3 rounded">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-[10px] text-s39-white font-bold">{tool.tool}</span>
+                              <span className="text-[7px] text-s39-dim font-mono">v{tool.version}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                              {tool.criticalIssues > 0 && (
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[7px] text-red-400">Critical</span>
+                                  <span className="text-[8px] text-red-400 font-mono">{tool.criticalIssues}</span>
+                                </div>
+                              )}
+                              {tool.highIssues > 0 && (
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[7px] text-orange-400">High</span>
+                                  <span className="text-[8px] text-orange-400 font-mono">{tool.highIssues}</span>
+                                </div>
+                              )}
+                              {tool.mediumIssues > 0 && (
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[7px] text-yellow-400">Medium</span>
+                                  <span className="text-[8px] text-yellow-400 font-mono">{tool.mediumIssues}</span>
+                                </div>
+                              )}
+                              <div className="flex items-center justify-between">
+                                <span className="text-[7px] text-s39-dim">Low</span>
+                                <span className="text-[8px] text-s39-mid font-mono">{tool.lowIssues}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-[7px] text-s39-dim">Info</span>
+                                <span className="text-[8px] text-s39-mid font-mono">{tool.informational}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-[7px] text-s39-dim">Gas Opts</span>
+                                <span className="text-[8px] text-cyan-400 font-mono">{tool.gasOptimizations}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Formal Verification & Symbolic Execution */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Formal Verification */}
+                    {p.testCoverage.formalVerification && (
+                      <div className="bg-s39-bg0 border border-purple-900/30 p-4 rounded">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#a855f7" strokeWidth="1.5"/>
+                            </svg>
+                            <span className="text-[9px] text-purple-400 tracking-widest font-bold">FORMAL VERIFICATION</span>
+                          </div>
+                          <span className={`text-[7px] px-2 py-0.5 rounded font-mono ${
+                            p.testCoverage.formalVerification.status === "VERIFIED" ? "bg-emerald-950/30 text-emerald-400 border border-emerald-900/40" :
+                            p.testCoverage.formalVerification.status === "PARTIAL" ? "bg-yellow-950/30 text-yellow-400 border border-yellow-900/40" :
+                            "bg-s39-bg2 text-s39-dim border border-s39-border"
+                          }`}>
+                            {p.testCoverage.formalVerification.status}
+                          </span>
+                        </div>
+                        {p.testCoverage.formalVerification.tool && (
+                          <div className="text-[8px] text-s39-dim mb-2">Tool: {p.testCoverage.formalVerification.tool}</div>
+                        )}
+                        <div className="flex gap-4 mb-3">
+                          <div>
+                            <div className="text-[14px] text-emerald-400 font-bold font-mono">{p.testCoverage.formalVerification.propertiesVerified}</div>
+                            <div className="text-[7px] text-s39-dim">Verified</div>
+                          </div>
+                          <div>
+                            <div className="text-[14px] text-red-400 font-bold font-mono">{p.testCoverage.formalVerification.propertiesFailed}</div>
+                            <div className="text-[7px] text-s39-dim">Failed</div>
+                          </div>
+                        </div>
+                        {p.testCoverage.formalVerification.invariantsChecked && (
+                          <div className="space-y-1 border-t border-s39-border pt-2">
+                            <div className="text-[7px] text-s39-dim">Invariants Checked:</div>
+                            {p.testCoverage.formalVerification.invariantsChecked.slice(0, 4).map((inv, i) => (
+                              <div key={i} className="text-[8px] text-purple-300 flex items-center gap-1">
+                                <span className="text-emerald-400">✓</span>
+                                {inv}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Symbolic Execution */}
+                    {p.testCoverage.symbolicExecution && (
+                      <div className="bg-s39-bg0 border border-s39-border p-4 rounded">
+                        <div className="flex items-center gap-2 mb-3">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round"/>
+                          </svg>
+                          <span className="text-[9px] text-s39-mid tracking-widest font-bold">SYMBOLIC EXECUTION</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <div className="text-[7px] text-s39-dim">Paths Explored</div>
+                            <div className="text-[12px] text-s39-white font-mono">{p.testCoverage.symbolicExecution.pathsExplored.toLocaleString()}</div>
+                          </div>
+                          <div>
+                            <div className="text-[7px] text-s39-dim">Max Depth</div>
+                            <div className="text-[12px] text-s39-white font-mono">{p.testCoverage.symbolicExecution.maxPathDepth}</div>
+                          </div>
+                        </div>
+                        {p.testCoverage.symbolicExecution.timeoutReached && (
+                          <div className="text-[7px] text-yellow-400 mt-2">
+                            Note: Analysis timeout reached on some paths
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Gas Analysis */}
+                  {p.testCoverage.gasAnalysis && (
+                    <div className="bg-s39-bg0 border border-orange-900/30 p-4 rounded">
+                      <div className="flex items-center gap-2 mb-3">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 2v10l4 4" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          <circle cx="12" cy="12" r="10" stroke="#f97316" strokeWidth="1.5"/>
+                        </svg>
+                        <span className="text-[9px] text-orange-400 tracking-widest font-bold">GAS ANALYSIS</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div>
+                          <div className="text-[7px] text-s39-dim">Avg Gas/Function</div>
+                          <div className="text-[11px] text-orange-300 font-mono">{p.testCoverage.gasAnalysis.averageGasPerFunction.toLocaleString()}</div>
+                        </div>
+                        <div>
+                          <div className="text-[7px] text-s39-dim">Most Expensive</div>
+                          <div className="text-[11px] text-orange-300 font-mono truncate">{p.testCoverage.gasAnalysis.mostExpensiveFunction}()</div>
+                        </div>
+                        <div>
+                          <div className="text-[7px] text-s39-dim">Max Gas</div>
+                          <div className="text-[11px] text-orange-300 font-mono">{p.testCoverage.gasAnalysis.mostExpensiveGas.toLocaleString()}</div>
+                        </div>
+                        <div>
+                          <div className="text-[7px] text-s39-dim">Deploy Cost</div>
+                          <div className="text-[11px] text-orange-300 font-mono">{p.testCoverage.gasAnalysis.totalDeploymentCost.toLocaleString()}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="px-5 sm:px-6 py-3 bg-s39-bg2 border-t border-s39-border">
+                  <div className="text-[7px] text-s39-dim font-mono flex items-center gap-4 flex-wrap">
+                    <span>Tools: Slither, Mythril, Solhint, Foundry, Echidna, Certora</span>
+                    <span>|</span>
+                    <span>Analysis performed on audited code snapshot</span>
                   </div>
                 </div>
               </section>
