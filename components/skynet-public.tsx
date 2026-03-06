@@ -429,6 +429,11 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
         timestamp: _raw.ipfsRecord.timestamp ?? new Date().toISOString(),
       } : undefined,
       pocScripts: _raw.pocScripts || undefined,
+      codeReference: _raw.codeReference ? {
+        ..._raw.codeReference,
+        auditedFiles: _raw.codeReference.auditedFiles || [],
+        snapshotTimestamp: _raw.codeReference.snapshotTimestamp || new Date().toISOString(),
+      } : undefined,
     }
   }, [_raw])
 
@@ -1028,25 +1033,109 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               ) : (
                 <span className="text-[10px] text-s39-mid font-mono">{p.name}</span>
               )}
-              {p.engagement?.repositoryUrl && (
-                <a href={p.engagement.repositoryUrl} target="_blank" rel="noopener noreferrer"
-                  className="text-[8px] text-blue-400 hover:text-blue-300 transition-colors block mt-1">
-                  View on Explorer
+              {(p.codeReference?.repository || p.engagement?.repositoryUrl) && (
+                <a href={p.codeReference?.repository || p.engagement?.repositoryUrl} target="_blank" rel="noopener noreferrer"
+                  className="text-[8px] text-blue-400 hover:text-blue-300 transition-colors block mt-1 flex items-center gap-1">
+                  <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                  {p.codeReference?.repository || "View Repository"}
                 </a>
               )}
             </div>
 
             {/* Commit Hash */}
             <div className="bg-[#0a0e14] border border-emerald-900/30 p-4">
-              <div className="text-[7px] text-emerald-400 tracking-widest mb-2">AUDITED COMMIT / BYTECODE</div>
+              <div className="text-[7px] text-emerald-400 tracking-widest mb-2">AUDITED COMMIT HASH</div>
               <div className="text-[10px] text-emerald-300 font-mono break-all leading-relaxed">
-                {p.engagement?.commitHash || "Verified deployed bytecode on block explorer"}
+                {p.codeReference?.commitHash || p.engagement?.commitHash || "N/A (verified deployed bytecode)"}
               </div>
-              <div className="text-[7px] text-s39-dim mt-1">
-                This is the exact version of the code reviewed. Any change to the code after this commit/deployment is NOT covered by this audit.
+              {(p.codeReference?.branch || p.codeReference?.tag) && (
+                <div className="flex gap-2 mt-2">
+                  {p.codeReference?.branch && (
+                    <span className="text-[7px] text-cyan-400 bg-cyan-950/30 border border-cyan-900/40 px-1.5 py-0.5 rounded font-mono">
+                      branch: {p.codeReference.branch}
+                    </span>
+                  )}
+                  {p.codeReference?.tag && (
+                    <span className="text-[7px] text-yellow-400 bg-yellow-950/30 border border-yellow-900/40 px-1.5 py-0.5 rounded font-mono">
+                      tag: {p.codeReference.tag}
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className="text-[7px] text-s39-dim mt-2">
+                This is the exact version of the code reviewed. Any change after this commit is NOT covered.
               </div>
             </div>
           </div>
+
+          {/* Code Reference Details */}
+          {p.codeReference && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              {/* Audited Files */}
+              <div className="bg-[#0a0e14] border border-s39-border p-3">
+                <div className="text-[7px] text-s39-dim tracking-widest mb-2">AUDITED FILES</div>
+                <div className="space-y-1">
+                  {p.codeReference.auditedFiles?.map((f, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <span className="text-[9px] text-s39-cyan font-mono truncate">{f.path}</span>
+                      <span className="text-[8px] text-s39-dim font-mono shrink-0 ml-2">{f.linesOfCode} LOC</span>
+                    </div>
+                  ))}
+                </div>
+                {p.codeReference.auditedFiles && p.codeReference.auditedFiles.length > 0 && (
+                  <div className="text-[8px] text-s39-white font-bold mt-2 pt-2 border-t border-s39-border">
+                    Total: {p.codeReference.auditedFiles.reduce((a, f) => a + f.linesOfCode, 0)} LOC
+                  </div>
+                )}
+              </div>
+
+              {/* Out of Scope */}
+              <div className="bg-[#0a0e14] border border-s39-border p-3">
+                <div className="text-[7px] text-s39-dim tracking-widest mb-2">OUT OF SCOPE</div>
+                {p.codeReference.outOfScope && p.codeReference.outOfScope.length > 0 ? (
+                  <div className="space-y-1">
+                    {p.codeReference.outOfScope.map((item, i) => (
+                      <div key={i} className="text-[9px] text-red-400/70 font-mono flex items-center gap-1">
+                        <span className="text-red-500">x</span>
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-[9px] text-s39-dim">All contract code in scope</div>
+                )}
+              </div>
+
+              {/* Snapshot Timestamp */}
+              <div className="bg-[#0a0e14] border border-s39-border p-3">
+                <div className="text-[7px] text-s39-dim tracking-widest mb-2">CODE SNAPSHOT</div>
+                <div className="text-[10px] text-s39-white font-mono">
+                  {p.codeReference.snapshotTimestamp
+                    ? new Date(p.codeReference.snapshotTimestamp).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "N/A"}
+                </div>
+                <div className="text-[7px] text-s39-dim mt-1">
+                  UTC timestamp when code was frozen for audit
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Audit Scope Description */}
+          {p.codeReference?.auditScope && (
+            <div className="bg-[#0a0e14] border border-cyan-900/30 p-4 mb-4">
+              <div className="text-[7px] text-cyan-400 tracking-widest mb-2">AUDIT SCOPE DESCRIPTION</div>
+              <div className="text-[9px] text-s39-mid leading-relaxed">
+                {p.codeReference.auditScope}
+              </div>
+            </div>
+          )}
 
           {/* Scope Table */}
           {p.scopeTable && p.scopeTable.length > 0 && (

@@ -104,6 +104,14 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const [exploitSimulation, setExploitSimulation] = useState<Record<string, unknown> | null>(null)
   const [ipfsRecord, setIpfsRecord] = useState<Record<string, unknown> | null>(null)
   const [pocScripts, setPocScripts] = useState<Record<string, unknown>[] | null>(null)
+  const [codeReference, setCodeReference] = useState<{
+    repository?: string
+    commitHash?: string
+    branch?: string
+    tag?: string
+    auditScope?: string
+    outOfScope?: string[]
+  } | null>(null)
 
   const allChecks = Object.values(checks).flatMap((c) => Object.values(c))
   // SINGLE SOURCE OF TRUTH: always use V2 engine for score computation
@@ -765,6 +773,20 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       exploitSimulation: (exploitSimulation as PortfolioProject["exploitSimulation"]) || undefined,
       ipfsRecord: (ipfsRecord as PortfolioProject["ipfsRecord"]) || undefined,
       pocScripts: (pocScripts as PortfolioProject["pocScripts"]) || undefined,
+      codeReference: codeReference ? {
+        ...codeReference,
+        auditedFiles: [{
+          path: project.contractAddress ? `Verified on ${project.network || "Ethereum"}` : (project.name || "Contract") + ".sol",
+          linesOfCode: contractMeta?.linesOfCode || 0,
+        }],
+        snapshotTimestamp: new Date().toISOString(),
+      } : {
+        auditedFiles: [{
+          path: project.contractAddress ? `Verified on ${project.network || "Ethereum"}` : (project.name || "Contract") + ".sol",
+          linesOfCode: contractMeta?.linesOfCode || 0,
+        }],
+        snapshotTimestamp: new Date().toISOString(),
+      },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       signedReport: (signedReport as any) || undefined,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1106,6 +1128,20 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     formalVerification: (formalVerification as PortfolioProject["formalVerification"]) || undefined,
     residualRisk: (residualRisk as PortfolioProject["residualRisk"]) || undefined,
     exploitSimulation: (exploitSimulation as PortfolioProject["exploitSimulation"]) || undefined,
+    codeReference: codeReference ? {
+      ...codeReference,
+      auditedFiles: [{
+        path: project.contractAddress ? `Verified on ${project.network || "Ethereum"}` : (project.name || "Contract") + ".sol",
+        linesOfCode: contractMeta?.linesOfCode || 0,
+      }],
+      snapshotTimestamp: new Date().toISOString(),
+    } : {
+      auditedFiles: [{
+        path: project.contractAddress ? `Verified on ${project.network || "Ethereum"}` : (project.name || "Contract") + ".sol",
+        linesOfCode: contractMeta?.linesOfCode || 0,
+      }],
+      snapshotTimestamp: new Date().toISOString(),
+    },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     signedReport: (signedReport as any) || undefined,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1573,6 +1609,68 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         {/* ── SKYNET AI ── */}
         {tab === "skynet" && (
           <div className="animate-[fadeUp_0.4s_ease]">
+            {/* Code Reference Section */}
+            <div className="bg-s39-bg1 border border-emerald-900/30 p-4 sm:p-6 mb-4">
+              <div className="text-[9px] text-emerald-400 tracking-[0.15em] mb-1">
+                CODE REFERENCE (OPTIONAL)
+              </div>
+              <div className="text-[10px] text-s39-mid mb-4">
+                Add repository and commit details for professional audit reports.
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[7px] text-s39-dim tracking-widest block mb-1">REPOSITORY URL</label>
+                  <input
+                    type="text"
+                    placeholder="github.com/project/contracts"
+                    value={codeReference?.repository || ""}
+                    onChange={(e) => setCodeReference({ ...codeReference, repository: e.target.value || undefined })}
+                    className="w-full bg-s39-bg0 border border-s39-border text-s39-white text-[10px] font-mono px-3 py-2 focus:border-emerald-600 focus:outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-[7px] text-s39-dim tracking-widest block mb-1">COMMIT HASH</label>
+                  <input
+                    type="text"
+                    placeholder="4217cfb901a60e7a8a4166673b6884a0c7ada423"
+                    value={codeReference?.commitHash || ""}
+                    onChange={(e) => setCodeReference({ ...codeReference, commitHash: e.target.value || undefined })}
+                    className="w-full bg-s39-bg0 border border-s39-border text-s39-white text-[10px] font-mono px-3 py-2 focus:border-emerald-600 focus:outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-[7px] text-s39-dim tracking-widest block mb-1">BRANCH</label>
+                  <input
+                    type="text"
+                    placeholder="main"
+                    value={codeReference?.branch || ""}
+                    onChange={(e) => setCodeReference({ ...codeReference, branch: e.target.value || undefined })}
+                    className="w-full bg-s39-bg0 border border-s39-border text-s39-white text-[10px] font-mono px-3 py-2 focus:border-emerald-600 focus:outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-[7px] text-s39-dim tracking-widest block mb-1">TAG / VERSION</label>
+                  <input
+                    type="text"
+                    placeholder="v1.0.0"
+                    value={codeReference?.tag || ""}
+                    onChange={(e) => setCodeReference({ ...codeReference, tag: e.target.value || undefined })}
+                    className="w-full bg-s39-bg0 border border-s39-border text-s39-white text-[10px] font-mono px-3 py-2 focus:border-emerald-600 focus:outline-none transition-colors"
+                  />
+                </div>
+              </div>
+              <div className="mt-3">
+                <label className="text-[7px] text-s39-dim tracking-widest block mb-1">AUDIT SCOPE DESCRIPTION (OPTIONAL)</label>
+                <textarea
+                  placeholder="Full security audit of Token.sol including access control, tokenomics, and upgrade mechanisms..."
+                  value={codeReference?.auditScope || ""}
+                  onChange={(e) => setCodeReference({ ...codeReference, auditScope: e.target.value || undefined })}
+                  rows={2}
+                  className="w-full bg-s39-bg0 border border-s39-border text-s39-white text-[10px] font-mono px-3 py-2 focus:border-emerald-600 focus:outline-none transition-colors resize-none"
+                />
+              </div>
+            </div>
+
             <div className="bg-s39-bg1 border border-s39-border p-4 sm:p-6 mb-5">
               <div className="text-[9px] text-s39-cyan tracking-[0.15em] mb-1">
                 SKYNET AI COPILOT

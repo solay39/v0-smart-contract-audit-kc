@@ -457,6 +457,21 @@ export interface PortfolioProject {
     runCommand: string
     description: string
   }[]
+  // Enterprise: Code Reference / Audit Scope
+  codeReference?: {
+    repository?: string          // "github.com/project/contracts"
+    commitHash?: string          // "4217cfb901a60e7a8a4166673b6884a0c7ada423"
+    branch?: string              // "main" | "audit-v2"
+    tag?: string                 // "v1.0.0"
+    auditedFiles: {
+      path: string               // "contracts/Token.sol"
+      linesOfCode: number        // 245
+      sha256?: string            // file content hash
+    }[]
+    auditScope?: string          // "Full security audit of Token.sol including..."
+    outOfScope?: string[]        // ["test/", "scripts/", "interfaces/"]
+    snapshotTimestamp: string    // ISO date when code was frozen for audit
+  }
 }
 
 // Keep backward compat alias
