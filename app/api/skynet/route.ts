@@ -14,6 +14,7 @@ import {
 } from "@/lib/enterprise-standards"
 import { signReport } from "@/lib/report-signing"
 import { runAttackSimulation } from "@/core/simulator/attackSimulator"
+import { pinReportToIPFS } from "@/lib/ipfs-pinning"
 
 /* ───────── types ───────── */
 
@@ -1395,6 +1396,20 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
         }
       }
 
+      // ── ENTERPRISE: IPFS Pinning ──────────────────────────────
+      const ipfsReportData = {
+        version: "2.1.0",
+        platform: "Solay39",
+        auditId,
+        timestamp: new Date().toISOString(),
+        contractMeta: meta,
+        findings: finalFindings,
+        scoreBreakdown,
+        signedReport,
+        exploitSimulation: exploitSimulation.summary,
+      }
+      const ipfsRecord = await pinReportToIPFS(ipfsReportData, auditId)
+
       return Response.json({
         findings: finalFindings,
         source: "ai",
@@ -1430,6 +1445,8 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
         onChainRecord,
         // Enterprise: Exploit Simulation
         exploitSimulation,
+        // Enterprise: IPFS Record
+        ipfsRecord,
       })
     } catch (aiError: unknown) {
       // AI failed -- fall back to static analysis (which is now context-aware)
@@ -1560,6 +1577,20 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
       })
       const staticSignedReport = await signReport(staticReportJsonToSign, staticAuditId)
 
+      // IPFS Pinning for static path
+      const staticIpfsReportData = {
+        version: "2.1.0",
+        platform: "Solay39",
+        auditId: staticAuditId,
+        timestamp: new Date().toISOString(),
+        contractMeta: meta,
+        findings: finalStaticFindings,
+        scoreBreakdown,
+        signedReport: staticSignedReport,
+        exploitSimulation: staticExploitSimulation.summary,
+      }
+      const staticIpfsRecord = await pinReportToIPFS(staticIpfsReportData, staticAuditId)
+
       return Response.json({
         findings: finalStaticFindings,
         source: "static",
@@ -1576,6 +1607,7 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
         residualRisk: staticResidualRisk,
         signedReport: staticSignedReport,
         exploitSimulation: staticExploitSimulation,
+        ipfsRecord: staticIpfsRecord,
       })
     }
   } catch (error: unknown) {

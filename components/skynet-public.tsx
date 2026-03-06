@@ -420,6 +420,14 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
         vectors: _raw.exploitSimulation.vectors || [],
         timestamp: _raw.exploitSimulation.timestamp || new Date().toISOString(),
       } : undefined,
+      ipfsRecord: _raw.ipfsRecord ? {
+        ..._raw.ipfsRecord,
+        success: _raw.ipfsRecord.success ?? false,
+        ipfsCid: _raw.ipfsRecord.ipfsCid ?? null,
+        ipfsUrl: _raw.ipfsRecord.ipfsUrl ?? null,
+        gatewayUrl: _raw.ipfsRecord.gatewayUrl ?? null,
+        timestamp: _raw.ipfsRecord.timestamp ?? new Date().toISOString(),
+      } : undefined,
     }
   }, [_raw])
 
@@ -3583,6 +3591,96 @@ console.log("Signer:", recovered);
                     </div>
                     <div className="mt-3 text-[7px] text-s39-dim border-t border-s39-border pt-2">
                       On-chain attestation will be published when the Audit Registry contract is deployed. The report hash ({p.signedReport?.reportHash ? p.signedReport.reportHash.slice(0, 16) + "..." : "computed at publish"}) is ready for attestation.
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* ── SECTION 17A-quater: IPFS DECENTRALIZED STORAGE ── */}
+            <section className="border border-s39-border rounded-xl p-6 bg-s39-bg1 mt-6">
+              <div className="text-[9px] font-mono tracking-widest text-s39-dim uppercase mb-4 flex items-center gap-2">
+                <span className="w-4 h-px bg-s39-border"/>
+                {'IPFS Decentralized Storage'}
+                <span className="flex-1 h-px bg-s39-border"/>
+                {p.ipfsRecord?.success
+                  ? <span className="text-[7px] text-emerald-400 border border-emerald-700/40 px-1.5 py-0.5 rounded bg-emerald-950/20 tracking-wider">PINNED</span>
+                  : <span className="text-[7px] text-yellow-500 border border-yellow-700/40 px-1.5 py-0.5 rounded bg-yellow-950/20 tracking-wider">PENDING</span>}
+              </div>
+              <div className="space-y-3">
+                {p.ipfsRecord?.success && p.ipfsRecord.ipfsCid ? (
+                  <>
+                    <div className="p-3 rounded bg-s39-bg0 border border-cyan-900/40">
+                      <div className="text-[8px] text-cyan-400 font-mono tracking-wider mb-1">IPFS CONTENT ID (CID)</div>
+                      <code className="text-[10px] text-cyan-300 font-mono break-all block">
+                        {p.ipfsRecord.ipfsCid}
+                      </code>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <a
+                        href={p.ipfsRecord.gatewayUrl as string}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-3 rounded bg-s39-bg0 border border-s39-border hover:border-cyan-700/40 transition-colors group"
+                      >
+                        <div className="text-[7px] text-s39-dim tracking-widest mb-1">PINATA GATEWAY</div>
+                        <div className="text-[9px] text-cyan-400 font-mono group-hover:text-cyan-300 transition-colors flex items-center gap-1">
+                          View on Pinata
+                          <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M3 9l6-6M4 3h5v5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </div>
+                      </a>
+                      <a
+                        href={`https://ipfs.io/ipfs/${p.ipfsRecord.ipfsCid}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-3 rounded bg-s39-bg0 border border-s39-border hover:border-cyan-700/40 transition-colors group"
+                      >
+                        <div className="text-[7px] text-s39-dim tracking-widest mb-1">PUBLIC GATEWAY</div>
+                        <div className="text-[9px] text-cyan-400 font-mono group-hover:text-cyan-300 transition-colors flex items-center gap-1">
+                          View on ipfs.io
+                          <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M3 9l6-6M4 3h5v5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </div>
+                      </a>
+                    </div>
+                    <div className="p-3 rounded bg-s39-bg0 border border-s39-border">
+                      <div className="text-[7px] text-s39-dim tracking-widest mb-2">WHAT THIS MEANS</div>
+                      <div className="text-[8px] text-s39-mid leading-relaxed">
+                        This audit report has been permanently pinned to the InterPlanetary File System (IPFS), a decentralized storage network. 
+                        The content is immutable - any modification would produce a different CID. 
+                        The report can be independently retrieved and verified by anyone using the CID above, even if solay39.eu becomes unavailable.
+                      </div>
+                    </div>
+                    {p.ipfsRecord.timestamp && (
+                      <div className="text-[7px] text-s39-dim font-mono">
+                        Pinned: {new Date(p.ipfsRecord.timestamp as string).toLocaleString()}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="p-3 rounded bg-s39-bg0 border border-s39-border">
+                    <div className="text-[8px] text-s39-dim font-mono tracking-wider mb-2">IPFS PINNING PROTOCOL</div>
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2">
+                        <span className="text-cyan-500 text-[8px] mt-0.5">1.</span>
+                        <span className="text-[8px] text-s39-mid leading-relaxed">Complete audit report is serialized to JSON</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-cyan-500 text-[8px] mt-0.5">2.</span>
+                        <span className="text-[8px] text-s39-mid leading-relaxed">JSON is uploaded to IPFS via Pinata pinning service</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-cyan-500 text-[8px] mt-0.5">3.</span>
+                        <span className="text-[8px] text-s39-mid leading-relaxed">IPFS generates a Content ID (CID) - a cryptographic hash of the content</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-cyan-500 text-[8px] mt-0.5">4.</span>
+                        <span className="text-[8px] text-s39-mid leading-relaxed">The pinned content remains permanently accessible via any IPFS gateway</span>
+                      </div>
+                    </div>
+                    <div className="mt-3 text-[7px] text-s39-dim border-t border-s39-border pt-2">
+                      {p.ipfsRecord?.error 
+                        ? `IPFS pinning error: ${p.ipfsRecord.error}. Report will be pinned when PINATA_JWT is configured.`
+                        : "IPFS pinning will be enabled when PINATA_JWT is configured."}
                     </div>
                   </div>
                 )}

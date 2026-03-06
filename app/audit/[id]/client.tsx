@@ -94,6 +94,7 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
           residualRisk: project.residualRisk || local.residualRisk,
           economicAttackVectors: project.economicAttackVectors || local.economicAttackVectors,
           exploitSimulation: project.exploitSimulation || local.exploitSimulation,
+          ipfsRecord: project.ipfsRecord || local.ipfsRecord,
         })
       }
       setLoading(false)

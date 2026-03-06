@@ -438,6 +438,15 @@ export interface PortfolioProject {
     }[]
     timestamp: string
   }
+  // Enterprise: IPFS Pinning Record
+  ipfsRecord?: {
+    success: boolean
+    ipfsCid: string | null
+    ipfsUrl: string | null
+    gatewayUrl: string | null
+    timestamp: string
+    error?: string
+  }
 }
 
 // Keep backward compat alias
@@ -1271,7 +1280,7 @@ export function ratingOf(s: number): string {
   return "C"
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════��═══════════════════════
 // SOLAY39 SECURITY SCORING ENGINE v1.0
 // Penalty-based model: each category starts at 100, penalties deducted
 // Final = weighted sum of 6 categories
