@@ -3616,31 +3616,45 @@ console.log("Signer:", recovered);
                         {p.ipfsRecord.ipfsCid}
                       </code>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <a
-                        href={p.ipfsRecord.gatewayUrl as string}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-3 rounded bg-s39-bg0 border border-s39-border hover:border-cyan-700/40 transition-colors group"
-                      >
-                        <div className="text-[7px] text-s39-dim tracking-widest mb-1">PINATA GATEWAY</div>
-                        <div className="text-[9px] text-cyan-400 font-mono group-hover:text-cyan-300 transition-colors flex items-center gap-1">
-                          View on Pinata
-                          <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M3 9l6-6M4 3h5v5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    {/* Primary Gateway Link */}
+                    <a
+                      href={p.ipfsRecord.gatewayUrl as string}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-4 rounded bg-s39-bg0 border border-cyan-900/40 hover:border-cyan-600/60 transition-colors group flex items-center gap-4"
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-cyan-950/40 border border-cyan-800/40 flex items-center justify-center shrink-0">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#00e5ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[10px] text-cyan-400 font-bold group-hover:text-cyan-300 transition-colors flex items-center gap-1.5">
+                          View Report on IPFS
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 9l6-6M4 3h5v5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                         </div>
-                      </a>
-                      <a
-                        href={`https://ipfs.io/ipfs/${p.ipfsRecord.ipfsCid}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-3 rounded bg-s39-bg0 border border-s39-border hover:border-cyan-700/40 transition-colors group"
-                      >
-                        <div className="text-[7px] text-s39-dim tracking-widest mb-1">PUBLIC GATEWAY</div>
-                        <div className="text-[9px] text-cyan-400 font-mono group-hover:text-cyan-300 transition-colors flex items-center gap-1">
-                          View on ipfs.io
-                          <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M3 9l6-6M4 3h5v5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        <div className="text-[8px] text-s39-dim font-mono mt-0.5 truncate">
+                          {p.ipfsRecord.gatewayUrl as string}
                         </div>
-                      </a>
+                      </div>
+                    </a>
+
+                    {/* Alternative Gateways */}
+                    <div className="p-3 rounded bg-s39-bg0 border border-s39-border">
+                      <div className="text-[7px] text-s39-dim tracking-widest mb-2">ALTERNATIVE GATEWAYS</div>
+                      <div className="flex flex-wrap gap-2">
+                        <a href={`https://dweb.link/ipfs/${p.ipfsRecord.ipfsCid}`} target="_blank" rel="noopener noreferrer"
+                          className="text-[8px] text-cyan-400/70 hover:text-cyan-400 font-mono transition-colors">dweb.link</a>
+                        <span className="text-s39-dim">|</span>
+                        <a href={`https://cloudflare-ipfs.com/ipfs/${p.ipfsRecord.ipfsCid}`} target="_blank" rel="noopener noreferrer"
+                          className="text-[8px] text-cyan-400/70 hover:text-cyan-400 font-mono transition-colors">cloudflare-ipfs.com</a>
+                        <span className="text-s39-dim">|</span>
+                        <a href={`https://w3s.link/ipfs/${p.ipfsRecord.ipfsCid}`} target="_blank" rel="noopener noreferrer"
+                          className="text-[8px] text-cyan-400/70 hover:text-cyan-400 font-mono transition-colors">w3s.link</a>
+                      </div>
+                      <div className="text-[7px] text-s39-dim mt-2">
+                        Note: Public gateways may take time to propagate. Use the primary Pinata gateway for immediate access.
+                      </div>
                     </div>
                     <div className="p-3 rounded bg-s39-bg0 border border-s39-border">
                       <div className="text-[7px] text-s39-dim tracking-widest mb-2">WHAT THIS MEANS</div>
@@ -4306,7 +4320,7 @@ function MethodologyPage() {
 
 // ══════════════════════════════════════════════���════════════════════
 // MAIN SKYNET PUBLIC COMPONENT (CertiK-inspired)
-// ═══════════════════════════════════════════════════════════════════
+// ═══════��═══════════════════════════════════════════════════════════
 // Price data type from our API
 interface LivePriceData {
   ticker: string
