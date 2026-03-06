@@ -34,7 +34,7 @@ export function OnChainAttestation({
   auditedContractAddress,
   onAttestationComplete,
 }: OnChainAttestationProps) {
-  const [selectedChain, setSelectedChain] = useState<SupportedChain>("sepolia")
+  const [selectedChain, setSelectedChain] = useState<SupportedChain>("bsc")
   const [isConnected, setIsConnected] = useState(false)
   const [account, setAccount] = useState<string | null>(null)
   const [isRegistering, setIsRegistering] = useState(false)
@@ -167,29 +167,30 @@ export function OnChainAttestation({
       </div>
 
       <div className="p-5 sm:p-6 space-y-4">
-        {/* Chain Selector */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {(Object.keys(SUPPORTED_CHAINS) as SupportedChain[]).map((chainId) => {
-            const { name } = SUPPORTED_CHAINS[chainId]
+        {/* Chain Selector - BSC and Arbitrum primary */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {(["bsc", "arbitrum", "bscTestnet"] as SupportedChain[]).map((chainId) => {
+            const chainInfo = SUPPORTED_CHAINS[chainId]
             const addr = REGISTRY_ADDRESSES[chainId]
             const deployed = addr !== "0x0000000000000000000000000000000000000000"
+            const isPrimary = chainId === "bsc" || chainId === "arbitrum"
             
             return (
               <button
                 key={chainId}
                 onClick={() => setSelectedChain(chainId)}
-                disabled={!deployed}
-                className={`p-3 rounded border text-left transition-colors ${
+                className={`p-3 rounded border text-left transition-colors cursor-pointer ${
                   selectedChain === chainId
                     ? "border-amber-600 bg-amber-950/20"
-                    : deployed
-                      ? "border-s39-border bg-s39-bg0 hover:border-amber-800/40 cursor-pointer"
-                      : "border-s39-border bg-s39-bg0 opacity-50 cursor-not-allowed"
-                }`}
+                    : "border-s39-border bg-s39-bg0 hover:border-amber-800/40"
+                } ${isPrimary ? "ring-1 ring-amber-900/30" : ""}`}
               >
-                <div className="text-[9px] text-s39-white font-bold">{name}</div>
-                <div className="text-[7px] text-s39-dim font-mono">
-                  {deployed ? "Deployed" : "Coming Soon"}
+                <div className="text-[9px] text-s39-white font-bold flex items-center gap-1">
+                  {chainInfo.name}
+                  {isPrimary && <span className="text-[6px] text-amber-400 bg-amber-950/40 px-1 rounded">PRIMARY</span>}
+                </div>
+                <div className={`text-[7px] font-mono ${deployed ? "text-emerald-400" : "text-yellow-400"}`}>
+                  {deployed ? "Ready" : "Deploy via Remix"}
                 </div>
               </button>
             )
@@ -209,7 +210,27 @@ export function OnChainAttestation({
               {registryAddress}
             </a>
           ) : (
-            <div className="text-[9px] text-s39-dim font-mono">Not yet deployed on {SUPPORTED_CHAINS[selectedChain].name}</div>
+            <div className="space-y-2">
+              <div className="text-[9px] text-yellow-400 font-mono flex items-center gap-2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 9v4M12 17h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+                Contract not yet deployed on {SUPPORTED_CHAINS[selectedChain].name}
+              </div>
+              <details className="text-[8px] text-s39-dim">
+                <summary className="cursor-pointer text-amber-400 hover:text-amber-300">Deploy via Remix IDE</summary>
+                <ol className="mt-2 space-y-1 list-decimal list-inside">
+                  <li>Open <a href="https://remix.ethereum.org" target="_blank" className="text-cyan-400 hover:underline">remix.ethereum.org</a></li>
+                  <li>Create file: Solay39AuditRegistry.sol</li>
+                  <li>Copy contract from /contracts/Solay39AuditRegistry.sol</li>
+                  <li>Compile with Solidity 0.8.20</li>
+                  <li>Deploy tab - Injected Provider (MetaMask)</li>
+                  <li>Select {SUPPORTED_CHAINS[selectedChain].name} network</li>
+                  <li>Click Deploy</li>
+                  <li>Save deployed address</li>
+                </ol>
+              </details>
+            </div>
           )}
         </div>
 

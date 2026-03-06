@@ -1,51 +1,50 @@
 import { createPublicClient, createWalletClient, http, custom, encodeFunctionData, parseAbi, keccak256, toBytes, Hex } from "viem"
-import { mainnet, sepolia, base, arbitrum } from "viem/chains"
+import { mainnet, sepolia, base, arbitrum, bsc, bscTestnet } from "viem/chains"
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SOLAY39 AUDIT REGISTRY - ON-CHAIN ATTESTATION
 // ══════════════════════════════════════════════════════════════════════════════
+// Owner: 0x2A9386C3636c9b520687BC8F11190abaf8bf98Af
+// ══════════════════════════════════════════════════════════════════════════════
 
-// Deployed contract addresses (update after deployment)
+// Deployed contract addresses (update after deployment via Remix)
 export const REGISTRY_ADDRESSES: Record<string, `0x${string}`> = {
-  mainnet: "0x0000000000000000000000000000000000000000", // TBD
-  sepolia: "0x0000000000000000000000000000000000000000", // TBD - Deploy here first for testing
-  base: "0x0000000000000000000000000000000000000000",    // TBD
-  arbitrum: "0x0000000000000000000000000000000000000000", // TBD
+  bsc: "0x0000000000000000000000000000000000000000",        // BSC Mainnet - DEPLOY HERE
+  bscTestnet: "0x0000000000000000000000000000000000000000", // BSC Testnet - Test first
+  arbitrum: "0x0000000000000000000000000000000000000000",   // Arbitrum One
+  mainnet: "0x0000000000000000000000000000000000000000",    // Ethereum Mainnet
+  sepolia: "0x0000000000000000000000000000000000000000",    // Sepolia Testnet
+  base: "0x0000000000000000000000000000000000000000",       // Base
 }
 
-// ABI for AuditRegistry contract
+// ABI for Solay39AuditRegistry contract (matches the Solidity contract)
 const REGISTRY_ABI = parseAbi([
-  // Core functions
-  "function registerAudit(string auditId, bytes32 reportHash, bytes32 codeHash, address auditedContract, uint8 score, string ipfsCid) external",
-  "function invalidateAudit(string auditId, string reason) external",
+  // Write functions
+  "function registerAudit(string projectName, string reportHash, string codeReference, string ipfsCid, uint8 score) external returns (bytes32)",
+  "function invalidateAudit(bytes32 auditId, string reason) external",
   
-  // Verification functions
-  "function verifyByHash(bytes32 reportHash) external view returns (bool exists, bool isValid, string auditId, address auditor, uint8 score, uint256 timestamp)",
-  "function verifyById(string auditId) external view returns (bool exists, bool isValid, bytes32 reportHash, address auditedContract, address auditor, uint8 score, string ipfsCid, uint256 timestamp)",
-  "function isContractAudited(address contractAddress) external view returns (bool audited, uint256 auditCount, string latestAuditId)",
-  "function getContractAudits(address contractAddress) external view returns (string[])",
-  "function getAuditorAudits(address auditor) external view returns (string[])",
-  
-  // Auditor management
-  "function registerAuditor(string name, string firmName) external",
-  "function auditors(address) external view returns (string name, string firmName, uint256 totalAudits, uint256 registeredAt, bool isVerified)",
-  "function verifiedAuditors(address) external view returns (bool)",
-  
-  // State variables
+  // View functions
+  "function verifyAudit(bytes32 auditId) external view returns (bool exists, bool valid, string projectName, string reportHash, string ipfsCid, uint8 score, uint256 timestamp)",
+  "function verifyByHash(string reportHash) external view returns (bool exists, bytes32 auditId, bool valid, uint8 score, uint256 timestamp)",
+  "function getAuditRecord(bytes32 auditId) external view returns (tuple(string projectName, string reportHash, string codeReference, string ipfsCid, uint8 score, address auditor, uint256 timestamp, bool valid))",
+  "function getAllAuditIds() external view returns (bytes32[])",
+  "function getValidAuditCount() external view returns (uint256)",
   "function totalAudits() external view returns (uint256)",
-  "function audits(string) external view returns (bytes32 reportHash, bytes32 codeHash, address auditedContract, address auditor, uint256 timestamp, uint8 score, string ipfsCid, string auditId, bool isValid)",
+  "function owner() external view returns (address)",
   
   // Events
-  "event AuditRegistered(string indexed auditId, bytes32 indexed reportHash, address indexed auditedContract, address auditor, uint8 score, string ipfsCid, uint256 timestamp)",
-  "event AuditInvalidated(string indexed auditId, address indexed auditor, string reason)",
+  "event AuditRegistered(bytes32 indexed auditId, string projectName, string reportHash, string ipfsCid, uint8 score, address auditor, uint256 timestamp)",
+  "event AuditInvalidated(bytes32 indexed auditId, string reason)",
 ])
 
-// Supported chains
+// Supported chains - BSC and Arbitrum are primary targets
 export const SUPPORTED_CHAINS = {
-  mainnet: { chain: mainnet, name: "Ethereum Mainnet", explorer: "https://etherscan.io" },
-  sepolia: { chain: sepolia, name: "Sepolia Testnet", explorer: "https://sepolia.etherscan.io" },
-  base: { chain: base, name: "Base", explorer: "https://basescan.org" },
-  arbitrum: { chain: arbitrum, name: "Arbitrum One", explorer: "https://arbiscan.io" },
+  bsc: { chain: bsc, name: "BSC Mainnet", explorer: "https://bscscan.com", deployed: false },
+  bscTestnet: { chain: bscTestnet, name: "BSC Testnet", explorer: "https://testnet.bscscan.com", deployed: false },
+  arbitrum: { chain: arbitrum, name: "Arbitrum One", explorer: "https://arbiscan.io", deployed: false },
+  mainnet: { chain: mainnet, name: "Ethereum Mainnet", explorer: "https://etherscan.io", deployed: false },
+  sepolia: { chain: sepolia, name: "Sepolia Testnet", explorer: "https://sepolia.etherscan.io", deployed: false },
+  base: { chain: base, name: "Base", explorer: "https://basescan.org", deployed: false },
 }
 
 export type SupportedChain = keyof typeof SUPPORTED_CHAINS
