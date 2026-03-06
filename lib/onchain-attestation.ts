@@ -18,24 +18,43 @@ export const REGISTRY_ADDRESSES: Record<string, `0x${string}`> = {
 }
 
 // ABI for Solay39AuditRegistry contract (matches the Solidity contract)
-const REGISTRY_ABI = parseAbi([
-  // Write functions
-  "function registerAudit(string projectName, string reportHash, string codeReference, string ipfsCid, uint8 score) external returns (bytes32)",
-  "function invalidateAudit(bytes32 auditId, string reason) external",
-  
-  // View functions
-  "function verifyAudit(bytes32 auditId) external view returns (bool exists, bool valid, string projectName, string reportHash, string ipfsCid, uint8 score, uint256 timestamp)",
-  "function verifyByHash(string reportHash) external view returns (bool exists, bytes32 auditId, bool valid, uint8 score, uint256 timestamp)",
-  "function getAuditRecord(bytes32 auditId) external view returns (tuple(string projectName, string reportHash, string codeReference, string ipfsCid, uint8 score, address auditor, uint256 timestamp, bool valid))",
-  "function getAllAuditIds() external view returns (bytes32[])",
-  "function getValidAuditCount() external view returns (uint256)",
-  "function totalAudits() external view returns (uint256)",
-  "function owner() external view returns (address)",
-  
-  // Events
-  "event AuditRegistered(bytes32 indexed auditId, string projectName, string reportHash, string ipfsCid, uint8 score, address auditor, uint256 timestamp)",
-  "event AuditInvalidated(bytes32 indexed auditId, string reason)",
-])
+// Note: Using struct definition format for viem/abitype compatibility
+const REGISTRY_ABI = [
+  // Struct definition (required for tuple returns)
+  {
+    type: "function",
+    name: "getAuditRecord",
+    inputs: [{ name: "auditId", type: "bytes32" }],
+    outputs: [{
+      name: "",
+      type: "tuple",
+      components: [
+        { name: "projectName", type: "string" },
+        { name: "reportHash", type: "string" },
+        { name: "codeReference", type: "string" },
+        { name: "ipfsCid", type: "string" },
+        { name: "score", type: "uint8" },
+        { name: "auditor", type: "address" },
+        { name: "timestamp", type: "uint256" },
+        { name: "valid", type: "bool" },
+      ],
+    }],
+    stateMutability: "view",
+  },
+  // Other functions using parseAbi-compatible format
+  ...parseAbi([
+    "function registerAudit(string projectName, string reportHash, string codeReference, string ipfsCid, uint8 score) external returns (bytes32)",
+    "function invalidateAudit(bytes32 auditId, string reason) external",
+    "function verifyAudit(bytes32 auditId) external view returns (bool exists, bool valid, string projectName, string reportHash, string ipfsCid, uint8 score, uint256 timestamp)",
+    "function verifyByHash(string reportHash) external view returns (bool exists, bytes32 auditId, bool valid, uint8 score, uint256 timestamp)",
+    "function getAllAuditIds() external view returns (bytes32[])",
+    "function getValidAuditCount() external view returns (uint256)",
+    "function totalAudits() external view returns (uint256)",
+    "function owner() external view returns (address)",
+    "event AuditRegistered(bytes32 indexed auditId, string projectName, string reportHash, string ipfsCid, uint8 score, address auditor, uint256 timestamp)",
+    "event AuditInvalidated(bytes32 indexed auditId, string reason)",
+  ]),
+] as const
 
 // Supported chains - BSC and Arbitrum are primary targets
 export const SUPPORTED_CHAINS = {
