@@ -428,6 +428,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
         gatewayUrl: _raw.ipfsRecord.gatewayUrl ?? null,
         timestamp: _raw.ipfsRecord.timestamp ?? new Date().toISOString(),
       } : undefined,
+      pocScripts: _raw.pocScripts || undefined,
     }
   }, [_raw])
 
@@ -3949,6 +3950,102 @@ console.log("Signer:", recovered);
                 </section>
               )
             })()}
+
+            {/* POC EXPLOIT SCRIPTS */}
+            {p.pocScripts && p.pocScripts.length > 0 && (
+              <section className="border border-red-900/40 rounded-xl overflow-hidden bg-s39-bg1 mt-6">
+                <div className="p-5 sm:p-6 bg-red-950/10 border-b border-red-900/30">
+                  <div className="flex items-center gap-2 mb-3">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M8 1v6M8 11v1M3 5l2 2M11 5l2 2M4 13h8" stroke="#ff4444" strokeWidth="1.2" strokeLinecap="round"/>
+                    </svg>
+                    <span className="text-[9px] tracking-[0.15em] text-red-400">EXECUTABLE EXPLOIT SCRIPTS</span>
+                    <span className="text-[7px] text-red-400/60 bg-red-950/30 border border-red-900/40 px-1.5 py-0.5 tracking-wider ml-auto font-mono rounded">
+                      {p.pocScripts.length} PoC{p.pocScripts.length > 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <div className="text-[8px] text-s39-mid leading-relaxed">
+                    The following Proof-of-Concept exploit scripts demonstrate the identified vulnerabilities. 
+                    These are real, executable test files that can be run with Foundry or Hardhat to verify the attack vectors.
+                  </div>
+                </div>
+                <div className="p-5 sm:p-6 space-y-4">
+                  {p.pocScripts.map((poc) => (
+                    <details key={poc.id} className="group border border-s39-border rounded overflow-hidden bg-s39-bg0">
+                      <summary className="flex items-center gap-3 px-4 py-3 cursor-pointer list-none select-none hover:bg-s39-bg1 transition-colors">
+                        <div className="w-8 h-8 rounded bg-red-950/30 border border-red-900/40 flex items-center justify-center shrink-0">
+                          {poc.framework === "foundry" ? (
+                            <span className="text-[8px] text-red-400 font-bold font-mono">F</span>
+                          ) : (
+                            <span className="text-[8px] text-yellow-400 font-bold font-mono">H</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[10px] text-s39-white font-bold truncate">{poc.filename}</div>
+                          <div className="text-[8px] text-s39-dim truncate">{poc.description}</div>
+                        </div>
+                        <span className="text-[7px] text-s39-dim border border-s39-border px-1.5 py-0.5 rounded font-mono shrink-0">
+                          {poc.framework.toUpperCase()}
+                        </span>
+                        <svg className="w-3 h-3 text-s39-dim group-open:rotate-180 transition-transform shrink-0" viewBox="0 0 12 12" fill="none">
+                          <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                        </svg>
+                      </summary>
+                      <div className="border-t border-s39-border">
+                        {/* Run Command */}
+                        <div className="px-4 py-2 bg-s39-bg1 border-b border-s39-border flex items-center gap-2">
+                          <span className="text-[7px] text-s39-dim tracking-widest">RUN:</span>
+                          <code className="text-[9px] text-cyan-400 font-mono flex-1">{poc.runCommand}</code>
+                          <button
+                            onClick={() => navigator.clipboard.writeText(poc.runCommand)}
+                            className="text-[7px] text-s39-dim hover:text-cyan-400 transition-colors px-1.5 py-0.5 border border-s39-border rounded bg-s39-bg0 cursor-pointer"
+                          >
+                            COPY
+                          </button>
+                        </div>
+                        {/* Code */}
+                        <div className="relative">
+                          <div className="absolute top-2 right-2 flex gap-2 z-10">
+                            <button
+                              onClick={() => navigator.clipboard.writeText(poc.fullScript)}
+                              className="text-[7px] text-s39-dim hover:text-cyan-400 transition-colors px-2 py-1 border border-s39-border rounded bg-s39-bg0 cursor-pointer flex items-center gap-1"
+                            >
+                              <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><rect x="3" y="3" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.2"/><path d="M3 3V2a1 1 0 011-1h5a1 1 0 011 1v5a1 1 0 01-1 1h-1" stroke="currentColor" strokeWidth="1.2"/></svg>
+                              COPY CODE
+                            </button>
+                            <button
+                              onClick={() => {
+                                const blob = new Blob([poc.fullScript], { type: "text/plain" })
+                                const url = URL.createObjectURL(blob)
+                                const a = document.createElement("a")
+                                a.href = url
+                                a.download = poc.filename.split("/").pop() || "exploit.sol"
+                                a.click()
+                                URL.revokeObjectURL(url)
+                              }}
+                              className="text-[7px] text-red-400 hover:text-red-300 transition-colors px-2 py-1 border border-red-900/40 rounded bg-red-950/20 cursor-pointer flex items-center gap-1"
+                            >
+                              <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 5.5l3 3 3-3M2 10h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              DOWNLOAD
+                            </button>
+                          </div>
+                          <pre className="text-[8px] text-slate-300 font-mono whitespace-pre-wrap p-4 leading-relaxed max-h-[500px] overflow-auto bg-[#0a0e14]">
+                            {poc.fullScript}
+                          </pre>
+                        </div>
+                      </div>
+                    </details>
+                  ))}
+                </div>
+                <div className="px-5 sm:px-6 py-3 bg-s39-bg2 border-t border-s39-border">
+                  <div className="text-[7px] text-s39-dim font-mono flex items-center gap-4">
+                    <span>Framework: Foundry + Hardhat</span>
+                    <span>|</span>
+                    <span>Run locally to verify vulnerabilities</span>
+                  </div>
+                </div>
+              </section>
+            )}
 
             {/* FORMAL VERIFICATION */}
             {p.formalVerification && (

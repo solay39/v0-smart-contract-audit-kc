@@ -15,6 +15,7 @@ import {
 import { signReport } from "@/lib/report-signing"
 import { runAttackSimulation } from "@/core/simulator/attackSimulator"
 import { pinReportToIPFS } from "@/lib/ipfs-pinning"
+import { generatePoCScripts, generateHardhatPoC } from "@/core/poc/pocGenerator"
 
 /* ───────── types ───────── */
 
@@ -1396,6 +1397,24 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
         }
       }
 
+      // ── ENTERPRISE: PoC Exploit Scripts ──────────────────────────
+      const vulnerableVectorIds = exploitSimulation.vectors
+        .filter((v) => v.status === "VULNERABLE")
+        .map((v) => v.id)
+      const pocScripts = vulnerableVectorIds.length > 0 
+        ? [
+            ...generatePoCScripts(vulnerableVectorIds, truncatedCode, {
+              name: meta.contractName || "Target",
+              hasWithdraw: /withdraw/i.test(truncatedCode),
+              hasDeposit: /deposit/i.test(truncatedCode),
+              hasMint: meta.hasMintOutsideConstructor,
+              hasGovernance: meta.hasGovernance,
+              hasProxy: meta.hasProxy,
+            }),
+            generateHardhatPoC(vulnerableVectorIds, meta.contractName || "Target"),
+          ]
+        : []
+
       // ── ENTERPRISE: IPFS Pinning ──────────────────────────────
       const ipfsReportData = {
         version: "2.1.0",
@@ -1447,6 +1466,8 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
         exploitSimulation,
         // Enterprise: IPFS Record
         ipfsRecord,
+        // Enterprise: PoC Exploit Scripts
+        pocScripts,
       })
     } catch (aiError: unknown) {
       // AI failed -- fall back to static analysis (which is now context-aware)
@@ -1577,6 +1598,24 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
       })
       const staticSignedReport = await signReport(staticReportJsonToSign, staticAuditId)
 
+      // PoC Scripts for static path
+      const staticVulnerableVectorIds = staticExploitSimulation.vectors
+        .filter((v) => v.status === "VULNERABLE")
+        .map((v) => v.id)
+      const staticPocScripts = staticVulnerableVectorIds.length > 0 
+        ? [
+            ...generatePoCScripts(staticVulnerableVectorIds, truncatedCode, {
+              name: meta.contractName || "Target",
+              hasWithdraw: /withdraw/i.test(truncatedCode),
+              hasDeposit: /deposit/i.test(truncatedCode),
+              hasMint: meta.hasMintOutsideConstructor,
+              hasGovernance: meta.hasGovernance,
+              hasProxy: meta.hasProxy,
+            }),
+            generateHardhatPoC(staticVulnerableVectorIds, meta.contractName || "Target"),
+          ]
+        : []
+
       // IPFS Pinning for static path
       const staticIpfsReportData = {
         version: "2.1.0",
@@ -1608,6 +1647,7 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
         signedReport: staticSignedReport,
         exploitSimulation: staticExploitSimulation,
         ipfsRecord: staticIpfsRecord,
+        pocScripts: staticPocScripts,
       })
     }
   } catch (error: unknown) {

@@ -447,6 +447,16 @@ export interface PortfolioProject {
     timestamp: string
     error?: string
   }
+  // Enterprise: PoC Exploit Scripts
+  pocScripts?: {
+    id: string
+    filename: string
+    language: "solidity" | "javascript"
+    framework: "foundry" | "hardhat"
+    fullScript: string
+    runCommand: string
+    description: string
+  }[]
 }
 
 // Keep backward compat alias

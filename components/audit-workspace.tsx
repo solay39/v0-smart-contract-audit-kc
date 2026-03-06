@@ -103,6 +103,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const [onChainRecord, setOnChainRecord] = useState<Record<string, unknown> | null>(null)
   const [exploitSimulation, setExploitSimulation] = useState<Record<string, unknown> | null>(null)
   const [ipfsRecord, setIpfsRecord] = useState<Record<string, unknown> | null>(null)
+  const [pocScripts, setPocScripts] = useState<Record<string, unknown>[] | null>(null)
 
   const allChecks = Object.values(checks).flatMap((c) => Object.values(c))
   // SINGLE SOURCE OF TRUTH: always use V2 engine for score computation
@@ -690,7 +691,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         ],
         disclaimer: "DISCLAIMER & LIMITATION OF LIABILITY: This security audit report is provided 'as-is' for informational purposes only. Solay39 and its auditors make no representations or warranties, express or implied, regarding the completeness, accuracy, or reliability of this assessment. The auditor accepts no liability for any losses, damages, or claims arising from the use of this report or the audited smart contracts. This report should not be relied upon as a sole indicator of security. Users and stakeholders are advised to conduct their own independent due diligence before interacting with the audited protocol.",
       },
-      // ── 16K-Ready Premium Sections ──
+      // ��─ 16K-Ready Premium Sections ──
       methodologySteps: [
         "Automated static analysis (Slither, custom detectors)",
         "Manual line-by-line code review",
@@ -763,6 +764,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       residualRisk: (residualRisk as PortfolioProject["residualRisk"]) || undefined,
       exploitSimulation: (exploitSimulation as PortfolioProject["exploitSimulation"]) || undefined,
       ipfsRecord: (ipfsRecord as PortfolioProject["ipfsRecord"]) || undefined,
+      pocScripts: (pocScripts as PortfolioProject["pocScripts"]) || undefined,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       signedReport: (signedReport as any) || undefined,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -939,6 +941,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       if (data.onChainRecord) setOnChainRecord(data.onChainRecord)
       if (data.exploitSimulation) setExploitSimulation(data.exploitSimulation)
       if (data.ipfsRecord) setIpfsRecord(data.ipfsRecord)
+      if (data.pocScripts) setPocScripts(data.pocScripts)
 } catch (err) {
   const msg = err instanceof Error ? err.message : "Unknown error"
   if (msg.includes("Failed to fetch") || msg.includes("AbortError") || msg.includes("timeout")) {
