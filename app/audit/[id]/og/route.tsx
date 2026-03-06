@@ -1,16 +1,65 @@
 import { ImageResponse } from "next/og"
-import { DEFAULT_PROJECTS, scoreColor, ratingOf, getWeightedScore } from "@/lib/solay39-constants"
+import { DEFAULT_PROJECTS, scoreColor, ratingOf, getWeightedScore, type PortfolioProject } from "@/lib/solay39-constants"
 
 const projectMap = new Map(DEFAULT_PROJECTS.map((p) => [p.id, p]))
+
+// Fetch audit from Vercel Blob (edge-compatible with fallback URLs)
+async function fetchBlobAudit(id: string): Promise<PortfolioProject | null> {
+  // Try multiple blob URL patterns
+  const blobHosts = [
+    "rlxtrsfp2gxpjmqt.public.blob.vercel-storage.com",
+    "blob.vercel-storage.com",
+  ]
+  
+  for (const host of blobHosts) {
+    try {
+      const blobUrl = `https://${host}/audits/${id}.json`
+      const res = await fetch(blobUrl, { 
+        cache: "no-store",
+        headers: { "Accept": "application/json" }
+      })
+      if (res.ok) {
+        return (await res.json()) as PortfolioProject
+      }
+    } catch {
+      continue
+    }
+  }
+  
+  // Fallback: try internal API route with dynamic origin
+  const tryOrigins = [
+    "https://www.solay39.eu",
+    "https://solay39.eu", 
+    "https://solay39.vercel.app"
+  ]
+  
+  for (const origin of tryOrigins) {
+    try {
+      const apiUrl = `${origin}/api/audit/${id}`
+      const res = await fetch(apiUrl, { cache: "no-store" })
+      if (res.ok) {
+        return (await res.json()) as PortfolioProject
+      }
+    } catch {
+      continue
+    }
+  }
+  
+  return null
+}
 
 export const runtime = "edge"
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const p = projectMap.get(id)
+  const url = new URL(req.url)
+  const origin = url.origin || "https://www.solay39.eu"
+  
+  // First try static projects, then fetch from Blob (using origin from request)
+  const p = projectMap.get(id) || (await fetchBlobAudit(id))
 
   if (!p) {
     return new ImageResponse(

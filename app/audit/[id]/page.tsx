@@ -39,14 +39,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const desc = `Score: ${ws}/100 (${wr}) | ${p.criticals ?? 0} Critical, ${p.highs ?? 0} High, ${p.mediums ?? 0} Medium, ${p.lows ?? 0} Low findings. ${p.description ? p.description.slice(0, 120) : `Smart contract audit by Solay39 on ${p.network || "BSC"}.`}`
     const url = `https://www.solay39.eu/audit/${id}`
 
+    const ogImage = `https://www.solay39.eu/audit/${id}/og`
+    
     return {
       title,
       description: desc,
       openGraph: {
         title, description: desc, url, siteName: "Solay39 Skynet", type: "article",
-        images: [{ url: `/audit/${id}/og`, width: 1200, height: 630, alt: `${p.name} Security Audit by Solay39` }],
+        images: [{ url: ogImage, width: 1200, height: 630, alt: `${p.name} Security Audit by Solay39` }],
       },
-      twitter: { card: "summary_large_image", title, description: desc, images: [`/audit/${id}/og`] },
+      twitter: { card: "summary_large_image", title, description: desc, images: [ogImage] },
       alternates: { canonical: url },
     }
   } catch {
