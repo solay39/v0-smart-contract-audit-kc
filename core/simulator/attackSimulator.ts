@@ -167,32 +167,50 @@ function simulateFlashLoan(code: string, meta: ContractMeta): AttackVectorResult
 }
 
 function simulateAccessControl(code: string, meta: ContractMeta): AttackVectorResult {
-  const adminFunctions = countMatches(code, /function\s+\w+.*public|function\s+\w+.*external/g)
-  const protectedFunctions = countMatches(code, /onlyOwner|onlyRole|onlyAdmin|require\(msg\.sender\s*==\s*(owner|admin|_owner)/g)
+  // Only count actual privileged/admin functions, not standard user-facing functions
+  const privilegedFunctionPatterns = /function\s+(set\w+|admin\w+|owner\w+|pause|unpause|withdraw|withdrawAll|emergencyWithdraw|updateFee|changeOwner|transferOwnership|mint|burn|blacklist|whitelist|upgrade|initialize)\s*\(/gi
+  const privilegedFunctions = countMatches(code, privilegedFunctionPatterns)
+  
+  // Count how many privileged functions have proper protection
+  const protectedFunctions = countMatches(code, /onlyOwner|onlyRole|onlyAdmin|require\s*\(\s*msg\.sender\s*==\s*(owner|admin|_owner)|modifier\s+onlyOwner/g)
+  
   const hasTxOrigin = hasPattern(code, [/tx\.origin/])
-  const unprotectedRatio = adminFunctions > 0 ? 1 - (protectedFunctions / adminFunctions) : 0
-
-  const isVulnerable = hasTxOrigin || unprotectedRatio > 0.6
-  const isPartial = unprotectedRatio > 0.3 && unprotectedRatio <= 0.6
+  const totalLOC = meta.totalLOC || code.split('\n').length
+  
+  // For simple contracts (< 50 LOC) with no privileged functions, mark as N/A
+  const isSimpleContract = totalLOC < 50 && privilegedFunctions === 0
+  
+  // Only flag vulnerable if there are actual unprotected privileged functions
+  const unprotectedPrivileged = privilegedFunctions > 0 && protectedFunctions === 0
+  const hasAccessControl = protectedFunctions > 0 || hasPattern(code, [/Ownable|AccessControl|RBAC/i])
+  
+  const isVulnerable = hasTxOrigin || (unprotectedPrivileged && !hasAccessControl)
+  const isPartial = privilegedFunctions > protectedFunctions && protectedFunctions > 0
 
   return {
     id: "SIM-003",
     attackType: "Access Control Bypass",
     category: "code",
-    status: isVulnerable ? "VULNERABLE" : isPartial ? "PARTIAL" : "SAFE",
+    status: isSimpleContract ? "NOT_APPLICABLE" : isVulnerable ? "VULNERABLE" : isPartial ? "PARTIAL" : "SAFE",
     gasUsed: isVulnerable ? 85_000 : 42_000,
     maxDrainableUSD: isVulnerable ? 1_500_000 : 0,
-    confidence: 90,
-    description: hasTxOrigin
-      ? "tx.origin used for authorization. Phishing attack can bypass this check."
-      : isVulnerable
-        ? `${Math.round(unprotectedRatio * 100)}% of public functions lack access control modifiers.`
-        : `Access control modifiers detected on ${protectedFunctions}/${adminFunctions} state-changing functions.`,
-    attackFlow: hasTxOrigin
-      ? ["1. Deploy malicious contract", "2. Trick admin into calling attacker contract", "3. Attacker contract calls target using tx.origin", "4. Authorization bypassed"]
-      : isVulnerable
-        ? ["1. Identify unprotected admin function", "2. Call function from any address", "3. Execute privileged operation without authorization"]
-        : ["1. Attempt to call protected function", "2. onlyOwner/onlyRole modifier reverts", "3. Access denied"],
+    confidence: privilegedFunctions > 0 ? 90 : 70,
+    description: isSimpleContract
+      ? "Simple contract with no privileged admin functions. Access control bypass not applicable."
+      : hasTxOrigin
+        ? "tx.origin used for authorization. Phishing attack can bypass this check."
+        : isVulnerable
+          ? `${privilegedFunctions} privileged function(s) found without access control protection.`
+          : privilegedFunctions > 0
+            ? `Access control detected: ${protectedFunctions} protection modifier(s) for ${privilegedFunctions} privileged function(s).`
+            : "No privileged admin functions detected. Standard user-facing functions do not require access control.",
+    attackFlow: isSimpleContract
+      ? ["1. N/A - No privileged functions exist", "2. Only user-facing functions present", "3. No admin operations to bypass"]
+      : hasTxOrigin
+        ? ["1. Deploy malicious contract", "2. Trick admin into calling attacker contract", "3. Attacker contract calls target using tx.origin", "4. Authorization bypassed"]
+        : isVulnerable
+          ? ["1. Identify unprotected admin function", "2. Call function from any address", "3. Execute privileged operation without authorization"]
+          : ["1. Attempt to call protected function", "2. onlyOwner/onlyRole modifier reverts", "3. Access denied"],
     exploitCode: hasTxOrigin ? `contract TxOriginAttack {
     ITarget target;
     constructor(address t) { target = ITarget(t); }
@@ -202,7 +220,7 @@ function simulateAccessControl(code: string, meta: ContractMeta): AttackVectorRe
         target.adminFunction();
     }
 }` : undefined,
-    mitigationApplied: !isVulnerable ? "Role-based access control (onlyOwner/onlyRole)" : undefined,
+    mitigationApplied: isSimpleContract ? "No admin functions (simple contract)" : hasAccessControl ? "Role-based access control (Ownable/AccessControl)" : undefined,
     cvssImpact: isVulnerable ? "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N" : undefined,
   }
 }
