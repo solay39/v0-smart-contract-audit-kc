@@ -12,6 +12,7 @@ import {
   sendAndConfirmTransaction,
   SystemProgram,
 } from "@solana/web3.js"
+import bs58 from "bs58"
 
 // Memo Program ID — già deployato da Solana, nessun deploy necessario
 const MEMO_PROGRAM_ID = new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr")
@@ -21,15 +22,26 @@ const SOLANA_RPC = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solan
 
 /**
  * Carica il keypair del wallet Solana dalle env vars
- * SOLANA_PRIVATE_KEY deve essere un array JSON tipo [1,2,3,...,64]
+ * SOLANA_PRIVATE_KEY puo' essere:
+ * - Base58 string (export da Phantom/Solflare)
+ * - Array JSON tipo [1,2,3,...,64]
  */
 function loadWallet(): Keypair | null {
   try {
     const key = process.env.SOLANA_PRIVATE_KEY
     if (!key) return null
+    
+    // Prova prima come base58 (formato Phantom export)
+    if (!key.startsWith("[")) {
+      const decoded = bs58.decode(key.trim())
+      return Keypair.fromSecretKey(decoded)
+    }
+    
+    // Altrimenti prova come array JSON
     const parsed = JSON.parse(key)
     return Keypair.fromSecretKey(Uint8Array.from(parsed))
-  } catch {
+  } catch (e) {
+    console.error("[Solana] Failed to load wallet:", e)
     return null
   }
 }
