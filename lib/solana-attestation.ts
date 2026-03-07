@@ -74,20 +74,7 @@ export async function registerAuditOnSolana(
       return null
     }
 
-    console.log("[v0] Connecting to Solana RPC:", SOLANA_RPC)
     const connection = new Connection(SOLANA_RPC, "confirmed")
-
-    // Test connection
-    try {
-      const balance = await connection.getBalance(wallet.publicKey)
-      console.log("[v0] Wallet balance:", balance / 1e9, "SOL")
-      if (balance < 5000) {
-        console.error("[v0] Insufficient balance for transaction")
-        return null
-      }
-    } catch (balanceErr) {
-      console.error("[v0] Failed to get balance:", balanceErr)
-    }
 
     // Costruisce il memo con i dati dell'audit
     // Formato compatto per stare nei 566 bytes del Memo Program
@@ -108,8 +95,6 @@ export async function registerAuditOnSolana(
 
     const transaction = new Transaction().add(memoInstruction)
 
-    console.log("[v0] Sending Solana transaction with memo:", memo.slice(0, 100))
-    
     // Invia la transazione
     const txSignature = await sendAndConfirmTransaction(
       connection,
