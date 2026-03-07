@@ -51,8 +51,12 @@ export async function registerAuditOnSolana(
   reportHash: string,
   ipfsCid?: string
 ): Promise<SolanaAttestationResult | null> {
+  console.log("[v0] registerAuditOnSolana called with:", { auditId, reportHash: reportHash?.slice(0, 20), ipfsCid: ipfsCid?.slice(0, 20) })
+  
   try {
     const wallet = loadWallet()
+    console.log("[v0] Wallet loaded:", wallet ? `PublicKey: ${wallet.publicKey.toBase58()}` : "null (no SOLANA_PRIVATE_KEY)")
+    
     if (!wallet) {
       console.warn("[Solana] SOLANA_PRIVATE_KEY not configured — skipping attestation")
       return null
