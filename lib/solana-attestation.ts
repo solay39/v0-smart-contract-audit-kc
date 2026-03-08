@@ -107,14 +107,28 @@ export async function registerAuditOnSolana(
     })
 
     const transaction = new Transaction().add(memoInstruction)
+    
+    // Ottieni blockhash recente per evitare "block height exceeded"
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed")
+    transaction.recentBlockhash = blockhash
+    transaction.feePayer = wallet.publicKey
+    transaction.lastValidBlockHeight = lastValidBlockHeight
 
-    // Invia la transazione
-    const txSignature = await sendAndConfirmTransaction(
-      connection,
-      transaction,
-      [wallet],
-      { commitment: "confirmed" }
-    )
+    // Firma e invia la transazione
+    transaction.sign(wallet)
+    const rawTransaction = transaction.serialize()
+    
+    const txSignature = await connection.sendRawTransaction(rawTransaction, {
+      skipPreflight: false,
+      preflightCommitment: "confirmed",
+    })
+    
+    // Conferma con timeout aumentato
+    await connection.confirmTransaction({
+      signature: txSignature,
+      blockhash,
+      lastValidBlockHeight,
+    }, "confirmed")
 
     const network = SOLANA_RPC.includes("devnet") ? "devnet" : "mainnet"
     const solscanUrl = network === "devnet"
