@@ -1,0 +1,786 @@
+"use client"
+
+// ═══════════════════════════════════════════════════════════════════
+// SOLAY39 — AI-Guided Manual Review Workspace
+// components/manual-review-workspace.tsx
+//
+// Il cuore del sistema di audit umano guidato dall'AI.
+//
+// Flusso:
+// 1. L'AI genera una checklist DINAMICA specifica per il contratto
+// 2. L'auditor lavora side-by-side: codice a sx, checklist a dx
+// 3. Ogni finding AI ha 3 azioni: ✅ Conferma / ❌ Falso positivo / ⚠️ Modifica
+// 4. L'auditor può aggiungere finding manuali
+// 5. Solo dopo aver completato la review può firmare
+//
+// Integrazione: importa in audit-workspace.tsx e aggiungi un tab "Review"
+// ═══════════════════════════════════════════════════════════════════
+
+import { useState, useEffect, useCallback } from "react"
+
+// ─── Types ───────────────────────────────────────────────────────
+
+type Severity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO"
+type CheckStatus = "pending" | "pass" | "fail" | "na"
+type FindingDecision = "pending" | "confirmed" | "false-positive" | "modified"
+
+interface DynamicCheckItem {
+  id: string
+  category: string
+  question: string                // "Is the mint authority verified before minting?"
+  why: string                     // "Missing mint authority check allows anyone to mint"
+  severity: Severity
+  relevantCode?: string           // Snippet di codice rilevante
+  lineRef?: string                // "lib.rs:42-48"
+  status: CheckStatus
+  note: string                    // Nota dell'auditor
+  aiGenerated: boolean            // true = generata dall'AI per questo contratto
+}
+
+interface AIFindingReview {
+  id: string
+  title: string
+  severity: Severity
+  location: string
+  description: string
+  impact: string
+  recommendation: string
+  proofOfConcept?: string
+  decision: FindingDecision
+  auditorNote: string             // L'auditor spiega perché conferma/rigetta
+  modifiedSeverity?: Severity     // Se l'auditor cambia la severity
+  modifiedDescription?: string
+}
+
+interface ManualFinding {
+  id: string
+  title: string
+  severity: Severity
+  location: string
+  description: string
+  impact: string
+  recommendation: string
+  addedBy: "manual"
+}
+
+interface ReviewSession {
+  contractAddress: string
+  contractName: string
+  network: string
+  startedAt: string
+  completedAt?: string
+  auditorWallet?: string
+  checks: DynamicCheckItem[]
+  aiFindings: AIFindingReview[]
+  manualFindings: ManualFinding[]
+  reviewNotes: string
+  signed: boolean
+  signature?: string
+}
+
+// ─── Props ────────────────────────────────────────────────────────
+
+interface ManualReviewWorkspaceProps {
+  contractSource: string
+  contractAddress: string
+  contractName: string
+  network: string
+  // Finding dall'AI (da skynet/route.ts)
+  aiFindings: Array<{
+    title: string
+    severity: string
+    location: string
+    description: string
+    impact: string
+    recommendation: string
+    proofOfConcept?: string
+  }>
+  // Chiamata quando l'auditor completa e firma la review
+  onReviewComplete: (session: ReviewSession) => void
+}
+
+// ─── Severity config ──────────────────────────────────────────────
+
+const SEV: Record<Severity, { color: string; bg: string; label: string }> = {
+  CRITICAL: { color: "#ff4444", bg: "#ff444418", label: "CRITICAL" },
+  HIGH:     { color: "#ff8800", bg: "#ff880018", label: "HIGH" },
+  MEDIUM:   { color: "#ffcc00", bg: "#ffcc0018", label: "MEDIUM" },
+  LOW:      { color: "#44aaff", bg: "#44aaff18", label: "LOW" },
+  INFO:     { color: "#888888", bg: "#88888818", label: "INFO" },
+}
+
+// ─── Main component ───────────────────────────────────────────────
+
+export default function ManualReviewWorkspace({
+  contractSource,
+  contractAddress,
+  contractName,
+  network,
+  aiFindings,
+  onReviewComplete,
+}: ManualReviewWorkspaceProps) {
+
+  const [session, setSession] = useState<ReviewSession>({
+    contractAddress,
+    contractName,
+    network,
+    startedAt: new Date().toISOString(),
+    checks: [],
+    aiFindings: aiFindings.map((f, i) => ({
+      id: `AI-${String(i + 1).padStart(3, "0")}`,
+      title: f.title,
+      severity: f.severity as Severity,
+      location: f.location,
+      description: f.description,
+      impact: f.impact,
+      recommendation: f.recommendation,
+      proofOfConcept: f.proofOfConcept,
+      decision: "pending",
+      auditorNote: "",
+    })),
+    manualFindings: [],
+    reviewNotes: "",
+    signed: false,
+  })
+
+  const [loadingChecklist, setLoadingChecklist] = useState(false)
+  const [activeSection, setActiveSection] = useState<"checklist" | "findings" | "manual" | "summary">("checklist")
+  const [expandedCheck, setExpandedCheck] = useState<string | null>(null)
+  const [expandedFinding, setExpandedFinding] = useState<string | null>(null)
+  const [addingManual, setAddingManual] = useState(false)
+  const [newFinding, setNewFinding] = useState<Partial<ManualFinding>>({})
+  const [codeSearch, setCodeSearch] = useState("")
+  const [signing, setSigning] = useState(false)
+  const [signError, setSignError] = useState("")
+
+  // ── Genera checklist dinamica dall'AI ──────────────────────────
+
+  const generateDynamicChecklist = useCallback(async () => {
+    setLoadingChecklist(true)
+    try {
+      const res = await fetch("/api/generate-checklist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contractSource: contractSource.slice(0, 8000),
+          contractAddress,
+          network,
+          aiFindings: aiFindings.slice(0, 10),
+        }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        if (data.checks?.length > 0) {
+          setSession(s => ({ ...s, checks: data.checks }))
+          return
+        }
+      }
+    } catch {
+      // fallback to static
+    }
+
+    // Fallback: checklist statica adattata al network
+    setSession(s => ({
+      ...s,
+      checks: buildFallbackChecklist(network, contractSource),
+    }))
+    setLoadingChecklist(false)
+  }, [contractSource, contractAddress, network, aiFindings])
+
+  useEffect(() => {
+    if (session.checks.length === 0) {
+      generateDynamicChecklist()
+    }
+  }, [generateDynamicChecklist, session.checks.length])
+
+  // ── Aggiorna stato di un check ─────────────────────────────────
+
+  function updateCheck(id: string, status: CheckStatus, note?: string) {
+    setSession(s => ({
+      ...s,
+      checks: s.checks.map(c =>
+        c.id === id ? { ...c, status, note: note ?? c.note } : c
+      ),
+    }))
+  }
+
+  // ── Aggiorna decisione su un finding AI ───────────────────────
+
+  function updateFindingDecision(
+    id: string,
+    decision: FindingDecision,
+    note?: string,
+    modifiedSeverity?: Severity
+  ) {
+    setSession(s => ({
+      ...s,
+      aiFindings: s.aiFindings.map(f =>
+        f.id === id
+          ? { ...f, decision, auditorNote: note ?? f.auditorNote, modifiedSeverity: modifiedSeverity ?? f.modifiedSeverity }
+          : f
+      ),
+    }))
+  }
+
+  // ── Aggiunge finding manuale ───────────────────────────────────
+
+  function addManualFinding() {
+    if (!newFinding.title || !newFinding.severity) return
+    const mf: ManualFinding = {
+      id: `MAN-${Date.now()}`,
+      title: newFinding.title || "",
+      severity: newFinding.severity as Severity,
+      location: newFinding.location || "Unknown",
+      description: newFinding.description || "",
+      impact: newFinding.impact || "",
+      recommendation: newFinding.recommendation || "",
+      addedBy: "manual",
+    }
+    setSession(s => ({ ...s, manualFindings: [...s.manualFindings, mf] }))
+    setNewFinding({})
+    setAddingManual(false)
+  }
+
+  // ── Firma la review con MetaMask ──────────────────────────────
+
+  async function signReview() {
+    setSigning(true)
+    setSignError("")
+    try {
+      const ethereum = (window as Window & { ethereum?: { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum
+      if (!ethereum) throw new Error("MetaMask not found. Install MetaMask to sign.")
+
+      const accounts = await ethereum.request({ method: "eth_requestAccounts" }) as string[]
+      const address = accounts[0]
+
+      const confirmedFindings = session.aiFindings.filter(f => f.decision === "confirmed" || f.decision === "modified").length
+      const message = [
+        "Solay39 Manual Review Signature",
+        `Contract: ${contractName} (${contractAddress})`,
+        `Network: ${network}`,
+        `Checks completed: ${session.checks.filter(c => c.status !== "pending").length}/${session.checks.length}`,
+        `AI findings reviewed: ${session.aiFindings.filter(f => f.decision !== "pending").length}/${session.aiFindings.length}`,
+        `Confirmed findings: ${confirmedFindings}`,
+        `Manual findings added: ${session.manualFindings.length}`,
+        `Reviewed at: ${new Date().toISOString()}`,
+        "I confirm I have manually reviewed this smart contract using the AI-guided checklist.",
+      ].join("\n")
+
+      const signature = await ethereum.request({
+        method: "personal_sign",
+        params: [message, address],
+      }) as string
+
+      const completedSession: ReviewSession = {
+        ...session,
+        completedAt: new Date().toISOString(),
+        auditorWallet: address,
+        signed: true,
+        signature,
+      }
+
+      setSession(completedSession)
+      onReviewComplete(completedSession)
+    } catch (err: unknown) {
+      setSignError(err instanceof Error ? err.message : "Signing failed")
+    }
+    setSigning(false)
+  }
+
+  // ── Computed stats ────────────────────────────────────────────
+
+  const checksTotal = session.checks.length
+  const checksDone = session.checks.filter(c => c.status !== "pending").length
+  const checksFailed = session.checks.filter(c => c.status === "fail").length
+  const findingsTotal = session.aiFindings.length
+  const findingsReviewed = session.aiFindings.filter(f => f.decision !== "pending").length
+  const findingsConfirmed = session.aiFindings.filter(f => f.decision === "confirmed" || f.decision === "modified").length
+  const findingsFP = session.aiFindings.filter(f => f.decision === "false-positive").length
+  const canSign = checksDone === checksTotal && findingsReviewed === findingsTotal && checksTotal > 0
+
+  // ── Highlight codice con ricerca ──────────────────────────────
+
+  const highlightedSource = codeSearch
+    ? contractSource.split("\n").map((line, i) =>
+        line.toLowerCase().includes(codeSearch.toLowerCase())
+          ? `→ ${String(i + 1).padStart(4)} | ${line}`
+          : `  ${String(i + 1).padStart(4)} | ${line}`
+      ).join("\n")
+    : contractSource
+
+  // ─────────────────────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────────────────────
+
+  return (
+    <div style={{ fontFamily: "'JetBrains Mono', 'Fira Code', monospace", background: "#0a0a0a", color: "#c8c8c8", minHeight: "100vh" }}>
+
+      {/* Header */}
+      <div style={{ background: "#111", borderBottom: "1px solid #222", padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <span style={{ color: "#00ff88", fontSize: 11, fontWeight: 700, letterSpacing: "0.15em" }}>SOLAY39</span>
+          <span style={{ color: "#333", fontSize: 10 }}>|</span>
+          <span style={{ color: "#666", fontSize: 10, letterSpacing: "0.1em" }}>MANUAL REVIEW</span>
+          <span style={{ color: "#333", fontSize: 10 }}>|</span>
+          <span style={{ color: "#888", fontSize: 10 }}>{contractName}</span>
+          <span style={{ color: "#444", fontSize: 9 }}>({network})</span>
+        </div>
+        <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
+          <span style={{ fontSize: 9, color: checksDone === checksTotal && checksTotal > 0 ? "#00ff88" : "#666" }}>
+            CHECKS {checksDone}/{checksTotal}
+          </span>
+          <span style={{ fontSize: 9, color: findingsReviewed === findingsTotal && findingsTotal > 0 ? "#00ff88" : "#666" }}>
+            FINDINGS {findingsReviewed}/{findingsTotal}
+          </span>
+          <span style={{ fontSize: 9, color: session.signed ? "#00ff88" : "#444" }}>
+            {session.signed ? "✓ SIGNED" : "UNSIGNED"}
+          </span>
+        </div>
+      </div>
+
+      {/* Main layout: code left, workspace right */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", height: "calc(100vh - 53px)" }}>
+
+        {/* LEFT: Contract source */}
+        <div style={{ borderRight: "1px solid #1a1a1a", display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "8px 12px", background: "#0f0f0f", borderBottom: "1px solid #1a1a1a", display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: 9, color: "#555", letterSpacing: "0.1em" }}>CONTRACT SOURCE</span>
+            <input
+              value={codeSearch}
+              onChange={e => setCodeSearch(e.target.value)}
+              placeholder="search line..."
+              style={{ marginLeft: "auto", background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#aaa", fontSize: 10, padding: "2px 8px", outline: "none", fontFamily: "inherit", width: 140 }}
+            />
+          </div>
+          <pre style={{
+            flex: 1, overflow: "auto", margin: 0, padding: "12px 16px",
+            fontSize: 10.5, lineHeight: 1.65, color: "#666",
+            whiteSpace: "pre-wrap", wordBreak: "break-all",
+          }}>
+            {highlightedSource.split("\n").map((line, i) => (
+              <span key={i} style={{ color: line.startsWith("→") ? "#00ff88" : "#666", display: "block" }}>
+                {line}
+              </span>
+            ))}
+          </pre>
+        </div>
+
+        {/* RIGHT: Review workspace */}
+        <div style={{ display: "flex", flexDirection: "column" }}>
+
+          {/* Tab nav */}
+          <div style={{ background: "#0f0f0f", borderBottom: "1px solid #1a1a1a", display: "flex" }}>
+            {(["checklist", "findings", "manual", "summary"] as const).map(s => (
+              <button key={s} onClick={() => setActiveSection(s)} style={{
+                background: "none", border: "none", cursor: "pointer",
+                padding: "10px 16px", fontSize: 9, letterSpacing: "0.12em",
+                color: activeSection === s ? "#00ff88" : "#444",
+                borderBottom: activeSection === s ? "1px solid #00ff88" : "1px solid transparent",
+                fontFamily: "inherit", textTransform: "uppercase",
+              }}>
+                {s === "checklist" && `Checklist (${checksDone}/${checksTotal})`}
+                {s === "findings" && `AI Findings (${findingsReviewed}/${findingsTotal})`}
+                {s === "manual" && `Manual (${session.manualFindings.length})`}
+                {s === "summary" && "Summary & Sign"}
+              </button>
+            ))}
+          </div>
+
+          {/* Content */}
+          <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+
+            {/* ── CHECKLIST TAB ── */}
+            {activeSection === "checklist" && (
+              <div>
+                {loadingChecklist ? (
+                  <div style={{ textAlign: "center", padding: 40, color: "#444", fontSize: 11 }}>
+                    <div style={{ color: "#00ff88", marginBottom: 8 }}>⟳</div>
+                    Generating AI checklist for {contractName}...
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ marginBottom: 12, fontSize: 10, color: "#555" }}>
+                      {session.checks.filter(c => c.aiGenerated).length} questions generated specifically for this contract.
+                      {checksFailed > 0 && <span style={{ color: "#ff8800", marginLeft: 8 }}>{checksFailed} potential issues flagged.</span>}
+                    </div>
+
+                    {/* Group by category */}
+                    {Array.from(new Set(session.checks.map(c => c.category))).map(cat => (
+                      <div key={cat} style={{ marginBottom: 20 }}>
+                        <div style={{ fontSize: 9, color: "#00ff88", letterSpacing: "0.15em", marginBottom: 8, textTransform: "uppercase" }}>
+                          {cat}
+                        </div>
+                        {session.checks.filter(c => c.category === cat).map(check => (
+                          <div key={check.id} style={{
+                            marginBottom: 6, background: check.status === "fail" ? "#ff440008" : check.status === "pass" ? "#00ff8808" : "#111",
+                            border: `1px solid ${check.status === "fail" ? "#ff440030" : check.status === "pass" ? "#00ff8830" : "#1e1e1e"}`,
+                            padding: "10px 12px",
+                          }}>
+                            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                              {/* Status buttons */}
+                              <div style={{ display: "flex", gap: 4, flexShrink: 0, marginTop: 1 }}>
+                                {(["pass", "fail", "na"] as const).map(s => (
+                                  <button key={s} onClick={() => updateCheck(check.id, s)} style={{
+                                    background: check.status === s ? (s === "pass" ? "#00ff88" : s === "fail" ? "#ff4444" : "#555") : "#1a1a1a",
+                                    border: "none", cursor: "pointer", color: check.status === s ? "#000" : "#555",
+                                    fontSize: 9, padding: "2px 6px", fontFamily: "inherit",
+                                  }}>
+                                    {s === "pass" ? "✓" : s === "fail" ? "✗" : "N/A"}
+                                  </button>
+                                ))}
+                              </div>
+
+                              {/* Question */}
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}
+                                  onClick={() => setExpandedCheck(expandedCheck === check.id ? null : check.id)}>
+                                  <span style={{ fontSize: 11, color: check.status === "fail" ? "#ff8800" : "#bbb" }}>
+                                    {check.question}
+                                  </span>
+                                  <span style={{ fontSize: 9, color: SEV[check.severity].color, marginLeft: "auto", flexShrink: 0 }}>
+                                    {check.severity}
+                                  </span>
+                                </div>
+
+                                {expandedCheck === check.id && (
+                                  <div style={{ marginTop: 8 }}>
+                                    <div style={{ fontSize: 10, color: "#666", marginBottom: 6 }}>{check.why}</div>
+                                    {check.relevantCode && (
+                                      <pre style={{ background: "#0d0d0d", border: "1px solid #1e1e1e", padding: "6px 10px", fontSize: 10, color: "#888", marginBottom: 6, overflow: "auto" }}>
+                                        {check.relevantCode}
+                                      </pre>
+                                    )}
+                                    {check.lineRef && (
+                                      <div style={{ fontSize: 9, color: "#555", marginBottom: 6 }}>
+                                        📍 {check.lineRef}
+                                        <button onClick={() => setCodeSearch(check.lineRef!.split(":")[0])}
+                                          style={{ background: "none", border: "none", color: "#00ff8880", cursor: "pointer", fontSize: 9, marginLeft: 6, fontFamily: "inherit" }}>
+                                          [search in code]
+                                        </button>
+                                      </div>
+                                    )}
+                                    <textarea
+                                      value={check.note}
+                                      onChange={e => updateCheck(check.id, check.status, e.target.value)}
+                                      placeholder="Auditor note (optional)..."
+                                      rows={2}
+                                      style={{ width: "100%", background: "#0d0d0d", border: "1px solid #222", color: "#aaa", fontSize: 10, padding: "6px 8px", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* ── AI FINDINGS TAB ── */}
+            {activeSection === "findings" && (
+              <div>
+                <div style={{ marginBottom: 12, fontSize: 10, color: "#555" }}>
+                  Review each AI finding. Confirm genuine issues, mark false positives, or adjust severity.
+                </div>
+
+                {session.aiFindings.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: 40, color: "#444", fontSize: 11 }}>
+                    No AI findings to review.
+                  </div>
+                ) : session.aiFindings.map(f => (
+                  <div key={f.id} style={{
+                    marginBottom: 8,
+                    background: f.decision === "confirmed" || f.decision === "modified" ? "#00ff8806" :
+                      f.decision === "false-positive" ? "#ff444408" : "#111",
+                    border: `1px solid ${f.decision === "confirmed" || f.decision === "modified" ? "#00ff8825" :
+                      f.decision === "false-positive" ? "#ff444425" : "#1e1e1e"}`,
+                    padding: "12px 14px",
+                  }}>
+                    {/* Finding header */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontSize: 9, color: "#555" }}>{f.id}</span>
+                      <span style={{
+                        fontSize: 9, padding: "2px 7px",
+                        background: SEV[f.severity].bg,
+                        color: SEV[f.severity].color,
+                        border: `1px solid ${SEV[f.severity].color}40`,
+                      }}>
+                        {f.modifiedSeverity || f.severity}
+                      </span>
+                      <span style={{ fontSize: 11, color: "#ccc", flex: 1, cursor: "pointer" }}
+                        onClick={() => setExpandedFinding(expandedFinding === f.id ? null : f.id)}>
+                        {f.title}
+                      </span>
+                      {f.decision !== "pending" && (
+                        <span style={{ fontSize: 9, color: f.decision === "false-positive" ? "#ff4444" : "#00ff88" }}>
+                          {f.decision === "false-positive" ? "✗ FP" : f.decision === "modified" ? "⚠ MOD" : "✓ CONF"}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Decision buttons */}
+                    <div style={{ display: "flex", gap: 6, marginBottom: expandedFinding === f.id ? 10 : 0 }}>
+                      <button onClick={() => updateFindingDecision(f.id, "confirmed")} style={{
+                        background: f.decision === "confirmed" ? "#00ff88" : "#1a1a1a",
+                        border: "none", cursor: "pointer",
+                        color: f.decision === "confirmed" ? "#000" : "#00ff8880",
+                        fontSize: 9, padding: "4px 10px", fontFamily: "inherit",
+                      }}>
+                        ✅ Confirm
+                      </button>
+                      <button onClick={() => updateFindingDecision(f.id, "false-positive")} style={{
+                        background: f.decision === "false-positive" ? "#ff4444" : "#1a1a1a",
+                        border: "none", cursor: "pointer",
+                        color: f.decision === "false-positive" ? "#fff" : "#ff444480",
+                        fontSize: 9, padding: "4px 10px", fontFamily: "inherit",
+                      }}>
+                        ❌ False Positive
+                      </button>
+                      <button onClick={() => updateFindingDecision(f.id, "modified")} style={{
+                        background: f.decision === "modified" ? "#ffcc00" : "#1a1a1a",
+                        border: "none", cursor: "pointer",
+                        color: f.decision === "modified" ? "#000" : "#ffcc0080",
+                        fontSize: 9, padding: "4px 10px", fontFamily: "inherit",
+                      }}>
+                        ⚠️ Modify
+                      </button>
+                    </div>
+
+                    {/* Expanded detail */}
+                    {expandedFinding === f.id && (
+                      <div style={{ marginTop: 10 }}>
+                        <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>📍 {f.location}</div>
+                        <div style={{ fontSize: 10, color: "#888", marginBottom: 6 }}>{f.description}</div>
+                        <div style={{ fontSize: 10, color: "#666", marginBottom: 6 }}>
+                          <span style={{ color: "#555" }}>Impact: </span>{f.impact}
+                        </div>
+                        {f.proofOfConcept && (
+                          <pre style={{ background: "#0d0d0d", border: "1px solid #1e1e1e", padding: "8px 10px", fontSize: 9.5, color: "#777", marginBottom: 8, overflow: "auto", whiteSpace: "pre-wrap" }}>
+                            {f.proofOfConcept}
+                          </pre>
+                        )}
+
+                        {/* Modify severity */}
+                        {f.decision === "modified" && (
+                          <div style={{ marginBottom: 8 }}>
+                            <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Override severity:</div>
+                            <div style={{ display: "flex", gap: 4 }}>
+                              {(["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"] as Severity[]).map(sev => (
+                                <button key={sev} onClick={() => updateFindingDecision(f.id, "modified", f.auditorNote, sev)} style={{
+                                  background: f.modifiedSeverity === sev ? SEV[sev].bg : "#1a1a1a",
+                                  border: `1px solid ${f.modifiedSeverity === sev ? SEV[sev].color : "#222"}`,
+                                  color: f.modifiedSeverity === sev ? SEV[sev].color : "#555",
+                                  cursor: "pointer", fontSize: 9, padding: "2px 7px", fontFamily: "inherit",
+                                }}>
+                                  {sev}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <textarea
+                          value={f.auditorNote}
+                          onChange={e => updateFindingDecision(f.id, f.decision, e.target.value)}
+                          placeholder={f.decision === "false-positive" ? "Why is this a false positive?" : "Auditor note..."}
+                          rows={2}
+                          style={{ width: "100%", background: "#0d0d0d", border: "1px solid #222", color: "#aaa", fontSize: 10, padding: "6px 8px", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── MANUAL FINDINGS TAB ── */}
+            {activeSection === "manual" && (
+              <div>
+                <div style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 10, color: "#555" }}>
+                    Add findings discovered during manual review not caught by AI.
+                  </span>
+                  <button onClick={() => setAddingManual(true)} style={{
+                    background: "#00ff8818", border: "1px solid #00ff8840", color: "#00ff88",
+                    cursor: "pointer", fontSize: 9, padding: "5px 12px", fontFamily: "inherit",
+                  }}>
+                    + Add Finding
+                  </button>
+                </div>
+
+                {/* Add finding form */}
+                {addingManual && (
+                  <div style={{ background: "#111", border: "1px solid #222", padding: 14, marginBottom: 14 }}>
+                    <div style={{ fontSize: 9, color: "#00ff88", marginBottom: 10, letterSpacing: "0.1em" }}>NEW MANUAL FINDING</div>
+                    {[
+                      { key: "title", placeholder: "Title (e.g. Missing authority check on withdraw)" },
+                      { key: "location", placeholder: "Location (e.g. src/lib.rs:42 — withdraw())" },
+                      { key: "description", placeholder: "Description..." },
+                      { key: "impact", placeholder: "Impact (e.g. Any caller can drain the vault)" },
+                      { key: "recommendation", placeholder: "Recommendation..." },
+                    ].map(({ key, placeholder }) => (
+                      <input key={key} value={(newFinding as Record<string, string>)[key] || ""} onChange={e => setNewFinding(p => ({ ...p, [key]: e.target.value }))}
+                        placeholder={placeholder}
+                        style={{ display: "block", width: "100%", background: "#0d0d0d", border: "1px solid #1e1e1e", color: "#aaa", fontSize: 10, padding: "6px 8px", fontFamily: "inherit", marginBottom: 6, boxSizing: "border-box" }}
+                      />
+                    ))}
+                    <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                      {(["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"] as Severity[]).map(sev => (
+                        <button key={sev} onClick={() => setNewFinding(p => ({ ...p, severity: sev }))} style={{
+                          background: newFinding.severity === sev ? SEV[sev].bg : "#1a1a1a",
+                          border: `1px solid ${newFinding.severity === sev ? SEV[sev].color : "#222"}`,
+                          color: newFinding.severity === sev ? SEV[sev].color : "#555",
+                          cursor: "pointer", fontSize: 9, padding: "3px 8px", fontFamily: "inherit",
+                        }}>
+                          {sev}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={addManualFinding} style={{ background: "#00ff88", border: "none", color: "#000", cursor: "pointer", fontSize: 9, padding: "5px 14px", fontFamily: "inherit" }}>
+                        Add
+                      </button>
+                      <button onClick={() => setAddingManual(false)} style={{ background: "#1a1a1a", border: "1px solid #222", color: "#666", cursor: "pointer", fontSize: 9, padding: "5px 14px", fontFamily: "inherit" }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {session.manualFindings.length === 0 && !addingManual ? (
+                  <div style={{ textAlign: "center", padding: 40, color: "#333", fontSize: 11 }}>
+                    No manual findings yet.
+                  </div>
+                ) : session.manualFindings.map(f => (
+                  <div key={f.id} style={{ marginBottom: 8, background: "#111", border: "1px solid #1e1e1e", padding: "12px 14px" }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+                      <span style={{ fontSize: 9, color: "#555" }}>{f.id}</span>
+                      <span style={{ fontSize: 9, padding: "2px 7px", background: SEV[f.severity].bg, color: SEV[f.severity].color }}>{f.severity}</span>
+                      <span style={{ fontSize: 11, color: "#ccc" }}>{f.title}</span>
+                      <span style={{ fontSize: 9, color: "#00ff88", marginLeft: "auto" }}>MANUAL</span>
+                    </div>
+                    <div style={{ fontSize: 10, color: "#666" }}>{f.description}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── SUMMARY & SIGN TAB ── */}
+            {activeSection === "summary" && (
+              <div>
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 9, color: "#00ff88", letterSpacing: "0.15em", marginBottom: 12 }}>REVIEW SUMMARY</div>
+
+                  {/* Stats grid */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+                    {[
+                      { label: "Checklist", value: `${checksDone}/${checksTotal}`, ok: checksDone === checksTotal },
+                      { label: "Failed checks", value: checksFailed, ok: checksFailed === 0 },
+                      { label: "AI findings reviewed", value: `${findingsReviewed}/${findingsTotal}`, ok: findingsReviewed === findingsTotal },
+                      { label: "Confirmed findings", value: findingsConfirmed, ok: true },
+                      { label: "False positives", value: findingsFP, ok: true },
+                      { label: "Manual findings", value: session.manualFindings.length, ok: true },
+                    ].map(({ label, value, ok }) => (
+                      <div key={label} style={{ background: "#111", border: "1px solid #1e1e1e", padding: "10px 14px" }}>
+                        <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>{label}</div>
+                        <div style={{ fontSize: 16, color: ok ? "#00ff88" : "#ff8800", fontWeight: 700 }}>{value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Final findings list */}
+                  <div style={{ fontSize: 9, color: "#555", marginBottom: 8, letterSpacing: "0.1em" }}>
+                    FINAL FINDINGS ({findingsConfirmed + session.manualFindings.length} total)
+                  </div>
+                  {[
+                    ...session.aiFindings.filter(f => f.decision === "confirmed" || f.decision === "modified"),
+                    ...session.manualFindings,
+                  ].map((f, i) => (
+                    <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", padding: "6px 0", borderBottom: "1px solid #111" }}>
+                      <span style={{ fontSize: 9, color: SEV[("modifiedSeverity" in f ? f.modifiedSeverity || f.severity : f.severity) as Severity].color }}>
+                        {("modifiedSeverity" in f ? f.modifiedSeverity || f.severity : f.severity)}
+                      </span>
+                      <span style={{ fontSize: 10, color: "#aaa" }}>{f.title}</span>
+                      {"addedBy" in f && <span style={{ fontSize: 9, color: "#555", marginLeft: "auto" }}>MANUAL</span>}
+                    </div>
+                  ))}
+
+                  {/* Review notes */}
+                  <div style={{ marginTop: 16 }}>
+                    <div style={{ fontSize: 9, color: "#555", marginBottom: 6, letterSpacing: "0.1em" }}>REVIEW NOTES</div>
+                    <textarea
+                      value={session.reviewNotes}
+                      onChange={e => setSession(s => ({ ...s, reviewNotes: e.target.value }))}
+                      placeholder="Overall notes about this review..."
+                      rows={4}
+                      style={{ width: "100%", background: "#0d0d0d", border: "1px solid #1e1e1e", color: "#aaa", fontSize: 10, padding: "8px 10px", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }}
+                    />
+                  </div>
+                </div>
+
+                {/* Sign button */}
+                {!session.signed ? (
+                  <div>
+                    {!canSign && (
+                      <div style={{ fontSize: 10, color: "#ff8800", marginBottom: 10, padding: "8px 12px", background: "#ff880010", border: "1px solid #ff880030" }}>
+                        Complete all checks ({checksDone}/{checksTotal}) and review all AI findings ({findingsReviewed}/{findingsTotal}) before signing.
+                      </div>
+                    )}
+                    <button
+                      onClick={signReview}
+                      disabled={!canSign || signing}
+                      style={{
+                        background: canSign ? "#00ff88" : "#1a1a1a",
+                        border: "none", cursor: canSign ? "pointer" : "not-allowed",
+                        color: canSign ? "#000" : "#444",
+                        fontSize: 11, padding: "12px 24px", fontFamily: "inherit",
+                        fontWeight: 700, letterSpacing: "0.1em", width: "100%",
+                      }}
+                    >
+                      {signing ? "⟳ Signing with MetaMask..." : "✍ Sign Review with Wallet"}
+                    </button>
+                    {signError && <div style={{ fontSize: 10, color: "#ff4444", marginTop: 8 }}>{signError}</div>}
+                  </div>
+                ) : (
+                  <div style={{ background: "#00ff8810", border: "1px solid #00ff8840", padding: "16px 20px", textAlign: "center" }}>
+                    <div style={{ color: "#00ff88", fontSize: 13, fontWeight: 700, marginBottom: 4 }}>✓ REVIEW SIGNED</div>
+                    <div style={{ fontSize: 9, color: "#666" }}>Auditor: {session.auditorWallet}</div>
+                    <div style={{ fontSize: 9, color: "#444", marginTop: 4 }}>{session.completedAt}</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Fallback checklist statica adattata al network ───────────────
+
+function buildFallbackChecklist(network: string, source: string): DynamicCheckItem[] {
+  const isSolana = network === "Solana"
+  const hasProxy = /delegatecall|proxy|upgradeable/i.test(source)
+  const hasMint = /mint|MintTo/i.test(source)
+  const hasCPI = /invoke|CpiContext/i.test(source)
+
+  const base: Omit<DynamicCheckItem, "status" | "note">[] = isSolana ? [
+    { id: "s1", category: "Access Control", question: "Is the signer verified on all state-modifying instructions?", why: "Missing signer check is #1 Solana vulnerability", severity: "CRITICAL", aiGenerated: false },
+    { id: "s2", category: "Access Control", question: "Are account owners verified before trusting account data?", why: "Account confusion attacks exploit missing owner checks", severity: "HIGH", aiGenerated: false },
+    { id: "s3", category: "Arithmetic", question: "Are all arithmetic operations using checked math?", why: "Rust release mode disables overflow panics by default", severity: "MEDIUM", aiGenerated: false },
+    { id: "s4", category: "CPI", question: "Are all CPI target programs verified before invocation?", why: "Arbitrary CPI allows attackers to redirect program calls", severity: "HIGH", aiGenerated: hasCPI },
+    ...(hasMint ? [{ id: "s5", category: "Token", question: "Is mint authority verified before minting tokens?", why: "Missing mint authority allows unlimited token creation", severity: "CRITICAL" as Severity, aiGenerated: true }] : []),
+  ] : [
+    { id: "e1", category: "Access Control", question: "Are all privileged functions protected by access modifiers?", why: "Unrestricted admin functions allow protocol takeover", severity: "CRITICAL", aiGenerated: false },
+    { id: "e2", category: "Reentrancy", question: "Are CEI pattern and ReentrancyGuard applied?", why: "Reentrancy is the most exploited vulnerability class", severity: "CRITICAL", aiGenerated: false },
+    { id: "e3", category: "Arithmetic", question: "Is Solidity >= 0.8 used or SafeMath applied throughout?", why: "Integer overflow can drain funds", severity: "HIGH", aiGenerated: false },
+    ...(hasProxy ? [{ id: "e4", category: "Upgradability", question: "Is the initialize function protected and callable only once?", why: "Unprotected initializers allow ownership hijacking", severity: "CRITICAL" as Severity, aiGenerated: true }] : []),
+  ]
+
+  return base.map(c => ({ ...c, status: "pending" as CheckStatus, note: "" }))
+}

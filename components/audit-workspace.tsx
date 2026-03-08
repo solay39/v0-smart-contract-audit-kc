@@ -20,6 +20,7 @@ import { savePublishedAudit } from "@/components/skynet-public"
 import { computeReportHash, buildReportIntegrity } from "@/lib/enterprise-standards"
 import Solay39Validator from "@/components/solay39-validator"
 import { useAuditValidator, ValidationPanel } from "@/components/validation-panel"
+import ManualReviewWorkspace from "@/components/manual-review-workspace"
 
 // ════════════════════════════════════════════════════════════════
 // BLOCKCHAIN TAB — Solana On-Chain Attestation
@@ -264,7 +265,7 @@ function BlockchainTab({
 // AUDIT WORKSPACE — Founder Only
 // ════════════════════════════════════════════════════════════════
 
-type TabId = "dashboard" | "checklist" | "findings" | "skynet" | "validator" | "blockchain"
+type TabId = "dashboard" | "checklist" | "findings" | "skynet" | "review" | "validator" | "blockchain"
 
 export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const [tab, setTab] = useState<TabId>("dashboard")
@@ -299,6 +300,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     status: "OPEN",
   })
   const [aiCode, setAiCode] = useState("")
+  const [contractSource, setContractSource] = useState("")
   const [aiRes, setAiRes] = useState<Omit<Finding, "id" | "category" | "status">[]>([])
   const [aiLoad, setAiLoad] = useState(false)
   const [aiError, setAiError] = useState("")
@@ -1265,13 +1267,14 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       ]
     })
 
-  const TABS: [TabId, string][] = [
-    ["dashboard", "Dashboard"],
-    ["checklist", "Checklist"],
-    ["findings", "Findings"],
-    ["skynet", "Skynet AI"],
-    ["validator", "Validator"],
-    ["blockchain", "Blockchain"],
+const TABS: [TabId, string][] = [
+  ["dashboard", "Dashboard"],
+  ["checklist", "Checklist"],
+  ["findings", "Findings"],
+  ["skynet", "Skynet AI"],
+  ["review", "Manual Review"],
+  ["validator", "Validator"],
+  ["blockchain", "Blockchain"],
   ]
 
   return (
@@ -1991,9 +1994,10 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
                         }),
                       })
                       const data = await res.json()
-                      if (data.source) {
-                        setAiCode(data.source)
-                        setAiNote(`Source code fetched from ${data.explorerName || "explorer"} (${data.language || "unknown"}, ${data.linesOfCode || "?"} lines)`)
+  if (data.source) {
+  setAiCode(data.source)
+  setContractSource(data.source)
+  setAiNote(`Source code fetched from ${data.explorerName || "explorer"} (${data.language || "unknown"}, ${data.linesOfCode || "?"} lines)`)
                       } else {
                         setAiError(data.error || "Could not fetch source code. Paste it manually.")
                         setAiNote("")
@@ -2011,7 +2015,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
 
               <textarea
                 value={aiCode}
-                onChange={(e) => setAiCode(e.target.value)}
+                onChange={(e) => { setAiCode(e.target.value); setContractSource(e.target.value); }}
                 placeholder={`// Paste ${chainLanguage(project.network || "Ethereum")} code here...\n// Or use the Auto-Fetch button above to load from ${getExplorer(project.network || "Ethereum").name}`}
                 className="w-full bg-s39-bg2 border border-s39-border text-s39-lite p-3 text-[10px] font-mono resize-y min-h-[200px] outline-none focus:border-s39-cyan transition-colors mb-3.5"
               />
@@ -2181,10 +2185,63 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
               )}
             </div>
           )}
-        </div>
-        )}
-        {/* ── VALIDATOR ── */}
-        {tab === "validator" && (
+  </div>
+  )}
+
+  {/* ── MANUAL REVIEW TAB ── */}
+  {tab === "review" && (
+    <ManualReviewWorkspace
+      contractSource={contractSource || ""}
+      contractAddress={project.scope || ""}
+      contractName={project.name || "Contract"}
+      network={project.network || "Ethereum"}
+      aiFindings={aiRes.map(f => ({
+        title: String((f as Record<string, unknown>).title || ""),
+        severity: String((f as Record<string, unknown>).severity || "LOW"),
+        location: String((f as Record<string, unknown>).location || ""),
+        description: String((f as Record<string, unknown>).description || ""),
+        impact: String((f as Record<string, unknown>).impact || ""),
+        recommendation: String((f as Record<string, unknown>).recommendation || ""),
+        proofOfConcept: (f as Record<string, unknown>).proofOfConcept as string | undefined,
+      }))}
+      onReviewComplete={(session) => {
+        // Aggiungi i finding confermati ai findings del workspace
+        session.aiFindings
+          .filter(f => f.decision === "confirmed" || f.decision === "modified")
+          .forEach(f => {
+            importFinding({
+              title: f.title,
+              severity: f.modifiedSeverity || f.severity,
+              location: f.location,
+              description: f.description + (f.auditorNote ? `\n\nAuditor note: ${f.auditorNote}` : ""),
+              impact: f.impact,
+              recommendation: f.recommendation,
+              likelihood: "Medium",
+              proofOfConcept: f.proofOfConcept,
+            })
+          })
+        
+        // Aggiungi finding manuali
+        session.manualFindings.forEach(f => {
+          importFinding({
+            title: f.title,
+            severity: f.severity,
+            location: f.location,
+            description: f.description,
+            impact: f.impact,
+            recommendation: f.recommendation,
+            likelihood: "Medium",
+          })
+        })
+
+        // Passa alla tab findings per vedere il risultato
+        setTab("findings")
+      }}
+    />
+  )}
+
+  {/* ── VALIDATOR ── */}
+  {tab === "validator" && (
           <div className="animate-[fadeUp_0.4s_ease] -mx-4 sm:-mx-8 -mb-6">
             <Solay39Validator />
           </div>
