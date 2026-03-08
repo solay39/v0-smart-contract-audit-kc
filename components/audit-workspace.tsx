@@ -61,12 +61,15 @@ function BlockchainTab({
     setAttestError("")
 
     try {
+      console.log("[v0] Attestation request:", { auditId, reportHash })
       const res = await fetch("/api/solana-attest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ auditId, reportHash }),
       })
+      console.log("[v0] Response status:", res.status)
       const data = await res.json()
+      console.log("[v0] Response data:", data)
 
       if (data.success && data.attestation) {
         onAttestationSuccess(data.attestation)
@@ -76,8 +79,10 @@ function BlockchainTab({
       } else {
         setAttestError(data.error ?? "Attestazione fallita. Riprova.")
       }
-    } catch {
-      setAttestError("Errore di connessione. Verifica che il sito sia raggiungibile e riprova.")
+    } catch (err) {
+      console.log("[v0] Solana attest error:", err)
+      const errMsg = err instanceof Error ? err.message : String(err)
+      setAttestError(`Errore di connessione: ${errMsg}`)
     } finally {
       setAttesting(false)
     }
