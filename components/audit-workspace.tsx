@@ -131,6 +131,8 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     timestamp: string
   } | null>(null)
   const [solanaConfigured, setSolanaConfigured] = useState<boolean | null>(null)
+  const [attestLoading, setAttestLoading] = useState(false)
+  const [attestError, setAttestError] = useState<string | null>(null)
 
   // Check Solana configuration on mount
   useEffect(() => {
@@ -2046,11 +2048,69 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
                 </div>
               </div>
 
-              {aiRes.length > 0 && !solanaAttestation && (
-                <div className="border border-s39-cyan/20 p-4 bg-s39-bg2">
-                  <div className="text-[9px] text-s39-cyan tracking-[0.15em] mb-2">RIPROVA ATTESTAZIONE</div>
+              {aiRes.length > 0 && !solanaAttestation && solanaConfigured && (
+                <div className="border border-purple-500/30 p-4 bg-purple-950/10">
+                  <div className="text-[9px] text-purple-400 tracking-[0.15em] mb-2">ATTESTA ORA SU SOLANA</div>
                   <div className="text-[9px] text-s39-dim mb-3">
-                    Dopo aver configurato SOLANA_PRIVATE_KEY, riesegui l&apos;analisi Skynet per generare l&apos;attestazione on-chain.
+                    Registra l&apos;hash di questo audit immutabilmente on-chain. Costo: ~$0.000005
+                  </div>
+                  {attestError && (
+                    <div className="text-[9px] text-s39-red mb-2 p-2 bg-red-950/20 border border-red-900/30">
+                      {attestError}
+                    </div>
+                  )}
+                  <button
+                    onClick={async () => {
+                      setAttestLoading(true)
+                      setAttestError(null)
+                      try {
+                        const res = await fetch("/api/solana-attest", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            auditId: `SOL-${Date.now()}`,
+                            reportHash: aiRes[0]?.id || "unknown",
+                            ipfsCid: undefined
+                          })
+                        })
+                        const data = await res.json()
+                        if (data.success) {
+                          setSolanaAttestation({
+                            txSignature: data.txSignature,
+                            solscanUrl: data.solscanUrl,
+                            network: data.network,
+                            memo: data.memo,
+                            timestamp: data.timestamp
+                          })
+                        } else {
+                          setAttestError(data.error || "Errore sconosciuto")
+                        }
+                      } catch (err) {
+                        setAttestError(err instanceof Error ? err.message : "Errore di rete")
+                      } finally {
+                        setAttestLoading(false)
+                      }
+                    }}
+                    disabled={attestLoading}
+                    className="text-[9px] text-purple-400 border border-purple-500/30 px-4 py-2 hover:bg-purple-950/30 transition-colors font-mono cursor-pointer bg-transparent disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {attestLoading ? (
+                      <>
+                        <span className="animate-spin">◌</span>
+                        Registrazione in corso...
+                      </>
+                    ) : (
+                      <>Attesta su Solana Mainnet</>
+                    )}
+                  </button>
+                </div>
+              )}
+              
+              {aiRes.length > 0 && !solanaAttestation && !solanaConfigured && (
+                <div className="border border-s39-cyan/20 p-4 bg-s39-bg2">
+                  <div className="text-[9px] text-s39-cyan tracking-[0.15em] mb-2">CONFIGURA SOLANA</div>
+                  <div className="text-[9px] text-s39-dim mb-3">
+                    Aggiungi SOLANA_PRIVATE_KEY nelle variabili d&apos;ambiente per attivare le attestazioni.
                   </div>
                   <button
                     onClick={() => setTab("skynet")}
