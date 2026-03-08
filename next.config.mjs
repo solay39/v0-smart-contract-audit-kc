@@ -6,6 +6,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Turbopack config (Next.js 16 default)
+  turbopack: {},
   // Necessario per @solana/web3.js - evita errori di bundling dei moduli Node.js
   webpack: (config, { isServer }) => {
     if (!isServer) {
