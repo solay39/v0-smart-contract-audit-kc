@@ -782,6 +782,242 @@ function staticAnalysis(code: string, meta: ContractMeta): Finding[] {
     })
   }
 
+  /* ── 13. Flash Loan Price Manipulation ── */
+  {
+    const readsAMMPrice = /getReserves\(\)|reserve0|reserve1|token0\.balanceOf|token1\.balanceOf/.test(code)
+    const hasFlashLoanIntegration = /flashLoan|flashSwap|FLASHLOAN|uniswapV2Call|uniswapV3Flash|pancakeCall|onFlashLoan/.test(code)
+    const hasTWAP = /TWAP|twap|TimeWeighted|observe\(|consult\(|OracleLibrary|period\s*=/.test(code)
+    const readsSpotPrice = /IUniswap|ISushiSwap|IPancake|IBalancer/.test(code) && /getAmountsOut|getAmountOut|quote\(/.test(code)
+
+    if ((readsAMMPrice || readsSpotPrice) && !hasTWAP) {
+      findings.push({
+        title: "Flash Loan Price Manipulation Risk",
+        severity: hasFlashLoanIntegration ? "CRITICAL" : "HIGH",
+        location: "AMM price reading — getReserves() / getAmountsOut()",
+        description: "The contract reads token prices directly from an AMM pool (spot price) without using a TWAP oracle. An attacker can manipulate the spot price within a single transaction using a flash loan, causing the protocol to operate on a false price.",
+        impact: "An attacker borrows a large amount via flash loan, manipulates the AMM reserves, triggers the protocol action at the manipulated price (e.g. borrow at inflated collateral value), then repays the flash loan — all in one transaction. This pattern has caused losses of $100M+ across DeFi (Harvest Finance, Mango Markets, etc.).",
+        recommendation: "Replace spot price reads with a TWAP oracle (Uniswap V3 OracleLibrary, Chainlink). Minimum TWAP window: 30 minutes.",
+        likelihood: "High",
+        proofOfConcept: `// Exploit pattern:\n1. Attacker takes flash loan of TOKEN_A (large amount)\n2. Dumps TOKEN_A into pool → manipulates getReserves() price\n3. Protocol reads manipulated price → inflated collateral value\n4. Attacker borrows MAX against inflated collateral\n5. Repays flash loan\n6. Profit: difference between borrowed and repaid\n\n// Tool: Solay39 pattern analysis — spot price read without TWAP detected`,
+      })
+    }
+  }
+
+  /* ── 14. Oracle Manipulation (External) ── */
+  {
+    const usesSingleOracle = /latestAnswer\(\)|latestRoundData\(\)/.test(code)
+    const hasOracleValidation = /require.*answer\s*>\s*0|require.*updatedAt|staleness|heartbeat|answeredInRound/.test(code)
+    const usesOnlyAMMOracle = /getReserves|slot0\(\)|sqrtPriceX96/.test(code) && !/latestRoundData|Chainlink|AggregatorV3/.test(code)
+
+    if (usesSingleOracle && !hasOracleValidation) {
+      findings.push({
+        title: "Chainlink Oracle Staleness Not Validated",
+        severity: "HIGH",
+        location: "latestRoundData() call",
+        description: "The contract uses Chainlink latestRoundData() but does not validate the returned data for staleness or round completeness. A stale oracle answer (returned during Chainlink downtime or sequencer outage) can cause the protocol to operate on an incorrect price.",
+        impact: "During network congestion or oracle downtime, the protocol may use a price from hours ago. Attackers can exploit this window to borrow at stale prices.",
+        recommendation: "Validate Chainlink response: require(answer > 0), require(updatedAt >= block.timestamp - 3600), require(answeredInRound >= roundId).",
+        likelihood: "Medium",
+        proofOfConcept: `// Attack scenario:\n1. Chainlink oracle becomes stale (network congestion)\n2. Protocol still reads old latestAnswer() without staleness check\n3. Attacker exploits price discrepancy between stale oracle and real market\n4. Borrows assets at manipulated effective LTV\n\n// Solay39 pattern: latestRoundData() without updatedAt validation`,
+      })
+    }
+
+    if (usesOnlyAMMOracle) {
+      findings.push({
+        title: "Sole Reliance on AMM Spot Price as Oracle",
+        severity: "HIGH",
+        location: "AMM price oracle — getReserves / slot0",
+        description: "The contract uses AMM reserves or slot0 as its sole price source. This is equivalent to using a spot price oracle and is trivially manipulable within a single transaction.",
+        impact: "Any attacker with access to a flash loan can move the AMM price arbitrarily within a block, manipulate the oracle reading, and exploit the protocol before the price reverts.",
+        recommendation: "Use Chainlink price feeds as primary oracle. If AMM-based pricing is required, use Uniswap V3 TWAP with a minimum 30-minute window.",
+        likelihood: "High",
+        proofOfConcept: `// Solay39 pattern: AMM slot0/getReserves used as price oracle without TWAP`,
+      })
+    }
+  }
+
+  /* ── 15. Governance Attack ── */
+  {
+    const hasGovernance = /propose\(|castVote|GovernorBravo|Governor\b|Timelock|TimelockController/.test(code)
+    const hasVotingDelay = /votingDelay|VOTING_DELAY|voting_delay/.test(code)
+    const hasTimelock = /timelock|TimelockController|eta\s*=|delay\s*=/.test(code)
+
+    if (hasGovernance) {
+      if (!hasVotingDelay) {
+        findings.push({
+          title: "Missing Voting Delay — Flash Loan Governance Attack",
+          severity: "CRITICAL",
+          location: "Governor contract — propose()",
+          description: "The governance contract has no voting delay between proposal creation and voting start. This allows an attacker to acquire governance tokens via flash loan, create a proposal, vote in the same block, and execute a malicious upgrade before anyone can react.",
+          impact: "An attacker can execute a malicious governance proposal in a single transaction, draining protocol treasury or upgrading to a backdoored implementation. See: Beanstalk exploit ($182M, 2022).",
+          recommendation: "Implement a minimum voting delay of at least 1 block (ideally 2 days). In GovernorBravo: votingDelay() should return at least 13140 (~2 days).",
+          likelihood: "Medium",
+          proofOfConcept: `// Beanstalk-style attack:\n1. Flash loan large amount of governance token\n2. Deposit to get voting power (same block)\n3. Create malicious proposal (drain treasury)\n4. Vote with flash loan power (same block if no delay)\n5. Execute proposal\n6. Repay flash loan\nProfit: full treasury\n\n// Solay39: no votingDelay detected in Governor`,
+        })
+      }
+
+      if (!hasTimelock) {
+        findings.push({
+          title: "No Timelock on Governance Execution",
+          severity: "HIGH",
+          location: "Governor — execute()",
+          description: "Governance proposals can be executed immediately after passing, with no timelock delay. This removes the ability for users to exit before a malicious change takes effect.",
+          impact: "A passed proposal can immediately drain funds, change parameters, or upgrade contracts — users have no time to exit.",
+          recommendation: "Add a TimelockController with minimum 48-hour delay between proposal passage and execution.",
+          likelihood: "Medium",
+          proofOfConcept: `// Solay39: propose() → execute() path with no timelock delay`,
+        })
+      }
+    }
+  }
+
+  /* ── 16. Proxy / Upgrade Exploit ── */
+  {
+    const hasProxy = meta.hasProxy || /UUPSUpgradeable|TransparentUpgradeableProxy|ProxyAdmin|_upgradeTo|upgradeTo\(/.test(code)
+    const hasUpgradeAuth = /onlyOwner|onlyRole|onlyAdmin|_authorizeUpgrade/.test(code)
+    const hasTimelockOnUpgrade = /timelock|TimelockController/.test(code)
+    const hasInitializer = /initializer|__.*_init\(|initialize\(/.test(code)
+    const hasInitOnlyOnce = /initializer\b|_initialized\b|Initializable/.test(code)
+
+    if (hasProxy && !hasUpgradeAuth) {
+      findings.push({
+        title: "Unprotected Upgrade Function",
+        severity: "CRITICAL",
+        location: "Proxy upgrade path — upgradeTo() / _upgradeTo()",
+        description: "The contract is upgradeable but the upgrade function lacks access control. Any address can upgrade the implementation to a malicious contract.",
+        impact: "An attacker deploys a malicious implementation that drains all funds, then calls upgradeTo(maliciousImpl). All user assets are immediately at risk.",
+        recommendation: "Restrict upgrades with access control: function _authorizeUpgrade(address) internal override onlyOwner {}. Additionally, add a 48-hour timelock on upgrades.",
+        likelihood: "High",
+        proofOfConcept: `// Attack:\n1. Deploy MaliciousImpl with drainAll() function\n2. Call proxy.upgradeTo(maliciousImpl) — succeeds with no auth\n3. Call drainAll() — empties contract\n\n// Solay39: upgradeTo without access control modifier`,
+      })
+    }
+
+    if (hasProxy && hasUpgradeAuth && !hasTimelockOnUpgrade) {
+      findings.push({
+        title: "Proxy Upgrade Without Timelock",
+        severity: "MEDIUM",
+        location: "Proxy admin — upgradeTo()",
+        description: "The upgrade function is access-controlled but has no timelock. A compromised admin key can immediately upgrade to a malicious implementation, giving users no time to exit.",
+        impact: "If the admin key is phished or compromised, the attacker can silently upgrade to a backdoored implementation and drain funds before detection.",
+        recommendation: "Add a minimum 48-hour timelock between upgrade announcement and execution using TimelockController.",
+        likelihood: "Low",
+        proofOfConcept: `// Solay39: upgradeTo has onlyOwner but no TimelockController`,
+      })
+    }
+
+    if (hasProxy && hasInitializer && !hasInitOnlyOnce) {
+      findings.push({
+        title: "Unprotected Initializer Function",
+        severity: "CRITICAL",
+        location: "initialize() function",
+        description: "The contract uses an upgradeable pattern with an initializer function, but the initializer is not protected by the Initializable modifier. This allows the initializer to be called multiple times.",
+        impact: "An attacker can call initialize() again to reset ownership, change admin addresses, or take control of the contract.",
+        recommendation: "Use OpenZeppelin's Initializable: function initialize(...) public initializer { __Ownable_init(); ... }",
+        likelihood: "High",
+        proofOfConcept: `// Solay39: initialize() without @initializer modifier detected`,
+      })
+    }
+  }
+
+  /* ── 17. Liquidity Pool / Vault Math Bugs ── */
+  {
+    const hasVault = /vault|Vault|deposit\(|withdraw\(|shares|totalAssets|totalSupply/.test(code)
+    const hasShareMath = /shares\s*=|_shares|mintShares|burnShares|convertToShares|convertToAssets/.test(code)
+    const hasPrecisionGuard = /PRECISION|1e18|WAD|RAY|mulDiv|FullMath/.test(code)
+    const hasFirstDepositorProtection = /require.*totalSupply|totalSupply\(\)\s*==\s*0|MINIMUM_LIQUIDITY/.test(code)
+
+    if (hasVault && hasShareMath && !hasPrecisionGuard) {
+      findings.push({
+        title: "Share Calculation Precision Loss — Vault Math Bug",
+        severity: "HIGH",
+        location: "Vault share math — deposit() / withdraw()",
+        description: "The vault calculates user shares using division without fixed-point precision scaling. Integer division truncation can cause users to receive fewer shares than expected, and can be exploited via the 'first depositor' attack where a small initial deposit inflates the share price.",
+        impact: "A malicious first depositor can donate tokens directly to the vault (bypassing deposit()), inflating totalAssets while totalSupply remains 1. Subsequent depositors receive 0 shares due to rounding, effectively losing their deposit. See: ERC-4626 inflation attack.",
+        recommendation: "1. Use mulDiv for share calculations. 2. Mint a small amount of shares to dead address on first deposit (MINIMUM_LIQUIDITY).",
+        likelihood: "Medium",
+        proofOfConcept: `// ERC-4626 inflation attack:\n1. Attacker deposits 1 wei → receives 1 share\n2. Attacker donates 1e18 tokens directly to vault (transfer, not deposit)\n3. totalAssets = 1e18+1, totalSupply = 1\n4. Victim deposits 1e18 tokens\n5. shares = 1e18 * 1 / (1e18+1) = 0 (rounds to 0)\n6. Victim receives 0 shares → loses all funds\n\n// Solay39: share math without mulDiv or MINIMUM_LIQUIDITY`,
+      })
+    }
+
+    if (hasVault && !hasFirstDepositorProtection && hasShareMath) {
+      findings.push({
+        title: "Missing First Depositor Protection",
+        severity: "MEDIUM",
+        location: "Vault — first deposit edge case",
+        description: "The vault has no protection against the first-depositor inflation attack. When totalSupply is 0, the first depositor controls the initial share price, which can be manipulated to steal subsequent depositors' funds.",
+        impact: "Systematic theft of initial depositors' funds through share price manipulation.",
+        recommendation: "On first deposit, mint a small amount of shares to address(0xdead) as dead shares.",
+        likelihood: "Medium",
+        proofOfConcept: `// Solay39: deposit() with no totalSupply == 0 guard`,
+      })
+    }
+  }
+
+  /* ── 18. Access Control — Missing Role Check on Privileged Functions ── */
+  {
+    const hasMintPublic = /function\s+mint\s*\([^)]*\)\s*(public|external)\s*(?!.*\b(onlyOwner|onlyRole|onlyMinter|require\s*\(\s*msg\.sender)\b)/.test(code)
+    const hasWithdrawPublic = /function\s+(withdraw|rescueTokens|rescueETH|drain)\s*\([^)]*\)\s*(public|external)\s*(?!.*\b(onlyOwner|onlyRole|require\s*\(\s*msg\.sender)\b)/.test(code)
+
+    if (hasMintPublic && !meta.isERC20) {
+      findings.push({
+        title: "Unrestricted Mint Function — No Access Control",
+        severity: "CRITICAL",
+        location: "mint() — public/external with no modifier",
+        description: "A mint function is publicly callable without any access control. Any address can mint unlimited tokens.",
+        impact: "Total supply inflation. Attacker mints tokens to themselves and dumps on market or uses as collateral to drain lending protocols.",
+        recommendation: "Add access control: function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) { _mint(to, amount); }",
+        likelihood: "High",
+        proofOfConcept: `// Solay39: mint(address, uint256) external with no require/modifier`,
+      })
+    }
+
+    if (hasWithdrawPublic) {
+      findings.push({
+        title: "Unprotected Withdrawal / Rescue Function",
+        severity: "CRITICAL",
+        location: "withdraw() / rescueTokens() — public with no access control",
+        description: "A function that transfers tokens or ETH out of the contract is publicly accessible without access control. Any caller can drain the contract.",
+        impact: "Complete loss of all contract funds in a single transaction.",
+        recommendation: "Restrict with onlyOwner or onlyRole(ADMIN_ROLE). Ensure rescue functions cannot be called on protocol-managed tokens.",
+        likelihood: "High",
+        proofOfConcept: `// Solay39: withdraw/drain function external with no access control modifier`,
+      })
+    }
+  }
+
+  /* ── 19. Reentrancy — Enhanced (cross-function + ERC-777) ── */
+  {
+    const hasERC777 = /ERC777|tokensReceived|IERC1820Registry|_callTokensReceived/.test(code)
+    const hasERC1155Hook = /onERC1155Received|onERC1155BatchReceived|safeTransferFrom/.test(code)
+    const hasGuard = /ReentrancyGuard|nonReentrant|_status\s*==|ENTERED/.test(code)
+
+    if (hasERC777 && !hasGuard) {
+      findings.push({
+        title: "ERC-777 Reentrancy via tokensReceived Hook",
+        severity: "HIGH",
+        location: "ERC-777 token interaction — tokensReceived callback",
+        description: "The contract interacts with ERC-777 tokens which have a tokensReceived() callback on every transfer. If state is not updated before the transfer, an attacker's contract can re-enter during the callback.",
+        impact: "An attacker deploys a malicious ERC-777 receiver that calls back into the protocol during tokensReceived, exploiting stale state to drain funds.",
+        recommendation: "Apply ReentrancyGuard to all functions that interact with ERC-777 tokens, or enforce CEI pattern strictly.",
+        likelihood: "Medium",
+        proofOfConcept: `// ERC-777 attack:\n1. Attacker registers malicious tokensReceived hook\n2. Protocol calls token.transfer(attacker, amount)\n3. tokensReceived() fires → attacker calls withdraw() again\n4. State not yet updated → second withdrawal succeeds\n\n// Solay39: ERC-777 interaction without nonReentrant`,
+      })
+    }
+
+    if (hasERC1155Hook && !hasGuard) {
+      findings.push({
+        title: "ERC-1155 Callback Reentrancy Risk",
+        severity: "MEDIUM",
+        location: "ERC-1155 safeTransferFrom — onERC1155Received",
+        description: "The contract uses ERC-1155 safeTransferFrom which triggers onERC1155Received on the recipient. Without a reentrancy guard, this callback can re-enter the contract.",
+        impact: "Potential reentrancy through ERC-1155 transfer callbacks in contracts that update state after transfers.",
+        recommendation: "Add nonReentrant to all functions using ERC-1155 safeTransferFrom.",
+        likelihood: "Low",
+        proofOfConcept: `// Solay39: ERC-1155 safeTransferFrom without ReentrancyGuard`,
+      })
+    }
+  }
+
   /* ── If no findings at all ── */
   if (findings.length === 0) {
     findings.push({
