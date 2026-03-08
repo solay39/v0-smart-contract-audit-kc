@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   CHECKLIST,
   computeScoreV2,
@@ -43,12 +43,12 @@ function BlockchainTab({
   const [configStatus, setConfigStatus] = useState<{ configured: boolean; network: string } | null>(null)
 
   // Controlla se SOLANA_PRIVATE_KEY è configurata all'apertura del tab
-  useState(() => {
+  useEffect(() => {
     fetch("/api/solana-attest")
       .then(r => r.json())
       .then(d => setConfigStatus({ configured: d.configured, network: d.network }))
       .catch(() => setConfigStatus({ configured: false, network: "unknown" }))
-  })
+  }, [])
 
   // Genera auditId e reportHash se non presenti (fallback per retrocompatibilita')
   const auditId = (aiEngagement?.auditId as string) || (aiRes.length > 0 ? `SOLAY-${Date.now()}` : "")
