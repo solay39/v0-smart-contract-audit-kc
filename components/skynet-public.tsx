@@ -998,11 +998,11 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                 ? p.toolingUsed.slice(0, 4).map((t, i) => (
                     <span key={i} className="ml-2 text-s39-lite">{t}</span>
                   ))
-                : <>
-                    <span className="ml-2 text-s39-lite">Manual Review</span>
-                    <span className="ml-2 text-s39-lite">Static Analysis</span>
-                    <span className="ml-2 text-s39-lite">AI-Guided Verification</span>
-                  </>
+  : <>
+  <span className="ml-2 text-s39-lite">Manual Review</span>
+  <span className="ml-2 text-s39-lite">Solay39 Static Analyzer</span>
+  <span className="ml-2 text-s39-lite">Claude AI (Anthropic)</span>
+  </>
               }
             </div>
           </div>
@@ -2238,22 +2238,32 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               <div className="bg-s39-bg1 border border-s39-border p-5">
                 <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">TOOLS EXECUTED DURING AUDIT</div>
                 <div className="flex flex-col gap-1.5">
-                  {p.toolingUsed.map((tool, i) => {
-                    const isPass = !tool.toLowerCase().includes("fail") && !tool.toLowerCase().includes("warning")
-                    return (
-                      <div key={i} className="flex items-center gap-2 py-0.5">
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke={isPass ? "#00ff88" : "#ff2d55"} strokeWidth="0.8" /><path d={isPass ? "M3 5l1.5 1.5L7 4" : "M3.5 3.5l3 3M6.5 3.5l-3 3"} stroke={isPass ? "#00ff88" : "#ff2d55"} strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                        <span className="text-[9px] text-s39-mid font-mono">{tool}</span>
-                      </div>
-                    )
-                  })}
+{p.toolingUsed.map((tool, i) => {
+  const isPass = !tool.toLowerCase().includes("fail") && !tool.toLowerCase().includes("warning")
+  const isAI = tool.toLowerCase().includes("claude") || tool.toLowerCase().includes("ai")
+  const isManual = tool.toLowerCase().includes("manual")
+  return (
+  <div key={i} className="flex items-center gap-2 py-0.5">
+  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke={isPass ? "#00ff88" : "#ff2d55"} strokeWidth="0.8" /><path d={isPass ? "M3 5l1.5 1.5L7 4" : "M3.5 3.5l3 3M6.5 3.5l-3 3"} stroke={isPass ? "#00ff88" : "#ff2d55"} strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+  <span className="text-[9px] text-s39-mid font-mono">{tool}</span>
+  {isAI && <span className="text-[7px] px-1 py-0.5 border border-orange-500/30 text-orange-400 ml-auto">AI</span>}
+  {isManual && <span className="text-[7px] px-1 py-0.5 border border-blue-500/30 text-blue-400 ml-auto">HUMAN</span>}
+  </div>
+  )
+  })}
                 </div>
-                {/* Total */}
-                <div className="mt-2.5 pt-2 border-t border-s39-border flex items-center gap-2">
-                  <span className="text-[7px] text-s39-dim tracking-widest">TOTAL:</span>
-                  <span className="text-[9px] text-s39-green font-bold">{p.toolingUsed.length} tools applied</span>
-                </div>
-              </div>
+  {/* Total + AI Disclaimer */}
+  <div className="mt-2.5 pt-2 border-t border-s39-border">
+  <div className="flex items-center gap-2 mb-1.5">
+  <span className="text-[7px] text-s39-dim tracking-widest">TOTAL:</span>
+  <span className="text-[9px] text-s39-green font-bold">{p.toolingUsed.length} tools applied</span>
+  </div>
+  <p className="text-[7px] text-s39-dim leading-relaxed">
+  This audit uses AI-assisted analysis (Claude, Anthropic) combined with manual code review.
+  AI findings are identified patterns requiring human verification — not automated tool output.
+  </p>
+  </div>
+  </div>
             )}
             {p.onChainValidation && p.onChainValidation.length > 0 && (
               <div className="bg-s39-bg1 border border-s39-border p-5">
@@ -4578,7 +4588,7 @@ console.log("Signer:", recovered);
 
                 <div className="px-5 sm:px-6 py-3 bg-s39-bg2 border-t border-s39-border">
                   <div className="text-[7px] text-s39-dim font-mono flex items-center gap-4 flex-wrap">
-                    <span>Tools: Slither, Mythril, Solhint, Foundry, Echidna, Certora</span>
+                    <span>Tools: Solay39 Static Analyzer, Claude AI (Anthropic), Manual Review</span>
                     <span>|</span>
                     <span>Analysis performed on audited code snapshot</span>
                   </div>
@@ -4851,7 +4861,7 @@ function MethodologyPage() {
     ["01", "System Comprehension", "#00e5ff", "Complete architectural analysis: trust boundaries, funds flow, actor model, threat surface and external dependencies."],
     ["02", "Threat Modeling", "#00ff88", "Systematic mapping of attack surfaces: privilege escalation, economic attack vectors, oracle risks and MEV exposure."],
     ["03", "Manual Code Review", "#ffd600", "Function-by-function review: invariant validation, state transitions, business logic and verification of every critical path."],
-    ["04", "AI-Guided Verification", "#ff6b00", "Use of the Solay39 AI Copilot for coverage gaps, invariant generation, pattern detection and next-best-action analysis."],
+    ["04", "AI-Assisted Analysis", "#ff6b00", "Claude AI (Anthropic) for coverage gaps, pattern detection and code analysis. All AI findings require manual human verification."],
     ["05", "Remediation Validation", "#ff2d55", "Verification of every fix: regression review, score recomputation and final signature on the audit report."],
   ]
 

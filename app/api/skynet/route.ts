@@ -844,7 +844,7 @@ ABSOLUTE INTEGRITY RULES — NEVER VIOLATE THESE:
 You MUST respond ONLY with valid JSON (no markdown, no code fences):
 {
   "findings": [
-    { "title": "string", "severity": "CRITICAL|HIGH|MEDIUM|LOW|INFO", "location": "File:Line — function()", "description": "string", "impact": "string with numeric estimate", "recommendation": "string with specific code fix", "likelihood": "High|Medium|Low", "proofOfConcept": "Vulnerable code snippet\\n\\nExploit scenario:\\n1. Step 1\\n2. Step 2\\n\\nTool output: Slither confirmed at line X" }
+    { "title": "string", "severity": "CRITICAL|HIGH|MEDIUM|LOW|INFO", "location": "File:Line — function()", "description": "string", "impact": "string with numeric estimate", "recommendation": "string with specific code fix", "likelihood": "High|Medium|Low", "proofOfConcept": "Vulnerable code snippet\\n\\nExploit scenario:\\n1. Step 1\\n2. Step 2\\n\\nAI Analysis: Pattern identified during manual code review. Requires human verification." }
   ],
   "privilegedRoles": [
     { "role": "string", "capabilities": "string", "riskIfCompromised": "string" }
@@ -1236,10 +1236,13 @@ export async function POST(req: Request) {
       }
       const scoreBreakdown = computeScoreBreakdown(98, meta, fCount)
 
-  // Build tooling section
+  // Build tooling section - transparent AI labeling
   const toolingUsed = [
-  "Solay39 Manual Review",
-  "AI-Guided Verification (GPT-4o)",
+  "Solay39 Manual Review (AI-assisted)",
+  ...(meta.isNonEVM
+    ? ["Solay39 Static Analyzer (Rust/Anchor pattern matching)"]
+    : ["Solay39 Static Analyzer (Solidity pattern matching)"]),
+  "Claude AI (Anthropic) — AI-assisted code analysis",
   ...(staticAnalysisResults?.slither?.success ? [`Slither v${staticAnalysisResults.slither.version} (${staticAnalysisResults.slither.findings.length} findings)`] : []),
   ...(staticAnalysisResults?.mythril?.success ? [`Mythril v${staticAnalysisResults.mythril.version} (${staticAnalysisResults.mythril.findings.length} findings)`] : []),
   ...(meta.usesOZ ? ["OpenZeppelin Contract Analysis"] : []),
