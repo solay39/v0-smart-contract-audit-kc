@@ -8,8 +8,20 @@ import { registerAuditOnSolana } from "@/lib/solana-attestation"
 export const maxDuration = 30 // 30s è sufficiente per Solana (3 retry da 8s ciascuno)
 
 export async function POST(req: NextRequest) {
+  let body: { auditId?: string; reportHash?: string; ipfsCid?: string } = {}
+  
   try {
-    const { auditId, reportHash, ipfsCid } = await req.json()
+    body = await req.json()
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "Invalid JSON in request body" },
+      { status: 400 }
+    )
+  }
+  
+  const { auditId, reportHash, ipfsCid } = body
+  
+  try {
 
     if (!auditId || !reportHash) {
       return NextResponse.json(

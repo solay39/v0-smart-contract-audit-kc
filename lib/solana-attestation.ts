@@ -70,14 +70,21 @@ export async function registerAuditOnSolana(
   reportHash: string,
   ipfsCid?: string
 ): Promise<SolanaAttestationResult | null> {
-  console.log("[v0] registerAuditOnSolana called with:", {
+  console.log("[Solana] registerAuditOnSolana called with:", {
     auditId,
     reportHash: reportHash?.slice(0, 20),
     ipfsCid: ipfsCid?.slice(0, 20),
   })
 
+  // Validazione input
+  if (!auditId || !reportHash) {
+    console.error("[Solana] Invalid input: auditId and reportHash are required")
+    return null
+  }
+
+  let wallet: Keypair | null = null
   try {
-    const wallet = loadWallet()
+    wallet = loadWallet()
     console.log(
       "[v0] Wallet loaded:",
       wallet ? `PublicKey: ${wallet.publicKey.toBase58()}` : "null (no SOLANA_PRIVATE_KEY)"
