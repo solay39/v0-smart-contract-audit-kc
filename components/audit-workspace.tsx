@@ -1083,6 +1083,19 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       onChainRecord: (onChainRecord as any) || undefined,
       testCoverage: (testCoverage as PortfolioProject["testCoverage"]) || undefined,
       solanaAttestation: solanaAttestation || undefined,
+      // Manual Review Session
+      manualReview: manualReviewSession ? {
+        completedAt: manualReviewSession.completedAt,
+        auditorWalletEth: manualReviewSession.auditorWallet,
+        auditorWalletSol: manualReviewSession.solanaWallet,
+        checksCompleted: `${manualReviewSession.checksCompleted}/${manualReviewSession.checksTotal}`,
+        findingsConfirmed: manualReviewSession.confirmedFindings,
+        findingsRejected: manualReviewSession.rejectedFindings,
+        manualFindingsAdded: manualReviewSession.manualFindingsAdded,
+        signatureEth: manualReviewSession.signature,
+        signatureSol: manualReviewSession.solanaSignature,
+        reviewNotes: manualReviewSession.reviewNotes,
+      } : undefined,
     }
 
     // ── Step 3: Compute SHA-256 report integrity before saving ──

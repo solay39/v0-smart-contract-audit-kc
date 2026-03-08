@@ -562,6 +562,19 @@ export interface PortfolioProject {
     memo: string
     timestamp: string
   }
+  // Manual Review Session
+  manualReview?: {
+    completedAt?: string
+    auditorWalletEth?: string
+    auditorWalletSol?: string
+    checksCompleted?: string
+    findingsConfirmed?: number
+    findingsRejected?: number
+    manualFindingsAdded?: number
+    signatureEth?: string
+    signatureSol?: string
+    reviewNotes?: string
+  }
 }
 
 // Keep backward compat alias
