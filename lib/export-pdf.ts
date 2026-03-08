@@ -21,6 +21,19 @@ interface Tier1Data {
   riskModel?: RiskModelConfig | Record<string, unknown>
   auditorProfile?: AuditorProfile | Record<string, unknown>
   limitations?: AuditLimitations | Record<string, unknown>
+  // Manual Review Session
+  manualReview?: {
+    completedAt?: string
+    auditorWalletEth?: string
+    auditorWalletSol?: string
+    checksCompleted?: string
+    findingsConfirmed?: number
+    findingsRejected?: number
+    manualFindingsAdded?: number
+    signatureEth?: string
+    signatureSol?: string
+    reviewNotes?: string
+  }
 }
 
 export function exportPDF(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data) {
@@ -657,9 +670,54 @@ ${(() => {
     ])}`)
 })()}
 
+${(() => {
+  const mr = tier1?.manualReview
+  if (!mr) return ""
+  return page(17, `${h1("14. Manual Review Attestation")}
+    <div style="background:#9945FF15;border:1px solid #9945FF40;padding:16px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="color:#9945FF;font-size:12px;font-weight:700">AUDITOR VERIFIED REVIEW</span>
+        <span style="color:#00ff88;font-size:10px;font-weight:700">${mr.signatureEth ? "SIGNED" : "PENDING"}</span>
+      </div>
+      <p style="color:#8899aa;font-size:9px;line-height:1.6;margin-bottom:12px">This audit includes a manual review session where the auditor verified AI findings, checked contract-specific security items, and cryptographically signed the review attestation.</p>
+    </div>
+    
+    <div style="display:flex;gap:12px;margin-bottom:14px">
+      <div style="background:#0d1117;padding:10px 16px;text-align:center;flex:1;border:1px solid #161e2a">
+        <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:4px">CHECKS</div>
+        <div style="color:#00ff88;font-size:14px;font-weight:700">${mr.checksCompleted || "0/0"}</div>
+      </div>
+      <div style="background:#0d1117;padding:10px 16px;text-align:center;flex:1;border:1px solid #161e2a">
+        <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:4px">CONFIRMED</div>
+        <div style="color:#ff6b00;font-size:14px;font-weight:700">${mr.findingsConfirmed || 0}</div>
+      </div>
+      <div style="background:#0d1117;padding:10px 16px;text-align:center;flex:1;border:1px solid #161e2a">
+        <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:4px">REJECTED</div>
+        <div style="color:#00ff88;font-size:14px;font-weight:700">${mr.findingsRejected || 0}</div>
+      </div>
+      <div style="background:#0d1117;padding:10px 16px;text-align:center;flex:1;border:1px solid #161e2a">
+        <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:4px">MANUAL</div>
+        <div style="color:#aa44ff;font-size:14px;font-weight:700">${mr.manualFindingsAdded || 0}</div>
+      </div>
+    </div>
+    
+    ${h2("Auditor Signatures")}
+    ${mr.auditorWalletEth ? `<div style="background:#0d1117;border:1px solid #161e2a;padding:10px 14px;margin-bottom:8px">
+      <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:4px">ETHEREUM (MetaMask)</div>
+      <div style="color:#627EEA;font-size:10px;font-family:monospace">${mr.auditorWalletEth}</div>
+    </div>` : ""}
+    ${mr.auditorWalletSol ? `<div style="background:#0d1117;border:1px solid #9945FF40;padding:10px 14px;margin-bottom:8px">
+      <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:4px">SOLANA (Phantom)</div>
+      <div style="color:#9945FF;font-size:10px;font-family:monospace">${mr.auditorWalletSol}</div>
+    </div>` : ""}
+    ${mr.completedAt ? `<div style="color:#445566;font-size:8px;margin-top:8px">Review completed: ${mr.completedAt}</div>` : ""}
+    ${mr.reviewNotes ? `${h2("Review Notes")}<p style="color:#8899aa;font-size:9px;line-height:1.6">${mr.reviewNotes}</p>` : ""}
+  `)
+})()}
+
 ${page(
-  17,
-  `${h1("14. Conclusion")}
+  18,
+  `${h1("15. Conclusion")}
   ${
     findings.length === 0
       ? `${p(`<strong style="color:#eef4fa">No severity issues were found.</strong>`)}${p(`The ${project.name || "protocol"} contracts passed all checks of the Solay39 Manual-First Audit Framework. The codebase demonstrates secure development practices, properly inheriting from well-tested libraries.`)}`

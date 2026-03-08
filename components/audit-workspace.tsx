@@ -323,6 +323,21 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const [architectureOverview, setArchitectureOverview] = useState("")
   const [attackSurface, setAttackSurface] = useState<{ title: string; type: string; description: string; likelihood: string; mitigated: boolean }[]>([])
   const [toolingUsed, setToolingUsed] = useState<string[]>([])
+  // Manual Review Session
+  const [manualReviewSession, setManualReviewSession] = useState<{
+    completedAt?: string
+    auditorWallet?: string
+    solanaWallet?: string
+    checksCompleted: number
+    checksTotal: number
+    confirmedFindings: number
+    rejectedFindings: number
+    manualFindingsAdded: number
+    signed: boolean
+    signature?: string
+    solanaSignature?: string
+    reviewNotes?: string
+  } | null>(null)
   // Tier-1 advanced sections
   const [governanceSecurity, setGovernanceSecurity] = useState<Record<string, unknown> | null>(null)
   const [upgradeabilityAnalysis, setUpgradeabilityAnalysis] = useState<Record<string, unknown> | null>(null)
@@ -1445,6 +1460,19 @@ const TABS: [TabId, string][] = [
     onChainRecord: (onChainRecord as any) || undefined,
     testCoverage: (testCoverage as PortfolioProject["testCoverage"]) || undefined,
     solanaAttestation: solanaAttestation || undefined,
+    // Manual Review Session
+    manualReview: manualReviewSession ? {
+      completedAt: manualReviewSession.completedAt,
+      auditorWalletEth: manualReviewSession.auditorWallet,
+      auditorWalletSol: manualReviewSession.solanaWallet,
+      checksCompleted: `${manualReviewSession.checksCompleted}/${manualReviewSession.checksTotal}`,
+      findingsConfirmed: manualReviewSession.confirmedFindings,
+      findingsRejected: manualReviewSession.rejectedFindings,
+      manualFindingsAdded: manualReviewSession.manualFindingsAdded,
+      signatureEth: manualReviewSession.signature,
+      signatureSol: manualReviewSession.solanaSignature,
+      reviewNotes: manualReviewSession.reviewNotes,
+    } : undefined,
   })}
                   className="w-full"
                 >
@@ -2206,6 +2234,9 @@ const TABS: [TabId, string][] = [
       }))}
       onReviewComplete={(session) => {
         // Aggiungi i finding confermati ai findings del workspace
+        const confirmedCount = session.aiFindings.filter(f => f.decision === "confirmed" || f.decision === "modified").length
+        const rejectedCount = session.aiFindings.filter(f => f.decision === "rejected").length
+        
         session.aiFindings
           .filter(f => f.decision === "confirmed" || f.decision === "modified")
           .forEach(f => {
@@ -2232,6 +2263,22 @@ const TABS: [TabId, string][] = [
             recommendation: f.recommendation,
             likelihood: "Medium",
           })
+        })
+
+        // Salva la sessione di review per includerla nel report
+        setManualReviewSession({
+          completedAt: session.completedAt,
+          auditorWallet: session.auditorWallet,
+          solanaWallet: session.solanaWallet,
+          checksCompleted: session.checks.filter(c => c.status !== "pending").length,
+          checksTotal: session.checks.length,
+          confirmedFindings: confirmedCount,
+          rejectedFindings: rejectedCount,
+          manualFindingsAdded: session.manualFindings.length,
+          signed: session.signed,
+          signature: session.signature,
+          solanaSignature: session.solanaSignature,
+          reviewNotes: session.reviewNotes,
         })
 
         // Passa alla tab findings per vedere il risultato
