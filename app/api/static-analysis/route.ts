@@ -64,11 +64,14 @@ async function runRealAnalysis(code: string, contractName: string): Promise<Anal
   }
   
   try {
-    const response = await fetch(apiUrl, {
+    // Call Railway backend (/api/analyze endpoint)
+    const analyzeUrl = apiUrl.endsWith("/") ? `${apiUrl}api/analyze` : `${apiUrl}/api/analyze`
+    
+    const response = await fetch(analyzeUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.STATIC_ANALYSIS_API_KEY || ""}`,
+        "x-api-key": process.env.SECURITY_API_KEY || process.env.STATIC_ANALYSIS_API_KEY || "",
       },
       body: JSON.stringify({
         code,
