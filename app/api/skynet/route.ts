@@ -17,7 +17,7 @@ import { runAttackSimulation } from "@/core/simulator/attackSimulator"
 import { pinReportToIPFS } from "@/lib/ipfs-pinning"
 import { generatePoCScripts, generateHardhatPoC } from "@/core/poc/pocGenerator"
 import { analyzeTestCoverage } from "@/core/analyzer/testCoverageAnalyzer"
-import { registerAuditOnSolana } from "@/lib/solana-attestation"
+// Solana attestation rimossa dal flusso principale - disponibile manualmente via /api/solana-attest
 
 /* ───────── types ───────── */
 
@@ -1435,20 +1435,9 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
       const ipfsRecord = await pinReportToIPFS(ipfsReportData, auditId)
 
       // ── ENTERPRISE: Solana On-Chain Attestation ─────────────────
-      // L'utente puo' attestare manualmente dal tab Blockchain se fallisce
-      let solanaAttestation = null
-      try {
-        const solanaResult = await registerAuditOnSolana(
-          auditId,
-          signedReport?.reportHash ?? "",
-          ipfsRecord?.ipfsCid
-        )
-        if (solanaResult) {
-          solanaAttestation = solanaResult
-        }
-      } catch (err) {
-        console.log("[Skynet] Solana attestation error:", err)
-      }
+      // Rimosso dal flusso principale per evitare timeout 504
+      // L'utente puo' attestare manualmente dal tab Blockchain
+      const solanaAttestation = null
 
       return Response.json({
         findings: finalFindings,
@@ -1658,20 +1647,9 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
       }
       const staticIpfsRecord = await pinReportToIPFS(staticIpfsReportData, staticAuditId)
 
-      // Solana Attestation for static path
-      let staticSolanaAttestation = null
-      try {
-        const staticSolanaResult = await registerAuditOnSolana(
-          staticAuditId,
-          staticSignedReport?.reportHash ?? "",
-          staticIpfsRecord?.ipfsCid
-        )
-        if (staticSolanaResult) {
-          staticSolanaAttestation = staticSolanaResult
-        }
-      } catch (err) {
-        console.log("[Skynet] Static Solana attestation error:", err)
-      }
+      // Solana Attestation - rimosso per evitare timeout
+      // L'utente puo' attestare manualmente dal tab Blockchain
+      const staticSolanaAttestation = null
 
       return Response.json({
         findings: finalStaticFindings,
