@@ -130,6 +130,15 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     memo: string
     timestamp: string
   } | null>(null)
+  const [solanaConfigured, setSolanaConfigured] = useState<boolean | null>(null)
+
+  // Check Solana configuration on mount
+  useEffect(() => {
+    fetch("/api/solana-status")
+      .then(res => res.json())
+      .then(data => setSolanaConfigured(data.configured))
+      .catch(() => setSolanaConfigured(false))
+  }, [])
 
   const allChecks = Object.values(checks).flatMap((c) => Object.values(c))
   // SINGLE SOURCE OF TRUTH: always use V2 engine for score computation
@@ -1985,6 +1994,17 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
                   >
                     Verifica su Solscan →
                   </a>
+                </div>
+              ) : solanaConfigured === null ? (
+                <div className="bg-s39-bg2 border border-s39-border p-3 mb-5">
+                  <div className="text-[9px] text-s39-dim">Verifica configurazione Solana...</div>
+                </div>
+              ) : solanaConfigured ? (
+                <div className="bg-[#001510] border border-s39-green/20 p-3 mb-5">
+                  <div className="text-[9px] text-s39-green mb-1">[OK] Solana configurato correttamente</div>
+                  <div className="text-[9px] text-s39-dim">
+                    L&apos;attestazione verra&apos; generata automaticamente al prossimo audit Skynet AI.
+                  </div>
                 </div>
               ) : (
                 <div className="bg-[#160005] border border-s39-red/20 p-3 mb-5">
