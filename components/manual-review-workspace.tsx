@@ -151,50 +151,86 @@ export default function ManualReviewWorkspace({
   const [expandedFinding, setExpandedFinding] = useState<string | null>(null)
   const [addingManual, setAddingManual] = useState(false)
   const [newFinding, setNewFinding] = useState<Partial<ManualFinding>>({})
+
+  // ── Deep Review state ─────────────────────────────────────────
+  const [deepReviewLoading, setDeepReviewLoading] = useState(false)
+  const [deepReviewDone, setDeepReviewDone] = useState(false)
+  const [deepReviewError, setDeepReviewError] = useState("")
+  const [deepReviewSummary, setDeepReviewSummary] = useState("")
+  const [deepReviewCompilerNote, setDeepReviewCompilerNote] = useState("")
+  const [deepReviewSource, setDeepReviewSource] = useState<{
+    contractName: string; compiler: string; linesOfCode: number; fetchedFrom: string; sourcePreview: string
+  } | null>(null)
+  const [findingVerifications, setFindingVerifications] = useState<Array<{
+    findingId: string
+    verdict: "CONFIRMED" | "FALSE_POSITIVE" | "SEVERITY_WRONG" | "NEEDS_CLARIFICATION"
+    reason: string
+    suggestedSeverity?: string
+  }>>([])
+  const [missingFindings, setMissingFindings] = useState<Array<{
+    id: string; title: string; severity: string; location: string
+    description: string; impact: string; recommendation: string; codeEvidence?: string
+    approved?: boolean; rejected?: boolean
+  }>>([])
+
+  // ── Run deep review ────────────────────────────────────────────
+  const runDeepReview = useCallback(async () => {
+    if (!contractAddress || deepReviewLoading || deepReviewDone) return
+    setDeepReviewLoading(true)
+    setDeepReviewError("")
+    try {
+      const res = await fetch("/api/deep-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contractAddress,
+          network,
+          aiFindings: aiFindings.map((f, i) => ({
+            id: `AI-${String(i + 1).padStart(3, "0")}`,
+            title: f.title,
+            severity: f.severity,
+            location: f.location,
+            description: f.description,
+            impact: f.impact,
+          })),
+          fallbackSource: contractSource.slice(0, 12000),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setDeepReviewError(data.error || "Deep review failed")
+        return
+      }
+      // Populate state
+      setDeepReviewSummary(data.summary || "")
+      setDeepReviewCompilerNote(data.compilerNote || "")
+      setDeepReviewSource(data.realSource || null)
+      setFindingVerifications(data.findingVerifications || [])
+      setMissingFindings((data.missingFindings || []).map((f: { id: string; title: string; severity: string; location: string; description: string; impact: string; recommendation: string; codeEvidence?: string }) => ({
+        ...f, approved: false, rejected: false,
+      })))
+      // Replace checklist with deep-review specific one
+      if (data.checklist?.length > 0) {
+        setSession(s => ({ ...s, checks: data.checklist }))
+      }
+      setDeepReviewDone(true)
+    } catch (e) {
+      setDeepReviewError(e instanceof Error ? e.message : "Unknown error")
+    } finally {
+      setDeepReviewLoading(false)
+    }
+  }, [contractAddress, network, aiFindings, contractSource, deepReviewLoading, deepReviewDone])
   const [codeSearch, setCodeSearch] = useState("")
   const [signing, setSigning] = useState(false)
   const [signError, setSignError] = useState("")
 
-  // ── Genera checklist dinamica dall'AI ──────────────────────────
-
-  const generateDynamicChecklist = useCallback(async () => {
-    setLoadingChecklist(true)
-    try {
-      const res = await fetch("/api/generate-checklist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contractSource: contractSource.slice(0, 8000),
-          contractAddress,
-          network,
-          aiFindings: aiFindings.slice(0, 10),
-        }),
-      })
-
-      if (res.ok) {
-        const data = await res.json()
-        if (data.checks?.length > 0) {
-          setSession(s => ({ ...s, checks: data.checks }))
-          return
-        }
-      }
-    } catch {
-      // fallback to static
-    }
-
-    // Fallback: checklist statica adattata al network
-    setSession(s => ({
-      ...s,
-      checks: buildFallbackChecklist(network, contractSource),
-    }))
-    setLoadingChecklist(false)
-  }, [contractSource, contractAddress, network, aiFindings])
-
+  // ── Auto-run deep review on mount ─────────────────────────────
   useEffect(() => {
-    if (session.checks.length === 0) {
-      generateDynamicChecklist()
+    if (contractAddress && !deepReviewDone && !deepReviewLoading) {
+      runDeepReview()
     }
-  }, [generateDynamicChecklist, session.checks.length])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contractAddress])
 
   // ── Aggiorna stato di un check ─────────────────────────────────
 
@@ -419,10 +455,11 @@ export default function ManualReviewWorkspace({
             {/* ── CHECKLIST TAB ── */}
             {activeSection === "checklist" && (
               <div>
-                {loadingChecklist ? (
+                {deepReviewLoading ? (
                   <div style={{ textAlign: "center", padding: 40, color: "#444", fontSize: 11 }}>
-                    <div style={{ color: "#00ff88", marginBottom: 8 }}>⟳</div>
-                    Generating AI checklist for {contractName}...
+                    <div style={{ color: "#00ff88", marginBottom: 8, fontSize: 18 }}>⟳</div>
+                    <div style={{ color: "#00ff88", marginBottom: 4 }}>Fetching real source from {network} explorer...</div>
+                    <div style={{ color: "#444", fontSize: 9 }}>Analyzing with Claude — finding false positives & missing issues</div>
                   </div>
                 ) : (
                   <>
@@ -509,15 +546,56 @@ export default function ManualReviewWorkspace({
             {/* ── AI FINDINGS TAB ── */}
             {activeSection === "findings" && (
               <div>
+                {/* Deep review banner */}
+                {deepReviewLoading && (
+                  <div style={{ background: "#00ff8810", border: "1px solid #00ff8830", padding: "10px 14px", marginBottom: 12, fontSize: 10, color: "#00ff88" }}>
+                    ⟳ Fetching real source from {network} explorer and analyzing findings...
+                  </div>
+                )}
+                {deepReviewError && (
+                  <div style={{ background: "#ff440010", border: "1px solid #ff440030", padding: "10px 14px", marginBottom: 12, fontSize: 10, color: "#ff6666" }}>
+                    ⚠ {deepReviewError}
+                  </div>
+                )}
+                {deepReviewDone && deepReviewSource && (
+                  <div style={{ background: "#0f0f0f", border: "1px solid #1e1e1e", padding: "10px 14px", marginBottom: 12 }}>
+                    <div style={{ fontSize: 9, color: "#00ff88", letterSpacing: "0.1em", marginBottom: 6 }}>DEEP REVIEW — REAL SOURCE ANALYZED</div>
+                    <div style={{ fontSize: 10, color: "#888", marginBottom: 4 }}>
+                      {deepReviewSource.contractName} · {deepReviewSource.linesOfCode} LOC · {deepReviewSource.compiler}
+                      <span style={{ color: "#555", marginLeft: 6 }}>fetched from {deepReviewSource.fetchedFrom}</span>
+                    </div>
+                    {deepReviewCompilerNote && (
+                      <div style={{ fontSize: 10, color: "#ffcc00", marginBottom: 4 }}>⚠ {deepReviewCompilerNote}</div>
+                    )}
+                    {deepReviewSummary && (
+                      <div style={{ fontSize: 10, color: "#666", fontStyle: "italic" }}>{deepReviewSummary}</div>
+                    )}
+                  </div>
+                )}
+
                 <div style={{ marginBottom: 12, fontSize: 10, color: "#555" }}>
-                  Review each AI finding. Confirm genuine issues, mark false positives, or adjust severity.
+                  Review each AI finding. Deep analysis shows verdicts based on real source code.
                 </div>
 
                 {session.aiFindings.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: 40, color: "#444", fontSize: 11 }}>
-                    No AI findings to review.
-                  </div>
-                ) : session.aiFindings.map(f => (
+                  <div style={{ textAlign: "center", padding: 40, color: "#444", fontSize: 11 }}>No AI findings to review.</div>
+                ) : session.aiFindings.map((f, idx) => {
+                  // Match deep-review verdict for this finding
+                  const ver = findingVerifications.find(v =>
+                    v.findingId === f.id ||
+                    v.findingId === `AI-${String(idx + 1).padStart(3, "0")}`
+                  )
+                  const verdictColor = ver?.verdict === "FALSE_POSITIVE" ? "#ff4444"
+                    : ver?.verdict === "CONFIRMED" ? "#00ff88"
+                    : ver?.verdict === "SEVERITY_WRONG" ? "#ffcc00"
+                    : "#888"
+                  const verdictLabel = ver?.verdict === "FALSE_POSITIVE" ? "✗ FALSO POSITIVO"
+                    : ver?.verdict === "CONFIRMED" ? "✓ CONFERMATO"
+                    : ver?.verdict === "SEVERITY_WRONG" ? "⚠ SEVERITY ERRATA"
+                    : ver?.verdict === "NEEDS_CLARIFICATION" ? "? DA VERIFICARE"
+                    : deepReviewDone ? "— non analizzato" : ""
+
+                  return (
                   <div key={f.id} style={{
                     marginBottom: 8,
                     background: f.decision === "confirmed" || f.decision === "modified" ? "#00ff8806" :
@@ -527,7 +605,7 @@ export default function ManualReviewWorkspace({
                     padding: "12px 14px",
                   }}>
                     {/* Finding header */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                       <span style={{ fontSize: 9, color: "#555" }}>{f.id}</span>
                       <span style={{
                         fontSize: 9, padding: "2px 7px",
@@ -547,6 +625,20 @@ export default function ManualReviewWorkspace({
                         </span>
                       )}
                     </div>
+
+                    {/* Deep review verdict banner */}
+                    {ver && (
+                      <div style={{
+                        background: `${verdictColor}10`, border: `1px solid ${verdictColor}30`,
+                        padding: "6px 10px", marginBottom: 8, fontSize: 10,
+                      }}>
+                        <span style={{ color: verdictColor, fontWeight: "bold" }}>{verdictLabel}</span>
+                        {ver.suggestedSeverity && (
+                          <span style={{ color: "#ffcc00", marginLeft: 8 }}>→ dovrebbe essere {ver.suggestedSeverity}</span>
+                        )}
+                        <div style={{ color: "#666", marginTop: 3, fontSize: 9 }}>{ver.reason}</div>
+                      </div>
+                    )}
 
                     {/* Decision buttons */}
                     <div style={{ display: "flex", gap: 6, marginBottom: expandedFinding === f.id ? 10 : 0 }}>
@@ -619,7 +711,77 @@ export default function ManualReviewWorkspace({
                       </div>
                     )}
                   </div>
-                ))}
+                  )
+                })}
+
+                {/* ── Missing findings from deep review ── */}
+                {missingFindings.length > 0 && (
+                  <div style={{ marginTop: 20 }}>
+                    <div style={{ fontSize: 9, color: "#ff8800", letterSpacing: "0.12em", marginBottom: 10 }}>
+                      FINDING MANCANTI — trovati durante deep review ({missingFindings.filter(f => !f.rejected).length} da verificare)
+                    </div>
+                    {missingFindings.map((mf, i) => (
+                      <div key={mf.id} style={{
+                        marginBottom: 8,
+                        background: mf.approved ? "#00ff8806" : mf.rejected ? "#ff444406" : "#0d0d0d",
+                        border: `1px solid ${mf.approved ? "#00ff8825" : mf.rejected ? "#ff444425" : "#ff880025"}`,
+                        padding: "12px 14px",
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                          <span style={{ fontSize: 9, padding: "2px 6px", background: "#ff880020", color: "#ff8800", border: "1px solid #ff880040" }}>MISSING</span>
+                          <span style={{
+                            fontSize: 9, padding: "2px 7px",
+                            background: SEV[mf.severity as Severity]?.bg || "#888",
+                            color: SEV[mf.severity as Severity]?.color || "#888",
+                          }}>{mf.severity}</span>
+                          <span style={{ fontSize: 11, color: "#ccc", flex: 1 }}>{mf.title}</span>
+                        </div>
+
+                        <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>📍 {mf.location}</div>
+                        <div style={{ fontSize: 10, color: "#777", marginBottom: 6 }}>{mf.description}</div>
+
+                        {mf.codeEvidence && (
+                          <pre style={{ background: "#0a0a0a", border: "1px solid #1a1a1a", padding: "6px 10px", fontSize: 9, color: "#ff8800", marginBottom: 8, overflow: "auto", whiteSpace: "pre-wrap" }}>
+                            {mf.codeEvidence}
+                          </pre>
+                        )}
+
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button
+                            onClick={() => {
+                              // Approve: add to manual findings
+                              const finding: ManualFinding = {
+                                id: `MR-${Date.now()}`,
+                                title: mf.title,
+                                severity: mf.severity as Severity,
+                                location: mf.location,
+                                description: mf.description,
+                                impact: mf.impact,
+                                recommendation: mf.recommendation,
+                                addedBy: "manual",
+                              }
+                              setSession(s => ({ ...s, manualFindings: [...s.manualFindings, finding] }))
+                              setMissingFindings(prev => prev.map((f, j) => j === i ? { ...f, approved: true, rejected: false } : f))
+                            }}
+                            style={{
+                              background: mf.approved ? "#00ff88" : "#1a1a1a", border: "none", cursor: "pointer",
+                              color: mf.approved ? "#000" : "#00ff8880", fontSize: 9, padding: "4px 10px", fontFamily: "inherit",
+                            }}>
+                            ✅ Aggiungi al report
+                          </button>
+                          <button
+                            onClick={() => setMissingFindings(prev => prev.map((f, j) => j === i ? { ...f, rejected: true, approved: false } : f))}
+                            style={{
+                              background: mf.rejected ? "#ff4444" : "#1a1a1a", border: "none", cursor: "pointer",
+                              color: mf.rejected ? "#fff" : "#ff444480", fontSize: 9, padding: "4px 10px", fontFamily: "inherit",
+                            }}>
+                            ❌ Rigetta
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
