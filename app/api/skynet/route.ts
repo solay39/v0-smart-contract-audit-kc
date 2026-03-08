@@ -19,6 +19,103 @@ import { generatePoCScripts, generateHardhatPoC } from "@/core/poc/pocGenerator"
 import { analyzeTestCoverage } from "@/core/analyzer/testCoverageAnalyzer"
 // Solana attestation rimossa dal flusso principale - disponibile manualmente via /api/solana-attest
 
+/* ───────── Static Analysis (Slither/Mythril) ───────── */
+
+interface SlitherFinding {
+  check: string
+  impact: string
+  confidence: string
+  description: string
+  elements: Array<{ type: string; name: string; filename: string; lines: number[] }>
+}
+
+interface MythrilFinding {
+  swc_id: string
+  swc_title: string
+  severity: string
+  description: string
+  contract: string
+  function: string
+  lineno: number
+  code: string
+}
+
+interface StaticAnalysisResult {
+  slither: {
+    tool: "slither"
+    version: string
+    success: boolean
+    findings: SlitherFinding[]
+    detectors_run: number
+    error: string | null
+  }
+  mythril: {
+    tool: "mythril"
+    version: string
+    success: boolean
+    findings: MythrilFinding[]
+    error: string | null
+  }
+}
+
+async function runStaticAnalysis(code: string, contractName: string): Promise<StaticAnalysisResult | null> {
+  try {
+    // Call internal API endpoint
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    
+    const response = await fetch(`${baseUrl}/api/static-analysis`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, contractName }),
+    })
+    
+    if (!response.ok) return null
+    
+    const data = await response.json()
+    return data.success ? data : null
+  } catch (error) {
+    console.error("[Skynet] Static analysis failed:", error)
+    return null
+  }
+}
+
+function convertStaticAnalysisToFindings(analysis: StaticAnalysisResult): Finding[] {
+  const findings: Finding[] = []
+  
+  // Convert Slither findings
+  for (const f of analysis.slither.findings) {
+    if (f.impact === "INFORMATIONAL") continue // Skip info-level
+    
+    const severity = f.impact === "HIGH" ? "HIGH" : f.impact === "MEDIUM" ? "MEDIUM" : "LOW"
+    const lines = f.elements?.[0]?.lines?.slice(0, 3) || []
+    
+    findings.push({
+      title: `[Slither] ${f.check.replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase())}`,
+      severity,
+      location: lines.length ? `Lines ${lines.join(", ")}` : "Contract.sol",
+      description: f.description,
+      impact: `Detected by Slither detector: ${f.check} (confidence: ${f.confidence})`,
+      recommendation: `Review and fix the ${f.check} issue as flagged by Slither static analysis.`,
+    })
+  }
+  
+  // Convert Mythril findings
+  for (const f of analysis.mythril.findings) {
+    findings.push({
+      title: `[Mythril] ${f.swc_title} (${f.swc_id})`,
+      severity: f.severity,
+      location: f.lineno ? `Line ${f.lineno}` : f.contract || "Contract.sol",
+      description: f.description,
+      impact: `SWC Registry: ${f.swc_id} - ${f.swc_title}. Function: ${f.function || "unknown"}`,
+      recommendation: `Fix the ${f.swc_id} vulnerability as detected by Mythril symbolic execution.`,
+    })
+  }
+  
+  return findings
+}
+
 /* ───────── types ───────── */
 
 interface Finding {
@@ -964,6 +1061,30 @@ export async function POST(req: Request) {
           return true
         })
 
+      // ── REAL STATIC ANALYSIS: Run Slither + Mythril ──────────────────
+      let staticAnalysisResults: StaticAnalysisResult | null = null
+      let staticAnalysisFindings: Finding[] = []
+      
+      // Only run on Solidity code
+      if (!meta.isNonEVM && meta.codeLanguage === "Solidity") {
+        staticAnalysisResults = await runStaticAnalysis(code, contractName || "Contract")
+        if (staticAnalysisResults) {
+          staticAnalysisFindings = convertStaticAnalysisToFindings(staticAnalysisResults)
+          
+          // Merge static analysis findings with AI findings (deduplicate by similar title)
+          for (const sf of staticAnalysisFindings) {
+            const sfKey = sf.title.toLowerCase().replace(/\[slither\]|\[mythril\]/g, "").trim()
+            const isDuplicate = findings.some((f: { title: string }) => {
+              const fKey = f.title.toLowerCase()
+              return fKey.includes(sfKey) || sfKey.includes(fKey.slice(0, 20))
+            })
+            if (!isDuplicate) {
+              findings.push(sf)
+            }
+          }
+        }
+      }
+
       // Extract Tier-1 sections from AI response
       const privilegedRoles = Array.isArray(parsed.privilegedRoles)
         ? parsed.privilegedRoles.map((r: Record<string, string>) => ({
@@ -1115,14 +1236,15 @@ export async function POST(req: Request) {
       }
       const scoreBreakdown = computeScoreBreakdown(98, meta, fCount)
 
-      // Build tooling section
-      const toolingUsed = [
-        "Solay39 Manual Review",
-        "Solay39 Static Analyzer",
-        "AI-Guided Verification (GPT-4o)",
-        ...(meta.usesOZ ? ["OpenZeppelin Contract Analysis"] : []),
-        ...(meta.hasProxy ? ["Proxy Storage Layout Check"] : []),
-      ]
+  // Build tooling section
+  const toolingUsed = [
+  "Solay39 Manual Review",
+  "AI-Guided Verification (GPT-4o)",
+  ...(staticAnalysisResults?.slither?.success ? [`Slither v${staticAnalysisResults.slither.version} (${staticAnalysisResults.slither.findings.length} findings)`] : []),
+  ...(staticAnalysisResults?.mythril?.success ? [`Mythril v${staticAnalysisResults.mythril.version} (${staticAnalysisResults.mythril.findings.length} findings)`] : []),
+  ...(meta.usesOZ ? ["OpenZeppelin Contract Analysis"] : []),
+  ...(meta.hasProxy ? ["Proxy Storage Layout Check"] : []),
+  ]
 
       // ── ENTERPRISE: Validate AI findings — downgrade false positive "Unrestricted Mint" ──
       // If AI generates "Unrestricted Mint" but static analysis detected a guard (require(msg.sender == minter),
@@ -1439,13 +1561,28 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
       // L'utente puo' attestare manualmente dal tab Blockchain
       const solanaAttestation = null
 
-      return Response.json({
-        findings: finalFindings,
-        source: "ai",
-        contractMeta: meta,
-        scoreBreakdown,
-        // Tier-1 sections
-        privilegedRoles,
+return Response.json({
+  findings: finalFindings,
+  source: "ai",
+  contractMeta: meta,
+  scoreBreakdown,
+  // Static Analysis (Slither + Mythril)
+  staticAnalysis: staticAnalysisResults ? {
+    slither: {
+      version: staticAnalysisResults.slither.version,
+      success: staticAnalysisResults.slither.success,
+      findingsCount: staticAnalysisResults.slither.findings.length,
+      detectorsRun: staticAnalysisResults.slither.detectors_run,
+    },
+    mythril: {
+      version: staticAnalysisResults.mythril.version,
+      success: staticAnalysisResults.mythril.success,
+      findingsCount: staticAnalysisResults.mythril.findings.length,
+    },
+    rawFindings: staticAnalysisFindings.length,
+  } : null,
+  // Tier-1 sections
+  privilegedRoles,
         trustAssumptions,
         architectureOverview,
         attackSurface,
