@@ -459,13 +459,30 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     const durationDays = (() => {
       const aiDays = (aiEngagement?.auditDurationDays as number)
       if (aiDays && aiDays > 1) return aiDays
-      return loc > 1000 ? 5 : loc > 500 ? 4 : loc > 200 ? 3 : 2
+      // Proportional days based on LOC
+      if (loc <= 50)        return 1
+      else if (loc <= 150)  return 1
+      else if (loc <= 300)  return 2
+      else if (loc <= 600)  return 3
+      else if (loc <= 1000) return 5
+      else                  return 7
     })()
     const engHours = (() => {
-      if (loc < 50) return 2
-      if (loc < 200) return Math.round(loc / 15)
-      if (loc < 500) return Math.round(loc / 20)
-      return Math.round(loc / 25)
+      // Realistic hours based on LOC + contract complexity
+      const hasProxy = contractMeta?.hasProxy
+      const hasMint = contractMeta?.hasMint
+      const hasExternalCalls = contractMeta?.hasExternalCalls
+      const complexityBonus = (hasProxy ? 4 : 0) + (hasMint ? 2 : 0) + (hasExternalCalls ? 4 : 0)
+
+      let base: number
+      if (loc <= 50)        base = 4          // Simple token: 4h
+      else if (loc <= 150)  base = 8          // Standard ERC-20: 8h
+      else if (loc <= 300)  base = 16         // Medium contract: 16h
+      else if (loc <= 600)  base = 24         // Complex contract: 24h
+      else if (loc <= 1000) base = 40         // Large contract: 40h
+      else                  base = 60         // Very large: 60h+
+
+      return Math.min(base + complexityBonus, 120) // cap at 120h
     })()
 
     const validation = await validate(
@@ -909,7 +926,14 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         deliveryDate,
         auditDurationDays: realDays,
         numberOfAuditors: 1,
-        engineeringHours: finalDays * 1 * 8,
+        engineeringHours: (() => {
+          if (loc <= 50) return 4
+          if (loc <= 150) return 8
+          if (loc <= 300) return 16
+          if (loc <= 600) return 24
+          if (loc <= 1000) return 40
+          return 60
+        })(),
         securityEngineersInvolved: 1,
         leadAuditor: "Solay39 Founder",
         compilerVersionUsed: (aiEngagement?.compilerVersionUsed as string) || contractMeta?.codeLanguage || contractMeta?.solidityVersion || "N/A",
@@ -1378,13 +1402,20 @@ const TABS: [TabId, string][] = [
       const finalDays = realDays > 1 ? realDays : locDays
       return {
       auditDate,
-      deliveryDate,
-      auditDurationDays: realDays,
-      numberOfAuditors: 1,
-      engineeringHours: finalDays * 1 * 8,
-      securityEngineersInvolved: 1,
-      leadAuditor: "Solay39 Founder",
-      compilerVersionUsed: (aiEngagement.compilerVersionUsed as string) || "N/A",
+        deliveryDate,
+        auditDurationDays: realDays,
+        numberOfAuditors: 1,
+        engineeringHours: (() => {
+          if (loc <= 50) return 4
+          if (loc <= 150) return 8
+          if (loc <= 300) return 16
+          if (loc <= 600) return 24
+          if (loc <= 1000) return 40
+          return 60
+        })(),
+        securityEngineersInvolved: 1,
+        leadAuditor: "Solay39 Founder",
+        compilerVersionUsed: (aiEngagement.compilerVersionUsed as string) || "N/A",
       contractsReviewed: 1,
       linesOfCode: (aiEngagement.linesOfCode as number) || 0,
       commitHash: project.commit || "N/A",

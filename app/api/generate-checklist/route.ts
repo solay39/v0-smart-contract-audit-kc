@@ -23,6 +23,55 @@ interface CheckItem {
   note: ""
 }
 
+// Garantisce almeno 6-10 domande base anche per contratti semplici
+function mergeWithBaseChecklist(
+  aiChecks: CheckItem[],
+  network: string,
+  source: string
+): CheckItem[] {
+  const isSolana = network === "Solana"
+  const hasOwner = /onlyOwner|Ownable|owner\(\)/.test(source)
+  const hasProxy = /upgradeable|proxy|UUPSUpgradeable/.test(source.toLowerCase())
+  const hasMint = /function\s+mint/.test(source)
+
+  // Base questions always present regardless of contract complexity
+  const base: CheckItem[] = isSolana ? [
+    { id: "base-s1", category: "Signer Verification", question: "Are all state-modifying instructions verifying the signer account explicitly?", why: "Missing signer check is #1 Solana exploit vector", severity: "CRITICAL", aiGenerated: true, status: "pending", note: "" },
+    { id: "base-s2", category: "Account Validation", question: "Are account owners verified before reading or writing account data?", why: "Account confusion attacks exploit missing owner checks", severity: "HIGH", aiGenerated: true, status: "pending", note: "" },
+    { id: "base-s3", category: "Arithmetic Safety", question: "Are all arithmetic operations using checked_add / checked_sub / checked_mul?", why: "Rust release mode disables overflow panics by default", severity: "MEDIUM", aiGenerated: true, status: "pending", note: "" },
+    { id: "base-s4", category: "CPI Security", question: "Are all Cross-Program Invocations verifying the target program ID?", why: "Unverified CPI targets allow calling malicious programs", severity: "HIGH", aiGenerated: true, status: "pending", note: "" },
+    { id: "base-s5", category: "PDA Security", question: "Are PDA seeds unique enough to prevent account collisions?", why: "Predictable seeds allow front-running PDA creation", severity: "MEDIUM", aiGenerated: true, status: "pending", note: "" },
+  ] : [
+    { id: "base-e1", category: "Access Control", question: "Are all state-changing functions restricted to authorized callers only?", why: "Unrestricted functions are the most common exploit entry point", severity: "CRITICAL", aiGenerated: true, status: "pending", note: "" },
+    { id: "base-e2", category: "Access Control", question: "Is the contract ownership transfer a two-step process (propose + accept)?", why: "One-step ownership transfer risks transferring to wrong address permanently", severity: "HIGH", aiGenerated: true, status: "pending", note: "" },
+    { id: "base-e3", category: "Supply Integrity", question: "Is the total supply fixed and immutable as claimed, with no hidden mint path?", why: "Hidden mint functions allow silent supply inflation", severity: "CRITICAL", aiGenerated: true, status: "pending", note: "" },
+    { id: "base-e4", category: "Token Standard", question: "Do transfer() and transferFrom() correctly return a boolean and revert on failure?", why: "Non-compliant return values cause integration failures with DeFi protocols", severity: "MEDIUM", aiGenerated: true, status: "pending", note: "" },
+    { id: "base-e5", category: "Code Quality", question: "Is the Solidity version pinned (not floating ^) to a specific compiler version?", why: "Floating pragma can compile with future incompatible compiler versions", severity: "LOW", aiGenerated: true, status: "pending", note: "" },
+    { id: "base-e6", category: "Deployment", question: "Does the deployed bytecode match the verified source on the block explorer?", why: "Mismatched bytecode means the audited code is not what is running on-chain", severity: "CRITICAL", aiGenerated: true, status: "pending", note: "" },
+    ...(hasOwner ? [
+      { id: "base-e7", category: "Centralization", question: "Is the owner address a multisig or EOA? If EOA, what is the key management policy?", why: "A single compromised EOA gives full admin control", severity: "HIGH", aiGenerated: true as const, status: "pending" as const, note: "" as const },
+    ] : []),
+    ...(hasProxy ? [
+      { id: "base-e8", category: "Upgradeability", question: "Is the upgrade function behind a timelock of at least 48 hours?", why: "Immediate upgrades allow admin to drain funds before users can exit", severity: "HIGH", aiGenerated: true as const, status: "pending" as const, note: "" as const },
+      { id: "base-e9", category: "Upgradeability", question: "Is the initialize() function callable only once (Initializable modifier)?", why: "Unprotected initializers allow anyone to reset contract ownership", severity: "CRITICAL", aiGenerated: true as const, status: "pending" as const, note: "" as const },
+    ] : []),
+    ...(hasMint ? [
+      { id: "base-e10", category: "Mint Control", question: "Is the mint function protected by a role check (onlyOwner / onlyMinter)?", why: "Unprotected mint allows infinite token creation by anyone", severity: "CRITICAL", aiGenerated: true as const, status: "pending" as const, note: "" as const },
+    ] : []),
+  ]
+
+  // Merge: keep AI questions first (more specific), add base ones not already covered
+  const existingIds = new Set(aiChecks.map(c => c.id))
+  const existingQuestions = aiChecks.map(c => c.question.toLowerCase().slice(0, 40))
+
+  const toAdd = base.filter(b =>
+    !existingIds.has(b.id) &&
+    !existingQuestions.some(q => q.includes(b.question.toLowerCase().slice(0, 25)))
+  )
+
+  return [...aiChecks, ...toAdd]
+}
+
 export async function POST(req: NextRequest) {
   const { contractSource, contractAddress, network, aiFindings } = await req.json()
 
@@ -135,7 +184,9 @@ Respond ONLY with valid JSON array:
       }))
       .slice(0, 30) // max 30 items
 
-    return NextResponse.json({ checks: sanitized })
+    // Sempre garantire almeno 6-10 domande base anche per contratti semplici
+    const merged = mergeWithBaseChecklist(sanitized, network, contractSource)
+    return NextResponse.json({ checks: merged })
 
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
