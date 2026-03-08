@@ -3,7 +3,6 @@
 // Chiamato dal frontend dopo l'analisi Skynet
 
 import { NextRequest, NextResponse } from "next/server"
-import { registerAuditOnSolana } from "@/lib/solana-attestation"
 
 // IMPORTANTE: @solana/web3.js richiede il runtime Node.js (non Edge)
 export const runtime = "nodejs"
@@ -43,6 +42,21 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`[Solana Attest] Starting attestation for auditId: ${auditId}`)
+
+    // Dynamic import per evitare crash a livello di modulo se la lib non è disponibile
+    let registerAuditOnSolana: (auditId: string, reportHash: string, ipfsCid?: string) => Promise<unknown>
+    try {
+      const mod = await import("@/lib/solana-attestation")
+      registerAuditOnSolana = mod.registerAuditOnSolana
+    } catch (importErr) {
+      const importMsg = importErr instanceof Error ? importErr.message : String(importErr)
+      console.error("[Solana Attest] Failed to load solana-attestation library:", importMsg)
+      return NextResponse.json({
+        success: false,
+        configured: true,
+        error: `Libreria Solana non disponibile: ${importMsg}. Verifica che @solana/web3.js e bs58 siano nelle dipendenze del progetto (package.json).`,
+      }, { status: 503 })
+    }
 
     const result = await registerAuditOnSolana(
       auditId,
