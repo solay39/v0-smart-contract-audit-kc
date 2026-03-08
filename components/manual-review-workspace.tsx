@@ -70,12 +70,14 @@ interface ReviewSession {
   startedAt: string
   completedAt?: string
   auditorWallet?: string
+  solanaWallet?: string
   checks: DynamicCheckItem[]
   aiFindings: AIFindingReview[]
   manualFindings: ManualFinding[]
   reviewNotes: string
   signed: boolean
   signature?: string
+  solanaSignature?: string
 }
 
 // ─── Props ────────────────────────────────────────────────────────
@@ -242,19 +244,21 @@ export default function ManualReviewWorkspace({
     setAddingManual(false)
   }
 
-  // ── Firma la review con MetaMask ──────────────────────────────
+  // ── Firma la review con MetaMask + Phantom ──────────────────────────────
 
   async function signReview() {
     setSigning(true)
     setSignError("")
     try {
+      // Step 1: MetaMask (Ethereum)
       const ethereum = (window as Window & { ethereum?: { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum
       if (!ethereum) throw new Error("MetaMask not found. Install MetaMask to sign.")
 
       const accounts = await ethereum.request({ method: "eth_requestAccounts" }) as string[]
-      const address = accounts[0]
+      const ethAddress = accounts[0]
 
       const confirmedFindings = session.aiFindings.filter(f => f.decision === "confirmed" || f.decision === "modified").length
+      const reviewedAt = new Date().toISOString()
       const message = [
         "Solay39 Manual Review Signature",
         `Contract: ${contractName} (${contractAddress})`,
@@ -263,21 +267,43 @@ export default function ManualReviewWorkspace({
         `AI findings reviewed: ${session.aiFindings.filter(f => f.decision !== "pending").length}/${session.aiFindings.length}`,
         `Confirmed findings: ${confirmedFindings}`,
         `Manual findings added: ${session.manualFindings.length}`,
-        `Reviewed at: ${new Date().toISOString()}`,
+        `Reviewed at: ${reviewedAt}`,
         "I confirm I have manually reviewed this smart contract using the AI-guided checklist.",
       ].join("\n")
 
-      const signature = await ethereum.request({
+      const ethSignature = await ethereum.request({
         method: "personal_sign",
-        params: [message, address],
+        params: [message, ethAddress],
       }) as string
+
+      // Step 2: Phantom (Solana)
+      let solAddress: string | undefined
+      let solSignature: string | undefined
+      
+      const phantom = (window as Window & { solana?: { isPhantom?: boolean; connect: () => Promise<{ publicKey: { toString: () => string } }>; signMessage: (msg: Uint8Array, encoding: string) => Promise<{ signature: Uint8Array }> } }).solana
+      
+      if (phantom?.isPhantom) {
+        try {
+          const resp = await phantom.connect()
+          solAddress = resp.publicKey.toString()
+          
+          const solMessage = new TextEncoder().encode(message)
+          const { signature: solSig } = await phantom.signMessage(solMessage, "utf8")
+          solSignature = Buffer.from(solSig).toString("base64")
+        } catch (phantomErr) {
+          console.log("[Solay39] Phantom signature skipped:", phantomErr)
+          // Non blocchiamo se Phantom fallisce, la firma MetaMask e' sufficiente
+        }
+      }
 
       const completedSession: ReviewSession = {
         ...session,
-        completedAt: new Date().toISOString(),
-        auditorWallet: address,
+        completedAt: reviewedAt,
+        auditorWallet: ethAddress,
+        solanaWallet: solAddress,
         signed: true,
-        signature,
+        signature: ethSignature,
+        solanaSignature: solSignature,
       }
 
       setSession(completedSession)
@@ -741,15 +767,27 @@ export default function ManualReviewWorkspace({
                         fontWeight: 700, letterSpacing: "0.1em", width: "100%",
                       }}
                     >
-                      {signing ? "⟳ Signing with MetaMask..." : "✍ Sign Review with Wallet"}
+                      {signing ? "Signing with MetaMask + Phantom..." : "Sign Review (MetaMask + Phantom)"}
                     </button>
                     {signError && <div style={{ fontSize: 10, color: "#ff4444", marginTop: 8 }}>{signError}</div>}
                   </div>
                 ) : (
                   <div style={{ background: "#00ff8810", border: "1px solid #00ff8840", padding: "16px 20px", textAlign: "center" }}>
-                    <div style={{ color: "#00ff88", fontSize: 13, fontWeight: 700, marginBottom: 4 }}>✓ REVIEW SIGNED</div>
-                    <div style={{ fontSize: 9, color: "#666" }}>Auditor: {session.auditorWallet}</div>
-                    <div style={{ fontSize: 9, color: "#444", marginTop: 4 }}>{session.completedAt}</div>
+                    <div style={{ color: "#00ff88", fontSize: 13, fontWeight: 700, marginBottom: 8 }}>REVIEW SIGNED</div>
+                    <div style={{ fontSize: 9, color: "#666", marginBottom: 4 }}>
+                      <span style={{ color: "#888" }}>ETH:</span> {session.auditorWallet?.slice(0, 10)}...{session.auditorWallet?.slice(-8)}
+                    </div>
+                    {session.solanaWallet && (
+                      <div style={{ fontSize: 9, color: "#9945FF", marginBottom: 4 }}>
+                        <span style={{ color: "#888" }}>SOL:</span> {session.solanaWallet.slice(0, 10)}...{session.solanaWallet.slice(-8)}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 9, color: "#444", marginTop: 6 }}>{session.completedAt}</div>
+                    {session.solanaSignature && (
+                      <div style={{ fontSize: 8, color: "#9945FF", marginTop: 8, padding: "6px 10px", background: "#9945FF10", border: "1px solid #9945FF30" }}>
+                        Solana Attestation Ready
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
