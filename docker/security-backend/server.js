@@ -230,7 +230,118 @@ function mapMythrilSeverity(sev) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// FOUNDRY FUZZING
+// 3. ECHIDNA PROPERTY-BASED FUZZING
+// ─────────────────────────────────────────────────────────────
+app.post("/api/echidna", authMiddleware, async (req, res) => {
+  const { code, contractName, invariants, testLimit } = req.body;
+  if (!code) return res.status(400).json({ error: "Missing code" });
+
+  const id = crypto.randomBytes(8).toString("hex");
+  const dir = `/tmp/contracts/${id}`;
+
+  try {
+    await fs.mkdir(dir, { recursive: true });
+
+    // Write contract
+    const fileName = `${contractName || "Contract"}.sol`;
+    await fs.writeFile(`${dir}/${fileName}`, code);
+
+    // Generate Echidna test contract
+    const testCode = generateEchidnaTest(code, contractName || "Contract", invariants);
+    await fs.writeFile(`${dir}/${contractName || "Contract"}Echidna.sol`, testCode);
+
+    // Write echidna config
+    await fs.writeFile(`${dir}/echidna.yaml`, `
+testLimit: ${testLimit || 10000}
+seqLen: 100
+contractAddr: "0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF"
+deployer: "0x30000"
+sender: ["0x10000", "0x20000"]
+`);
+
+    // Run Echidna
+    const result = await runCommand(
+      "echidna",
+      [`${contractName || "Contract"}Echidna.sol`, "--format", "json", "--config", "echidna.yaml"],
+      { cwd: dir, timeout: 300000 }
+    );
+
+    const tests = parseEchidnaOutput(result.stdout);
+    const passed = tests.filter(t => t.status === "passed").length;
+    const failed = tests.filter(t => t.status === "failed").length;
+
+    res.json({
+      tool: "echidna",
+      success: failed === 0,
+      version: "2.2.x",
+      tests,
+      summary: { passed, failed, total: tests.length },
+      raw: result.stdout,
+    });
+  } catch (error) {
+    res.json({
+      tool: "echidna",
+      success: false,
+      error: error.message,
+      tests: [],
+      summary: { passed: 0, failed: 0, total: 0 },
+    });
+  } finally {
+    try { await fs.rm(dir, { recursive: true }); } catch {}
+  }
+});
+
+function generateEchidnaTest(code, contractName, invariants = []) {
+  const defaultInvariants = [
+    { name: "balance_non_negative", condition: "address(this).balance >= 0" },
+  ];
+  const allInvariants = [...defaultInvariants, ...(invariants || [])];
+
+  const testFuncs = allInvariants.map(inv => `
+    function echidna_${inv.name}() public view returns (bool) {
+        return ${inv.condition};
+    }
+`).join("\n");
+
+  return `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "./${contractName}.sol";
+
+contract ${contractName}Echidna is ${contractName} {
+${testFuncs}
+}
+`;
+}
+
+function parseEchidnaOutput(output) {
+  const tests = [];
+  const lines = output.split("\n");
+  
+  for (const line of lines) {
+    try {
+      const event = JSON.parse(line);
+      if (event.test) {
+        tests.push({
+          name: event.test,
+          status: event.status || "passed",
+          counterexample: event.counterexample,
+        });
+      }
+    } catch {
+      // Check text format
+      const passMatch = line.match(/^(\w+):\s*passed/);
+      if (passMatch) tests.push({ name: passMatch[1], status: "passed" });
+      
+      const failMatch = line.match(/^(\w+):\s*failed/);
+      if (failMatch) tests.push({ name: failMatch[1], status: "failed" });
+    }
+  }
+  return tests;
+}
+
+// ─────────────────────────────────────────────────────────────
+// 4. FOUNDRY FUZZING
 // ─────────────────────────────────────────────────────────────
 app.post("/api/foundry/fuzz", authMiddleware, async (req, res) => {
   const { code, testCode, contractName, fuzzRuns } = req.body;
