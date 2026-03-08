@@ -1434,32 +1434,20 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
       }
       const ipfsRecord = await pinReportToIPFS(ipfsReportData, auditId)
 
-      // ── ENTERPRISE: Solana On-Chain Attestation (fire-and-forget to avoid timeout) ─────────────────
-      // Non aspettiamo il risultato per evitare timeout - l'utente puo' attestare manualmente dal tab Blockchain
+      // ── ENTERPRISE: Solana On-Chain Attestation ─────────────────
+      // L'utente puo' attestare manualmente dal tab Blockchain se fallisce
       let solanaAttestation = null
       try {
-        const solanaPromise = registerAuditOnSolana(
+        const solanaResult = await registerAuditOnSolana(
           auditId,
           signedReport?.reportHash ?? "",
           ipfsRecord?.ipfsCid
         )
-        // Timeout di 5 secondi per Solana, altrimenti skip
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("Solana timeout")), 5000)
-        )
-        const solanaResult = await Promise.race([solanaPromise, timeoutPromise]) as Awaited<ReturnType<typeof registerAuditOnSolana>>
-        if (solanaResult.success) {
-          solanaAttestation = {
-            txSignature: solanaResult.txSignature,
-            solscanUrl: solanaResult.solscanUrl,
-            network: solanaResult.network,
-            memo: solanaResult.memo,
-            timestamp: solanaResult.timestamp,
-          }
+        if (solanaResult) {
+          solanaAttestation = solanaResult
         }
-      } catch {
-        // Solana timeout o errore - l'utente puo' attestare manualmente
-        console.log("[Skynet] Solana attestation skipped (timeout or error)")
+      } catch (err) {
+        console.log("[Skynet] Solana attestation error:", err)
       }
 
       return Response.json({
@@ -1670,29 +1658,19 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
       }
       const staticIpfsRecord = await pinReportToIPFS(staticIpfsReportData, staticAuditId)
 
-      // Solana Attestation for static path (fire-and-forget)
+      // Solana Attestation for static path
       let staticSolanaAttestation = null
       try {
-        const solanaPromise = registerAuditOnSolana(
+        const staticSolanaResult = await registerAuditOnSolana(
           staticAuditId,
           staticSignedReport?.reportHash ?? "",
           staticIpfsRecord?.ipfsCid
         )
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("Solana timeout")), 5000)
-        )
-        const staticSolanaResult = await Promise.race([solanaPromise, timeoutPromise]) as Awaited<ReturnType<typeof registerAuditOnSolana>>
-        if (staticSolanaResult.success) {
-          staticSolanaAttestation = {
-            txSignature: staticSolanaResult.txSignature,
-            solscanUrl: staticSolanaResult.solscanUrl,
-            network: staticSolanaResult.network,
-            memo: staticSolanaResult.memo,
-            timestamp: staticSolanaResult.timestamp,
-          }
+        if (staticSolanaResult) {
+          staticSolanaAttestation = staticSolanaResult
         }
-      } catch {
-        console.log("[Skynet] Static Solana attestation skipped (timeout or error)")
+      } catch (err) {
+        console.log("[Skynet] Static Solana attestation error:", err)
       }
 
       return Response.json({
