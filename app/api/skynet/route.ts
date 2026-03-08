@@ -1206,10 +1206,36 @@ ${truncatedCode}`
         }
       }
 
-      // Deduplicate findings by title
+      // Deduplicate findings — aggressive: title + semantic similarity
       const validSeverities = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
       const validLikelihoods = ["High", "Medium", "Low"]
-      const seen = new Set<string>()
+
+      // Normalize a title to its semantic core for fuzzy matching
+      function normalizeTitle(t: string): string {
+        return t
+          .toLowerCase()
+          .replace(/\[slither\]|\[mythril\]|\[ai\]/g, "")
+          .replace(/\b(the|a|an|is|are|was|were|has|have|with|without|for|on|in|at|to|of)\b/g, "")
+          .replace(/[^a-z0-9\s]/g, "")
+          .replace(/\s+/g, " ")
+          .trim()
+      }
+
+      // Check if two titles are semantically the same (>65% word overlap)
+      function isSimilarTitle(a: string, b: string): boolean {
+        const na = normalizeTitle(a)
+        const nb = normalizeTitle(b)
+        if (na === nb) return true
+        const wordsA = new Set(na.split(" ").filter(w => w.length > 3))
+        const wordsB = new Set(nb.split(" ").filter(w => w.length > 3))
+        if (wordsA.size === 0 || wordsB.size === 0) return na.includes(nb) || nb.includes(na)
+        const intersection = [...wordsA].filter(w => wordsB.has(w)).length
+        const union = new Set([...wordsA, ...wordsB]).size
+        return intersection / union > 0.65
+      }
+
+      const seenFindings: Array<{ title: string; severity: string }> = []
+
       const findings = (parsed.findings ?? [])
         .map((f: Record<string, string>) => ({
           title: String(f.title || "Untitled Finding"),
@@ -1221,10 +1247,11 @@ ${truncatedCode}`
           likelihood: validLikelihoods.includes(f.likelihood) ? f.likelihood : "Medium",
           proofOfConcept: f.proofOfConcept ? String(f.proofOfConcept) : undefined,
         }))
-        .filter((f: { title: string }) => {
-          const key = f.title.toLowerCase().trim()
-          if (seen.has(key)) return false
-          seen.add(key)
+        .filter((f: { title: string; severity: string }) => {
+          // Check for exact OR similar title match
+          const isDup = seenFindings.some(s => isSimilarTitle(s.title, f.title))
+          if (isDup) return false
+          seenFindings.push({ title: f.title, severity: f.severity })
           return true
         })
 
