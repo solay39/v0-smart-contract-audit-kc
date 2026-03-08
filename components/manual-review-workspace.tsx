@@ -158,6 +158,8 @@ export default function ManualReviewWorkspace({
   const [deepReviewError, setDeepReviewError] = useState("")
   const [deepReviewSummary, setDeepReviewSummary] = useState("")
   const [deepReviewCompilerNote, setDeepReviewCompilerNote] = useState("")
+  const [deepReviewContractType, setDeepReviewContractType] = useState("")
+  const [deepReviewPrivilegedRoles, setDeepReviewPrivilegedRoles] = useState<Array<{role: string; capability: string; risk: string}>>([])
   const [deepReviewSource, setDeepReviewSource] = useState<{
     contractName: string; compiler: string; linesOfCode: number; fetchedFrom: string; sourcePreview: string
   } | null>(null)
@@ -204,6 +206,8 @@ export default function ManualReviewWorkspace({
       // Populate state
       setDeepReviewSummary(data.summary || "")
       setDeepReviewCompilerNote(data.compilerNote || "")
+      setDeepReviewContractType(data.contractType || "")
+      setDeepReviewPrivilegedRoles(data.privilegedRoles || [])
       setDeepReviewSource(data.realSource || null)
       setFindingVerifications(data.findingVerifications || [])
       setMissingFindings((data.missingFindings || []).map((f: { id: string; title: string; severity: string; location: string; description: string; impact: string; recommendation: string; codeEvidence?: string }) => ({
@@ -558,17 +562,34 @@ export default function ManualReviewWorkspace({
                   </div>
                 )}
                 {deepReviewDone && deepReviewSource && (
-                  <div style={{ background: "#0f0f0f", border: "1px solid #1e1e1e", padding: "10px 14px", marginBottom: 12 }}>
+                  <div style={{ background: "#0f0f0f", border: "1px solid #1e1e1e", padding: "12px 14px", marginBottom: 12 }}>
                     <div style={{ fontSize: 9, color: "#00ff88", letterSpacing: "0.1em", marginBottom: 6 }}>DEEP REVIEW — REAL SOURCE ANALYZED</div>
                     <div style={{ fontSize: 10, color: "#888", marginBottom: 4 }}>
                       {deepReviewSource.contractName} · {deepReviewSource.linesOfCode} LOC · {deepReviewSource.compiler}
-                      <span style={{ color: "#555", marginLeft: 6 }}>fetched from {deepReviewSource.fetchedFrom}</span>
+                      <span style={{ color: "#555", marginLeft: 6 }}>from {deepReviewSource.fetchedFrom}</span>
                     </div>
+                    {deepReviewContractType && (
+                      <div style={{ fontSize: 10, color: "#aaa", marginBottom: 6, fontStyle: "italic" }}>
+                        📄 {deepReviewContractType}
+                      </div>
+                    )}
                     {deepReviewCompilerNote && (
-                      <div style={{ fontSize: 10, color: "#ffcc00", marginBottom: 4 }}>⚠ {deepReviewCompilerNote}</div>
+                      <div style={{ fontSize: 10, color: "#ffcc00", marginBottom: 6 }}>⚠ {deepReviewCompilerNote}</div>
                     )}
                     {deepReviewSummary && (
-                      <div style={{ fontSize: 10, color: "#666", fontStyle: "italic" }}>{deepReviewSummary}</div>
+                      <div style={{ fontSize: 10, color: "#666", marginBottom: deepReviewPrivilegedRoles.length > 0 ? 8 : 0 }}>{deepReviewSummary}</div>
+                    )}
+                    {deepReviewPrivilegedRoles.length > 0 && (
+                      <div style={{ marginTop: 8, borderTop: "1px solid #1a1a1a", paddingTop: 8 }}>
+                        <div style={{ fontSize: 9, color: "#555", letterSpacing: "0.1em", marginBottom: 6 }}>PRIVILEGED ROLES</div>
+                        {deepReviewPrivilegedRoles.map((r, i) => (
+                          <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 4 }}>
+                            <span style={{ fontSize: 9, color: "#00ff88", minWidth: 80, flexShrink: 0 }}>{r.role}</span>
+                            <span style={{ fontSize: 9, color: "#666", flex: 1 }}>{r.capability}</span>
+                            <span style={{ fontSize: 9, color: r.risk.startsWith("HIGH") || r.risk.startsWith("CRITICAL") ? "#ff8800" : "#555", flexShrink: 0 }}>{r.risk}</span>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 )}

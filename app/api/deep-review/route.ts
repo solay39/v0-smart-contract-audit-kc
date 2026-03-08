@@ -112,83 +112,156 @@ function buildAnalysisPrompt(params: {
 }): string {
   const { realSource, compiler, contractName, network, address, aiFindings } = params
   const isSolana = network === "Solana"
-  const sourceSlice = realSource.slice(0, 12000)
+  const sourceSlice = realSource.slice(0, 14000)
 
-  return `You are a senior smart contract security auditor performing a MANUAL REVIEW of a real deployed contract. Your job is to:
-
-1. Verify each AI finding against the REAL source code — identify FALSE POSITIVES
-2. Find MISSING findings the AI did not catch
-3. Flag SEVERITY ERRORS (wrong level assigned)
-4. Generate a SPECIFIC checklist for human review
+  return `You are performing a real manual smart contract security audit. You think like a senior auditor at Trail of Bits or Halborn — not like a static analysis scanner.
 
 CONTRACT: ${contractName}
 ADDRESS: ${address}
 NETWORK: ${network}
 COMPILER: ${compiler}
 
-REAL CONTRACT SOURCE CODE (from on-chain explorer):
+SOURCE CODE (fetched directly from on-chain explorer — this is the REAL deployed code):
 \`\`\`${isSolana ? "rust" : "solidity"}
 ${sourceSlice}
 \`\`\`
 
-AI PRE-ANALYSIS FINDINGS (${aiFindings.length} findings to verify):
+═══════════════════════════════════════════
+PHASE 1: READ THE CODE — UNDERSTAND WHAT IT ACTUALLY DOES
+═══════════════════════════════════════════
+
+Before analyzing findings, read the full source and answer internally:
+- What does this contract actually do? (token? vault? governance? migration? proxy?)
+- What are the privileged roles and what can each do?
+- Does it call external contracts? Which ones?
+- Does it use block.timestamp, block.number, or msg.value anywhere? (search literally)
+- Is the pragma floating (^) or pinned (exact version)?
+- What is the inheritance chain? (ERC20? Pausable? Ownable? custom?)
+- Are there any non-standard patterns? (copy-on-write? lazy minting? weight system?)
+- What are the assets at risk and who can move them?
+
+═══════════════════════════════════════════
+PHASE 2: VERIFY AI FINDINGS — BE BRUTALLY HONEST ABOUT FALSE POSITIVES
+═══════════════════════════════════════════
+
+AI FINDINGS TO VERIFY (${aiFindings.length} total):
 ${aiFindings.map((f, i) => `
 [FINDING ${i + 1}]
-ID: ${f.id || `AI-${i + 1}`}
+ID: ${f.id || `AI-${String(i+1).padStart(3,"0")}`}
 Title: ${f.title}
 Severity: ${f.severity}
 Location: ${f.location}
 Description: ${f.description}
-Impact: ${f.impact}
 `).join("\n")}
 
-YOUR TASK — Respond ONLY with valid JSON matching this exact schema:
+For EACH finding, do this:
+1. Search the actual source code for the specific pattern mentioned
+2. If the pattern does NOT exist in the code → FALSE_POSITIVE (cite exact reason)
+3. If the pattern EXISTS but is mitigated → SEVERITY_WRONG (suggest lower severity)
+4. If the pattern EXISTS and is a real issue → CONFIRMED
+5. If ambiguous → NEEDS_CLARIFICATION
+
+Common AI false positive patterns to watch for:
+- "Timestamp Dependence" on contracts with NO block.timestamp usage
+- "External ETH Transfer" on pure ERC-20s with no payable/call{value:}
+- "Floating Pragma" on contracts with pinned pragma (no ^ symbol)
+- "Reentrancy" on contracts with no external calls before state changes
+- "Integer Overflow" on Solidity >=0.8.0 (built-in SafeMath)
+
+═══════════════════════════════════════════
+PHASE 3: FIND WHAT THE AI MISSED — THINK LIKE AN ATTACKER
+═══════════════════════════════════════════
+
+Now search for real vulnerabilities the AI scanner missed. Think through:
+
+ACCESS CONTROL:
+- Are there privileged functions (pause, mint, upgrade, drain) with a single EOA as owner?
+- Can the owner/admin rug without timelock?
+- Is there a role change function that could be front-run?
+- Are there multiple roles (owner, pauser, mage, guardian) — can any act without multisig?
+
+BUSINESS LOGIC:
+- Are there public functions that should be restricted?
+- Are there state machines / phases that can be bypassed?
+- Can an attacker call functions in wrong order?
+- Are there functions that anyone can call on behalf of others (forcing state changes)?
+
+TOKEN MECHANICS:
+- Is balanceOf() reading from an external contract? What if that contract is malicious?
+- Is totalSupply() accurate? Can it be manipulated?
+- Are there fee-on-transfer or rebasing mechanics that break integrations?
+- Can transfers be permanently paused with no timelock?
+
+EXTERNAL DEPENDENCIES:
+- Does the contract inherit from or call an external contract?
+- Is that external contract immutable? Is its address hardcoded or settable?
+- If the external contract has a bug, does it propagate here?
+
+ECONOMIC:
+- Is there significant supply concentration (>30% in one address)?
+- Are there mechanisms that let insiders exit before others?
+
+For each real finding you discover, quote the exact code as evidence.
+
+═══════════════════════════════════════════
+PHASE 4: GENERATE SPECIFIC CHECKLIST
+═══════════════════════════════════════════
+
+Create 10-18 checklist items for a human auditor to manually verify.
+Each item must reference actual function names, variable names, or patterns from THIS contract.
+Do NOT create generic checklist items — every item must be specific to this code.
+
+═══════════════════════════════════════════
+OUTPUT — Respond ONLY with valid JSON:
+═══════════════════════════════════════════
 
 {
-  "summary": "2-3 sentence honest assessment of the contract's security posture based on the REAL code",
-  "compilerNote": "Note if the declared compiler version matches what's actually used, or any version concerns",
-  "realLOC": number,
+  "contractType": "Brief description of what the contract actually does (e.g. 'ERC-20 governance token with copy-on-write migration from oldRSR')",
+  "summary": "2-4 sentence honest assessment based on reading the REAL code. Mention the most important risk.",
+  "compilerNote": "Confirm if compiler version in source matches deployed. Note if pragma is pinned or floating.",
+  "realLOC": <number of lines in the source provided>,
+  "privilegedRoles": [
+    { "role": "pauser", "capability": "can pause all transfers", "risk": "HIGH — no timelock" }
+  ],
   "findingVerifications": [
     {
       "findingId": "AI-001",
-      "verdict": "CONFIRMED" | "FALSE_POSITIVE" | "SEVERITY_WRONG" | "NEEDS_CLARIFICATION",
-      "reason": "Specific reason referencing actual code lines or patterns found/not found",
-      "suggestedSeverity": "CRITICAL|HIGH|MEDIUM|LOW|INFO" // only if SEVERITY_WRONG
+      "verdict": "CONFIRMED|FALSE_POSITIVE|SEVERITY_WRONG|NEEDS_CLARIFICATION",
+      "reason": "Specific explanation citing actual code. For FALSE_POSITIVE: quote what is NOT in the code. For CONFIRMED: quote what IS in the code.",
+      "suggestedSeverity": "CRITICAL|HIGH|MEDIUM|LOW|INFO"
     }
   ],
   "missingFindings": [
     {
       "id": "MR-001",
-      "title": "Short, specific title",
+      "title": "Concise title max 8 words",
       "severity": "CRITICAL|HIGH|MEDIUM|LOW|INFO",
-      "location": "ContractName.sol:functionName or line reference",
-      "description": "Specific description referencing actual code",
-      "impact": "Concrete impact on users or funds",
-      "recommendation": "Specific fix recommendation",
-      "codeEvidence": "The exact code snippet that triggered this finding"
+      "location": "FunctionName() or FileName.sol:approx line",
+      "description": "Specific description of the vulnerability referencing actual code constructs",
+      "impact": "Concrete real-world impact: who loses what, how much, under what conditions",
+      "recommendation": "Specific actionable fix",
+      "codeEvidence": "Exact code snippet from the source that proves this finding"
     }
   ],
   "checklist": [
     {
       "id": "c1",
-      "category": "Access Control",
-      "question": "Specific question referencing actual function/variable names in this contract",
-      "why": "Why this matters for THIS specific contract",
+      "category": "Access Control|Reentrancy|Token Logic|Business Logic|Economic|External Calls|Upgradeability|Arithmetic",
+      "question": "Question referencing the ACTUAL function/variable name from this contract",
+      "why": "Why this check matters specifically for this contract",
       "severity": "CRITICAL|HIGH|MEDIUM|LOW|INFO",
-      "relevantCode": "Exact code snippet from the contract",
-      "lineRef": "approximate line reference"
+      "relevantCode": "Exact snippet from source",
+      "lineRef": "~line N or FunctionName()"
     }
   ]
 }
 
-IMPORTANT RULES:
-- Base EVERY finding on the ACTUAL code provided above — not general knowledge
-- For FALSE_POSITIVE: cite exactly why the code does NOT have this vulnerability
-- For MISSING findings: quote the actual vulnerable code as codeEvidence
-- Checklist must have 8-15 items specific to THIS contract
-- If a finding mentions block.timestamp but the contract has NO timestamp logic, mark it FALSE_POSITIVE
-- If compiler version in code doesn't match deployed version, note it
-- Be a real auditor: be accurate, be specific, don't hallucinate vulnerabilities`
+ABSOLUTE RULES:
+1. Never invent vulnerabilities — every finding needs code evidence
+2. Never confirm a finding if the pattern does not exist in the source — mark FALSE_POSITIVE
+3. Severity scale: CRITICAL=funds at risk now, HIGH=funds at risk with conditions, MEDIUM=integrity risk, LOW=best practice, INFO=observation
+4. Be specific: a finding without a code quote is not a finding
+5. The checklist must be usable by a human looking at the code — vague questions are forbidden`
 }
 
 // ── POST handler ──────────────────────────────────────────────────
@@ -266,9 +339,11 @@ export async function POST(req: NextRequest) {
     }
 
     let analysis: {
+      contractType: string
       summary: string
       compilerNote: string
       realLOC: number
+      privilegedRoles: Array<{ role: string; capability: string; risk: string }>
       findingVerifications: Array<{
         findingId: string
         verdict: "CONFIRMED" | "FALSE_POSITIVE" | "SEVERITY_WRONG" | "NEEDS_CLARIFICATION"
@@ -313,9 +388,11 @@ export async function POST(req: NextRequest) {
         sourcePreview: realSourceData.source.slice(0, 3000),
       },
       // AI analysis results
+      contractType: analysis.contractType || "",
       summary: analysis.summary || "",
       compilerNote: analysis.compilerNote || "",
       realLOC: analysis.realLOC || realSourceData.linesOfCode,
+      privilegedRoles: analysis.privilegedRoles || [],
 
       // Finding verdicts — what to show in the "AI Findings" sub-tab
       findingVerifications: (analysis.findingVerifications || []).map(v => ({
