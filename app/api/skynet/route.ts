@@ -1435,11 +1435,18 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
       const ipfsRecord = await pinReportToIPFS(ipfsReportData, auditId)
 
       // ── ENTERPRISE: Solana On-Chain Attestation ─────────────────
-      const solanaAttestation = await registerAuditOnSolana(
+      const solanaResult = await registerAuditOnSolana(
         auditId,
         signedReport?.reportHash ?? "",
         ipfsRecord?.ipfsCid
       )
+      const solanaAttestation = solanaResult.success ? {
+        txSignature: solanaResult.txSignature,
+        solscanUrl: solanaResult.solscanUrl,
+        network: solanaResult.network,
+        memo: solanaResult.memo,
+        timestamp: solanaResult.timestamp,
+      } : null
 
       return Response.json({
         findings: finalFindings,
@@ -1650,11 +1657,18 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
       const staticIpfsRecord = await pinReportToIPFS(staticIpfsReportData, staticAuditId)
 
       // Solana Attestation for static path
-      const staticSolanaAttestation = await registerAuditOnSolana(
+      const staticSolanaResult = await registerAuditOnSolana(
         staticAuditId,
         staticSignedReport?.reportHash ?? "",
         staticIpfsRecord?.ipfsCid
       )
+      const staticSolanaAttestation = staticSolanaResult.success ? {
+        txSignature: staticSolanaResult.txSignature,
+        solscanUrl: staticSolanaResult.solscanUrl,
+        network: staticSolanaResult.network,
+        memo: staticSolanaResult.memo,
+        timestamp: staticSolanaResult.timestamp,
+      } : null
 
       return Response.json({
         findings: finalStaticFindings,
