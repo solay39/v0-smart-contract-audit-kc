@@ -5,6 +5,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { registerAuditOnSolana } from "@/lib/solana-attestation"
 
+// IMPORTANTE: @solana/web3.js richiede il runtime Node.js (non Edge)
+export const runtime = "nodejs"
 export const maxDuration = 30 // 30s è sufficiente per Solana (3 retry da 8s ciascuno)
 
 export async function POST(req: NextRequest) {
