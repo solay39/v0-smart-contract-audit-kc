@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import {
   CHECKLIST,
   computeScoreV2,
@@ -20,6 +20,201 @@ import { savePublishedAudit } from "@/components/skynet-public"
 import { computeReportHash, buildReportIntegrity } from "@/lib/enterprise-standards"
 import Solay39Validator from "@/components/solay39-validator"
 import { useAuditValidator, ValidationPanel } from "@/components/validation-panel"
+
+// ════════════════════════════════════════════════════════════════
+// BLOCKCHAIN TAB — Solana On-Chain Attestation
+// ════════════════════════════════════════════════════════════════
+
+function BlockchainTab({
+  solanaAttestation,
+  onAttestationSuccess,
+  aiRes,
+  signedReport,
+  aiEngagement,
+}: {
+  solanaAttestation: { txSignature: string; solscanUrl: string; network: string; memo: string; timestamp: string } | null
+  onAttestationSuccess: (a: { txSignature: string; solscanUrl: string; network: string; memo: string; timestamp: string }) => void
+  aiRes: unknown[]
+  signedReport: Record<string, string> | null
+  aiEngagement: Record<string, unknown> | null
+}) {
+  const [attesting, setAttesting] = useState(false)
+  const [attestError, setAttestError] = useState("")
+  const [configStatus, setConfigStatus] = useState<{ configured: boolean; network: string } | null>(null)
+
+  // Controlla se SOLANA_PRIVATE_KEY è configurata all'apertura del tab
+  useState(() => {
+    fetch("/api/solana-attest")
+      .then(r => r.json())
+      .then(d => setConfigStatus({ configured: d.configured, network: d.network }))
+      .catch(() => setConfigStatus({ configured: false, network: "unknown" }))
+  })
+
+  const auditId = (aiEngagement?.auditId as string) ?? ""
+  const reportHash = signedReport?.reportHash ?? ""
+  const canAttest = !!auditId && !!reportHash && aiRes.length > 0
+
+  async function handleAttest() {
+    if (!canAttest) return
+    setAttesting(true)
+    setAttestError("")
+
+    try {
+      const res = await fetch("/api/solana-attest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auditId, reportHash }),
+      })
+      const data = await res.json()
+
+      if (data.success && data.attestation) {
+        onAttestationSuccess(data.attestation)
+      } else if (data.configured === false) {
+        // Errore di configurazione — mostra istruzioni dettagliate
+        setAttestError("SOLANA_PRIVATE_KEY non configurata su Vercel.\n\nVai su: Vercel Dashboard → Il tuo progetto → Settings → Environment Variables\nAggiungi: SOLANA_PRIVATE_KEY = <chiave Base58 da Phantom>\nPoi: Redeploy del progetto.")
+      } else {
+        setAttestError(data.error ?? "Attestazione fallita. Riprova.")
+      }
+    } catch {
+      setAttestError("Errore di connessione. Verifica che il sito sia raggiungibile e riprova.")
+    } finally {
+      setAttesting(false)
+    }
+  }
+
+  return (
+    <div className="animate-[fadeUp_0.4s_ease]">
+      <div className="bg-s39-bg1 border border-s39-border p-6 mb-5">
+        <div className="text-[9px] text-s39-cyan tracking-[0.15em] mb-1">SOLANA ON-CHAIN ATTESTATION</div>
+        <div className="text-[10px] text-s39-mid mb-5">
+          Registra ogni audit immutabilmente on-chain su Solana tramite il Memo Program.
+          Costo: ~$0.000005 per audit. Verificabile pubblicamente su Solscan.
+        </div>
+
+        {/* Status configurazione */}
+        {configStatus && !solanaAttestation && (
+          <div className={`p-3 mb-4 border text-[9px] ${configStatus.configured ? "bg-[#001608] border-s39-green/20 text-s39-green" : "bg-[#160005] border-s39-red/20 text-s39-red"}`}>
+            {configStatus.configured
+              ? `[✓] Wallet Solana configurato — rete: ${configStatus.network}`
+              : "[✗] SOLANA_PRIVATE_KEY non configurata — segui le istruzioni sotto"}
+          </div>
+        )}
+
+        {/* Attestazione riuscita */}
+        {solanaAttestation ? (
+          <div className="bg-[#001608] border border-s39-green/20 p-4 mb-5">
+            <div className="text-[9px] text-s39-green mb-3">[✓] Audit registrato on-chain su Solana {solanaAttestation.network}</div>
+            <div className="grid grid-cols-1 gap-2">
+              {[
+                ["TX Signature", solanaAttestation.txSignature],
+                ["Network", solanaAttestation.network],
+                ["Timestamp", solanaAttestation.timestamp?.slice(0, 19).replace("T", " ")],
+              ].map(([k, v]) => (
+                <div key={k} className="flex gap-2 text-[9px]">
+                  <span className="text-s39-dim w-28 shrink-0">{k}</span>
+                  <span className="text-s39-lite font-mono break-all">{v}</span>
+                </div>
+              ))}
+            </div>
+            <a href={solanaAttestation.solscanUrl} target="_blank" rel="noreferrer"
+              className="block mt-3 text-[10px] text-s39-cyan underline">
+              Verifica su Solscan →
+            </a>
+          </div>
+        ) : (
+          /* Pulsante attestazione manuale */
+          <div className="border border-s39-cyan/20 p-4 bg-s39-bg2 mb-5">
+            <div className="text-[9px] text-s39-cyan tracking-[0.15em] mb-2">ATTESTA ORA SU SOLANA</div>
+            <div className="text-[9px] text-s39-dim mb-3">
+              Registra l&apos;hash di questo audit immutabilmente on-chain. Costo: ~$0.000005
+            </div>
+
+            {!canAttest && (
+              <div className="text-[9px] text-s39-yellow mb-3">
+                [!] Esegui prima un&apos;analisi Skynet AI per generare l&apos;auditId e il reportHash.
+              </div>
+            )}
+
+            {attestError && (
+              <div className="bg-[#160005] border border-s39-red/20 p-3 mb-3 text-[9px] text-s39-red font-mono whitespace-pre-wrap">
+                {attestError}
+              </div>
+            )}
+
+            <button
+              onClick={handleAttest}
+              disabled={attesting || !canAttest}
+              className={`text-[9px] border px-4 py-2 font-mono transition-colors cursor-pointer w-full ${
+                !canAttest
+                  ? "text-s39-dim border-s39-border bg-transparent cursor-not-allowed"
+                  : attesting
+                  ? "text-s39-dim border-s39-border bg-transparent"
+                  : "text-s39-cyan border-s39-cyan/40 bg-transparent hover:bg-s39-cyan/10"
+              }`}
+            >
+              {attesting ? "Attestazione in corso (max 30s)..." : "Attesta su Solana Mainnet"}
+            </button>
+          </div>
+        )}
+
+        {/* Setup instructions */}
+        <div className="border border-s39-border p-4 bg-s39-bg2 mb-4">
+          <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">SETUP — VARIABILI D&apos;AMBIENTE VERCEL</div>
+          <div className="text-[9px] text-s39-dim mb-2">
+            Su Vercel: <span className="text-s39-lite">Dashboard → Progetto → Settings → Environment Variables</span>
+          </div>
+          <div className="bg-s39-bg0 border border-s39-border p-3 font-mono text-[9px] text-s39-green mb-3">
+            <div className="text-s39-dim"># Wallet Solana (Base58 da Phantom → Settings → Export Private Key)</div>
+            <div>SOLANA_PRIVATE_KEY=&lt;chiave_base58&gt;</div>
+            <div className="mt-2 text-s39-dim"># Opzionale: devnet per test, mainnet per produzione</div>
+            <div>SOLANA_RPC_URL=https://api.mainnet-beta.solana.com</div>
+          </div>
+          <div className="text-[9px] text-s39-yellow mb-1">[!] Usa un wallet DEDICATO con solo 0.01 SOL. Non usare il wallet principale.</div>
+          <div className="text-[9px] text-s39-dim">Dopo aver aggiunto le variabili: <span className="text-s39-lite">Vercel → Deployments → Redeploy</span></div>
+        </div>
+
+        {/* How it works */}
+        <div className="border border-s39-border p-4 bg-s39-bg2">
+          <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">COME FUNZIONA</div>
+          <div className="flex flex-col gap-2">
+            {[
+              ["1", "Esegui l'analisi Skynet AI su un contratto"],
+              ["2", "Vai al tab Blockchain e clicca 'Attesta su Solana Mainnet'"],
+              ["3", "Il server firma una transazione con il Memo Program"],
+              ["4", "L'hash SHA-256 del report viene scritto on-chain permanentemente"],
+              ["5", "La transazione è verificabile pubblicamente su Solscan"],
+            ].map(([n, txt]) => (
+              <div key={n} className="flex gap-2 text-[9px]">
+                <span className="text-s39-cyan font-mono w-4 shrink-0">{n}.</span>
+                <span className="text-s39-mid">{txt}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Memo Program details */}
+      <div className="bg-s39-bg1 border border-s39-border p-5">
+        <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">MEMO PROGRAM — DETTAGLI TECNICI</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[
+            ["Program ID", "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"],
+            ["Costo tx", "~0.000005 SOL (~$0.000005)"],
+            ["Dati scritti", "auditId + SHA-256 hash + IPFS CID + unix timestamp"],
+            ["Verificabilità", "Pubblica e permanente su Solana mainnet"],
+            ["Standard", "Solana Memo Program v2 (già deployato)"],
+            ["Explorer", "Solscan / SolanaFM / Solana Explorer"],
+          ].map(([k, v]) => (
+            <div key={k} className="flex flex-col gap-0.5">
+              <span className="text-[8px] text-s39-dim tracking-widest">{k}</span>
+              <span className="text-[9px] text-s39-lite font-mono break-all">{v}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ════════════════════════════════════════════════════════════════
 // AUDIT WORKSPACE — Founder Only
@@ -130,17 +325,6 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     memo: string
     timestamp: string
   } | null>(null)
-  const [solanaConfigured, setSolanaConfigured] = useState<boolean | null>(null)
-  const [attestLoading, setAttestLoading] = useState(false)
-  const [attestError, setAttestError] = useState<string | null>(null)
-
-  // Check Solana configuration on mount
-  useEffect(() => {
-    fetch("/api/solana-status")
-      .then(res => res.json())
-      .then(data => setSolanaConfigured(data.configured))
-      .catch(() => setSolanaConfigured(false))
-  }, [])
 
   const allChecks = Object.values(checks).flatMap((c) => Object.values(c))
   // SINGLE SOURCE OF TRUTH: always use V2 engine for score computation
@@ -1965,183 +2149,13 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
 
         {/* ── BLOCKCHAIN ── */}
         {tab === "blockchain" && (
-          <div className="animate-[fadeUp_0.4s_ease]">
-            <div className="bg-s39-bg1 border border-s39-border p-6 mb-5">
-              <div className="text-[9px] text-s39-cyan tracking-[0.15em] mb-1">SOLANA ON-CHAIN ATTESTATION</div>
-              <div className="text-[10px] text-s39-mid mb-5">
-                Registra ogni audit immutabilmente on-chain su Solana tramite il Memo Program.
-                Costo: ~$0.000005 per audit. Verificabile pubblicamente su Solscan.
-              </div>
-
-              {solanaAttestation ? (
-                <div className="bg-[#001608] border border-s39-green/20 p-4 mb-5">
-                  <div className="text-[9px] text-s39-green mb-3">[✓] Audit registrato on-chain su Solana {solanaAttestation.network}</div>
-                  <div className="grid grid-cols-1 gap-2">
-                    {[
-                      ["TX Signature", solanaAttestation.txSignature],
-                      ["Network", solanaAttestation.network],
-                      ["Timestamp", solanaAttestation.timestamp],
-                    ].map(([k, v]) => (
-                      <div key={k} className="flex gap-2 text-[9px]">
-                        <span className="text-s39-dim w-28 shrink-0">{k}</span>
-                        <span className="text-s39-lite font-mono break-all">{v}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <a
-                    href={solanaAttestation.solscanUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block mt-3 text-[10px] text-s39-cyan underline"
-                  >
-                    Verifica su Solscan →
-                  </a>
-                </div>
-              ) : solanaConfigured === null ? (
-                <div className="bg-s39-bg2 border border-s39-border p-3 mb-5">
-                  <div className="text-[9px] text-s39-dim">Verifica configurazione Solana...</div>
-                </div>
-              ) : solanaConfigured ? (
-                <div className="bg-[#001510] border border-s39-green/20 p-3 mb-5">
-                  <div className="text-[9px] text-s39-green mb-1">[OK] Solana configurato correttamente</div>
-                  <div className="text-[9px] text-s39-dim">
-                    L&apos;attestazione verra&apos; generata automaticamente al prossimo audit Skynet AI.
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-[#160005] border border-s39-red/20 p-3 mb-5">
-                  <div className="text-[9px] text-s39-red mb-1">[✗] Attestazione Solana non attiva</div>
-                  <div className="text-[9px] text-s39-dim">
-                    Configura la variabile d&apos;ambiente <span className="text-s39-lite font-mono">SOLANA_PRIVATE_KEY</span> per attivare le attestazioni automatiche durante ogni analisi Skynet.
-                  </div>
-                </div>
-              )}
-
-              <div className="border border-s39-border p-4 bg-s39-bg2 mb-4">
-                <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">SETUP — VARIABILI D&apos;AMBIENTE</div>
-                <div className="text-[9px] text-s39-dim mb-2">Aggiungi queste variabili al tuo file <span className="text-s39-lite font-mono">.env.local</span>:</div>
-                <div className="bg-s39-bg0 border border-s39-border p-3 font-mono text-[9px] text-s39-green mb-3">
-                  <div className="text-s39-dim"># Wallet Solana per attestazioni (Base58 da Phantom/Solflare)</div>
-                  <div>SOLANA_PRIVATE_KEY=&lt;base58_private_key&gt;</div>
-                  <div className="mt-2 text-s39-dim"># Opzionale: usa devnet per test</div>
-                  <div>SOLANA_RPC_URL=https://api.devnet.solana.com</div>
-                </div>
-                <div className="text-[9px] text-s39-yellow mb-1">[!] Sicurezza: usa un wallet dedicato solo per attestazioni.</div>
-                <div className="text-[9px] text-s39-dim">Non usare il wallet principale. Il wallet serve solo per le transaction fees (~$0.000005/tx). Saldo minimo consigliato: 0.01 SOL.</div>
-              </div>
-
-              <div className="border border-s39-border p-4 bg-s39-bg2 mb-4">
-                <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">COME FUNZIONA</div>
-                <div className="flex flex-col gap-2">
-                  {[
-                    ["1", "Esegui l'analisi Skynet AI su un contratto"],
-                    ["2", "Il sistema calcola un SHA-256 del report di audit"],
-                    ["3", "L'hash viene scritto on-chain via Memo Program su Solana"],
-                    ["4", "La transazione è verificabile pubblicamente su Solscan"],
-                    ["5", "Ogni report pubblicato include il link alla tx Solana"],
-                  ].map(([n, txt]) => (
-                    <div key={n} className="flex gap-2 text-[9px]">
-                      <span className="text-s39-cyan font-mono w-4 shrink-0">{n}.</span>
-                      <span className="text-s39-mid">{txt}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {aiRes.length > 0 && !solanaAttestation && solanaConfigured && (
-                <div className="border border-purple-500/30 p-4 bg-purple-950/10">
-                  <div className="text-[9px] text-purple-400 tracking-[0.15em] mb-2">ATTESTA ORA SU SOLANA</div>
-                  <div className="text-[9px] text-s39-dim mb-3">
-                    Registra l&apos;hash di questo audit immutabilmente on-chain. Costo: ~$0.000005
-                  </div>
-                  {attestError && (
-                    <div className="text-[9px] text-s39-red mb-2 p-2 bg-red-950/20 border border-red-900/30">
-                      {attestError}
-                    </div>
-                  )}
-                  <button
-                    onClick={async () => {
-                      setAttestLoading(true)
-                      setAttestError(null)
-                      try {
-                        const res = await fetch("/api/solana-attest", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            auditId: `SOL-${Date.now()}`,
-                            reportHash: aiRes[0]?.id || "unknown",
-                            ipfsCid: undefined
-                          })
-                        })
-                        const data = await res.json()
-                        if (data.success) {
-                          setSolanaAttestation({
-                            txSignature: data.txSignature,
-                            solscanUrl: data.solscanUrl,
-                            network: data.network,
-                            memo: data.memo,
-                            timestamp: data.timestamp
-                          })
-                        } else {
-                          const errDetail = data.details ? `${data.error}: ${data.details}` : data.error
-                          setAttestError(errDetail || "Errore sconosciuto")
-                        }
-                      } catch (err) {
-                        setAttestError(err instanceof Error ? err.message : "Errore di rete")
-                      } finally {
-                        setAttestLoading(false)
-                      }
-                    }}
-                    disabled={attestLoading}
-                    className="text-[9px] text-purple-400 border border-purple-500/30 px-4 py-2 hover:bg-purple-950/30 transition-colors font-mono cursor-pointer bg-transparent disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    {attestLoading ? (
-                      <>
-                        <span className="animate-spin">◌</span>
-                        Registrazione in corso...
-                      </>
-                    ) : (
-                      <>Attesta su Solana Mainnet</>
-                    )}
-                  </button>
-                </div>
-              )}
-              
-              {aiRes.length > 0 && !solanaAttestation && !solanaConfigured && (
-                <div className="border border-s39-cyan/20 p-4 bg-s39-bg2">
-                  <div className="text-[9px] text-s39-cyan tracking-[0.15em] mb-2">CONFIGURA SOLANA</div>
-                  <div className="text-[9px] text-s39-dim mb-3">
-                    Aggiungi SOLANA_PRIVATE_KEY nelle variabili d&apos;ambiente per attivare le attestazioni.
-                  </div>
-                  <button
-                    onClick={() => setTab("skynet")}
-                    className="text-[9px] text-s39-cyan border border-s39-cyan/30 px-3 py-1.5 hover:bg-s39-cyan/10 transition-colors font-mono cursor-pointer bg-transparent"
-                  >
-                    Torna a Skynet AI →
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-s39-bg1 border border-s39-border p-5">
-              <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">MEMO PROGRAM — DETTAGLI TECNICI</div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {[
-                  ["Program ID", "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"],
-                  ["Costo tx", "~0.000005 SOL (~$0.000005)"],
-                  ["Dati scritti", "auditId + SHA-256 hash + IPFS CID + unix timestamp"],
-                  ["Verificabilità", "Pubblica e permanente su Solana mainnet"],
-                  ["Standard", "Solana Memo Program v2 (già deployato)"],
-                  ["Explorer", "Solscan / SolanaFM / Solana Explorer"],
-                ].map(([k, v]) => (
-                  <div key={k} className="flex flex-col gap-0.5">
-                    <span className="text-[8px] text-s39-dim tracking-widest">{k}</span>
-                    <span className="text-[9px] text-s39-lite font-mono break-all">{v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <BlockchainTab
+            solanaAttestation={solanaAttestation}
+            onAttestationSuccess={setSolanaAttestation}
+            aiRes={aiRes}
+            signedReport={signedReport as Record<string, string> | null}
+            aiEngagement={aiEngagement}
+          />
         )}
 
       {/* Validation overlay */}
