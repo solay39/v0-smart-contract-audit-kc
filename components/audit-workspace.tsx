@@ -45,8 +45,15 @@ function BlockchainTab({
   // Controlla se SOLANA_PRIVATE_KEY è configurata all'apertura del tab
   useEffect(() => {
     fetch("/api/solana-attest")
-      .then(r => r.json())
-      .then(d => setConfigStatus({ configured: d.configured, network: d.network }))
+      .then(async r => {
+        const text = await r.text()
+        try {
+          const d = JSON.parse(text)
+          setConfigStatus({ configured: d.configured, network: d.network ?? "mainnet" })
+        } catch {
+          setConfigStatus({ configured: r.ok, network: "mainnet" })
+        }
+      })
       .catch(() => setConfigStatus({ configured: false, network: "unknown" }))
   }, [])
 
@@ -68,21 +75,42 @@ function BlockchainTab({
         body: JSON.stringify({ auditId, reportHash }),
       })
       console.log("[v0] Response status:", res.status)
-      const data = await res.json()
+
+      // Leggi prima come testo per evitare crash se la risposta non è JSON
+      const rawText = await res.text()
+      console.log("[v0] Raw response:", rawText.slice(0, 200))
+
+      let data: Record<string, unknown>
+      try {
+        data = JSON.parse(rawText)
+      } catch {
+        // Vercel ha restituito HTML invece di JSON (errore di build/timeout/crash)
+        if (res.status === 504 || res.status === 524) {
+          setAttestError("Timeout: la funzione ha impiegato troppo. Riprova tra qualche secondo.")
+        } else if (res.status === 500 || res.status >= 500) {
+          setAttestError(`Errore server (${res.status}): la funzione Solana ha crashato. Controlla i Vercel Function Logs per il dettaglio.`)
+        } else if (!res.ok) {
+          setAttestError(`Errore HTTP ${res.status}: endpoint non raggiungibile. Verifica che il deploy sia aggiornato.`)
+        } else {
+          setAttestError(`Risposta non valida dal server (HTTP ${res.status}). Assicurati che il file solana-attest/route.ts sia aggiornato e che il deploy sia stato completato.`)
+        }
+        return
+      }
+
       console.log("[v0] Response data:", data)
 
       if (data.success && data.attestation) {
-        onAttestationSuccess(data.attestation)
+        onAttestationSuccess(data.attestation as { txSignature: string; solscanUrl: string; network: string; memo: string; timestamp: string })
       } else if (data.configured === false) {
         // Errore di configurazione — mostra istruzioni dettagliate
         setAttestError("SOLANA_PRIVATE_KEY non configurata su Vercel.\n\nVai su: Vercel Dashboard → Il tuo progetto → Settings → Environment Variables\nAggiungi: SOLANA_PRIVATE_KEY = <chiave Base58 da Phantom>\nPoi: Redeploy del progetto.")
       } else {
-        setAttestError(data.error ?? "Attestazione fallita. Riprova.")
+        setAttestError((data.error as string) ?? "Attestazione fallita. Riprova.")
       }
     } catch (err) {
       console.log("[v0] Solana attest error:", err)
       const errMsg = err instanceof Error ? err.message : String(err)
-      setAttestError(`Errore di connessione: ${errMsg}`)
+      setAttestError(`Errore di rete: ${errMsg}`)
     } finally {
       setAttesting(false)
     }
