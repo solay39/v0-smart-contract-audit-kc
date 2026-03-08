@@ -403,25 +403,137 @@ function computeScoreBreakdown(
 function staticAnalysis(code: string, meta: ContractMeta): Finding[] {
   const findings: Finding[] = []
 
-  // Non-EVM: basic pattern checks instead of Solidity-specific analysis
+  // Non-EVM: pattern checks for Solana/Anchor and other chains
   if (meta.isNonEVM) {
     if (meta.network === "Solana") {
-      // Solana-specific checks
-      if (/invoke\(|invoke_signed\(/.test(code) && !/AccountInfo.*is_signer/.test(code)) {
-        findings.push({ title: "CPI Without Signer Verification", severity: "MEDIUM", location: "invoke/invoke_signed call", description: "Cross-Program Invocation detected without explicit signer verification on the invoking account.", impact: "A malicious account could potentially trigger CPI calls without proper authorization.", recommendation: "Ensure all CPI calls verify the signer constraint on the authority account." })
+
+      // SOL-001: Missing signer check (CRITICAL)
+      if (
+        /pub\s+fn\s+\w+\s*\(ctx:\s*Context/.test(code) &&
+        !/ctx\.accounts\.\w+\.is_signer|has_one\s*=|#\[account\(.*signer/.test(code)
+      ) {
+        findings.push({
+          title: "Missing Signer Verification on Instruction",
+          severity: "CRITICAL",
+          location: "Instruction handler — Context<T>",
+          description: "One or more instructions accept a Context but do not verify that the caller is an authorized signer. In Solana, any account can be passed — signer verification must be explicit via #[account(signer)] or has_one constraints.",
+          impact: "Any account can invoke privileged instructions without authorization, leading to unauthorized state changes or fund theft.",
+          recommendation: "Add `#[account(signer)]` constraint or `has_one = authority` in the Accounts struct for all authority accounts.",
+        })
       }
-      if (/pub\s+authority/.test(code) && !/has_one\s*=\s*authority|constraint\s*=.*authority/.test(code)) {
-        findings.push({ title: "Missing Authority Constraint", severity: "HIGH", location: "Account struct definition", description: "An authority field exists in the account struct but no has_one or constraint validation is applied.", impact: "Any account could be passed as the authority, bypassing access control.", recommendation: "Add #[account(has_one = authority)] or a manual constraint check." })
+
+      // SOL-002: Missing owner check
+      if (
+        /pub\s+authority/.test(code) &&
+        !/has_one\s*=\s*authority|constraint\s*=.*authority|owner\s*=/.test(code)
+      ) {
+        findings.push({
+          title: "Missing Account Owner Constraint",
+          severity: "HIGH",
+          location: "Accounts struct — authority field",
+          description: "An authority field is declared in the Accounts struct but no has_one or constraint validation enforces ownership. Any account can be passed as authority.",
+          impact: "An attacker can pass their own account as the authority, bypassing access control on privileged operations.",
+          recommendation: "Add `#[account(has_one = authority)]` or `constraint = authority.key() == expected_authority.key()`.",
+        })
       }
-      if (/is_initialized/.test(code) && !/if\s+.*is_initialized/.test(code)) {
-        findings.push({ title: "Potential Reinitialization Vulnerability", severity: "MEDIUM", location: "Account initialization", description: "An is_initialized field exists but may not be properly checked before initialization.", impact: "An attacker could reinitialize an account, overwriting existing data.", recommendation: "Add explicit is_initialized check before any initialization logic." })
+
+      // SOL-003: Unchecked arithmetic
+      if (
+        /\.checked_add\(|\.checked_sub\(|\.checked_mul\(/.test(code) === false &&
+        /amount|balance|supply|total/.test(code) &&
+        /\+\s*\w+|-\s*\w+|\*\s*\w+/.test(code)
+      ) {
+        findings.push({
+          title: "Unchecked Arithmetic on Token Amounts",
+          severity: "MEDIUM",
+          location: "Arithmetic operations on amount/balance variables",
+          description: "Arithmetic operations on token amounts do not use Rust's checked math methods. In Solana's release builds, integer overflow wraps silently instead of panicking.",
+          impact: "An overflow on token amounts could allow minting tokens beyond the intended supply cap or underflowing balances.",
+          recommendation: "Use .checked_add(), .checked_sub(), .checked_mul() with explicit error handling: `amount.checked_add(delta).ok_or(ErrorCode::Overflow)?`",
+        })
       }
+
+      // SOL-004: Reinitialization via init_if_needed
+      if (/init_if_needed/.test(code)) {
+        findings.push({
+          title: "Reinitialization Risk via init_if_needed",
+          severity: "HIGH",
+          location: "#[account(init_if_needed)]",
+          description: "init_if_needed silently skips initialization if the account already exists. If the instruction doesn't check whether the account was already initialized, an attacker can trigger the instruction on an existing account and overwrite its state.",
+          impact: "An attacker can reinitialize an existing account, resetting balances or authority fields to attacker-controlled values.",
+          recommendation: "Avoid init_if_needed unless you explicitly check `account.is_initialized` inside the instruction handler. Prefer `init` with proper PDA seeds.",
+        })
+      }
+
+      // SOL-005: Arbitrary CPI target
+      if (
+        /invoke\(|invoke_signed\(|CpiContext::new/.test(code) &&
+        !/token_program\.key\(\)|program_id\s*==|expected_program/.test(code)
+      ) {
+        findings.push({
+          title: "Unverified CPI Target Program",
+          severity: "HIGH",
+          location: "invoke() / CpiContext::new() call",
+          description: "Cross-Program Invocations are made without verifying the target program ID. An attacker can pass a malicious program account that mimics the expected interface.",
+          impact: "A fake program can execute arbitrary logic when invoked, leading to fund theft or state corruption.",
+          recommendation: "Verify the target program ID: `require_keys_eq!(token_program.key(), spl_token::ID, ErrorCode::InvalidTokenProgram)`",
+        })
+      }
+
+      // SOL-006: Unverified mint authority
+      if (
+        /mint_to|MintTo|token::mint_to/.test(code) &&
+        !/mint\.mint_authority|check_mint_authority|require.*mint_authority/.test(code)
+      ) {
+        findings.push({
+          title: "Missing Mint Authority Verification",
+          severity: "CRITICAL",
+          location: "mint_to / MintTo instruction",
+          description: "A token minting operation is performed without explicitly verifying the mint authority account. The Anchor framework may enforce this via constraints, but if the constraint is missing, any caller can mint.",
+          impact: "An attacker can mint unlimited tokens, inflating supply and draining value from existing holders.",
+          recommendation: "Add `#[account(mut, mint::authority = authority)]` constraint on the mint account in the Accounts struct.",
+        })
+      }
+
+      // SOL-007: PDA seeds predictable
+      if (
+        /seeds\s*=\s*\[/.test(code) &&
+        !/Clock::get\(\)|slot|timestamp|nonce|counter/.test(code) &&
+        /b\"/.test(code)
+      ) {
+        findings.push({
+          title: "Predictable PDA Seeds",
+          severity: "LOW",
+          location: "seeds = [...] in Accounts struct",
+          description: "PDA seeds consist only of static byte strings without a user-specific nonce or timestamp component. In some patterns this can allow front-running of PDA account creation.",
+          impact: "An attacker can pre-compute and create the PDA before the legitimate user, potentially locking them out.",
+          recommendation: "Include a user-specific seed component (e.g., user.key().as_ref()) or a nonce to make PDAs user-unique.",
+        })
+      }
+
     }
+
+    // Non-EVM generic: centralized authority
     if (meta.hasOwner) {
-      findings.push({ title: "Centralized Authority Control", severity: "MEDIUM", location: "Authority/admin account", description: `The program has an authority/admin account that controls privileged operations on ${meta.network}.`, impact: "If the authority key is compromised, an attacker gains full control over privileged operations.", recommendation: "Consider using a multisig or governance mechanism for the authority account." })
+      findings.push({
+        title: "Centralized Authority Control",
+        severity: "MEDIUM",
+        location: "Authority/admin account",
+        description: `The program has an authority/admin account that controls privileged operations on ${meta.network}. A single compromised key can affect the entire program.`,
+        impact: "If the authority key is compromised, an attacker gains full control over privileged operations.",
+        recommendation: "Consider a multisig (e.g., Squads Protocol on Solana) or on-chain governance for the upgrade authority.",
+      })
     }
+
     if (findings.length === 0) {
-      findings.push({ title: `${meta.codeLanguage} Static Analysis — Limited Coverage`, severity: "INFO", location: "Full program", description: `Pattern-based static analysis on ${meta.codeLanguage} code has limited coverage. The AI analysis provides the primary security assessment for non-Solidity programs.`, impact: "Some vulnerability patterns specific to ${meta.network} may require manual review.", recommendation: "Rely primarily on the AI-guided analysis results. Consider a specialized ${meta.network} security audit for production deployments." })
+      findings.push({
+        title: `${meta.codeLanguage} Static Analysis — No Issues Detected`,
+        severity: "INFO",
+        location: "Full program",
+        description: `Pattern-based static analysis on ${meta.codeLanguage} detected no common vulnerability patterns. The AI analysis provides the primary assessment.`,
+        impact: "N/A",
+        recommendation: "Review the AI findings below. Consider specialized tools (Soteria, Sec3) for production Solana programs.",
+      })
     }
     return findings
   }
@@ -978,6 +1090,41 @@ export async function POST(req: Request) {
       meta.contractType === "erc20"
         ? `This is a SIMPLE ERC-20 TOKEN. Do NOT claim you're auditing a "protocol", "DEX", "vault", or "trading platform". The scope is ONLY the token contract. Architecture risk and governance risk should reflect this limited scope.`
         : ``,
+    ].join("\n") : chainNetwork === "Solana" ? [
+      `CONTRACT METADATA (pre-analyzed — Solana/Anchor):`,
+      `- Network: Solana`,
+      `- Language: Rust/Anchor`,
+      `- Lines of Code: ${meta.linesOfCode}`,
+      `- Program Type: ${meta.scopeLabel}`,
+      `- Has Authority/Admin Account: ${meta.hasOwner}`,
+      `- Has Mint Operations (mint_to/MintTo): ${meta.hasMintOutsideConstructor}`,
+      `- Has Pausable/Freeze: ${meta.hasPausable}`,
+      `- Has CPI (Cross-Program Invocations): ${meta.hasExternalCalls}`,
+      `- Centralization Level: ${meta.centralizationLevel}`,
+      ``,
+      `CRITICAL RULES FOR SOLANA AUDIT:`,
+      `1. Language is Rust/Anchor — NEVER say Solidity, pragma, constructor, msg.sender, require(), OpenZeppelin, SafeMath`,
+      `2. File extension is .rs — NEVER say .sol`,
+      `3. compilerVersionUsed must be "rustc 1.75 + Anchor 0.29" (or similar) — NEVER Solidity version`,
+      `4. scopeTable[].language must be "Rust/Anchor"`,
+      `5. engagement.linesOfCode must be ${meta.linesOfCode}`,
+      ``,
+      `SOLANA-SPECIFIC ATTACK VECTORS TO ANALYZE (priority order):`,
+      `[CRITICAL] SOL-001: Missing signer verification — instructions that don't check ctx.accounts.X.is_signer`,
+      `[CRITICAL] SOL-002: Unverified mint authority — mint_to without #[account(mint::authority = ...)]`,
+      `[HIGH]     SOL-003: Missing account owner check — no has_one or constraint on authority accounts`,
+      `[HIGH]     SOL-004: init_if_needed reinitialization — attacker reinitializes existing account`,
+      `[HIGH]     SOL-005: Arbitrary CPI target — invoke() without program_id verification`,
+      `[HIGH]     SOL-006: Type cosplay attack — passing account of wrong type if discriminator not checked`,
+      `[MEDIUM]   SOL-007: Unchecked arithmetic — use checked_add/checked_sub/checked_mul`,
+      `[MEDIUM]   SOL-008: Missing close constraint — accounts not properly closed leak rent`,
+      `[LOW]      SOL-009: Predictable PDA seeds — no nonce/user component in seeds`,
+      `[LOW]      SOL-010: Upgrade authority not multisig — single key controls program upgrades`,
+      ``,
+      `DO NOT FLAG as vulnerabilities on Solana:`,
+      `- "Reentrancy" — Solana's execution model prevents traditional reentrancy`,
+      `- "Integer overflow" if checked math is used`,
+      `- EVM-specific patterns (delegatecall, selfdestruct, flash loans)`,
     ].join("\n") : [
       `CONTRACT METADATA (pre-analyzed):`,
       `- Network: ${chainNetwork}`,
@@ -993,20 +1140,40 @@ export async function POST(req: Request) {
       `CRITICAL: This is a ${codeLanguage} program on ${chainNetwork}, NOT Solidity/Ethereum.`,
       `- Do NOT reference Solidity concepts (pragma, constructor, ERC-20, OpenZeppelin, SafeMath, delegatecall, selfdestruct).`,
       `- Do NOT say the language is "Solidity" or reference ".sol" files.`,
-      `- The file extension for ${codeLanguage} is ${chainNetwork === "Solana" ? ".rs" : chainNetwork === "Starknet" ? ".cairo" : chainNetwork === "Ton" ? ".fc/.tact" : ["Sui","Aptos"].includes(chainNetwork) ? ".move" : ".rs"}.`,
-      `- The "engagement.compilerVersionUsed" must reflect ${codeLanguage}, NOT Solidity. Example: "rustc 1.75 + Anchor 0.29" for Solana.`,
-      `- The "scopeTable[].language" must be "${codeLanguage}", NOT "Solidity".`,
-      `- The "engagement.linesOfCode" must be ${meta.linesOfCode} (actual count from provided code).`,
+      `- The file extension for ${codeLanguage} is ${chainNetwork === "Starknet" ? ".cairo" : chainNetwork === "Ton" ? ".fc/.tact" : ["Sui","Aptos"].includes(chainNetwork) ? ".move" : ".rs"}.`,
+      `- The "engagement.compilerVersionUsed" must reflect ${codeLanguage}, NOT Solidity.`,
+      `- The "engagement.linesOfCode" must be ${meta.linesOfCode}.`,
       ``,
-      chainNetwork === "Solana" ? `For Solana/Anchor programs specifically analyze: account constraint validation (#[account(...)]), signer checks (has_one, constraint), PDA derivation seeds, CPI guard (invoke/invoke_signed safety), reinitialization attacks (is_initialized), type cosplay attacks, missing close constraints, authority validation.` : "",
-      ["Sui", "Aptos"].includes(chainNetwork) ? `For Move programs: check capability patterns, object ownership, resource safety, phantom type abuse, entry function validation, module access control.` : "",
-      ["Cosmos", "Injective", "Sei"].includes(chainNetwork) ? `For CosmWasm contracts: check instantiate/execute/query handler safety, storage patterns (Item/Map), submessage reply handling, migration safety, admin key management.` : "",
+      ["Sui", "Aptos"].includes(chainNetwork) ? `For Move programs: check capability patterns, object ownership, resource safety, phantom type abuse, entry function validation.` : "",
+      ["Cosmos", "Injective", "Sei"].includes(chainNetwork) ? `For CosmWasm contracts: check instantiate/execute/query handler safety, storage patterns, submessage reply handling, migration safety.` : "",
     ].join("\n")
 
     // Adapt the analysis prompt for the code language
     const analysisPrompt = isEVM
       ? `${metaContext}\n\nAnalyze this Solidity smart contract for security vulnerabilities. Remember: identify the contract type first, avoid false positives, and never duplicate findings.\n\n${truncatedCode}`
-      : `${metaContext}\n\nAnalyze this ${codeLanguage} smart contract/program deployed on ${chainNetwork} for security vulnerabilities. Apply ${codeLanguage}-specific security patterns. Remember: avoid false positives, and never duplicate findings.\n\n${truncatedCode}`
+      : chainNetwork === "Solana"
+      ? `${metaContext}
+
+Analyze this Rust/Anchor Solana program for security vulnerabilities.
+
+MANDATORY ANALYSIS STEPS:
+1. Identify each #[program] instruction and its Context<T> struct
+2. For each instruction: check signer constraints, account owner checks, PDA validation
+3. Check all CPI calls: is the target program verified?
+4. Check all arithmetic on amounts: is checked math used?
+5. Check for init_if_needed patterns: could accounts be reinitialized?
+6. Check mint_to calls: is mint authority enforced via constraint?
+
+RESPONSE RULES:
+- findings must reference actual function/struct names from the code
+- proofOfConcept must show the vulnerable Rust code snippet + exploit scenario
+- NEVER mention Slither, Mythril, Solidity, pragma, msg.sender, require(), OpenZeppelin
+- Tool output in proofOfConcept: "Solay39 pattern analysis: <what was detected>"
+- If the code is safe on a vector, DO NOT include it as a finding
+
+CONTRACT CODE:
+${truncatedCode}`
+      : `${metaContext}\n\nAnalyze this ${codeLanguage} smart contract/program deployed on ${chainNetwork} for security vulnerabilities. Apply ${codeLanguage}-specific security patterns. Never duplicate findings.\n\n${truncatedCode}`
 
     // Try AI analysis first
     try {
