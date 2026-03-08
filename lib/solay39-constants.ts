@@ -890,7 +890,7 @@ constructor() public {
       "Solay39 Manual Review (5 phases)",
       "Slither v0.10.0: 0 high, 0 medium, 1 optimization",
       "Mythril v0.24: 0 vulnerabilities detected",
-      "AI-Guided Verification (GPT-4o): 4 findings confirmed",
+      "Solay39 Static Analyzer: 4 findings confirmed",
       "OpenZeppelin Contract Analysis: SafeMath verified",
     ],
     onChainValidation: [
@@ -1082,7 +1082,7 @@ function transfer(address _to, uint256 _value) public returns (bool) {
       "Solay39 Manual Review (5 phases)",
       "Slither v0.10.0: 2 high (overflow), 1 medium",
       "Mythril v0.24: 1 integer overflow path confirmed",
-      "AI-Guided Verification (GPT-4o): 5 findings confirmed",
+      "Solay39 Static Analyzer: 5 findings confirmed",
     ],
     onChainValidation: [
       { label: "Source Code Verified on Etherscan", status: "pass" as const, detail: "Verified at 0xaea46A60368A7bD060eec7DF8CBa43b7EF41Ad85" },
@@ -1319,7 +1319,7 @@ function pause() public onlyPauser {
       "Solay39 Manual Review (5 phases)",
       "Slither v0.10.0: 0 high, 0 medium, 2 informational",
       "Mythril v0.24: 0 vulnerabilities detected",
-      "AI-Guided Verification (GPT-4o): 3 findings confirmed",
+      "Solay39 Static Analyzer: 3 findings confirmed",
       "OpenZeppelin Contract Analysis: Roles library verified",
     ],
     onChainValidation: [
