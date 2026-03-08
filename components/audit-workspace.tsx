@@ -25,7 +25,7 @@ import { useAuditValidator, ValidationPanel } from "@/components/validation-pane
 // AUDIT WORKSPACE — Founder Only
 // ════════════════════════════════════════════════════════════════
 
-type TabId = "dashboard" | "checklist" | "findings" | "skynet" | "validator"
+type TabId = "dashboard" | "checklist" | "findings" | "skynet" | "validator" | "blockchain"
 
 export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const [tab, setTab] = useState<TabId>("dashboard")
@@ -1032,6 +1032,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     ["findings", "Findings"],
     ["skynet", "Skynet AI"],
     ["validator", "Validator"],
+    ["blockchain", "Blockchain"],
   ]
 
   return (
@@ -1895,7 +1896,53 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
                 })}
               </div>
             )}
-          </div>
+          {/* ── SOLANA ATTESTATION STATUS (shown after analysis) ── */}
+          {(aiRes.length > 0 || solanaAttestation) && (
+            <div className="bg-s39-bg1 border border-s39-border p-4 mt-4">
+              <div className="text-[9px] text-s39-cyan tracking-[0.15em] mb-3">SOLANA ON-CHAIN ATTESTATION</div>
+              {solanaAttestation ? (
+                <div className="bg-[#001608] border border-s39-green/20 p-3">
+                  <div className="text-[9px] text-s39-green mb-2">[✓] Audit registered on Solana {solanaAttestation.network}</div>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {[
+                      ["TX Signature", solanaAttestation.txSignature.slice(0, 24) + "..."],
+                      ["Network", solanaAttestation.network],
+                      ["Timestamp", solanaAttestation.timestamp?.slice(0, 19).replace("T", " ")],
+                    ].map(([k, v]) => (
+                      <div key={k} className="flex gap-2 text-[9px]">
+                        <span className="text-s39-dim w-24 shrink-0">{k}</span>
+                        <span className="text-s39-lite font-mono">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <a
+                    href={solanaAttestation.solscanUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block mt-2 text-[9px] text-s39-cyan underline"
+                  >
+                    View on Solscan →
+                  </a>
+                </div>
+              ) : (
+                <div className="bg-s39-bg2 border border-s39-border p-3">
+                  <div className="text-[9px] text-s39-yellow mb-1">
+                    [!] Solana attestation not configured
+                  </div>
+                  <div className="text-[9px] text-s39-dim mb-2">
+                    Per attivare l&apos;attestazione on-chain su Solana, vai al tab <span className="text-s39-cyan">Blockchain</span> per le istruzioni di configurazione.
+                  </div>
+                  <button
+                    onClick={() => setTab("blockchain")}
+                    className="text-[9px] text-s39-cyan border border-s39-cyan/30 px-3 py-1 hover:bg-s39-cyan/10 transition-colors font-mono cursor-pointer bg-transparent"
+                  >
+                    Configura attestazione →
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         )}
         {/* ── VALIDATOR ── */}
         {tab === "validator" && (
@@ -1904,6 +1951,117 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
       </div>
+
+        {/* ── BLOCKCHAIN ── */}
+        {tab === "blockchain" && (
+          <div className="animate-[fadeUp_0.4s_ease]">
+            <div className="bg-s39-bg1 border border-s39-border p-6 mb-5">
+              <div className="text-[9px] text-s39-cyan tracking-[0.15em] mb-1">SOLANA ON-CHAIN ATTESTATION</div>
+              <div className="text-[10px] text-s39-mid mb-5">
+                Registra ogni audit immutabilmente on-chain su Solana tramite il Memo Program.
+                Costo: ~$0.000005 per audit. Verificabile pubblicamente su Solscan.
+              </div>
+
+              {solanaAttestation ? (
+                <div className="bg-[#001608] border border-s39-green/20 p-4 mb-5">
+                  <div className="text-[9px] text-s39-green mb-3">[✓] Audit registrato on-chain su Solana {solanaAttestation.network}</div>
+                  <div className="grid grid-cols-1 gap-2">
+                    {[
+                      ["TX Signature", solanaAttestation.txSignature],
+                      ["Network", solanaAttestation.network],
+                      ["Timestamp", solanaAttestation.timestamp],
+                    ].map(([k, v]) => (
+                      <div key={k} className="flex gap-2 text-[9px]">
+                        <span className="text-s39-dim w-28 shrink-0">{k}</span>
+                        <span className="text-s39-lite font-mono break-all">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <a
+                    href={solanaAttestation.solscanUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block mt-3 text-[10px] text-s39-cyan underline"
+                  >
+                    Verifica su Solscan →
+                  </a>
+                </div>
+              ) : (
+                <div className="bg-[#160005] border border-s39-red/20 p-3 mb-5">
+                  <div className="text-[9px] text-s39-red mb-1">[✗] Attestazione Solana non attiva</div>
+                  <div className="text-[9px] text-s39-dim">
+                    Configura la variabile d&apos;ambiente <span className="text-s39-lite font-mono">SOLANA_PRIVATE_KEY</span> per attivare le attestazioni automatiche durante ogni analisi Skynet.
+                  </div>
+                </div>
+              )}
+
+              <div className="border border-s39-border p-4 bg-s39-bg2 mb-4">
+                <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">SETUP — VARIABILI D&apos;AMBIENTE</div>
+                <div className="text-[9px] text-s39-dim mb-2">Aggiungi queste variabili al tuo file <span className="text-s39-lite font-mono">.env.local</span>:</div>
+                <div className="bg-s39-bg0 border border-s39-border p-3 font-mono text-[9px] text-s39-green mb-3">
+                  <div className="text-s39-dim"># Wallet Solana per attestazioni (Base58 da Phantom/Solflare)</div>
+                  <div>SOLANA_PRIVATE_KEY=&lt;base58_private_key&gt;</div>
+                  <div className="mt-2 text-s39-dim"># Opzionale: usa devnet per test</div>
+                  <div>SOLANA_RPC_URL=https://api.devnet.solana.com</div>
+                </div>
+                <div className="text-[9px] text-s39-yellow mb-1">[!] Sicurezza: usa un wallet dedicato solo per attestazioni.</div>
+                <div className="text-[9px] text-s39-dim">Non usare il wallet principale. Il wallet serve solo per le transaction fees (~$0.000005/tx). Saldo minimo consigliato: 0.01 SOL.</div>
+              </div>
+
+              <div className="border border-s39-border p-4 bg-s39-bg2 mb-4">
+                <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">COME FUNZIONA</div>
+                <div className="flex flex-col gap-2">
+                  {[
+                    ["1", "Esegui l'analisi Skynet AI su un contratto"],
+                    ["2", "Il sistema calcola un SHA-256 del report di audit"],
+                    ["3", "L'hash viene scritto on-chain via Memo Program su Solana"],
+                    ["4", "La transazione è verificabile pubblicamente su Solscan"],
+                    ["5", "Ogni report pubblicato include il link alla tx Solana"],
+                  ].map(([n, txt]) => (
+                    <div key={n} className="flex gap-2 text-[9px]">
+                      <span className="text-s39-cyan font-mono w-4 shrink-0">{n}.</span>
+                      <span className="text-s39-mid">{txt}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {aiRes.length > 0 && !solanaAttestation && (
+                <div className="border border-s39-cyan/20 p-4 bg-s39-bg2">
+                  <div className="text-[9px] text-s39-cyan tracking-[0.15em] mb-2">RIPROVA ATTESTAZIONE</div>
+                  <div className="text-[9px] text-s39-dim mb-3">
+                    Dopo aver configurato SOLANA_PRIVATE_KEY, riesegui l&apos;analisi Skynet per generare l&apos;attestazione on-chain.
+                  </div>
+                  <button
+                    onClick={() => setTab("skynet")}
+                    className="text-[9px] text-s39-cyan border border-s39-cyan/30 px-3 py-1.5 hover:bg-s39-cyan/10 transition-colors font-mono cursor-pointer bg-transparent"
+                  >
+                    Torna a Skynet AI →
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-s39-bg1 border border-s39-border p-5">
+              <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-3">MEMO PROGRAM — DETTAGLI TECNICI</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  ["Program ID", "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"],
+                  ["Costo tx", "~0.000005 SOL (~$0.000005)"],
+                  ["Dati scritti", "auditId + SHA-256 hash + IPFS CID + unix timestamp"],
+                  ["Verificabilità", "Pubblica e permanente su Solana mainnet"],
+                  ["Standard", "Solana Memo Program v2 (già deployato)"],
+                  ["Explorer", "Solscan / SolanaFM / Solana Explorer"],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex flex-col gap-0.5">
+                    <span className="text-[8px] text-s39-dim tracking-widest">{k}</span>
+                    <span className="text-[9px] text-s39-lite font-mono break-all">{v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
       {/* Validation overlay */}
       {validationResult && (
