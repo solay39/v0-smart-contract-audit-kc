@@ -137,7 +137,12 @@ function BlockchainTab({
         {/* Attestazione riuscita */}
         {solanaAttestation ? (
           <div className="bg-[#001608] border border-s39-green/20 p-4 mb-5">
-            <div className="text-[9px] text-s39-green mb-3">[✓] Audit registrato on-chain su Solana {solanaAttestation.network}</div>
+            <div className="text-[9px] text-s39-green mb-3">
+              {(solanaAttestation as {pending?: boolean}).pending
+                ? "[~] TX inviata — conferma on-chain in corso (5-15 secondi)..."
+                : "[✓] Audit registrato on-chain su Solana"}
+              {" "}{solanaAttestation.network}
+            </div>
             <div className="grid grid-cols-1 gap-2">
               {[
                 ["TX Signature", solanaAttestation.txSignature],
@@ -154,6 +159,11 @@ function BlockchainTab({
               className="block mt-3 text-[10px] text-s39-cyan underline">
               Verifica su Solscan →
             </a>
+            {(solanaAttestation as {pending?: boolean}).pending && (
+              <div className="mt-2 text-[8px] text-s39-dim">
+                La TX è nella mempool Solana. Attendi 5-15 secondi e clicca il link Solscan per confermare.
+              </div>
+            )}
           </div>
         ) : (
           /* Pulsante attestazione manuale */
