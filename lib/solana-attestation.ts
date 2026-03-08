@@ -47,11 +47,18 @@ function loadWallet(): Keypair | null {
 }
 
 export interface SolanaAttestationResult {
+  success: true
   txSignature: string
   solscanUrl: string
   network: string
   memo: string
   timestamp: string
+}
+
+export interface SolanaAttestationError {
+  success: false
+  error: string
+  details?: string
 }
 
 /**
@@ -62,7 +69,7 @@ export async function registerAuditOnSolana(
   auditId: string,
   reportHash: string,
   ipfsCid?: string
-): Promise<SolanaAttestationResult | null> {
+): Promise<SolanaAttestationResult | SolanaAttestationError> {
   console.log("[v0] registerAuditOnSolana called with:", { auditId, reportHash: reportHash?.slice(0, 20), ipfsCid: ipfsCid?.slice(0, 20) })
   
   try {
@@ -70,11 +77,17 @@ export async function registerAuditOnSolana(
     console.log("[v0] Wallet loaded:", wallet ? `PublicKey: ${wallet.publicKey.toBase58()}` : "null (no SOLANA_PRIVATE_KEY)")
     
     if (!wallet) {
-      console.warn("[Solana] SOLANA_PRIVATE_KEY not configured — skipping attestation")
-      return null
+      return { success: false, error: "SOLANA_PRIVATE_KEY not configured or invalid" }
     }
-
+    
+    // Check balance
     const connection = new Connection(SOLANA_RPC, "confirmed")
+    const balance = await connection.getBalance(wallet.publicKey)
+    console.log("[v0] Wallet balance:", balance / 1e9, "SOL")
+    
+    if (balance < 5000) { // 5000 lamports = 0.000005 SOL
+      return { success: false, error: `Insufficient balance: ${balance / 1e9} SOL. Need at least 0.000005 SOL` }
+    }
 
     // Costruisce il memo con i dati dell'audit
     // Formato compatto per stare nei 566 bytes del Memo Program
@@ -111,6 +124,7 @@ export async function registerAuditOnSolana(
     console.log(`[Solana] Audit registered on-chain: ${solscanUrl}`)
 
     return {
+      success: true,
       txSignature,
       solscanUrl,
       network,
@@ -118,7 +132,12 @@ export async function registerAuditOnSolana(
       timestamp: new Date().toISOString(),
     }
   } catch (error) {
-    console.error("[Solana] Attestation failed:", error)
-    return null
+    const errMsg = error instanceof Error ? error.message : String(error)
+    console.error("[Solana] Attestation failed:", errMsg)
+    return { 
+      success: false, 
+      error: "Transaction failed", 
+      details: errMsg 
+    }
   }
 }

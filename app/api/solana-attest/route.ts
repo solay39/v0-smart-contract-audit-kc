@@ -22,17 +22,14 @@ export async function POST(req: NextRequest) {
 
     const result = await registerAuditOnSolana(auditId, reportHash, ipfsCid)
 
-    if (!result) {
+    if (!result.success) {
       return NextResponse.json(
-        { error: "Failed to register on Solana" },
+        { error: result.error, details: result.details },
         { status: 500 }
       )
     }
 
-    return NextResponse.json({
-      success: true,
-      ...result
-    })
+    return NextResponse.json(result)
   } catch (error) {
     console.error("[Solana Attest] Error:", error)
     return NextResponse.json(

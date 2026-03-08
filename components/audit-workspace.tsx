@@ -2083,7 +2083,8 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
                             timestamp: data.timestamp
                           })
                         } else {
-                          setAttestError(data.error || "Errore sconosciuto")
+                          const errDetail = data.details ? `${data.error}: ${data.details}` : data.error
+                          setAttestError(errDetail || "Errore sconosciuto")
                         }
                       } catch (err) {
                         setAttestError(err instanceof Error ? err.message : "Errore di rete")
