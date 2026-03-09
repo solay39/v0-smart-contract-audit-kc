@@ -18,8 +18,14 @@ interface AnalysisResult {
     freezeAuthority?: string | null
     topHolders: { address: string; percentage: number }[]
     liquidityPools: { dex: string; pair: string; liquidity: string; lpLocked: boolean }[]
+    isVerified?: boolean
+    hasMintFunction?: boolean
+    hasPauseFunction?: boolean
+    hasBlacklistFunction?: boolean
   }
   analysis: {
+    executiveSummary: string
+    tokenEconomics: string
     tokenomicsAnalysis: string
     whaleDistribution: string
     insiderWallets: string
@@ -27,7 +33,18 @@ interface AnalysisResult {
     supplyAnalysis: string
     rugPullRisk: string
     priceManipulation: string
+    hiddenGovernance: string
+    complexBugs: string
+    liquidityAnalysis: string
+    clusterAnalysis: string
+    scenarioAnalysis: string
     overallRiskScore: number
+    scores: {
+      smartContractSecurity: number
+      decentralization: number
+      liquidityHealth: number
+      manipulationRisk: string
+    }
     recommendation: string
   }
   timestamp: string
@@ -370,24 +387,60 @@ export function OnChainAnalysisPanel({ contractAddress, network, onAnalysisCompl
             <div style={{ color: "#445566", fontSize: 8, letterSpacing: "0.1em", marginBottom: 10 }}>AI ANALYSIS REPORT</div>
           </div>
 
+          {/* Scores Grid */}
+          <div style={{ 
+            display: "grid", 
+            gridTemplateColumns: "repeat(4, 1fr)", 
+            gap: 8, 
+            marginBottom: 16,
+            background: "#0a0e14",
+            border: "1px solid #1e2a3a",
+            padding: 12,
+          }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ color: "#445566", fontSize: 7, letterSpacing: "0.1em", marginBottom: 4 }}>CONTRACT</div>
+              <div style={{ color: result.analysis.scores?.smartContractSecurity >= 7 ? "#00ff88" : result.analysis.scores?.smartContractSecurity >= 5 ? "#ffd600" : "#ff2d55", fontSize: 18, fontWeight: 700 }}>
+                {result.analysis.scores?.smartContractSecurity || 5}/10
+              </div>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ color: "#445566", fontSize: 7, letterSpacing: "0.1em", marginBottom: 4 }}>DECENTR.</div>
+              <div style={{ color: result.analysis.scores?.decentralization >= 7 ? "#00ff88" : result.analysis.scores?.decentralization >= 4 ? "#ffd600" : "#ff2d55", fontSize: 18, fontWeight: 700 }}>
+                {result.analysis.scores?.decentralization || 5}/10
+              </div>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ color: "#445566", fontSize: 7, letterSpacing: "0.1em", marginBottom: 4 }}>LIQUIDITY</div>
+              <div style={{ color: result.analysis.scores?.liquidityHealth >= 7 ? "#00ff88" : result.analysis.scores?.liquidityHealth >= 4 ? "#ffd600" : "#ff2d55", fontSize: 18, fontWeight: 700 }}>
+                {result.analysis.scores?.liquidityHealth || 5}/10
+              </div>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ color: "#445566", fontSize: 7, letterSpacing: "0.1em", marginBottom: 4 }}>MANIP. RISK</div>
+              <div style={{ color: result.analysis.scores?.manipulationRisk === "LOW" ? "#00ff88" : result.analysis.scores?.manipulationRisk === "MEDIUM" ? "#ffd600" : "#ff2d55", fontSize: 14, fontWeight: 700 }}>
+                {result.analysis.scores?.manipulationRisk || "MEDIUM"}
+              </div>
+            </div>
+          </div>
+
           <Section 
             id="summary"
-            title="Executive Summary & Recommendation" 
-            content={result.analysis.recommendation}
+            title="1. Executive Summary" 
+            content={result.analysis.executiveSummary || result.analysis.recommendation}
             icon="📋"
             severity={result.analysis.overallRiskScore <= 30 ? "safe" : result.analysis.overallRiskScore <= 60 ? "warning" : "danger"}
           />
 
           <Section 
             id="tokenomics"
-            title="Tokenomics Analysis" 
-            content={result.analysis.tokenomicsAnalysis}
+            title="2. Token Economics Logic" 
+            content={result.analysis.tokenEconomics || result.analysis.tokenomicsAnalysis}
             icon="📊"
           />
 
           <Section 
             id="whale"
-            title="Whale Distribution" 
+            title="3. Whale Distribution Analysis" 
             content={result.analysis.whaleDistribution}
             icon="🐋"
             severity={result.tokenData.topHolders[0]?.percentage > 30 ? "danger" : result.tokenData.topHolders[0]?.percentage > 15 ? "warning" : "safe"}
@@ -395,21 +448,21 @@ export function OnChainAnalysisPanel({ contractAddress, network, onAnalysisCompl
 
           <Section 
             id="insider"
-            title="Insider Wallets Detection" 
+            title="4. Insider Wallets Detection" 
             content={result.analysis.insiderWallets}
             icon="🔍"
           />
 
           <Section 
             id="dev"
-            title="Dev Wallet Analysis" 
+            title="5. Dev Wallet Analysis" 
             content={result.analysis.devWalletAnalysis}
             icon="👨‍💻"
           />
 
           <Section 
             id="supply"
-            title="Supply Analysis" 
+            title="6. Real Supply Analysis" 
             content={result.analysis.supplyAnalysis}
             icon="💰"
             severity={result.tokenData.mintAuthority ? "danger" : "safe"}
@@ -417,7 +470,7 @@ export function OnChainAnalysisPanel({ contractAddress, network, onAnalysisCompl
 
           <Section 
             id="rug"
-            title="Rug Pull Risk Assessment" 
+            title="7. Rug Pull Risk (Direct & Indirect)" 
             content={result.analysis.rugPullRisk}
             icon="⚠️"
             severity={result.analysis.overallRiskScore > 60 ? "danger" : result.analysis.overallRiskScore > 30 ? "warning" : "safe"}
@@ -425,9 +478,54 @@ export function OnChainAnalysisPanel({ contractAddress, network, onAnalysisCompl
 
           <Section 
             id="manipulation"
-            title="Price Manipulation Risk" 
+            title="8. Price Manipulation Vulnerability" 
             content={result.analysis.priceManipulation}
             icon="📈"
+          />
+
+          <Section 
+            id="governance"
+            title="9. Hidden Governance Risks" 
+            content={result.analysis.hiddenGovernance || "Analysis unavailable"}
+            icon="🔐"
+            severity={result.tokenData.hasMintFunction || result.tokenData.hasPauseFunction ? "warning" : "safe"}
+          />
+
+          <Section 
+            id="bugs"
+            title="10. Smart Contract Security" 
+            content={result.analysis.complexBugs || "Analysis unavailable"}
+            icon="🐛"
+            severity={result.tokenData.isVerified === false ? "danger" : "safe"}
+          />
+
+          <Section 
+            id="liquidity"
+            title="11. Liquidity Depth Analysis" 
+            content={result.analysis.liquidityAnalysis || "Analysis unavailable"}
+            icon="💧"
+          />
+
+          <Section 
+            id="cluster"
+            title="12. Wallet Cluster Analysis" 
+            content={result.analysis.clusterAnalysis || "Analysis unavailable"}
+            icon="🔗"
+          />
+
+          <Section 
+            id="scenario"
+            title="13. Scenario Analysis (Bull/Bear)" 
+            content={result.analysis.scenarioAnalysis || "Analysis unavailable"}
+            icon="🎯"
+          />
+
+          <Section 
+            id="recommendation"
+            title="14. Final Recommendation" 
+            content={result.analysis.recommendation}
+            icon="✅"
+            severity={result.analysis.overallRiskScore <= 30 ? "safe" : result.analysis.overallRiskScore <= 60 ? "warning" : "danger"}
           />
 
           {/* Timestamp */}
