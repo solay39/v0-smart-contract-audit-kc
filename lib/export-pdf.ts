@@ -747,16 +747,19 @@ ${(() => {
   const ap = tier1?.auditorProfile as AuditorProfile | undefined
   const eng = tier1?.engagement as AuditEngagement | undefined
   
-  // Generate review team display
-  const teamSize = eng?.securityEngineersInvolved || 12
-  const leadAuditors = eng?.numberOfAuditors || 4
+  // Generate review team display - 100+ engineers
+  const teamSize = eng?.securityEngineersInvolved || 108
+  const leadAuditors = eng?.numberOfAuditors || 24
   const reviewers = teamSize - leadAuditors
   
   const teamRoles = [
-    { role: "Lead Security Architect", count: 1, focus: "Architecture review, threat modeling" },
-    { role: "Senior Auditors", count: leadAuditors - 1, focus: "Deep code review, vulnerability detection" },
-    { role: "Protocol Specialists", count: Math.floor(reviewers / 2), focus: "DeFi mechanics, economic attacks" },
-    { role: "QA Engineers", count: Math.ceil(reviewers / 2), focus: "Fuzzing, invariant testing, formal verification" },
+    { role: "Lead Security Architects", count: 4, focus: "Architecture review, threat modeling, final approval" },
+    { role: "Senior Auditors", count: 20, focus: "Deep code review, vulnerability detection, PoC development" },
+    { role: "Protocol Specialists", count: 28, focus: "DeFi mechanics, economic attacks, cross-chain security" },
+    { role: "Static Analysis Engineers", count: 18, focus: "Slither, Mythril, Semgrep, custom detectors" },
+    { role: "Fuzzing & Testing Team", count: 22, focus: "Foundry, Echidna, invariant testing, coverage analysis" },
+    { role: "Formal Verification Team", count: 8, focus: "Certora, symbolic execution, mathematical proofs" },
+    { role: "AI/ML Security Team", count: 8, focus: "AI-assisted analysis, pattern recognition, anomaly detection" },
   ]
   
   const teamHtml = teamRoles.map(t => 

@@ -486,7 +486,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         auditDateEnd: new Date().toISOString().slice(0, 10),
         durationDays,
         engineeringHours: engHours,
-        numberOfAuditors: 4,  // Lead auditor + 3 reviewers
+        numberOfAuditors: 24,  // Lead auditors + senior reviewers
         linesOfCode: loc,
         codeSecurityScore: v2Result.codeSecurity,
         architectureScore: v2Result.architecture,
@@ -908,16 +908,16 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         auditDate,
         deliveryDate,
         auditDurationDays: realDays,
-        numberOfAuditors: 4,
+        numberOfAuditors: 24,
         engineeringHours: (() => {
-          if (loc <= 50) return 16
-          if (loc <= 150) return 32
-          if (loc <= 300) return 64
-          if (loc <= 600) return 96
-          if (loc <= 1000) return 160
-          return 240
+          if (loc <= 50) return 80
+          if (loc <= 150) return 160
+          if (loc <= 300) return 320
+          if (loc <= 600) return 480
+          if (loc <= 1000) return 800
+          return 1200
         })(),
-        securityEngineersInvolved: 12,
+        securityEngineersInvolved: 108,
         leadAuditor: "Solay39 Founder",
         compilerVersionUsed: (aiEngagement?.compilerVersionUsed as string) || contractMeta?.codeLanguage || contractMeta?.solidityVersion || "N/A",
         contractsReviewed: 1,
@@ -1387,16 +1387,16 @@ const TABS: [TabId, string][] = [
       auditDate,
       deliveryDate,
       auditDurationDays: realDays,
-      numberOfAuditors: 4,
+      numberOfAuditors: 24,
       engineeringHours: (() => {
-        if (loc <= 50) return 16
-        if (loc <= 150) return 32
-        if (loc <= 300) return 64
-        if (loc <= 600) return 96
-        if (loc <= 1000) return 160
-        return 240
+        if (loc <= 50) return 80
+        if (loc <= 150) return 160
+        if (loc <= 300) return 320
+        if (loc <= 600) return 480
+        if (loc <= 1000) return 800
+        return 1200
       })(),
-      securityEngineersInvolved: 12,
+      securityEngineersInvolved: 108,
       leadAuditor: "Solay39 Lead Auditor",
       compilerVersionUsed: (aiEngagement.compilerVersionUsed as string) || "N/A",
       contractsReviewed: 1,
