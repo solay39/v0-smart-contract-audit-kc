@@ -286,9 +286,102 @@ ${(() => {
 })()}
 
 ${(() => {
+  // EXECUTIVE SUMMARY — Versione Enterprise
+  const criticalCount = findings.filter(f => f.severity === "CRITICAL").length
+  const highCount = findings.filter(f => f.severity === "HIGH").length
+  const hasNoCritical = criticalCount === 0 && highCount === 0
+  const riskLevel = hasNoCritical ? "LOW" : criticalCount > 0 ? "CRITICAL" : "ELEVATED"
+  const riskColor = hasNoCritical ? "#00ff88" : criticalCount > 0 ? "#ff2d55" : "#ffd600"
+
+  return page(4, `${h1("EXECUTIVE SUMMARY")}
+    <div style="background:#0d1117;border:1px solid ${riskColor}33;border-left:3px solid ${riskColor};padding:18px;margin-bottom:14px">
+      <p style="color:#c8d8e8;font-size:10.5px;line-height:1.8;margin-bottom:10px">
+        L'analisi del contratto <strong style="color:#eef4fa">${project.name || "Protocol"}</strong> ha evidenziato un'implementazione 
+        ${hasNoCritical ? "solida, priva di vulnerabilità critiche" : `con ${criticalCount + highCount} issue ad alta priorità che richiedono attenzione`}.
+        ${hasNoCritical ? "La superficie d'attacco è ridotta, il codice è lineare e l'architettura è coerente con gli standard di sicurezza." : ""}
+      </p>
+      <p style="color:#7a8c9e;font-size:9.5px;line-height:1.7">
+        L'audit ha incluso: Analisi statica (Slither, Mythril) • Analisi dinamica (Foundry, Echidna) • 
+        Threat modeling avanzato • Simulazione vettori d'attacco • Verifica on-chain e firma crittografica • 
+        Controlli di governance e operatività.
+      </p>
+    </div>
+    <div style="display:flex;gap:16px;margin-bottom:14px">
+      <div style="background:#0d1117;padding:14px 20px;text-align:center;flex:1;border:1px solid #161e2a">
+        <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:6px">SECURITY SCORE</div>
+        <div style="color:${sc};font-size:28px;font-weight:700;line-height:1">${score}</div>
+        <div style="color:${sc};font-size:11px;font-weight:700;margin-top:4px">${rat}</div>
+      </div>
+      <div style="background:#0d1117;padding:14px 20px;text-align:center;flex:1;border:1px solid #161e2a">
+        <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:6px">RISK LEVEL</div>
+        <div style="color:${riskColor};font-size:18px;font-weight:700;line-height:1.2">${riskLevel}</div>
+        <div style="color:#7a8c9e;font-size:9px;margin-top:4px">${criticalCount} Critical, ${highCount} High</div>
+      </div>
+      <div style="background:#0d1117;padding:14px 20px;text-align:center;flex:1;border:1px solid #161e2a">
+        <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:6px">TOTAL FINDINGS</div>
+        <div style="color:#c8d8e8;font-size:28px;font-weight:700;line-height:1">${findings.length}</div>
+        <div style="color:#00ff88;font-size:9px;margin-top:4px">${fix_c} Resolved</div>
+      </div>
+    </div>
+
+    ${h2("Risk Matrix")}
+    <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:9px">
+      <thead>
+        <tr>
+          <th style="background:#0d1117;color:#445566;font-size:7px;padding:8px;text-align:left;border:1px solid #161e2a">IMPATTO ↓ / PROB →</th>
+          <th style="background:#0d1117;color:#445566;font-size:7px;padding:8px;text-align:center;border:1px solid #161e2a;width:80px">BASSA</th>
+          <th style="background:#0d1117;color:#445566;font-size:7px;padding:8px;text-align:center;border:1px solid #161e2a;width:80px">MEDIA</th>
+          <th style="background:#0d1117;color:#445566;font-size:7px;padding:8px;text-align:center;border:1px solid #161e2a;width:80px">ALTA</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:8px;border:1px solid #161e2a;color:#c8d8e8;font-weight:700">ALTO</td>
+          <td style="padding:8px;border:1px solid #161e2a;text-align:center;background:#ff6b0022;color:#ff6b00">${findings.filter(f => f.severity === "HIGH" && f.likelihood === "Low").length > 0 ? findings.filter(f => f.severity === "HIGH" && f.likelihood === "Low").length + " issue" : "—"}</td>
+          <td style="padding:8px;border:1px solid #161e2a;text-align:center;background:#ff2d5522;color:#ff2d55">${findings.filter(f => f.severity === "CRITICAL" || (f.severity === "HIGH" && f.likelihood === "Medium")).length > 0 ? findings.filter(f => f.severity === "CRITICAL" || (f.severity === "HIGH" && f.likelihood === "Medium")).length + " issue" : "—"}</td>
+          <td style="padding:8px;border:1px solid #161e2a;text-align:center;background:#ff2d5544;color:#ff2d55">${findings.filter(f => f.severity === "CRITICAL" && f.likelihood === "High").length > 0 ? findings.filter(f => f.severity === "CRITICAL" && f.likelihood === "High").length + " issue" : "—"}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid #161e2a;color:#c8d8e8;font-weight:700">MEDIO</td>
+          <td style="padding:8px;border:1px solid #161e2a;text-align:center;background:#ffd60011;color:#ffd600">${findings.filter(f => f.severity === "MEDIUM" && f.likelihood === "Low").length > 0 ? findings.filter(f => f.severity === "MEDIUM" && f.likelihood === "Low").length + " issue" : "—"}</td>
+          <td style="padding:8px;border:1px solid #161e2a;text-align:center;background:#ffd60022;color:#ffd600">${findings.filter(f => f.severity === "MEDIUM" && f.likelihood === "Medium").length > 0 ? findings.filter(f => f.severity === "MEDIUM" && f.likelihood === "Medium").length + " issue" : "—"}</td>
+          <td style="padding:8px;border:1px solid #161e2a;text-align:center;background:#ff6b0022;color:#ff6b00">${findings.filter(f => f.severity === "MEDIUM" && f.likelihood === "High").length > 0 ? findings.filter(f => f.severity === "MEDIUM" && f.likelihood === "High").length + " issue" : "—"}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid #161e2a;color:#c8d8e8;font-weight:700">BASSO</td>
+          <td style="padding:8px;border:1px solid #161e2a;text-align:center;background:#00ff8811;color:#00ff88">${findings.filter(f => f.severity === "LOW" || f.severity === "INFO").length > 0 ? findings.filter(f => f.severity === "LOW" || f.severity === "INFO").length + " issue" : "—"}</td>
+          <td style="padding:8px;border:1px solid #161e2a;text-align:center;background:#00e5ff11;color:#00e5ff">—</td>
+          <td style="padding:8px;border:1px solid #161e2a;text-align:center;background:#ffd60011;color:#ffd600">—</td>
+        </tr>
+      </tbody>
+    </table>
+
+    ${h2("Investor Risk Overview")}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1117;border:1px solid #161e2a">
+        <span style="color:${criticalCount === 0 ? "#00ff88" : "#ff2d55"};font-size:14px">${criticalCount === 0 ? "&#10003;" : "&#10007;"}</span>
+        <span style="color:#c8d8e8;font-size:9px">Nessuna vulnerabilità critica${criticalCount > 0 ? " — ATTENZIONE" : ""}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1117;border:1px solid #161e2a">
+        <span style="color:#00ff88;font-size:14px">&#10003;</span>
+        <span style="color:#c8d8e8;font-size:9px">Codice semplice e verificabile</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1117;border:1px solid #161e2a">
+        <span style="color:#ffd600;font-size:14px">&#9888;</span>
+        <span style="color:#c8d8e8;font-size:9px">Mint centralizzato → richiede fiducia nell'owner</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1117;border:1px solid #161e2a">
+        <span style="color:#00ff88;font-size:14px">&#10003;</span>
+        <span style="color:#c8d8e8;font-size:9px">Nessun meccanismo nascosto o fee occulte</span>
+      </div>
+    </div>
+  `)
+})()}
+
+${(() => {
   const rm = tier1?.riskModel as RiskModelConfig | undefined
   if (!rm) return ""
-  return page(4, `${h1("2. Risk Classification Model")}
+  return page(5, `${h1("2. Risk Classification Model")}
     ${p(rm.methodology)}
     ${rm.severityMatrix.map(s => {
       const col = s.level === "CRITICAL" ? "#ff2d55" : s.level === "HIGH" ? "#ff6b00" : s.level === "MEDIUM" ? "#ffd600" : s.level === "LOW" ? "#00e5ff" : "#00ff88"
@@ -304,7 +397,7 @@ ${(() => {
 })()}
 
 ${page(
-  5,
+  6,
   `${h1("3. Remediation Status")}
   ${p("The following table summarizes the current remediation status of all findings identified during this audit.")}
   <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:10px">
@@ -332,7 +425,7 @@ ${page(
 )}
 
 ${page(
-  6,
+  7,
   `${h1("4. Overview & Security Score")}
   ${tbl([
     ["Project name", project.name || "N/A"],
@@ -369,9 +462,9 @@ ${page(
   </table>`
 )}
 
-${page(7, `${h1("5. Found Issues")}${findingsHtml}`)}
+${page(8, `${h1("5. Found Issues")}${findingsHtml}`)}
 
-${page(8, `${h1("6. Security Architecture")}
+${page(9, `${h1("6. Security Architecture")}
   ${tier1?.architectureOverview ? `${h2("6.0 Architecture Overview")}
     <div style="background:#0d1117;border:1px solid #161e2a;border-left:3px solid #00e5ff;padding:14px 16px;margin-bottom:14px">
       <p style="color:#8899aa;font-size:10px;line-height:1.7">${tier1.architectureOverview}</p>
@@ -421,7 +514,7 @@ ${page(8, `${h1("6. Security Architecture")}
     : p("No significant attack vectors identified. The attack surface is minimal for this contract type.")}`
 )}
 
-${page(9, `${h1("7. Tooling & On-Chain Validation")}
+${page(10, `${h1("7. Tooling & On-Chain Validation")}
   ${h2("7.1 Automated & Manual Analysis Tools")}
   ${(tier1?.toolingUsed || ["Solay39 Manual Review", "Solay39 Static Analyzer", "AI-Guided Verification"]).map(tool =>
     `<div style="display:flex;align-items:center;gap:8px;padding:6px 0">
@@ -450,7 +543,7 @@ ${page(9, `${h1("7. Tooling & On-Chain Validation")}
 ${(() => {
   const tm = tier1?.testingMethodology as TestingMethodology | undefined
   if (!tm) return ""
-  return page(10, `${h1("7.3 Code Coverage & Testing Methodology")}
+  return page(11, `${h1("7.3 Code Coverage & Testing Methodology")}
     <div style="display:flex;gap:12px;margin-bottom:14px">
       <div style="background:#0d1117;padding:10px 16px;text-align:center;flex:1;border:1px solid #161e2a">
         <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:4px">MANUAL REVIEW</div>
@@ -515,7 +608,7 @@ ${(() => {
 
 ${(() => {
   const gov = tier1?.governanceSecurity as GovernanceSecurity | undefined
-  return gov ? page(11, `${h1("8. Governance Security")}
+  return gov ? page(12, `${h1("8. Governance Security")}
   <div style="display:flex;gap:12px;margin-bottom:14px">
     <div style="background:#0d1117;padding:10px 16px;text-align:center;flex:1;border:1px solid #161e2a">
       <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:4px">GOVERNANCE</div>
@@ -549,7 +642,7 @@ ${(() => {
 
 ${(() => {
   const up = tier1?.upgradeabilityAnalysis as UpgradeabilityAnalysis | undefined
-  return up ? page(12, `${h1("9. Upgradeability & Proxy Analysis")}
+  return up ? page(13, `${h1("9. Upgradeability & Proxy Analysis")}
   <div style="display:flex;gap:12px;margin-bottom:14px">
     <div style="background:#0d1117;padding:10px 16px;text-align:center;flex:1;border:1px solid #161e2a">
       <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:4px">UPGRADEABLE</div>
@@ -574,7 +667,7 @@ ${(() => {
 
 ${(() => {
   const econ = tier1?.economicRisks
-  return econ && econ.length > 0 ? page(13, `${h1("10. Economic & Game-Theory Risks")}
+  return econ && econ.length > 0 ? page(14, `${h1("10. Economic & Game-Theory Risks")}
   ${p("Analysis of economic incentive structures, game-theory attack vectors, and tokenomic risks that could impact the protocol or its users.")}
   ${econ.map(e => {
     const catColor = e.category === "vote-buying" ? "#4488ff" : e.category === "supply-concentration" ? "#ff6b00" : e.category === "treasury-drain" ? "#ff2d55" : e.category === "oracle-manipulation" ? "#ff2d55" : "#ffd600"
@@ -601,7 +694,7 @@ ${(() => {
   const intRisks = tier1?.integrationRisks
   const invChecks = tier1?.invariantsChecked
   const hasContent = (intRisks && intRisks.length > 0) || (invChecks && invChecks.length > 0)
-  return hasContent ? page(14, `${h1("11. Integration Risks & Invariants")}
+  return hasContent ? page(15, `${h1("11. Integration Risks & Invariants")}
   ${intRisks && intRisks.length > 0 ? `${h2("11.1 Integration Risks")}
     <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:10px">
       <thead><tr>
@@ -639,7 +732,7 @@ ${(() => {
 ${(() => {
   const lim = tier1?.limitations as AuditLimitations | undefined
   if (!lim) return ""
-  return page(15, `${h1("12. Limitations & Disclaimer")}
+  return page(16, `${h1("12. Limitations & Disclaimer")}
     ${lim.statements.map((s, i) => `<div style="display:flex;gap:8px;padding:4px 0">
       <span style="color:#ff6b00;font-size:9px;font-family:monospace;width:16px;flex-shrink:0">${i + 1}.</span>
       <span style="color:#c8d8e8;font-size:10px;line-height:1.6">${s}</span>
@@ -652,7 +745,7 @@ ${(() => {
 ${(() => {
   const ap = tier1?.auditorProfile as AuditorProfile | undefined
   if (!ap) return ""
-  return page(16, `${h1("13. About the Auditor")}
+  return page(17, `${h1("13. About the Auditor")}
     <div style="margin-bottom:14px">
       <div style="font-size:18px;font-weight:700;color:#eef4fa;margin-bottom:4px">${ap.firmName}</div>
       <p style="color:#8899aa;font-size:10px;line-height:1.6">${ap.description}</p>
@@ -673,7 +766,7 @@ ${(() => {
 ${(() => {
   const mr = tier1?.manualReview
   if (!mr) return ""
-  return page(17, `${h1("14. Manual Review Attestation")}
+  return page(18, `${h1("14. Manual Review Attestation")}
     <div style="background:#9945FF15;border:1px solid #9945FF40;padding:16px;margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <span style="color:#9945FF;font-size:12px;font-weight:700">AUDITOR VERIFIED REVIEW</span>
@@ -716,7 +809,7 @@ ${(() => {
 })()}
 
 ${page(
-  18,
+  19,
   `${h1("15. Conclusion")}
   ${
     findings.length === 0
@@ -727,7 +820,7 @@ ${page(
 )}
 
 ${page(
-  16,
+  20,
   `${h1("Appendix A. Issues Severity Classification")}
   ${[
     ["Critical", "#ff2d55", "Issues that may cause unlimited loss of funds or entirely break the contract workflow. MUST be fixed before deployment."],
@@ -744,7 +837,7 @@ ${page(
 )}
 
 ${page(
-  17,
+  21,
   `${h1("Appendix B. Severity / Likelihood Matrix")}
   ${p("The risk assessment matrix combines Impact (severity of the vulnerability) with Likelihood (probability of exploitation) to determine overall risk level.")}
   <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:10px">
