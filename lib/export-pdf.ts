@@ -874,7 +874,7 @@ ${page(
 )}
 
 ${page(
-  18,
+  22,
   `${h1("Appendix C. List of Examined Issue Types")}
   <div style="columns:2;column-gap:20px">
     ${[
@@ -912,7 +912,7 @@ ${page(
 )}
 
 ${page(
-  19,
+  23,
   `${h1("Appendix D. Centralization Risks Classification")}
   ${h2("Centralization Level")}
   ${[
