@@ -200,11 +200,43 @@ async function fetchSolanaToken(address: string): Promise<SolanaTokenInfo | null
       }
     } catch { /* metadata optional */ }
     
-    // 3. Try Solscan API for additional info
+    // 3. Try multiple APIs for token name/symbol (Jupiter is most reliable)
     let holders = 0
-    let tokenName = metadata?.name || "Unknown Token"
-    let symbol = metadata?.symbol || "???"
+    let tokenName = metadata?.name || ""
+    let symbol = metadata?.symbol || ""
     
+    // 3a. Jupiter API - most reliable for Solana tokens
+    try {
+      const jupiterRes = await fetch(`https://api.jup.ag/tokens/v1/${address}`, {
+        headers: { "Accept": "application/json" },
+      })
+      if (jupiterRes.ok) {
+        const jupData = await jupiterRes.json()
+        if (jupData) {
+          tokenName = jupData.name || tokenName
+          symbol = jupData.symbol || symbol
+        }
+      }
+    } catch { /* continue */ }
+    
+    // 3b. Jupiter strict list fallback
+    if (!tokenName || tokenName === "Unknown Token") {
+      try {
+        const strictRes = await fetch("https://tokens.jup.ag/tokens?tags=verified", {
+          headers: { "Accept": "application/json" },
+        })
+        if (strictRes.ok) {
+          const tokens = await strictRes.json()
+          const match = tokens.find((t: { address: string }) => t.address === address)
+          if (match) {
+            tokenName = match.name || tokenName
+            symbol = match.symbol || symbol
+          }
+        }
+      } catch { /* continue */ }
+    }
+    
+    // 3c. Solscan API for holders count
     try {
       const solscanRes = await fetch(`https://api-v2.solscan.io/v2/token/meta?address=${address}`, {
         headers: { "Accept": "application/json", "User-Agent": "Solay39/1.0" },
@@ -212,12 +244,16 @@ async function fetchSolanaToken(address: string): Promise<SolanaTokenInfo | null
       if (solscanRes.ok) {
         const solscanData = await solscanRes.json()
         if (solscanData?.data) {
-          tokenName = solscanData.data.name || tokenName
-          symbol = solscanData.data.symbol || symbol
+          if (!tokenName) tokenName = solscanData.data.name || ""
+          if (!symbol) symbol = solscanData.data.symbol || ""
           holders = solscanData.data.holder || 0
         }
       }
     } catch { /* continue */ }
+    
+    // Fallback if still no name
+    if (!tokenName) tokenName = "Solana Token"
+    if (!symbol) symbol = address.slice(0, 4).toUpperCase()
     
     // 4. Try Helius API if available
     const heliusKey = process.env.HELIUS_API_KEY

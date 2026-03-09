@@ -47,10 +47,16 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
   // If server didn't find it, check localStorage then Blob API
   useEffect(() => {
     const published = getPublishedAudits()
+    // Normalize ID for comparison (handle URL-encoded and special chars)
+    const normalizedId = decodeURIComponent(auditId).toLowerCase().replace(/[^a-z0-9-]/g, "")
 
     if (!project) {
-      // Server didn't find it -- look in localStorage by ID
-      const local = published.find((p) => p.id === auditId)
+      // Server didn't find it -- look in localStorage by ID (exact match first, then normalized)
+      let local = published.find((p) => p.id === auditId)
+      if (!local) {
+        // Try normalized comparison
+        local = published.find((p) => p.id.toLowerCase().replace(/[^a-z0-9-]/g, "") === normalizedId)
+      }
       if (local) {
         setLiveProject(local)
         setLoading(false)

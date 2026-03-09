@@ -611,8 +611,10 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     }
 
     // ── Step 2: Build the portfolio entry with enriched data ──
+    // Sanitize ID to only allow alphanumeric and hyphens (no special chars like ? ( ) etc)
+    const sanitizedName = project.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "audit"
     const portfolioEntry: PortfolioProject = {
-      id: project.name.toLowerCase().replace(/\s+/g, "-") + "-" + Date.now(),
+      id: sanitizedName + "-" + Date.now(),
       name: project.name,
       ticker: tokenMeta.ticker,
       network: project.network || "Ethereum",
