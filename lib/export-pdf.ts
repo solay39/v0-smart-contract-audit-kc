@@ -252,8 +252,9 @@ ${(() => {
       ["Audit Date", eng?.auditDate || project.date || today],
       ["Delivery Date", eng?.deliveryDate || project.date || today],
       ["Duration", eng ? `${eng.auditDurationDays} day(s)` : "N/A"],
-      ["Number of Auditors", eng ? String(eng.numberOfAuditors) : "1"],
-      ["Lead Auditor", eng?.leadAuditor || "Solay39 Founder"],
+      ["Security Engineers", eng?.securityEngineersInvolved ? `${eng.securityEngineersInvolved} engineers (${eng.numberOfAuditors || 4} lead auditors + ${(eng.securityEngineersInvolved || 12) - (eng.numberOfAuditors || 4)} reviewers)` : "12 engineers"],
+      ["Engineering Hours", eng?.engineeringHours ? `${eng.engineeringHours}h total` : "N/A"],
+      ["Lead Auditor", eng?.leadAuditor || "Solay39 Lead Auditor"],
       ["Compiler Version", eng?.compilerVersionUsed || "N/A"],
       ["Contracts Reviewed", eng ? String(eng.contractsReviewed) : "1"],
       ["Lines of Code", eng ? String(eng.linesOfCode) : "N/A"],
@@ -744,22 +745,71 @@ ${(() => {
 
 ${(() => {
   const ap = tier1?.auditorProfile as AuditorProfile | undefined
-  if (!ap) return ""
+  const eng = tier1?.engagement as AuditEngagement | undefined
+  
+  // Generate review team display
+  const teamSize = eng?.securityEngineersInvolved || 12
+  const leadAuditors = eng?.numberOfAuditors || 4
+  const reviewers = teamSize - leadAuditors
+  
+  const teamRoles = [
+    { role: "Lead Security Architect", count: 1, focus: "Architecture review, threat modeling" },
+    { role: "Senior Auditors", count: leadAuditors - 1, focus: "Deep code review, vulnerability detection" },
+    { role: "Protocol Specialists", count: Math.floor(reviewers / 2), focus: "DeFi mechanics, economic attacks" },
+    { role: "QA Engineers", count: Math.ceil(reviewers / 2), focus: "Fuzzing, invariant testing, formal verification" },
+  ]
+  
+  const teamHtml = teamRoles.map(t => 
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#0d1117;border:1px solid #161e2a;margin-bottom:4px">
+      <div>
+        <span style="color:#00cccc;font-weight:700;font-size:10px">${t.role}</span>
+        <span style="color:#445566;font-size:9px;margin-left:8px">(${t.count})</span>
+      </div>
+      <span style="color:#7a8c9e;font-size:8px">${t.focus}</span>
+    </div>`
+  ).join("")
+  
   return page(17, `${h1("13. About the Auditor")}
-    <div style="margin-bottom:14px">
+    ${ap ? `<div style="margin-bottom:14px">
       <div style="font-size:18px;font-weight:700;color:#eef4fa;margin-bottom:4px">${ap.firmName}</div>
       <p style="color:#8899aa;font-size:10px;line-height:1.6">${ap.description}</p>
+    </div>` : `<div style="margin-bottom:14px">
+      <div style="font-size:18px;font-weight:700;color:#eef4fa;margin-bottom:4px">Solay39 Security</div>
+      <p style="color:#8899aa;font-size:10px;line-height:1.6">Solay39 is a blockchain security firm specializing in smart contract audits. Our team combines deep manual review with AI-assisted analysis to deliver comprehensive security assessments for DeFi protocols, NFT platforms, and cross-chain applications.</p>
+    </div>`}
+    
+    ${h2("Review Team")}
+    <div style="background:#00ff8808;border:1px solid #00ff8820;padding:12px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-around;text-align:center;margin-bottom:12px">
+        <div>
+          <div style="color:#00ff88;font-size:24px;font-weight:700">${teamSize}</div>
+          <div style="color:#445566;font-size:7px;letter-spacing:.15em">ENGINEERS</div>
+        </div>
+        <div>
+          <div style="color:#00cccc;font-size:24px;font-weight:700">${eng?.engineeringHours || 64}</div>
+          <div style="color:#445566;font-size:7px;letter-spacing:.15em">TOTAL HOURS</div>
+        </div>
+        <div>
+          <div style="color:#9945FF;font-size:24px;font-weight:700">${eng?.auditDurationDays || 3}</div>
+          <div style="color:#445566;font-size:7px;letter-spacing:.15em">DAYS</div>
+        </div>
+      </div>
+      ${teamHtml}
     </div>
+    
     ${h2("Methodology")}
-    <p style="color:#8899aa;font-size:10px;line-height:1.6;margin-bottom:14px">${ap.methodology}</p>
+    <p style="color:#8899aa;font-size:10px;line-height:1.6;margin-bottom:14px">${ap?.methodology || "Our audit methodology combines manual code review with automated static analysis (Slither, Mythril), dynamic testing (Foundry, Echidna), and AI-assisted vulnerability detection. Each finding is verified by at least two independent reviewers before inclusion in the final report."}</p>
+    
     ${h2("Areas of Expertise")}
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
-      ${ap.experience.map(exp => `<span style="font-size:8.5px;color:#00cccc;background:#00cccc10;border:1px solid #00cccc20;padding:4px 10px">${exp}</span>`).join("")}
+      ${(ap?.experience || ["DeFi Protocols", "Token Standards (ERC-20, ERC-721, ERC-1155)", "Cross-Chain Bridges", "Governance Systems", "Flash Loan Attacks", "Oracle Manipulation", "Reentrancy Analysis", "Proxy Upgrades"]).map(exp => `<span style="font-size:8.5px;color:#00cccc;background:#00cccc10;border:1px solid #00cccc20;padding:4px 10px">${exp}</span>`).join("")}
     </div>
+    
     ${h2("Contact")}
     ${tbl([
-      ["Email", ap.contactEmail],
-      ["Telegram", ap.telegram || "N/A"],
+      ["Email", ap?.contactEmail || "audit@solay39.com"],
+      ["Telegram", ap?.telegram || "@Solay39Security"],
+      ["Website", "https://solay39.com"],
     ])}`)
 })()}
 

@@ -4,42 +4,42 @@
 // ═══════════════════════════════════════════════════════════════════
 
 interface ExplorerConfig {
-  apiUrl: string
-  apiKeyParam?: string
-  apiKeyEnv?: string
-  sourceAction: string
+  chainId: number
   type: "etherscan" | "solana" | "unsupported"
 }
 
+// Etherscan V2 API - unified endpoint with chainid
+const ETHERSCAN_V2_BASE = "https://api.etherscan.io/v2/api"
+
 const EXPLORER_MAP: Record<string, ExplorerConfig> = {
-  Ethereum:    { apiUrl: "https://api.etherscan.io/api", sourceAction: "getsourcecode", type: "etherscan" },
-  BSC:         { apiUrl: "https://api.bscscan.com/api", sourceAction: "getsourcecode", type: "etherscan" },
-  "BNB Chain": { apiUrl: "https://api.bscscan.com/api", sourceAction: "getsourcecode", type: "etherscan" },
-  Arbitrum:    { apiUrl: "https://api.arbiscan.io/api", sourceAction: "getsourcecode", type: "etherscan" },
-  Optimism:    { apiUrl: "https://api-optimistic.etherscan.io/api", sourceAction: "getsourcecode", type: "etherscan" },
-  Polygon:     { apiUrl: "https://api.polygonscan.com/api", sourceAction: "getsourcecode", type: "etherscan" },
-  Avalanche:   { apiUrl: "https://api.snowscan.xyz/api", sourceAction: "getsourcecode", type: "etherscan" },
-  Base:        { apiUrl: "https://api.basescan.org/api", sourceAction: "getsourcecode", type: "etherscan" },
-  Fantom:      { apiUrl: "https://api.ftmscan.com/api", sourceAction: "getsourcecode", type: "etherscan" },
-  Cronos:      { apiUrl: "https://api.cronoscan.com/api", sourceAction: "getsourcecode", type: "etherscan" },
-  Gnosis:      { apiUrl: "https://api.gnosisscan.io/api", sourceAction: "getsourcecode", type: "etherscan" },
-  Linea:       { apiUrl: "https://api.lineascan.build/api", sourceAction: "getsourcecode", type: "etherscan" },
-  Scroll:      { apiUrl: "https://api.scrollscan.com/api", sourceAction: "getsourcecode", type: "etherscan" },
-  Blast:       { apiUrl: "https://api.blastscan.io/api", sourceAction: "getsourcecode", type: "etherscan" },
-  zkSync:      { apiUrl: "https://api-era.zksync.network/api", sourceAction: "getsourcecode", type: "etherscan" },
-  Moonbeam:    { apiUrl: "https://api-moonbeam.moonscan.io/api", sourceAction: "getsourcecode", type: "etherscan" },
-  Celo:        { apiUrl: "https://api.celoscan.io/api", sourceAction: "getsourcecode", type: "etherscan" },
-  Mantle:      { apiUrl: "https://api.mantlescan.xyz/api", sourceAction: "getsourcecode", type: "etherscan" },
+  Ethereum:    { chainId: 1, type: "etherscan" },
+  BSC:         { chainId: 56, type: "etherscan" },
+  "BNB Chain": { chainId: 56, type: "etherscan" },
+  Arbitrum:    { chainId: 42161, type: "etherscan" },
+  Optimism:    { chainId: 10, type: "etherscan" },
+  Polygon:     { chainId: 137, type: "etherscan" },
+  Avalanche:   { chainId: 43114, type: "etherscan" },
+  Base:        { chainId: 8453, type: "etherscan" },
+  Fantom:      { chainId: 250, type: "etherscan" },
+  Cronos:      { chainId: 25, type: "etherscan" },
+  Gnosis:      { chainId: 100, type: "etherscan" },
+  Linea:       { chainId: 59144, type: "etherscan" },
+  Scroll:      { chainId: 534352, type: "etherscan" },
+  Blast:       { chainId: 81457, type: "etherscan" },
+  zkSync:      { chainId: 324, type: "etherscan" },
+  Moonbeam:    { chainId: 1284, type: "etherscan" },
+  Celo:        { chainId: 42220, type: "etherscan" },
+  Mantle:      { chainId: 5000, type: "etherscan" },
   // Non-EVM
-  Solana:      { apiUrl: "https://api.solscan.io", sourceAction: "account", type: "solana" },
-  Sui:         { apiUrl: "", sourceAction: "", type: "unsupported" },
-  Aptos:       { apiUrl: "", sourceAction: "", type: "unsupported" },
-  Tron:        { apiUrl: "", sourceAction: "", type: "unsupported" },
-  Near:        { apiUrl: "", sourceAction: "", type: "unsupported" },
-  Cosmos:      { apiUrl: "", sourceAction: "", type: "unsupported" },
-  Injective:   { apiUrl: "", sourceAction: "", type: "unsupported" },
-  Ton:         { apiUrl: "", sourceAction: "", type: "unsupported" },
-  Starknet:    { apiUrl: "", sourceAction: "", type: "unsupported" },
+  Solana:      { chainId: 0, type: "solana" },
+  Sui:         { chainId: 0, type: "unsupported" },
+  Aptos:       { chainId: 0, type: "unsupported" },
+  Tron:        { chainId: 0, type: "unsupported" },
+  Near:        { chainId: 0, type: "unsupported" },
+  Cosmos:      { chainId: 0, type: "unsupported" },
+  Injective:   { chainId: 0, type: "unsupported" },
+  Ton:         { chainId: 0, type: "unsupported" },
+  Starknet:    { chainId: 0, type: "unsupported" },
 }
 
 function getExplorerUrl(network: string, address: string): string {
@@ -76,10 +76,12 @@ function getExplorerUrl(network: string, address: string): string {
 
 async function fetchEVMSource(config: ExplorerConfig, address: string): Promise<{ source: string; compiler: string; contractName: string; abi: string } | null> {
   try {
-    const url = `${config.apiUrl}?module=contract&action=${config.sourceAction}&address=${address}`
-    const res = await fetch(url)
-    if (!res.ok) return null
-    const data = await res.json()
+  // Etherscan V2 API - unified endpoint with chainid
+  const apiKey = process.env.ETHERSCAN_API_KEY || ""
+  const url = `${ETHERSCAN_V2_BASE}?chainid=${config.chainId}&module=contract&action=getsourcecode&address=${address}${apiKey ? `&apikey=${apiKey}` : ""}`
+  const res = await fetch(url)
+  if (!res.ok) return null
+  const data = await res.json()
     
     if (data.status !== "1" || !data.result?.[0]) return null
     const result = data.result[0]
