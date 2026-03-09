@@ -71,12 +71,12 @@ async function runRealAnalysis(code: string, contractName: string): Promise<Anal
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": process.env.SECURITY_API_KEY || process.env.STATIC_ANALYSIS_API_KEY || "",
+        "Authorization": `Bearer ${process.env.STATIC_ANALYSIS_API_KEY || ""}`,
       },
       body: JSON.stringify({
         code,
         contractName,
-        tools: ["slither", "mythril"],
+        tools: ["slither", "mythril", "foundry"],
       }),
     })
     
