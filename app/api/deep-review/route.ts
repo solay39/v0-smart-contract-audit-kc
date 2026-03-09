@@ -264,6 +264,83 @@ ABSOLUTE RULES:
 5. The checklist must be usable by a human looking at the code — vague questions are forbidden`
 }
 
+// ── AI Provider selection ─────────────────────────────────────────
+async function callAI(prompt: string): Promise<{ success: boolean; text?: string; error?: string }> {
+  // Priority: Anthropic direct > AI Gateway > OpenAI
+  const anthropicKey = process.env.ANTHROPIC_API_KEY
+  const gatewayEnabled = process.env.AI_GATEWAY_API_KEY || process.env.OPENAI_API_KEY
+
+  // Try Anthropic first
+  if (anthropicKey) {
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": anthropicKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 6000,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        return { success: true, text: data.content?.[0]?.text || "" }
+      }
+    } catch { /* fallback */ }
+  }
+
+  // Try Vercel AI Gateway
+  if (gatewayEnabled) {
+    try {
+      const res = await fetch("https://api.vercel.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.AI_GATEWAY_API_KEY || process.env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "anthropic/claude-sonnet-4-20250514",
+          max_tokens: 6000,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        return { success: true, text: data.choices?.[0]?.message?.content || "" }
+      }
+    } catch { /* fallback */ }
+  }
+
+  // Try OpenAI directly as last resort
+  const openaiKey = process.env.OPENAI_API_KEY
+  if (openaiKey) {
+    try {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${openaiKey}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          max_tokens: 6000,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        return { success: true, text: data.choices?.[0]?.message?.content || "" }
+      }
+    } catch { /* fallback */ }
+  }
+
+  return { success: false, error: "No AI provider available. Set ANTHROPIC_API_KEY, AI_GATEWAY_API_KEY, or OPENAI_API_KEY." }
+}
+
 // ── POST handler ──────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
@@ -271,11 +348,6 @@ export async function POST(req: NextRequest) {
 
     if (!contractAddress) {
       return NextResponse.json({ error: "Missing contractAddress" }, { status: 400 })
-    }
-
-    const apiKey = process.env.ANTHROPIC_API_KEY
-    if (!apiKey) {
-      return NextResponse.json({ error: "AI service unavailable" }, { status: 503 })
     }
 
     // ── Step 1: Fetch real source from explorer ──────────────────
@@ -299,7 +371,7 @@ export async function POST(req: NextRequest) {
       }, { status: 404 })
     }
 
-    // ── Step 2: Claude deep analysis ──────────────────────────────
+    // ── Step 2: AI deep analysis ──────────────────────────────
     const prompt = buildAnalysisPrompt({
       realSource: realSourceData.source,
       compiler: realSourceData.compiler,
@@ -309,27 +381,12 @@ export async function POST(req: NextRequest) {
       aiFindings: (aiFindings || []).slice(0, 15),
     })
 
-    const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 6000,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    })
-
-    if (!claudeRes.ok) {
-      const err = await claudeRes.text()
-      return NextResponse.json({ error: `AI analysis failed: ${err}` }, { status: 500 })
+    const aiResult = await callAI(prompt)
+    if (!aiResult.success) {
+      return NextResponse.json({ error: aiResult.error || "AI analysis failed" }, { status: 503 })
     }
 
-    const claudeData = await claudeRes.json()
-    const rawText = claudeData.content?.[0]?.text || ""
+    const rawText = aiResult.text || ""
 
     // ── Step 3: Parse response ─────────────────────────────────────
     const jsonStart = rawText.indexOf("{")

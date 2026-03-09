@@ -463,12 +463,71 @@ export default function ManualReviewWorkspace({
                   <div style={{ textAlign: "center", padding: 40, color: "#444", fontSize: 11 }}>
                     <div style={{ color: "#00ff88", marginBottom: 8, fontSize: 18 }}>⟳</div>
                     <div style={{ color: "#00ff88", marginBottom: 4 }}>Fetching real source from {network} explorer...</div>
-                    <div style={{ color: "#444", fontSize: 9 }}>Analyzing with Claude — finding false positives & missing issues</div>
+                    <div style={{ color: "#444", fontSize: 9 }}>Analyzing with AI — finding false positives & missing issues</div>
                   </div>
                 ) : (
                   <>
+                    {/* Generate local checklist if AI failed */}
+                    {session.checks.length === 0 && deepReviewError && (
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ background: "#111", border: "1px solid #1e1e1e", padding: "12px 14px", marginBottom: 12 }}>
+                          <div style={{ fontSize: 9, color: "#ffcc00", letterSpacing: "0.1em", marginBottom: 8 }}>CHECKLIST LOCALE — basata su pattern detection</div>
+                          <div style={{ fontSize: 10, color: "#666", marginBottom: 10 }}>
+                            L'AI non e' disponibile. Checklist generata analizzando pattern nel codice sorgente.
+                          </div>
+                          <button
+                            onClick={() => {
+                              const src = contractSource.toLowerCase()
+                              const localChecks: DynamicCheckItem[] = []
+                              let id = 1
+                              
+                              // Access Control checks
+                              if (src.includes("onlyowner") || src.includes("owner()")) {
+                                localChecks.push({ id: `loc-${id++}`, category: "Access Control", question: "L'owner puo' essere trasferito in modo sicuro (2-step)?", why: "Un trasferimento owner a indirizzo errato blocca il contratto", severity: "HIGH", status: "pending", note: "", aiGenerated: false })
+                                localChecks.push({ id: `loc-${id++}`, category: "Access Control", question: "L'owner e' un multisig o un EOA?", why: "Un EOA compromesso da' controllo totale all'attacker", severity: "MEDIUM", status: "pending", note: "", aiGenerated: false })
+                              }
+                              if (src.includes("mint") && !src.includes("// mint")) {
+                                localChecks.push({ id: `loc-${id++}`, category: "Token Logic", question: "La funzione mint() e' protetta da access control?", why: "Mint pubblico permette inflazione illimitata", severity: "CRITICAL", status: "pending", note: "", aiGenerated: false })
+                              }
+                              if (src.includes("burn")) {
+                                localChecks.push({ id: `loc-${id++}`, category: "Token Logic", question: "La funzione burn() richiede approvazione del token holder?", why: "Burn senza approvazione permette distruzione arbitraria", severity: "HIGH", status: "pending", note: "", aiGenerated: false })
+                              }
+                              if (src.includes("pause") || src.includes("pausable")) {
+                                localChecks.push({ id: `loc-${id++}`, category: "Centralization", question: "Chi puo' pausare il contratto? C'e' un timelock?", why: "Pause permanente blocca tutti i fondi", severity: "HIGH", status: "pending", note: "", aiGenerated: false })
+                              }
+                              if (src.includes("proxy") || src.includes("upgradeable") || src.includes("uups")) {
+                                localChecks.push({ id: `loc-${id++}`, category: "Upgradeability", question: "L'upgrade e' protetto da timelock di almeno 48h?", why: "Upgrade immediato permette rug pull", severity: "CRITICAL", status: "pending", note: "", aiGenerated: false })
+                                localChecks.push({ id: `loc-${id++}`, category: "Upgradeability", question: "initialize() puo' essere chiamata solo una volta?", why: "Reinizializzazione permette takeover del contratto", severity: "CRITICAL", status: "pending", note: "", aiGenerated: false })
+                              }
+                              if (src.includes(".call{") || src.includes(".call(")) {
+                                localChecks.push({ id: `loc-${id++}`, category: "Reentrancy", question: "Le chiamate esterne avvengono DOPO gli aggiornamenti di stato?", why: "Pattern CEI viola permette reentrancy", severity: "CRITICAL", status: "pending", note: "", aiGenerated: false })
+                              }
+                              if (src.includes("block.timestamp")) {
+                                localChecks.push({ id: `loc-${id++}`, category: "Timestamp", question: "block.timestamp e' usato per logica critica?", why: "I miner possono manipolare timestamp di ~15 secondi", severity: "MEDIUM", status: "pending", note: "", aiGenerated: false })
+                              }
+                              if (src.includes("getreserves") || src.includes("slot0")) {
+                                localChecks.push({ id: `loc-${id++}`, category: "Oracle", question: "Il prezzo AMM e' protetto da TWAP?", why: "Spot price manipolabile con flash loan", severity: "CRITICAL", status: "pending", note: "", aiGenerated: false })
+                              }
+                              // Default checks
+                              localChecks.push({ id: `loc-${id++}`, category: "Code Quality", question: "La pragma Solidity e' fissata (non floating ^)?", why: "Floating pragma compila con versioni future incompatibili", severity: "LOW", status: "pending", note: "", aiGenerated: false })
+                              localChecks.push({ id: `loc-${id++}`, category: "Deployment", question: "Il bytecode deployato corrisponde al source verificato?", why: "Source non verificato puo' contenere backdoor", severity: "CRITICAL", status: "pending", note: "", aiGenerated: false })
+                              
+                              setSession(s => ({ ...s, checks: localChecks }))
+                            }}
+                            style={{ background: "#00ff8815", border: "1px solid #00ff8830", color: "#00ff88", fontSize: 10, padding: "6px 14px", cursor: "pointer", fontFamily: "inherit" }}
+                          >
+                            Genera Checklist Locale
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
                     <div style={{ marginBottom: 12, fontSize: 10, color: "#555" }}>
-                      {session.checks.filter(c => c.aiGenerated).length} questions generated specifically for this contract.
+                      {session.checks.filter(c => c.aiGenerated).length > 0 
+                        ? `${session.checks.filter(c => c.aiGenerated).length} questions generated by AI for this contract.`
+                        : session.checks.length > 0 
+                          ? `${session.checks.length} questions generated locally based on code patterns.`
+                          : "No checklist generated yet. Click 'Generate' or wait for AI analysis."}
                       {checksFailed > 0 && <span style={{ color: "#ff8800", marginLeft: 8 }}>{checksFailed} potential issues flagged.</span>}
                     </div>
 
@@ -559,6 +618,20 @@ export default function ManualReviewWorkspace({
                 {deepReviewError && (
                   <div style={{ background: "#ff440010", border: "1px solid #ff440030", padding: "10px 14px", marginBottom: 12, fontSize: 10, color: "#ff6666" }}>
                     ⚠ {deepReviewError}
+                    <div style={{ marginTop: 8, color: "#888", fontSize: 9 }}>
+                      La revisione manuale guidata richiede una chiave AI. Puoi comunque:
+                      <ul style={{ margin: "6px 0 0 16px", padding: 0 }}>
+                        <li>Verificare manualmente ogni finding AI cliccando Confirm/False Positive</li>
+                        <li>Aggiungere finding manuali nella tab "Manual"</li>
+                        <li>Firmare la review dopo aver completato la verifica</li>
+                      </ul>
+                    </div>
+                    <button
+                      onClick={() => runDeepReview()}
+                      style={{ marginTop: 8, background: "#00ff8815", border: "1px solid #00ff8830", color: "#00ff88", fontSize: 9, padding: "4px 12px", cursor: "pointer", fontFamily: "inherit" }}
+                    >
+                      Riprova Deep Review
+                    </button>
                   </div>
                 )}
                 {deepReviewDone && deepReviewSource && (
