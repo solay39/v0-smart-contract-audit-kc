@@ -1636,12 +1636,76 @@ const TABS: [TabId, string][] = [
                     type="date"
                   />
                 </div>
-                <S39Input
-                  label="Scope (files or description)"
-                  value={project.scope}
-                  onChange={(e) => setProject((p) => ({ ...p, scope: e.target.value }))}
-                  placeholder="contracts/Token.sol"
-                />
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <S39Input
+                      label="Contract Address or Scope"
+                      value={project.scope}
+                      onChange={(e) => setProject((p) => ({ ...p, scope: e.target.value }))}
+                      placeholder="0x... or contracts/Token.sol"
+                    />
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const addr = project.scope?.trim()
+                      if (!addr) {
+                        alert("Enter a contract address first")
+                        return
+                      }
+                      // Detect if it looks like an address
+                      const isEVMAddr = /^0x[a-fA-F0-9]{40}$/.test(addr)
+                      const isSolanaAddr = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr)
+                      if (!isEVMAddr && !isSolanaAddr) {
+                        alert("Enter a valid contract address (EVM 0x... or Solana base58)")
+                        return
+                      }
+                      setAiLoad(true)
+                      setAiError(null)
+                      try {
+                        const res = await fetch("/api/contract-source", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ address: addr, network: project.network || "Ethereum" }),
+                        })
+                        const data = await res.json()
+                        if (data.error) {
+                          setAiError(data.error)
+                          setAiLoad(false)
+                          return
+                        }
+                        // Success - set the source code and auto-run analysis
+                        if (data.source) {
+                          setContractSource(data.source)
+                          setAiCode(data.source)
+                          setProject((p) => ({ 
+                            ...p, 
+                            name: data.contractName || p.name,
+                            commit: addr,
+                          }))
+                          // Auto-trigger AI analysis
+                          setTimeout(() => {
+                            const analyzeBtn = document.querySelector('[data-analyze-btn]') as HTMLButtonElement
+                            if (analyzeBtn) analyzeBtn.click()
+                          }, 500)
+                        }
+                      } catch (e) {
+                        setAiError("Failed to fetch contract: " + (e instanceof Error ? e.message : String(e)))
+                      }
+                      setAiLoad(false)
+                    }}
+                    disabled={aiLoad}
+                    className="px-3 py-2 text-[10px] font-bold tracking-wider border shrink-0"
+                    style={{ 
+                      background: "#00ff8815", 
+                      borderColor: "#00ff8830", 
+                      color: "#00ff88",
+                      cursor: aiLoad ? "wait" : "pointer",
+                      opacity: aiLoad ? 0.6 : 1,
+                    }}
+                  >
+                    {aiLoad ? "FETCHING..." : "FETCH FROM BLOCKCHAIN"}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -2074,18 +2138,19 @@ const TABS: [TabId, string][] = [
                 placeholder={`// Paste ${chainLanguage(project.network || "Ethereum")} code here...\n// Or use the Auto-Fetch button above to load from ${getExplorer(project.network || "Ethereum").name}`}
                 className="w-full bg-s39-bg2 border border-s39-border text-s39-lite p-3 text-[10px] font-mono resize-y min-h-[200px] outline-none focus:border-s39-cyan transition-colors mb-3.5"
               />
-              <S39Btn
-                primary
-                onClick={runSkynet}
-                disabled={aiLoad}
-                className="!bg-s39-cyan !text-s39-bg0 !border-s39-cyan"
-              >
-                {aiLoad ? (
-                  <span className="animate-[pulse-slow_1s_infinite]">Analyzing...</span>
-                ) : (
-                  "Analyze with Skynet AI"
-                )}
-              </S39Btn>
+                <S39Btn
+                  primary
+                  onClick={runSkynet}
+                  disabled={aiLoad}
+                  className="!bg-s39-cyan !text-s39-bg0 !border-s39-cyan"
+                  data-analyze-btn="true"
+                >
+                  {aiLoad ? (
+                    <span className="animate-[pulse-slow_1s_infinite]">Analyzing...</span>
+                  ) : (
+                    "Analyze with Skynet AI"
+                  )}
+                </S39Btn>
             </div>
 
             {aiError && !aiRes.length && (

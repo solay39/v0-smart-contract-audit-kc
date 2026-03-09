@@ -120,9 +120,278 @@ async function fetchEVMSource(config: ExplorerConfig, address: string): Promise<
   }
 }
 
-async function fetchSolanaIDL(address: string): Promise<{ idl: string; programName: string } | null> {
+interface SolanaTokenInfo {
+  source: string
+  tokenName: string
+  symbol: string
+  decimals: number
+  supply: string
+  mintAuthority: string | null
+  freezeAuthority: string | null
+  isInitialized: boolean
+  metadata?: {
+    name?: string
+    symbol?: string
+    uri?: string
+    description?: string
+  }
+  holders?: number
+  securityAnalysis: string
+}
+
+async function fetchSolanaToken(address: string): Promise<SolanaTokenInfo | null> {
+  const rpcUrl = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com"
+  
   try {
-    // Try Anchor IDL first (most Solana programs use Anchor)
+    // 1. Get token mint info via RPC
+    const mintRes = await fetch(rpcUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "getAccountInfo",
+        params: [address, { encoding: "jsonParsed" }],
+      }),
+    })
+    
+    const mintData = await mintRes.json()
+    const parsedInfo = mintData?.result?.value?.data?.parsed?.info
+    
+    if (!parsedInfo) {
+      return null
+    }
+    
+    const mintAuthority = parsedInfo.mintAuthority || null
+    const freezeAuthority = parsedInfo.freezeAuthority || null
+    const supply = parsedInfo.supply || "0"
+    const decimals = parsedInfo.decimals || 0
+    
+    // 2. Try to get token metadata from Metaplex
+    let metadata: SolanaTokenInfo["metadata"] = {}
+    try {
+      // Derive Metaplex metadata PDA
+      const METAPLEX_PROGRAM = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+      const metadataRes = await fetch(rpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 2,
+          method: "getProgramAccounts",
+          params: [
+            METAPLEX_PROGRAM,
+            {
+              encoding: "jsonParsed",
+              filters: [
+                { memcmp: { offset: 33, bytes: address } },
+              ],
+            },
+          ],
+        }),
+      })
+      const metaData = await metadataRes.json()
+      if (metaData?.result?.[0]?.account?.data) {
+        // Parse metadata from account data
+        const accountData = metaData.result[0].account.data
+        if (typeof accountData === "object" && accountData.parsed) {
+          metadata = accountData.parsed.info || {}
+        }
+      }
+    } catch { /* metadata optional */ }
+    
+    // 3. Try Solscan API for additional info
+    let holders = 0
+    let tokenName = metadata?.name || "Unknown Token"
+    let symbol = metadata?.symbol || "???"
+    
+    try {
+      const solscanRes = await fetch(`https://api-v2.solscan.io/v2/token/meta?address=${address}`, {
+        headers: { "Accept": "application/json", "User-Agent": "Solay39/1.0" },
+      })
+      if (solscanRes.ok) {
+        const solscanData = await solscanRes.json()
+        if (solscanData?.data) {
+          tokenName = solscanData.data.name || tokenName
+          symbol = solscanData.data.symbol || symbol
+          holders = solscanData.data.holder || 0
+        }
+      }
+    } catch { /* continue */ }
+    
+    // 4. Try Helius API if available
+    const heliusKey = process.env.HELIUS_API_KEY
+    if (heliusKey) {
+      try {
+        const heliusRes = await fetch(`https://api.helius.xyz/v0/token-metadata?api-key=${heliusKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mintAccounts: [address] }),
+        })
+        if (heliusRes.ok) {
+          const heliusData = await heliusRes.json()
+          if (heliusData?.[0]) {
+            const h = heliusData[0]
+            tokenName = h.onChainMetadata?.metadata?.data?.name || tokenName
+            symbol = h.onChainMetadata?.metadata?.data?.symbol || symbol
+            metadata = {
+              ...metadata,
+              uri: h.onChainMetadata?.metadata?.data?.uri,
+              description: h.offChainMetadata?.description,
+            }
+          }
+        }
+      } catch { /* continue */ }
+    }
+    
+    // 5. Generate security analysis
+    const securityIssues: string[] = []
+    const securityPasses: string[] = []
+    
+    // Mint Authority Check
+    if (mintAuthority) {
+      securityIssues.push(`[HIGH] Mint Authority is ACTIVE (${mintAuthority.slice(0, 8)}...) - Owner can mint unlimited tokens`)
+    } else {
+      securityPasses.push("[SAFE] Mint Authority is DISABLED - No new tokens can be minted")
+    }
+    
+    // Freeze Authority Check
+    if (freezeAuthority) {
+      securityIssues.push(`[MEDIUM] Freeze Authority is ACTIVE (${freezeAuthority.slice(0, 8)}...) - Owner can freeze any wallet`)
+    } else {
+      securityPasses.push("[SAFE] Freeze Authority is DISABLED - Wallets cannot be frozen")
+    }
+    
+    // Supply Analysis
+    const supplyNum = BigInt(supply) / BigInt(10 ** decimals)
+    securityPasses.push(`[INFO] Total Supply: ${supplyNum.toLocaleString()} ${symbol}`)
+    securityPasses.push(`[INFO] Decimals: ${decimals}`)
+    if (holders > 0) {
+      securityPasses.push(`[INFO] Holders: ${holders.toLocaleString()}`)
+    }
+    
+    // Generate comprehensive source analysis
+    const securityAnalysis = `
+// ═══════════════════════════════════════════════════════════════════════
+// SOLAY39 SOLANA TOKEN SECURITY ANALYSIS
+// Token: ${tokenName} (${symbol})
+// Mint Address: ${address}
+// ═══════════════════════════════════════════════════════════════════════
+
+// ── TOKEN CONFIGURATION ────────────────────────────────────────────────
+const TOKEN_CONFIG = {
+  name: "${tokenName}",
+  symbol: "${symbol}",
+  decimals: ${decimals},
+  totalSupply: "${supply}",
+  mintAuthority: ${mintAuthority ? `"${mintAuthority}"` : "null"}, // ${mintAuthority ? "ACTIVE - CAN MINT" : "DISABLED - FIXED SUPPLY"}
+  freezeAuthority: ${freezeAuthority ? `"${freezeAuthority}"` : "null"}, // ${freezeAuthority ? "ACTIVE - CAN FREEZE" : "DISABLED - SAFE"}
+  isInitialized: true,
+  holders: ${holders || "unknown"},
+};
+
+// ── SECURITY FINDINGS ──────────────────────────────────────────────────
+/*
+${securityIssues.length > 0 ? securityIssues.join("\n") : "[SAFE] No critical security issues detected"}
+
+${securityPasses.join("\n")}
+*/
+
+// ── MINT AUTHORITY ANALYSIS ────────────────────────────────────────────
+/*
+${mintAuthority ? `
+CRITICAL: Mint Authority is ACTIVE
+- Authority Address: ${mintAuthority}
+- Risk: The owner can mint unlimited new tokens at any time
+- Impact: Token holders can be diluted infinitely
+- Recommendation: Verify if mintAuthority is a multisig or timelock
+- For investors: HIGH RISK - Potential for inflation attack or rug pull
+` : `
+SAFE: Mint Authority is DISABLED (null)
+- The token has a fixed supply
+- No new tokens can ever be minted
+- This is the safest configuration for investors
+`}
+*/
+
+// ── FREEZE AUTHORITY ANALYSIS ──────────────────────────────────────────
+/*
+${freezeAuthority ? `
+WARNING: Freeze Authority is ACTIVE
+- Authority Address: ${freezeAuthority}
+- Risk: Any token holder's wallet can be frozen
+- Impact: Users may lose access to their tokens
+- Recommendation: Verify if this is necessary for compliance
+- For investors: MEDIUM RISK - Owner can freeze your tokens
+` : `
+SAFE: Freeze Authority is DISABLED (null)
+- No wallet can be frozen
+- All holders retain full control of their tokens
+- This is the safest configuration for users
+`}
+*/
+
+// ── TOKEN STANDARD ─────────────────────────────────────────────────────
+/*
+This is a Solana SPL Token using the standard Token Program.
+- Program: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+- Standard: SPL Token (equivalent to ERC-20 on Ethereum)
+- Upgradeable: No (SPL Token program is immutable)
+*/
+
+// ── METADATA ───────────────────────────────────────────────────────────
+const TOKEN_METADATA = ${JSON.stringify(metadata, null, 2)};
+
+// ── AUDIT CHECKLIST FOR MANUAL REVIEW ──────────────────────────────────
+/*
+[ ] Verify mint authority owner (is it a multisig? timelock? EOA?)
+[ ] Check token distribution (top holders concentration)
+[ ] Verify LP is locked (if DEX trading is enabled)
+[ ] Check if token has been audited before
+[ ] Review social presence and team transparency
+[ ] Verify metadata URI points to legitimate content
+[ ] Check for any associated programs (staking, vesting, etc.)
+${mintAuthority ? "[ ] CRITICAL: Investigate why mint authority is still enabled" : ""}
+${freezeAuthority ? "[ ] WARNING: Investigate why freeze authority is enabled" : ""}
+*/
+
+// ═══════════════════════════════════════════════════════════════════════
+// END OF SOLAY39 ANALYSIS
+// ═══════════════════════════════════════════════════════════════════════
+`
+    
+    return {
+      source: securityAnalysis,
+      tokenName,
+      symbol,
+      decimals,
+      supply,
+      mintAuthority,
+      freezeAuthority,
+      isInitialized: true,
+      metadata,
+      holders,
+      securityAnalysis,
+    }
+    
+  } catch (error) {
+    console.error("Solana fetch error:", error)
+    return null
+  }
+}
+
+async function fetchSolanaIDL(address: string): Promise<{ idl: string; programName: string } | null> {
+  // First try to fetch as SPL token
+  const tokenInfo = await fetchSolanaToken(address)
+  if (tokenInfo) {
+    return {
+      idl: tokenInfo.source,
+      programName: `${tokenInfo.tokenName} (${tokenInfo.symbol})`,
+    }
+  }
+  
+  // If not a token, try Anchor IDL
+  try {
     const idlUrl = `https://api.solscan.io/account/idl?address=${address}`
     const res = await fetch(idlUrl, {
       headers: { "Accept": "application/json", "User-Agent": "Solay39-Auditor/1.0" },
@@ -213,23 +482,28 @@ export async function POST(req: Request) {
     if (config.type === "solana") {
       const result = await fetchSolanaIDL(address)
       if (result) {
+        // Determine if this is an SPL token analysis or program IDL
+        const isTokenAnalysis = result.idl.includes("SOLAY39 SOLANA TOKEN SECURITY ANALYSIS")
         return Response.json({
           source: result.idl,
           contractName: result.programName,
-          language: "Rust/Anchor IDL",
+          language: isTokenAnalysis ? "SPL Token (Security Analysis)" : "Rust/Anchor IDL",
           explorerName: "Solscan",
           explorerUrl,
           linesOfCode: result.idl.split("\n").length,
           network: net,
-          note: "Solana programs are compiled Rust/Anchor. This is the program IDL (Interface Description Language). The audit will analyze the program interface, instruction handlers, and account constraints.",
+          isSolanaToken: isTokenAnalysis,
+          note: isTokenAnalysis 
+            ? "This is a Solana SPL Token. The analysis includes mint authority, freeze authority, supply, and security findings. Review the AUDIT CHECKLIST section for manual review items."
+            : "Solana programs are compiled Rust/Anchor. This is the program IDL (Interface Description Language). The audit will analyze the program interface, instruction handlers, and account constraints.",
         })
       }
       // If no IDL, return helpful info
       return Response.json({
-        error: `No verified IDL found for this Solana program. The program may not be open-source or may not use Anchor. Please paste the program source code manually or provide the GitHub repository.`,
+        error: `Could not fetch token/program data from Solana. This may be a non-standard program or the RPC may be rate-limited. Please try again or paste the program source code manually.`,
         explorerUrl,
         network: net,
-        note: "Solana programs are Rust-based, not Solidity. If the source is available on GitHub, paste it in the code editor.",
+        note: "Solana programs are Rust-based. For SPL tokens, ensure the mint address is correct. For custom programs, provide the Anchor IDL or source code.",
       }, { status: 404 })
     }
 
