@@ -17,6 +17,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { useState, useEffect, useCallback } from "react"
+import { OnChainAnalysisPanel } from "./onchain-analysis-panel"
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -146,7 +147,7 @@ export default function ManualReviewWorkspace({
   })
 
   const [loadingChecklist, setLoadingChecklist] = useState(false)
-  const [activeSection, setActiveSection] = useState<"checklist" | "findings" | "manual" | "summary">("checklist")
+  const [activeSection, setActiveSection] = useState<"onchain" | "checklist" | "findings" | "manual" | "summary">("onchain")
   const [expandedCheck, setExpandedCheck] = useState<string | null>(null)
   const [expandedFinding, setExpandedFinding] = useState<string | null>(null)
   const [addingManual, setAddingManual] = useState(false)
@@ -437,14 +438,15 @@ export default function ManualReviewWorkspace({
 
           {/* Tab nav */}
           <div style={{ background: "#0f0f0f", borderBottom: "1px solid #1a1a1a", display: "flex" }}>
-            {(["checklist", "findings", "manual", "summary"] as const).map(s => (
+            {(["onchain", "checklist", "findings", "manual", "summary"] as const).map(s => (
               <button key={s} onClick={() => setActiveSection(s)} style={{
                 background: "none", border: "none", cursor: "pointer",
                 padding: "10px 16px", fontSize: 9, letterSpacing: "0.12em",
-                color: activeSection === s ? "#00ff88" : "#444",
-                borderBottom: activeSection === s ? "1px solid #00ff88" : "1px solid transparent",
+                color: activeSection === s ? "#00e5ff" : "#444",
+                borderBottom: activeSection === s ? "1px solid #00e5ff" : "1px solid transparent",
                 fontFamily: "inherit", textTransform: "uppercase",
               }}>
+                {s === "onchain" && "On-Chain AI"}
                 {s === "checklist" && `Checklist (${checksDone}/${checksTotal})`}
                 {s === "findings" && `AI Findings (${findingsReviewed}/${findingsTotal})`}
                 {s === "manual" && `Manual (${session.manualFindings.length})`}
@@ -455,6 +457,36 @@ export default function ManualReviewWorkspace({
 
           {/* Content */}
           <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+
+            {/* ── ON-CHAIN AI ANALYSIS TAB ── */}
+            {activeSection === "onchain" && (
+              <div>
+                <div style={{ marginBottom: 12, fontSize: 10, color: "#555" }}>
+                  AI-powered analysis of on-chain data: tokenomics, whale distribution, insider wallets, dev wallet, rug risk.
+                </div>
+                <OnChainAnalysisPanel 
+                  contractAddress={contractAddress}
+                  network={network}
+                  onAnalysisComplete={(result) => {
+                    // Add AI findings from on-chain analysis to manual findings
+                    if (result.analysis.overallRiskScore > 50) {
+                      const newFinding = {
+                        id: `onchain-${Date.now()}`,
+                        title: `On-Chain Risk Alert: ${result.analysis.overallRiskScore > 70 ? "HIGH" : "MEDIUM"} Risk Score (${result.analysis.overallRiskScore}/100)`,
+                        severity: (result.analysis.overallRiskScore > 70 ? "HIGH" : "MEDIUM") as Severity,
+                        location: result.tokenData.tokenAddress,
+                        description: result.analysis.rugPullRisk,
+                        impact: result.analysis.recommendation,
+                      }
+                      setSession(s => ({
+                        ...s,
+                        manualFindings: [...s.manualFindings, newFinding],
+                      }))
+                    }
+                  }}
+                />
+              </div>
+            )}
 
             {/* ── CHECKLIST TAB ── */}
             {activeSection === "checklist" && (
