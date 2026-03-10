@@ -2476,6 +2476,14 @@ const TABS: [TabId, string][] = [
           })
         })
 
+        console.log("[v0] onReviewComplete received session:", session)
+        console.log("[v0] session.onChainAnalysis:", session.onChainAnalysis)
+        
+        // Update project name with token name if available from on-chain analysis
+        if (session.onChainAnalysis?.tokenName) {
+          setProjectName(session.onChainAnalysis.tokenName)
+        }
+        
         // Salva la sessione di review per includerla nel report
         setManualReviewSession({
           completedAt: session.completedAt,

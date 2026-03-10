@@ -383,7 +383,10 @@ export default function ManualReviewWorkspace({
         signature: ethSignature,
         solanaSignature: solSignature,
       }
-
+      
+      console.log("[v0] completedSession before sending:", completedSession)
+      console.log("[v0] completedSession.onChainAnalysis:", completedSession.onChainAnalysis)
+      
       setSession(completedSession)
       onReviewComplete(completedSession)
     } catch (err: unknown) {
