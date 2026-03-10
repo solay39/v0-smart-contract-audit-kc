@@ -75,13 +75,20 @@ async function fetchEVMTokenData(address: string, network: string): Promise<OnCh
     // 2. Get holder data from blockchain explorer API
     const etherscanKey = process.env.ETHERSCAN_API_KEY || ""
     const holdersUrl = `https://api.etherscan.io/v2/api?chainid=${chainId}&module=token&action=tokenholderlist&contractaddress=${address}&page=1&offset=100${etherscanKey ? `&apikey=${etherscanKey}` : ""}`
-    
+    const holderCountUrl = `https://api.etherscan.io/v2/api?chainid=${chainId}&module=token&action=tokeninfo&contractaddress=${address}${etherscanKey ? `&apikey=${etherscanKey}` : ""}`
+
     let topHolders: TokenHolder[] = []
     let totalHolders = 0
     
     try {
-      const holdersRes = await fetch(holdersUrl)
+      // Fetch top holders list and total holder count in parallel
+      const [holdersRes, holderCountRes] = await Promise.all([
+        fetch(holdersUrl),
+        fetch(holderCountUrl),
+      ])
       const holdersData = await holdersRes.json()
+      const holderCountData = await holderCountRes.json()
+
       if (holdersData?.result) {
         topHolders = holdersData.result.slice(0, 20).map((h: { TokenHolderAddress: string; TokenHolderQuantity: string; share?: number }) => ({
           address: h.TokenHolderAddress,
@@ -89,6 +96,12 @@ async function fetchEVMTokenData(address: string, network: string): Promise<OnCh
           percentage: h.share || 0,
         }))
         totalHolders = holdersData.result.length
+      }
+
+      // Use the accurate holder count from tokeninfo API if available
+      if (holderCountData?.status === "1" && holderCountData?.result?.[0]?.holdersCount) {
+        const count = parseInt(holderCountData.result[0].holdersCount, 10)
+        if (!isNaN(count) && count > 0) totalHolders = count
       }
     } catch { /* continue */ }
     

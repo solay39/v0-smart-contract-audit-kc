@@ -73,7 +73,9 @@ export async function pinReportToIPFS(
     const cid = data.IpfsHash
 
     // Use dedicated Pinata gateway if configured, otherwise public gateway
-    const dedicatedGateway = process.env.PINATA_GATEWAY_URL || "https://gateway.pinata.cloud"
+    // Ensure the gateway URL always has the https:// protocol prefix
+    const rawGateway = process.env.PINATA_GATEWAY_URL || "https://gateway.pinata.cloud"
+    const dedicatedGateway = rawGateway.startsWith("http") ? rawGateway : `https://${rawGateway}`
     
     return {
       success: true,
