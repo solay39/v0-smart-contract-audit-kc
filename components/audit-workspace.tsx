@@ -1151,6 +1151,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         note: c.note || "",
       })),
       // On-Chain AI Analysis for PDF export
+      // DEBUG: Log the entire manualReviewSession to verify onChainAnalysis is present
+      ...(console.log("[v0] manualReviewSession at publish:", manualReviewSession), {}),
+      ...(console.log("[v0] manualReviewSession.onChainAnalysis:", manualReviewSession?.onChainAnalysis), {}),
       onChainAnalysis: manualReviewSession?.onChainAnalysis ? {
         executiveSummary: manualReviewSession.onChainAnalysis.executiveSummary,
         tokenEconomics: manualReviewSession.onChainAnalysis.tokenEconomics,
@@ -2479,6 +2482,8 @@ const TABS: [TabId, string][] = [
             note: c.note,
           })),
           // On-Chain AI Analysis for PDF export
+          // DEBUG: Log session.onChainAnalysis in callback
+          ...(console.log("[v0] onReviewComplete session.onChainAnalysis:", session.onChainAnalysis), {}),
           onChainAnalysis: session.onChainAnalysis ? {
             executiveSummary: session.onChainAnalysis.executiveSummary,
             tokenEconomics: session.onChainAnalysis.tokenEconomics,

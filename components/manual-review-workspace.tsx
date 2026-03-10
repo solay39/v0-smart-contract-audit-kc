@@ -373,6 +373,9 @@ export default function ManualReviewWorkspace({
         solanaSignature: solSignature,
       }
 
+      console.log("[v0] completedSession.onChainAnalysis:", completedSession.onChainAnalysis)
+      console.log("[v0] session.onChainAnalysis:", session.onChainAnalysis)
+
       setSession(completedSession)
       onReviewComplete(completedSession)
     } catch (err: unknown) {
@@ -494,8 +497,12 @@ export default function ManualReviewWorkspace({
                   contractAddress={contractAddress}
                   network={network}
                   onAnalysisComplete={(result) => {
+                    console.log("[v0] onAnalysisComplete called with result:", result)
+                    console.log("[v0] result.analysis:", result.analysis)
                     // Save full on-chain analysis to session for PDF export
-                    setSession(s => ({
+                    setSession(s => {
+                      console.log("[v0] Updating session with onChainAnalysis")
+                      return {
                       ...s,
                       onChainAnalysis: {
                         executiveSummary: result.analysis.executiveSummary,
@@ -532,7 +539,7 @@ export default function ManualReviewWorkspace({
                             addedBy: "manual" as const,
                           }]
                         : s.manualFindings,
-                    }))
+                    }})
                   }}
                 />
               </div>
