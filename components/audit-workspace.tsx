@@ -2505,7 +2505,7 @@ const TABS: [TabId, string][] = [
         setOnChainAnalysisData(data)
         // Also update project name with token name
         if (data.tokenName) {
-          setProjectName(data.tokenName)
+          setProject(p => ({ ...p, name: data.tokenName }))
         }
       }}
       onReviewComplete={(session) => {
@@ -2543,7 +2543,7 @@ const TABS: [TabId, string][] = [
 
         // Update project name with token name if available from on-chain analysis
         if (session.onChainAnalysis?.tokenName) {
-          setProjectName(session.onChainAnalysis.tokenName)
+          setProject(p => ({ ...p, name: session.onChainAnalysis!.tokenName }))
         }
         
         // Salva la sessione di review per includerla nel report
