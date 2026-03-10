@@ -119,12 +119,67 @@ async function fetchEVMTokenData(address: string, network: string): Promise<OnCh
         lpLocked: false, // Would need Team Finance API to verify
       })
     }
-    
+
+    // 5. Fallback: if DEX Screener has no name/symbol, fetch from Etherscan tokeninfo
+    let tokenNameFallback = pair?.baseToken?.name || ""
+    let tokenSymbolFallback = pair?.baseToken?.symbol || ""
+
+    if (!tokenNameFallback || !tokenSymbolFallback) {
+      try {
+        const tokenInfoUrl = `https://api.etherscan.io/v2/api?chainid=${chainId}&module=token&action=tokeninfo&contractaddress=${address}${etherscanKey ? `&apikey=${etherscanKey}` : ""}`
+        const tokenInfoRes = await fetch(tokenInfoUrl)
+        const tokenInfoData = await tokenInfoRes.json()
+        const info = tokenInfoData?.result?.[0]
+        if (info) {
+          tokenNameFallback = tokenNameFallback || info.tokenName || info.name || ""
+          tokenSymbolFallback = tokenSymbolFallback || info.symbol || ""
+        }
+      } catch { /* continue */ }
+    }
+
+    // 6. Last resort: try eth_call to read name()/symbol() directly from contract
+    if (!tokenNameFallback || !tokenSymbolFallback) {
+      try {
+        const rpcUrls: Record<number, string> = {
+          1: "https://eth.llamarpc.com",
+          56: "https://bsc-dataseed.binance.org",
+          137: "https://polygon-rpc.com",
+          42161: "https://arb1.arbitrum.io/rpc",
+          8453: "https://mainnet.base.org",
+          43114: "https://api.avax.network/ext/bc/C/rpc",
+        }
+        const rpcUrl = rpcUrls[chainId]
+        if (rpcUrl) {
+          // name() = 0x06fdde03, symbol() = 0x95d89b41
+          const [nameRes, symbolRes] = await Promise.all([
+            fetch(rpcUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to: address, data: "0x06fdde03" }, "latest"] }) }),
+            fetch(rpcUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "eth_call", params: [{ to: address, data: "0x95d89b41" }, "latest"] }) }),
+          ])
+          const nameData = await nameRes.json()
+          const symbolData = await symbolRes.json()
+          // Decode ABI-encoded string: skip first 64 bytes (offset + length), read UTF-8
+          const decodeABIString = (hex: string): string => {
+            try {
+              const clean = hex.replace("0x", "")
+              if (clean.length < 128) return ""
+              const lengthHex = clean.slice(64, 128)
+              const length = parseInt(lengthHex, 16)
+              if (length === 0 || length > 100) return ""
+              const strHex = clean.slice(128, 128 + length * 2)
+              return Buffer.from(strHex, "hex").toString("utf8").replace(/\0/g, "").trim()
+            } catch { return "" }
+          }
+          if (!tokenNameFallback && nameData?.result) tokenNameFallback = decodeABIString(nameData.result)
+          if (!tokenSymbolFallback && symbolData?.result) tokenSymbolFallback = decodeABIString(symbolData.result)
+        }
+      } catch { /* continue */ }
+    }
+
     return {
       tokenAddress: address,
       network,
-      name: pair?.baseToken?.name || "Unknown",
-      symbol: pair?.baseToken?.symbol || "???",
+      name: tokenNameFallback || "Unknown",
+      symbol: tokenSymbolFallback || "???",
       decimals: 18,
       totalSupply: pair?.fdv?.toString() || "0",
       topHolders,

@@ -62,10 +62,47 @@ export async function POST(req: Request) {
     // ── Step 2: CoinGecko for logo, description, links ──
     const coingeckoInfo = await fetchCoinGeckoInfo(addrNormalized, netId)
 
+    // ── Step 2.5: eth_call fallback if both APIs returned nothing ──
+    let fallbackName = coingeckoInfo?.name || geckoInfo?.name || ""
+    let fallbackSymbol = coingeckoInfo?.symbol || geckoInfo?.symbol || ""
+
+    if ((!fallbackName || !fallbackSymbol) && !["Solana", "Sui", "Aptos", "Cosmos", "Injective", "Sei", "Near", "Ton", "Starknet", "Tron"].includes(net)) {
+      try {
+        const rpcUrls: Record<string, string> = {
+          eth: "https://eth.llamarpc.com",
+          bsc: "https://bsc-dataseed.binance.org",
+          polygon_pos: "https://polygon-rpc.com",
+          arbitrum: "https://arb1.arbitrum.io/rpc",
+          base: "https://mainnet.base.org",
+          avax: "https://api.avax.network/ext/bc/C/rpc",
+        }
+        const rpcUrl = rpcUrls[netId]
+        if (rpcUrl) {
+          const [nameRes, symbolRes] = await Promise.all([
+            fetch(rpcUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to: addrNormalized, data: "0x06fdde03" }, "latest"] }) }),
+            fetch(rpcUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "eth_call", params: [{ to: addrNormalized, data: "0x95d89b41" }, "latest"] }) }),
+          ])
+          const nameData = await nameRes.json()
+          const symbolData = await symbolRes.json()
+          const decodeABIString = (hex: string): string => {
+            try {
+              const clean = hex.replace("0x", "")
+              if (clean.length < 128) return ""
+              const length = parseInt(clean.slice(64, 128), 16)
+              if (length === 0 || length > 100) return ""
+              return Buffer.from(clean.slice(128, 128 + length * 2), "hex").toString("utf8").replace(/\0/g, "").trim()
+            } catch { return "" }
+          }
+          if (!fallbackName && nameData?.result) fallbackName = decodeABIString(nameData.result)
+          if (!fallbackSymbol && symbolData?.result) fallbackSymbol = decodeABIString(symbolData.result)
+        }
+      } catch { /* continue */ }
+    }
+
     // ── Step 3: Merge all data ──
     const token: TokenInfo = {
-      name: coingeckoInfo?.name || geckoInfo?.name || "Unknown Token",
-      ticker: (coingeckoInfo?.symbol || geckoInfo?.symbol || "???").toUpperCase(),
+      name: fallbackName || "Unknown Token",
+      ticker: (fallbackSymbol || "???").toUpperCase(),
       contractAddress: address,
       network: network || "Ethereum",
       price: geckoInfo?.price || "N/A",
