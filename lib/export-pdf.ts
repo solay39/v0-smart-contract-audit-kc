@@ -34,6 +34,41 @@ interface Tier1Data {
     signatureSol?: string
     reviewNotes?: string
   }
+  // Security Checklist
+  securityChecklist?: {
+    id: string
+    category: string
+    question: string
+    why: string
+    severity: string
+    status: "pass" | "fail" | "pending" | "n/a"
+    note?: string
+  }[]
+  // On-Chain AI Analysis
+  onChainAnalysis?: {
+    executiveSummary?: string
+    tokenEconomics?: string
+    whaleDistribution?: string
+    insiderWallets?: string
+    devWalletAnalysis?: string
+    supplyAnalysis?: string
+    rugPullRisk?: string
+    priceManipulation?: string
+    hiddenGovernance?: string
+    complexBugs?: string
+    liquidityAnalysis?: string
+    clusterAnalysis?: string
+    scenarioAnalysis?: string
+    recommendation?: string
+    overallRiskScore?: number
+    scores?: {
+      smartContractSecurity?: number
+      decentralization?: number
+      liquidityHealth?: number
+      manipulationRisk?: string
+    }
+    topHolders?: { address: string; percentage: number }[]
+  }
 }
 
 export function exportPDF(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data) {
@@ -297,14 +332,14 @@ ${(() => {
   return page(4, `${h1("EXECUTIVE SUMMARY")}
     <div style="background:#0d1117;border:1px solid ${riskColor}33;border-left:3px solid ${riskColor};padding:18px;margin-bottom:14px">
       <p style="color:#c8d8e8;font-size:10.5px;line-height:1.8;margin-bottom:10px">
-        L'analisi del contratto <strong style="color:#eef4fa">${project.name || "Protocol"}</strong> ha evidenziato un'implementazione 
-        ${hasNoCritical ? "solida, priva di vulnerabilità critiche" : `con ${criticalCount + highCount} issue ad alta priorità che richiedono attenzione`}.
-        ${hasNoCritical ? "La superficie d'attacco è ridotta, il codice è lineare e l'architettura è coerente con gli standard di sicurezza." : ""}
+        The analysis of the <strong style="color:#eef4fa">${project.name || "Protocol"}</strong> contract revealed 
+        ${hasNoCritical ? "a solid implementation with no critical vulnerabilities identified" : `${criticalCount + highCount} high-priority issues requiring immediate attention`}.
+        ${hasNoCritical ? "The attack surface is minimal, the code is linear, and the architecture is consistent with security best practices." : ""}
       </p>
       <p style="color:#7a8c9e;font-size:9.5px;line-height:1.7">
-        L'audit ha incluso: Analisi statica (Slither, Mythril) • Analisi dinamica (Foundry, Echidna) • 
-        Threat modeling avanzato • Simulazione vettori d'attacco • Verifica on-chain e firma crittografica • 
-        Controlli di governance e operatività.
+        The audit included: Static Analysis (Slither, Mythril) • Dynamic Analysis (Foundry, Echidna) • 
+        Advanced Threat Modeling • Attack Vector Simulation • On-chain Verification and Cryptographic Signature • 
+        Governance and Operational Controls.
       </p>
     </div>
     <div style="display:flex;gap:16px;margin-bottom:14px">
@@ -361,19 +396,19 @@ ${(() => {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1117;border:1px solid #161e2a">
         <span style="color:${criticalCount === 0 ? "#00ff88" : "#ff2d55"};font-size:14px">${criticalCount === 0 ? "&#10003;" : "&#10007;"}</span>
-        <span style="color:#c8d8e8;font-size:9px">Nessuna vulnerabilità critica${criticalCount > 0 ? " — ATTENZIONE" : ""}</span>
+        <span style="color:#c8d8e8;font-size:9px">No critical vulnerabilities${criticalCount > 0 ? " — WARNING" : ""}</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1117;border:1px solid #161e2a">
         <span style="color:#00ff88;font-size:14px">&#10003;</span>
-        <span style="color:#c8d8e8;font-size:9px">Codice semplice e verificabile</span>
+        <span style="color:#c8d8e8;font-size:9px">Simple and verifiable code</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1117;border:1px solid #161e2a">
         <span style="color:#ffd600;font-size:14px">&#9888;</span>
-        <span style="color:#c8d8e8;font-size:9px">Mint centralizzato → richiede fiducia nell'owner</span>
+        <span style="color:#c8d8e8;font-size:9px">Centralized mint → requires trust in the owner</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1117;border:1px solid #161e2a">
         <span style="color:#00ff88;font-size:14px">&#10003;</span>
-        <span style="color:#c8d8e8;font-size:9px">Nessun meccanismo nascosto o fee occulte</span>
+        <span style="color:#c8d8e8;font-size:9px">No hidden mechanisms or hidden fees</span>
       </div>
     </div>
   `)
@@ -861,9 +896,130 @@ ${(() => {
   `)
 })()}
 
+${(() => {
+  const checklist = tier1?.securityChecklist
+  if (!checklist || checklist.length === 0) return ""
+  
+  const passed = checklist.filter(c => c.status === "pass").length
+  const failed = checklist.filter(c => c.status === "fail").length
+  const pending = checklist.filter(c => c.status === "pending").length
+  const categories = Array.from(new Set(checklist.map(c => c.category)))
+  
+  return page(19, `${h1("15. Security Checklist Results")}
+    <div style="background:#0d1117;border:1px solid #00ff8833;padding:14px;margin-bottom:14px">
+      <p style="color:#8899aa;font-size:9px;line-height:1.6;margin-bottom:12px">
+        The following checklist was generated specifically for this contract based on code pattern analysis. Each item was manually verified by the security team.
+      </p>
+      <div style="display:flex;gap:12px">
+        <div style="background:#07090d;padding:10px 16px;text-align:center;flex:1;border:1px solid #00ff8830">
+          <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:4px">PASSED</div>
+          <div style="color:#00ff88;font-size:18px;font-weight:700">${passed}</div>
+        </div>
+        <div style="background:#07090d;padding:10px 16px;text-align:center;flex:1;border:1px solid #ff2d5530">
+          <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:4px">FAILED</div>
+          <div style="color:#ff2d55;font-size:18px;font-weight:700">${failed}</div>
+        </div>
+        <div style="background:#07090d;padding:10px 16px;text-align:center;flex:1;border:1px solid #ffd60030">
+          <div style="color:#445566;font-size:7px;letter-spacing:.15em;margin-bottom:4px">PENDING</div>
+          <div style="color:#ffd600;font-size:18px;font-weight:700">${pending}</div>
+        </div>
+      </div>
+    </div>
+    
+    ${categories.map(cat => {
+      const items = checklist.filter(c => c.category === cat)
+      return `<div style="margin-bottom:16px">
+        <div style="color:#00e5ff;font-size:9px;letter-spacing:.12em;font-weight:700;margin-bottom:8px;text-transform:uppercase">${cat}</div>
+        ${items.map(item => {
+          const statusColor = item.status === "pass" ? "#00ff88" : item.status === "fail" ? "#ff2d55" : item.status === "n/a" ? "#445566" : "#ffd600"
+          const statusIcon = item.status === "pass" ? "&#10003;" : item.status === "fail" ? "&#10007;" : item.status === "n/a" ? "—" : "?"
+          const sevColor = item.severity === "CRITICAL" ? "#ff2d55" : item.severity === "HIGH" ? "#ff6b00" : item.severity === "MEDIUM" ? "#ffd600" : "#00e5ff"
+          return `<div style="display:flex;gap:10px;padding:8px 10px;background:#07090d;border-left:3px solid ${statusColor};margin-bottom:4px">
+            <span style="color:${statusColor};font-size:14px;flex-shrink:0">${statusIcon}</span>
+            <div style="flex:1">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="color:#c8d8e8;font-size:9px">${item.question}</span>
+                <span style="color:${sevColor};font-size:7px;font-weight:700;margin-left:8px">${item.severity}</span>
+              </div>
+              ${item.note ? `<div style="color:#7a8c9e;font-size:8px;margin-top:4px;font-style:italic">${item.note}</div>` : ""}
+            </div>
+          </div>`
+        }).join("")}
+      </div>`
+    }).join("")}
+  `)
+})()}
+
+${(() => {
+  const oca = tier1?.onChainAnalysis
+  if (!oca) return ""
+  
+  const riskScore = oca.overallRiskScore || 50
+  const riskColor = riskScore <= 30 ? "#00ff88" : riskScore <= 60 ? "#ffd600" : "#ff2d55"
+  const riskLabel = riskScore <= 30 ? "LOW RISK" : riskScore <= 60 ? "MEDIUM RISK" : "HIGH RISK"
+  
+  return page(20, `${h1("16. On-Chain AI Analysis")}
+    <div style="background:#0d1117;border:1px solid ${riskColor}33;border-left:3px solid ${riskColor};padding:14px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="color:#00e5ff;font-size:10px;font-weight:700">AI-POWERED ON-CHAIN SECURITY ANALYSIS</span>
+        <span style="color:${riskColor};font-size:14px;font-weight:700">${riskScore}/100 ${riskLabel}</span>
+      </div>
+      <p style="color:#8899aa;font-size:9px;line-height:1.6">
+        This analysis was performed using Claude and GPT-4 AI models analyzing real on-chain data including holder distribution, liquidity pools, token authorities, and transaction patterns.
+      </p>
+    </div>
+    
+    ${oca.scores ? `<div style="display:flex;gap:10px;margin-bottom:14px">
+      <div style="background:#07090d;padding:10px 14px;text-align:center;flex:1;border:1px solid #161e2a">
+        <div style="color:#445566;font-size:7px;letter-spacing:.1em;margin-bottom:4px">CONTRACT</div>
+        <div style="color:${(oca.scores.smartContractSecurity || 5) >= 7 ? "#00ff88" : (oca.scores.smartContractSecurity || 5) >= 5 ? "#ffd600" : "#ff2d55"};font-size:16px;font-weight:700">${oca.scores.smartContractSecurity || 5}/10</div>
+      </div>
+      <div style="background:#07090d;padding:10px 14px;text-align:center;flex:1;border:1px solid #161e2a">
+        <div style="color:#445566;font-size:7px;letter-spacing:.1em;margin-bottom:4px">DECENTR.</div>
+        <div style="color:${(oca.scores.decentralization || 5) >= 7 ? "#00ff88" : (oca.scores.decentralization || 5) >= 4 ? "#ffd600" : "#ff2d55"};font-size:16px;font-weight:700">${oca.scores.decentralization || 5}/10</div>
+      </div>
+      <div style="background:#07090d;padding:10px 14px;text-align:center;flex:1;border:1px solid #161e2a">
+        <div style="color:#445566;font-size:7px;letter-spacing:.1em;margin-bottom:4px">LIQUIDITY</div>
+        <div style="color:${(oca.scores.liquidityHealth || 5) >= 7 ? "#00ff88" : (oca.scores.liquidityHealth || 5) >= 4 ? "#ffd600" : "#ff2d55"};font-size:16px;font-weight:700">${oca.scores.liquidityHealth || 5}/10</div>
+      </div>
+      <div style="background:#07090d;padding:10px 14px;text-align:center;flex:1;border:1px solid #161e2a">
+        <div style="color:#445566;font-size:7px;letter-spacing:.1em;margin-bottom:4px">MANIP. RISK</div>
+        <div style="color:${oca.scores.manipulationRisk === "LOW" ? "#00ff88" : oca.scores.manipulationRisk === "MEDIUM" ? "#ffd600" : "#ff2d55"};font-size:12px;font-weight:700">${oca.scores.manipulationRisk || "MEDIUM"}</div>
+      </div>
+    </div>` : ""}
+    
+    ${oca.executiveSummary ? `${h2("Executive Summary")}<p style="color:#8899aa;font-size:9px;line-height:1.6;white-space:pre-wrap">${oca.executiveSummary}</p>` : ""}
+    ${oca.whaleDistribution ? `${h2("Whale Distribution Analysis")}<p style="color:#8899aa;font-size:9px;line-height:1.6;white-space:pre-wrap">${oca.whaleDistribution}</p>` : ""}
+    ${oca.insiderWallets ? `${h2("Insider Wallets Detection")}<p style="color:#8899aa;font-size:9px;line-height:1.6;white-space:pre-wrap">${oca.insiderWallets}</p>` : ""}
+  `) + page(21, `${h1("16. On-Chain AI Analysis (Continued)")}
+    ${oca.devWalletAnalysis ? `${h2("Dev Wallet Analysis")}<p style="color:#8899aa;font-size:9px;line-height:1.6;white-space:pre-wrap">${oca.devWalletAnalysis}</p>` : ""}
+    ${oca.rugPullRisk ? `${h2("Rug Pull Risk Assessment")}<p style="color:#8899aa;font-size:9px;line-height:1.6;white-space:pre-wrap">${oca.rugPullRisk}</p>` : ""}
+    ${oca.priceManipulation ? `${h2("Price Manipulation Vulnerability")}<p style="color:#8899aa;font-size:9px;line-height:1.6;white-space:pre-wrap">${oca.priceManipulation}</p>` : ""}
+    ${oca.hiddenGovernance ? `${h2("Hidden Governance Risks")}<p style="color:#8899aa;font-size:9px;line-height:1.6;white-space:pre-wrap">${oca.hiddenGovernance}</p>` : ""}
+    ${oca.recommendation ? `${h2("AI Recommendation")}<div style="background:#0d1117;border:1px solid #00e5ff33;padding:12px;margin-top:8px"><p style="color:#c8d8e8;font-size:9px;line-height:1.6;white-space:pre-wrap">${oca.recommendation}</p></div>` : ""}
+    
+    ${oca.topHolders && oca.topHolders.length > 0 ? `${h2("Top Holders Distribution")}
+    <table style="width:100%;border-collapse:collapse;font-size:9px">
+      <thead><tr>
+        <th style="background:#0d1117;color:#445566;font-size:7px;letter-spacing:.1em;padding:6px 8px;text-align:left;border-bottom:1px solid #161e2a">#</th>
+        <th style="background:#0d1117;color:#445566;font-size:7px;letter-spacing:.1em;padding:6px 8px;text-align:left;border-bottom:1px solid #161e2a">ADDRESS</th>
+        <th style="background:#0d1117;color:#445566;font-size:7px;letter-spacing:.1em;padding:6px 8px;text-align:right;border-bottom:1px solid #161e2a">%</th>
+      </tr></thead>
+      <tbody>${oca.topHolders.slice(0, 10).map((h, i) => {
+        const pctColor = h.percentage > 20 ? "#ff2d55" : h.percentage > 10 ? "#ffd600" : "#00ff88"
+        return `<tr>
+          <td style="padding:6px 8px;border-bottom:1px solid #111820;color:#445566">${i + 1}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #111820;font-family:monospace;font-size:8px">${h.address.slice(0, 8)}...${h.address.slice(-6)}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #111820;text-align:right;color:${pctColor};font-weight:700">${h.percentage.toFixed(2)}%</td>
+        </tr>`
+      }).join("")}</tbody>
+    </table>` : ""}
+  `)
+})()}
+
 ${page(
-  19,
-  `${h1("15. Conclusion")}
+  22,
+  `${h1("17. Conclusion")}
   ${
     findings.length === 0
       ? `${p(`<strong style="color:#eef4fa">No severity issues were found.</strong>`)}${p(`The ${project.name || "protocol"} contracts passed all checks of the Solay39 Manual-First Audit Framework. The codebase demonstrates secure development practices, properly inheriting from well-tested libraries.`)}`

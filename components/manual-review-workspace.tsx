@@ -64,6 +64,31 @@ interface ManualFinding {
   addedBy: "manual"
 }
 
+interface OnChainAnalysis {
+  executiveSummary?: string
+  tokenEconomics?: string
+  whaleDistribution?: string
+  insiderWallets?: string
+  devWalletAnalysis?: string
+  supplyAnalysis?: string
+  rugPullRisk?: string
+  priceManipulation?: string
+  hiddenGovernance?: string
+  complexBugs?: string
+  liquidityAnalysis?: string
+  clusterAnalysis?: string
+  scenarioAnalysis?: string
+  recommendation?: string
+  overallRiskScore?: number
+  scores?: {
+    smartContractSecurity?: number
+    decentralization?: number
+    liquidityHealth?: number
+    manipulationRisk?: string
+  }
+  topHolders?: { address: string; percentage: number }[]
+}
+
 interface ReviewSession {
   contractAddress: string
   contractName: string
@@ -79,7 +104,8 @@ interface ReviewSession {
   signed: boolean
   signature?: string
   solanaSignature?: string
-}
+  onChainAnalysis?: OnChainAnalysis
+  }
 
 // ─── Props ────────────────────────────────────────────────────────
 
@@ -376,7 +402,7 @@ export default function ManualReviewWorkspace({
       ).join("\n")
     : contractSource
 
-  // ─────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────���─────
   // RENDER
   // ─────────────────────────────────────────────────────────────
 
@@ -468,21 +494,45 @@ export default function ManualReviewWorkspace({
                   contractAddress={contractAddress}
                   network={network}
                   onAnalysisComplete={(result) => {
-                    // Add AI findings from on-chain analysis to manual findings
-                    if (result.analysis.overallRiskScore > 50) {
-                      const newFinding = {
-                        id: `onchain-${Date.now()}`,
-                        title: `On-Chain Risk Alert: ${result.analysis.overallRiskScore > 70 ? "HIGH" : "MEDIUM"} Risk Score (${result.analysis.overallRiskScore}/100)`,
-                        severity: (result.analysis.overallRiskScore > 70 ? "HIGH" : "MEDIUM") as Severity,
-                        location: result.tokenData.tokenAddress,
-                        description: result.analysis.rugPullRisk,
-                        impact: result.analysis.recommendation,
-                      }
-                      setSession(s => ({
-                        ...s,
-                        manualFindings: [...s.manualFindings, newFinding],
-                      }))
-                    }
+                    // Save full on-chain analysis to session for PDF export
+                    setSession(s => ({
+                      ...s,
+                      onChainAnalysis: {
+                        executiveSummary: result.analysis.executiveSummary,
+                        tokenEconomics: result.analysis.tokenEconomics,
+                        whaleDistribution: result.analysis.whaleDistribution,
+                        insiderWallets: result.analysis.insiderWallets,
+                        devWalletAnalysis: result.analysis.devWalletAnalysis,
+                        supplyAnalysis: result.analysis.supplyAnalysis,
+                        rugPullRisk: result.analysis.rugPullRisk,
+                        priceManipulation: result.analysis.priceManipulation,
+                        hiddenGovernance: result.analysis.hiddenGovernance,
+                        complexBugs: result.analysis.complexBugs,
+                        liquidityAnalysis: result.analysis.liquidityAnalysis,
+                        clusterAnalysis: result.analysis.clusterAnalysis,
+                        scenarioAnalysis: result.analysis.scenarioAnalysis,
+                        recommendation: result.analysis.recommendation,
+                        overallRiskScore: result.analysis.overallRiskScore,
+                        scores: result.analysis.scores,
+                        topHolders: result.tokenData.topHolders?.map(h => ({
+                          address: h.address,
+                          percentage: h.percentage,
+                        })),
+                      },
+                      // Add AI findings from on-chain analysis to manual findings if high risk
+                      manualFindings: result.analysis.overallRiskScore > 50 
+                        ? [...s.manualFindings, {
+                            id: `onchain-${Date.now()}`,
+                            title: `On-Chain Risk Alert: ${result.analysis.overallRiskScore > 70 ? "HIGH" : "MEDIUM"} Risk Score (${result.analysis.overallRiskScore}/100)`,
+                            severity: (result.analysis.overallRiskScore > 70 ? "HIGH" : "MEDIUM") as Severity,
+                            location: result.tokenData.tokenAddress,
+                            description: result.analysis.rugPullRisk,
+                            impact: result.analysis.recommendation,
+                            recommendation: "Review the on-chain analysis findings in detail and consider the risk factors before interacting with this token.",
+                            addedBy: "manual" as const,
+                          }]
+                        : s.manualFindings,
+                    }))
                   }}
                 />
               </div>
@@ -515,40 +565,40 @@ export default function ManualReviewWorkspace({
                               
                               // Access Control checks
                               if (src.includes("onlyowner") || src.includes("owner()")) {
-                                localChecks.push({ id: `loc-${id++}`, category: "Access Control", question: "L'owner puo' essere trasferito in modo sicuro (2-step)?", why: "Un trasferimento owner a indirizzo errato blocca il contratto", severity: "HIGH", status: "pending", note: "", aiGenerated: false })
-                                localChecks.push({ id: `loc-${id++}`, category: "Access Control", question: "L'owner e' un multisig o un EOA?", why: "Un EOA compromesso da' controllo totale all'attacker", severity: "MEDIUM", status: "pending", note: "", aiGenerated: false })
+                                localChecks.push({ id: `loc-${id++}`, category: "Access Control", question: "Can ownership be transferred securely using a 2-step process (propose + accept)?", why: "Single-step ownership transfer to wrong address permanently locks the contract", severity: "HIGH", status: "pending", note: "", aiGenerated: false })
+                                localChecks.push({ id: `loc-${id++}`, category: "Access Control", question: "Is the owner address a multisig wallet or an EOA (Externally Owned Account)?", why: "A single compromised EOA gives full admin control to the attacker", severity: "MEDIUM", status: "pending", note: "", aiGenerated: false })
                               }
                               if (src.includes("mint") && !src.includes("// mint")) {
-                                localChecks.push({ id: `loc-${id++}`, category: "Token Logic", question: "La funzione mint() e' protetta da access control?", why: "Mint pubblico permette inflazione illimitata", severity: "CRITICAL", status: "pending", note: "", aiGenerated: false })
+                                localChecks.push({ id: `loc-${id++}`, category: "Token Logic", question: "Is the mint() function protected by proper access control (onlyOwner/onlyMinter)?", why: "Public mint allows unlimited token inflation by anyone", severity: "CRITICAL", status: "pending", note: "", aiGenerated: false })
                               }
                               if (src.includes("burn")) {
-                                localChecks.push({ id: `loc-${id++}`, category: "Token Logic", question: "La funzione burn() richiede approvazione del token holder?", why: "Burn senza approvazione permette distruzione arbitraria", severity: "HIGH", status: "pending", note: "", aiGenerated: false })
+                                localChecks.push({ id: `loc-${id++}`, category: "Token Logic", question: "Does burn() require token holder approval before destroying tokens?", why: "Burn without approval allows arbitrary destruction of user tokens", severity: "HIGH", status: "pending", note: "", aiGenerated: false })
                               }
                               if (src.includes("pause") || src.includes("pausable")) {
-                                localChecks.push({ id: `loc-${id++}`, category: "Centralization", question: "Chi puo' pausare il contratto? C'e' un timelock?", why: "Pause permanente blocca tutti i fondi", severity: "HIGH", status: "pending", note: "", aiGenerated: false })
+                                localChecks.push({ id: `loc-${id++}`, category: "Centralization", question: "Who can pause the contract? Is there a timelock mechanism?", why: "Permanent pause freezes all funds indefinitely", severity: "HIGH", status: "pending", note: "", aiGenerated: false })
                               }
                               if (src.includes("proxy") || src.includes("upgradeable") || src.includes("uups")) {
-                                localChecks.push({ id: `loc-${id++}`, category: "Upgradeability", question: "L'upgrade e' protetto da timelock di almeno 48h?", why: "Upgrade immediato permette rug pull", severity: "CRITICAL", status: "pending", note: "", aiGenerated: false })
-                                localChecks.push({ id: `loc-${id++}`, category: "Upgradeability", question: "initialize() puo' essere chiamata solo una volta?", why: "Reinizializzazione permette takeover del contratto", severity: "CRITICAL", status: "pending", note: "", aiGenerated: false })
+                                localChecks.push({ id: `loc-${id++}`, category: "Upgradeability", question: "Is the upgrade function protected by a timelock of at least 48 hours?", why: "Immediate upgrade capability allows instant rug pull without user warning", severity: "CRITICAL", status: "pending", note: "", aiGenerated: false })
+                                localChecks.push({ id: `loc-${id++}`, category: "Upgradeability", question: "Can initialize() only be called once (protected by Initializable modifier)?", why: "Unprotected reinitializer allows contract takeover by anyone", severity: "CRITICAL", status: "pending", note: "", aiGenerated: false })
                               }
                               if (src.includes(".call{") || src.includes(".call(")) {
-                                localChecks.push({ id: `loc-${id++}`, category: "Reentrancy", question: "Le chiamate esterne avvengono DOPO gli aggiornamenti di stato?", why: "Pattern CEI viola permette reentrancy", severity: "CRITICAL", status: "pending", note: "", aiGenerated: false })
+                                localChecks.push({ id: `loc-${id++}`, category: "Reentrancy", question: "Do external calls occur AFTER all state updates (Checks-Effects-Interactions pattern)?", why: "Violating CEI pattern enables reentrancy attacks", severity: "CRITICAL", status: "pending", note: "", aiGenerated: false })
                               }
                               if (src.includes("block.timestamp")) {
-                                localChecks.push({ id: `loc-${id++}`, category: "Timestamp", question: "block.timestamp e' usato per logica critica?", why: "I miner possono manipolare timestamp di ~15 secondi", severity: "MEDIUM", status: "pending", note: "", aiGenerated: false })
+                                localChecks.push({ id: `loc-${id++}`, category: "Timestamp", question: "Is block.timestamp used for critical business logic?", why: "Miners can manipulate timestamp by ~15 seconds", severity: "MEDIUM", status: "pending", note: "", aiGenerated: false })
                               }
                               if (src.includes("getreserves") || src.includes("slot0")) {
-                                localChecks.push({ id: `loc-${id++}`, category: "Oracle", question: "Il prezzo AMM e' protetto da TWAP?", why: "Spot price manipolabile con flash loan", severity: "CRITICAL", status: "pending", note: "", aiGenerated: false })
+                                localChecks.push({ id: `loc-${id++}`, category: "Oracle", question: "Is the AMM price protected by TWAP (Time-Weighted Average Price)?", why: "Spot price can be manipulated via flash loan in same block", severity: "CRITICAL", status: "pending", note: "", aiGenerated: false })
                               }
                               // Default checks
-                              localChecks.push({ id: `loc-${id++}`, category: "Code Quality", question: "La pragma Solidity e' fissata (non floating ^)?", why: "Floating pragma compila con versioni future incompatibili", severity: "LOW", status: "pending", note: "", aiGenerated: false })
-                              localChecks.push({ id: `loc-${id++}`, category: "Deployment", question: "Il bytecode deployato corrisponde al source verificato?", why: "Source non verificato puo' contenere backdoor", severity: "CRITICAL", status: "pending", note: "", aiGenerated: false })
+                              localChecks.push({ id: `loc-${id++}`, category: "Code Quality", question: "Is the Solidity pragma pinned to a specific version (not floating ^)?", why: "Floating pragma can compile with future incompatible compiler versions", severity: "LOW", status: "pending", note: "", aiGenerated: false })
+                              localChecks.push({ id: `loc-${id++}`, category: "Deployment", question: "Does the deployed bytecode match the verified source code on the block explorer?", why: "Unverified source may contain hidden backdoors or malicious code", severity: "CRITICAL", status: "pending", note: "", aiGenerated: false })
                               
                               setSession(s => ({ ...s, checks: localChecks }))
                             }}
                             style={{ background: "#00ff8815", border: "1px solid #00ff8830", color: "#00ff88", fontSize: 10, padding: "6px 14px", cursor: "pointer", fontFamily: "inherit" }}
                           >
-                            Genera Checklist Locale
+                            Generate Local Checklist
                           </button>
                         </div>
                       </div>

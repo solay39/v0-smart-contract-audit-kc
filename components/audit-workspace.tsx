@@ -337,6 +337,41 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     signature?: string
     solanaSignature?: string
     reviewNotes?: string
+    // Security Checklist
+    checks?: {
+      id: string
+      category: string
+      question: string
+      why?: string
+      severity: string
+      status: string
+      note?: string
+    }[]
+    // On-Chain AI Analysis
+    onChainAnalysis?: {
+      executiveSummary?: string
+      tokenEconomics?: string
+      whaleDistribution?: string
+      insiderWallets?: string
+      devWalletAnalysis?: string
+      supplyAnalysis?: string
+      rugPullRisk?: string
+      priceManipulation?: string
+      hiddenGovernance?: string
+      complexBugs?: string
+      liquidityAnalysis?: string
+      clusterAnalysis?: string
+      scenarioAnalysis?: string
+      recommendation?: string
+      overallRiskScore?: number
+      scores?: {
+        smartContractSecurity?: number
+        decentralization?: number
+        liquidityHealth?: number
+        manipulationRisk?: string
+      }
+      topHolders?: { address: string; percentage: number }[]
+    }
   } | null>(null)
   // Tier-1 advanced sections
   const [governanceSecurity, setGovernanceSecurity] = useState<Record<string, unknown> | null>(null)
@@ -1502,6 +1537,36 @@ const TABS: [TabId, string][] = [
       signatureSol: manualReviewSession.solanaSignature,
       reviewNotes: manualReviewSession.reviewNotes,
     } : undefined,
+    // Security Checklist from Manual Review
+    securityChecklist: manualReviewSession?.checks?.map(c => ({
+      id: c.id,
+      category: c.category,
+      question: c.question,
+      why: c.why || "",
+      severity: c.severity,
+      status: c.status as "pass" | "fail" | "pending" | "n/a",
+      note: c.note || "",
+    })),
+    // On-Chain AI Analysis
+    onChainAnalysis: manualReviewSession?.onChainAnalysis ? {
+      executiveSummary: manualReviewSession.onChainAnalysis.executiveSummary,
+      tokenEconomics: manualReviewSession.onChainAnalysis.tokenEconomics,
+      whaleDistribution: manualReviewSession.onChainAnalysis.whaleDistribution,
+      insiderWallets: manualReviewSession.onChainAnalysis.insiderWallets,
+      devWalletAnalysis: manualReviewSession.onChainAnalysis.devWalletAnalysis,
+      supplyAnalysis: manualReviewSession.onChainAnalysis.supplyAnalysis,
+      rugPullRisk: manualReviewSession.onChainAnalysis.rugPullRisk,
+      priceManipulation: manualReviewSession.onChainAnalysis.priceManipulation,
+      hiddenGovernance: manualReviewSession.onChainAnalysis.hiddenGovernance,
+      complexBugs: manualReviewSession.onChainAnalysis.complexBugs,
+      liquidityAnalysis: manualReviewSession.onChainAnalysis.liquidityAnalysis,
+      clusterAnalysis: manualReviewSession.onChainAnalysis.clusterAnalysis,
+      scenarioAnalysis: manualReviewSession.onChainAnalysis.scenarioAnalysis,
+      recommendation: manualReviewSession.onChainAnalysis.recommendation,
+      overallRiskScore: manualReviewSession.onChainAnalysis.overallRiskScore,
+      scores: manualReviewSession.onChainAnalysis.scores,
+      topHolders: manualReviewSession.onChainAnalysis.topHolders,
+    } : undefined,
   })}
                   className="w-full"
                 >
@@ -2373,6 +2438,36 @@ const TABS: [TabId, string][] = [
           signature: session.signature,
           solanaSignature: session.solanaSignature,
           reviewNotes: session.reviewNotes,
+          // Security Checklist for PDF export
+          checks: session.checks.map(c => ({
+            id: c.id,
+            category: c.category,
+            question: c.question,
+            why: c.why,
+            severity: c.severity,
+            status: c.status,
+            note: c.note,
+          })),
+          // On-Chain AI Analysis for PDF export
+          onChainAnalysis: session.onChainAnalysis ? {
+            executiveSummary: session.onChainAnalysis.executiveSummary,
+            tokenEconomics: session.onChainAnalysis.tokenEconomics,
+            whaleDistribution: session.onChainAnalysis.whaleDistribution,
+            insiderWallets: session.onChainAnalysis.insiderWallets,
+            devWalletAnalysis: session.onChainAnalysis.devWalletAnalysis,
+            supplyAnalysis: session.onChainAnalysis.supplyAnalysis,
+            rugPullRisk: session.onChainAnalysis.rugPullRisk,
+            priceManipulation: session.onChainAnalysis.priceManipulation,
+            hiddenGovernance: session.onChainAnalysis.hiddenGovernance,
+            complexBugs: session.onChainAnalysis.complexBugs,
+            liquidityAnalysis: session.onChainAnalysis.liquidityAnalysis,
+            clusterAnalysis: session.onChainAnalysis.clusterAnalysis,
+            scenarioAnalysis: session.onChainAnalysis.scenarioAnalysis,
+            recommendation: session.onChainAnalysis.recommendation,
+            overallRiskScore: session.onChainAnalysis.overallRiskScore,
+            scores: session.onChainAnalysis.scores,
+            topHolders: session.onChainAnalysis.topHolders,
+          } : undefined,
         })
 
         // Passa alla tab findings per vedere il risultato
