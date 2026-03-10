@@ -388,8 +388,9 @@ export async function verifyAuditAllChains(auditId: string): Promise<OnChainAudi
 // ══════════════════════════════════════════════════════════════════════════════
 
 // Extended ABI for the publishAudit registry format
+// Note: abitype does not support named return values, so we use unnamed tuples
 const REGISTRY_ABI_V2 = parseAbi([
-  "function verifyReport(bytes32 auditKey, bytes32 hash) view returns (bool valid, tuple(string reportId, string projectName, bytes32 reportHash, address contractAddr, uint256 auditDate, uint8 score, uint8 criticalCount, uint8 highCount, string ipfsCid, bool isActive) record)",
+  "function verifyReport(bytes32, bytes32) view returns (bool, (string, string, bytes32, address, uint256, uint8, uint8, uint8, string, bool))",
   "function getAllAudits() view returns (bytes32[])",
   "event AuditPublished(bytes32 indexed auditKey, string reportId, address contractAddr, bytes32 reportHash, uint256 timestamp)",
 ])
