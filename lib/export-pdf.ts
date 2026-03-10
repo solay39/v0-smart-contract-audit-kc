@@ -958,10 +958,10 @@ ${(() => {
   const riskColor = riskScore <= 30 ? "#00ff88" : riskScore <= 60 ? "#ffd600" : "#ff2d55"
   const riskLabel = riskScore <= 30 ? "LOW RISK" : riskScore <= 60 ? "MEDIUM RISK" : "HIGH RISK"
   
-  return page(20, `${h1("16. On-Chain AI Analysis")}
+  return page(20, `${h1("16. Manual On-Chain Analysis")}
     <div style="background:#0d1117;border:1px solid ${riskColor}33;border-left:3px solid ${riskColor};padding:14px;margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <span style="color:#00e5ff;font-size:10px;font-weight:700">AI-POWERED ON-CHAIN SECURITY ANALYSIS</span>
+        <span style="color:#00e5ff;font-size:10px;font-weight:700">MANUAL ON-CHAIN SECURITY ANALYSIS</span>
         <span style="color:${riskColor};font-size:14px;font-weight:700">${riskScore}/100 ${riskLabel}</span>
       </div>
       <p style="color:#8899aa;font-size:9px;line-height:1.6">
@@ -991,12 +991,12 @@ ${(() => {
     ${oca.executiveSummary ? `${h2("Executive Summary")}<p style="color:#8899aa;font-size:9px;line-height:1.6;white-space:pre-wrap">${oca.executiveSummary}</p>` : ""}
     ${oca.whaleDistribution ? `${h2("Whale Distribution Analysis")}<p style="color:#8899aa;font-size:9px;line-height:1.6;white-space:pre-wrap">${oca.whaleDistribution}</p>` : ""}
     ${oca.insiderWallets ? `${h2("Insider Wallets Detection")}<p style="color:#8899aa;font-size:9px;line-height:1.6;white-space:pre-wrap">${oca.insiderWallets}</p>` : ""}
-  `) + page(21, `${h1("16. On-Chain AI Analysis (Continued)")}
+  `) + page(21, `${h1("16. Manual On-Chain Analysis (Continued)")}
     ${oca.devWalletAnalysis ? `${h2("Dev Wallet Analysis")}<p style="color:#8899aa;font-size:9px;line-height:1.6;white-space:pre-wrap">${oca.devWalletAnalysis}</p>` : ""}
     ${oca.rugPullRisk ? `${h2("Rug Pull Risk Assessment")}<p style="color:#8899aa;font-size:9px;line-height:1.6;white-space:pre-wrap">${oca.rugPullRisk}</p>` : ""}
     ${oca.priceManipulation ? `${h2("Price Manipulation Vulnerability")}<p style="color:#8899aa;font-size:9px;line-height:1.6;white-space:pre-wrap">${oca.priceManipulation}</p>` : ""}
     ${oca.hiddenGovernance ? `${h2("Hidden Governance Risks")}<p style="color:#8899aa;font-size:9px;line-height:1.6;white-space:pre-wrap">${oca.hiddenGovernance}</p>` : ""}
-    ${oca.recommendation ? `${h2("AI Recommendation")}<div style="background:#0d1117;border:1px solid #00e5ff33;padding:12px;margin-top:8px"><p style="color:#c8d8e8;font-size:9px;line-height:1.6;white-space:pre-wrap">${oca.recommendation}</p></div>` : ""}
+    ${oca.recommendation ? `${h2("Recommendation")}<div style="background:#0d1117;border:1px solid #00e5ff33;padding:12px;margin-top:8px"><p style="color:#c8d8e8;font-size:9px;line-height:1.6;white-space:pre-wrap">${oca.recommendation}</p></div>` : ""}
     
     ${oca.topHolders && oca.topHolders.length > 0 ? `${h2("Top Holders Distribution")}
     <table style="width:100%;border-collapse:collapse;font-size:9px">

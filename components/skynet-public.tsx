@@ -3229,12 +3229,12 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
           </div>
         )}
 
-        {/* ── SECTION 16: ON-CHAIN AI ANALYSIS ── */}
+        {/* ── SECTION 16: MANUAL ON-CHAIN ANALYSIS ── */}
         {p.onChainAnalysis && (
           <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
             <div className="flex items-center gap-2 mb-4">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#00e5ff" strokeWidth="1"/><path d="M7 4v3l2 1" stroke="#00e5ff" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              <span className="text-[9px] text-s39-cyan tracking-[0.15em]">ON-CHAIN AI ANALYSIS</span>
+              <span className="text-[9px] text-s39-cyan tracking-[0.15em]">MANUAL ON-CHAIN ANALYSIS</span>
               <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 16</span>
             </div>
             
@@ -3297,7 +3297,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
             
             {p.onChainAnalysis.recommendation && (
               <div className="bg-s39-bg2 border-2 border-s39-cyan/30 p-4">
-                <div className="text-[8px] text-s39-cyan tracking-widest mb-2 font-bold">AI RECOMMENDATION</div>
+                <div className="text-[8px] text-s39-cyan tracking-widest mb-2 font-bold">RECOMMENDATION</div>
                 <div className="text-[9px] text-s39-lite leading-relaxed whitespace-pre-wrap font-medium">{p.onChainAnalysis.recommendation}</div>
               </div>
             )}

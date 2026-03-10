@@ -537,7 +537,7 @@ export function OnChainAnalysisPanel({ contractAddress, network, onAnalysisCompl
             color: "#445566",
             fontSize: 8,
           }}>
-            Analysis completed at {new Date(result.timestamp).toLocaleString()} by Solay39 AI Security Engine v2.0
+            Analysis completed at {new Date(result.timestamp).toLocaleString()} by Solay39 Manual On-Chain Engine v2.0
           </div>
         </>
       )}

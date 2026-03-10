@@ -472,7 +472,7 @@ export default function ManualReviewWorkspace({
                 borderBottom: activeSection === s ? "1px solid #00e5ff" : "1px solid transparent",
                 fontFamily: "inherit", textTransform: "uppercase",
               }}>
-                {s === "onchain" && "On-Chain AI"}
+                {s === "onchain" && "Manual On-Chain"}
                 {s === "checklist" && `Checklist (${checksDone}/${checksTotal})`}
                 {s === "findings" && `AI Findings (${findingsReviewed}/${findingsTotal})`}
                 {s === "manual" && `Manual (${session.manualFindings.length})`}
@@ -484,11 +484,11 @@ export default function ManualReviewWorkspace({
           {/* Content */}
           <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
 
-            {/* ── ON-CHAIN AI ANALYSIS TAB ── */}
+            {/* ── MANUAL ON-CHAIN ANALYSIS TAB ── */}
             {activeSection === "onchain" && (
               <div>
                 <div style={{ marginBottom: 12, fontSize: 10, color: "#555" }}>
-                  AI-powered analysis of on-chain data: tokenomics, whale distribution, insider wallets, dev wallet, rug risk.
+                  Manual on-chain analysis: tokenomics, whale distribution, insider wallets, dev wallet, rug risk assessment.
                 </div>
                 <OnChainAnalysisPanel 
                   contractAddress={contractAddress}
