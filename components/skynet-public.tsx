@@ -3329,6 +3329,27 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               </div>
             )}
             
+            {/* On-Chain Audit Findings */}
+            {p.onChainAnalysis.auditFindings && p.onChainAnalysis.auditFindings.length > 0 && (
+              <div className="mt-4 mb-4">
+                <div className="text-[8px] text-s39-red tracking-widest mb-2 font-bold">ON-CHAIN SECURITY FINDINGS</div>
+                {p.onChainAnalysis.auditFindings.map((f, i) => {
+                  const sevColor = f.severity === "critical" ? "#ff2d55" : f.severity === "high" ? "#ff6b00" : f.severity === "medium" ? "#ffd600" : "#00e5ff"
+                  return (
+                    <div key={i} className="bg-s39-bg2 border p-3 mb-2" style={{ borderColor: sevColor + "40", borderLeftWidth: 3, borderLeftColor: sevColor }}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[8px] font-mono text-s39-dim">{f.id}</span>
+                        <span className="text-[9px] text-s39-lite font-medium flex-1">{f.title}</span>
+                        <span className="text-[7px] font-bold px-2 py-0.5" style={{ color: sevColor, background: sevColor + "15" }}>{f.severity.toUpperCase()}</span>
+                      </div>
+                      <div className="text-[8px] text-s39-mid mb-2">{f.description}</div>
+                      <div className="text-[8px] text-s39-cyan">Recommendation: {f.recommendation}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
             {/* Top Holders Table */}
             {p.onChainAnalysis.topHolders && p.onChainAnalysis.topHolders.length > 0 && (
               <div className="mt-4">

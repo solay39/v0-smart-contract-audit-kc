@@ -69,17 +69,14 @@ function BlockchainTab({
     setAttestError("")
 
     try {
-      console.log("[v0] Attestation request:", { auditId, reportHash })
       const res = await fetch("/api/solana-attest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ auditId, reportHash }),
       })
-      console.log("[v0] Response status:", res.status)
 
       // Leggi prima come testo per evitare crash se la risposta non è JSON
       const rawText = await res.text()
-      console.log("[v0] Raw response:", rawText.slice(0, 200))
 
       let data: Record<string, unknown>
       try {
@@ -98,8 +95,6 @@ function BlockchainTab({
         return
       }
 
-      console.log("[v0] Response data:", data)
-
       if (data.success && data.attestation) {
         onAttestationSuccess(data.attestation as { txSignature: string; solscanUrl: string; network: string; memo: string; timestamp: string })
       } else if (data.configured === false) {
@@ -109,7 +104,6 @@ function BlockchainTab({
         setAttestError((data.error as string) ?? "Attestazione fallita. Riprova.")
       }
     } catch (err) {
-      console.log("[v0] Solana attest error:", err)
       const errMsg = err instanceof Error ? err.message : String(err)
       setAttestError(`Errore di rete: ${errMsg}`)
     } finally {
@@ -2476,9 +2470,6 @@ const TABS: [TabId, string][] = [
           })
         })
 
-        console.log("[v0] onReviewComplete received session:", session)
-        console.log("[v0] session.onChainAnalysis:", session.onChainAnalysis)
-        
         // Update project name with token name if available from on-chain analysis
         if (session.onChainAnalysis?.tokenName) {
           setProjectName(session.onChainAnalysis.tokenName)

@@ -78,8 +78,10 @@ export function OnChainAnalysisPanel({ contractAddress, network, onAnalysisCompl
     
     setLoading(true)
     setError(null)
+    setSavedToAudit(false)
     
     try {
+      // Step 1: Run on-chain analysis
       const res = await fetch("/api/onchain-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -92,7 +94,34 @@ export function OnChainAnalysisPanel({ contractAddress, network, onAnalysisCompl
         setError(data.error)
       } else {
         setResult(data)
-        onAnalysisComplete?.(data)
+        
+        // Step 2: Call merge endpoint to build audit sections
+        try {
+          const mergeRes = await fetch("/api/onchain-audit-merge", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ onchainResult: data }),
+          })
+          const merged = await mergeRes.json()
+          
+          if (merged.success) {
+            // Combine original data with merged findings/sections for the callback
+            const enrichedData = {
+              ...data,
+              auditFindings: merged.findings,
+              auditSections: merged.sections,
+              scorePanel: merged.scorePanel,
+            }
+            onAnalysisComplete?.(enrichedData)
+            setSavedToAudit(true)
+          } else {
+            // Fallback to original data if merge fails
+            onAnalysisComplete?.(data)
+          }
+        } catch {
+          // Fallback to original data if merge fails
+          onAnalysisComplete?.(data)
+        }
       }
     } catch (e) {
       setError("Analysis failed: " + (e instanceof Error ? e.message : String(e)))

@@ -384,9 +384,6 @@ export default function ManualReviewWorkspace({
         solanaSignature: solSignature,
       }
       
-      console.log("[v0] completedSession before sending:", completedSession)
-      console.log("[v0] completedSession.onChainAnalysis:", completedSession.onChainAnalysis)
-      
       setSession(completedSession)
       onReviewComplete(completedSession)
     } catch (err: unknown) {
@@ -512,55 +509,61 @@ export default function ManualReviewWorkspace({
                     setSession(s => {
                       const newOnChainAnalysis = {
                         // Token info
-                        tokenName: result.tokenData.tokenName,
-                        tokenSymbol: result.tokenData.tokenSymbol,
-                        tokenAddress: result.tokenData.tokenAddress,
-                        tokenNetwork: result.tokenData.network,
-                        marketCap: result.tokenData.marketCap,
-                        liquidity: result.tokenData.liquidity,
-                        price: result.tokenData.price,
-                        volume24h: result.tokenData.volume24h,
-                        holders: result.tokenData.holders,
+                        tokenName: result.tokenData?.name || result.tokenData?.tokenName,
+                        tokenSymbol: result.tokenData?.symbol || result.tokenData?.tokenSymbol,
+                        tokenAddress: result.tokenData?.tokenAddress,
+                        tokenNetwork: result.tokenData?.network,
+                        marketCap: result.tokenData?.marketCap,
+                        liquidity: result.tokenData?.liquidity,
+                        price: result.tokenData?.price,
+                        volume24h: result.tokenData?.volume24h,
+                        holders: result.tokenData?.totalHolders || result.tokenData?.holders,
                         // Analysis results
-                        executiveSummary: result.analysis.executiveSummary,
-                        tokenEconomics: result.analysis.tokenEconomics,
-                        whaleDistribution: result.analysis.whaleDistribution,
-                        insiderWallets: result.analysis.insiderWallets,
-                        devWalletAnalysis: result.analysis.devWalletAnalysis,
-                        supplyAnalysis: result.analysis.supplyAnalysis,
-                        rugPullRisk: result.analysis.rugPullRisk,
-                        priceManipulation: result.analysis.priceManipulation,
-                        hiddenGovernance: result.analysis.hiddenGovernance,
-                        complexBugs: result.analysis.complexBugs,
-                        liquidityAnalysis: result.analysis.liquidityAnalysis,
-                        clusterAnalysis: result.analysis.clusterAnalysis,
-                        scenarioAnalysis: result.analysis.scenarioAnalysis,
-                        recommendation: result.analysis.recommendation,
-                        overallRiskScore: result.analysis.overallRiskScore,
-                        scores: result.analysis.scores,
-                        topHolders: result.tokenData.topHolders?.map(h => ({
+                        executiveSummary: result.analysis?.executiveSummary,
+                        tokenEconomics: result.analysis?.tokenEconomics,
+                        whaleDistribution: result.analysis?.whaleDistribution,
+                        insiderWallets: result.analysis?.insiderWallets,
+                        devWalletAnalysis: result.analysis?.devWalletAnalysis,
+                        supplyAnalysis: result.analysis?.supplyAnalysis,
+                        rugPullRisk: result.analysis?.rugPullRisk,
+                        priceManipulation: result.analysis?.priceManipulation,
+                        hiddenGovernance: result.analysis?.hiddenGovernance,
+                        complexBugs: result.analysis?.complexBugs,
+                        liquidityAnalysis: result.analysis?.liquidityAnalysis,
+                        clusterAnalysis: result.analysis?.clusterAnalysis,
+                        scenarioAnalysis: result.analysis?.scenarioAnalysis,
+                        recommendation: result.analysis?.recommendation,
+                        overallRiskScore: result.analysis?.overallRiskScore,
+                        scores: result.analysis?.scores,
+                        topHolders: result.tokenData?.topHolders?.map((h: { address: string; percentage: number }) => ({
                           address: h.address,
                           percentage: h.percentage,
                         })),
+                        // New: audit findings and sections from merge endpoint
+                        auditFindings: result.auditFindings,
+                        auditSections: result.auditSections,
+                        scorePanel: result.scorePanel,
                       }
                       
-                      const newManualFindings = result.analysis.overallRiskScore > 50 
-                        ? [...s.manualFindings, {
-                            id: `onchain-${Date.now()}`,
-                            title: `On-Chain Risk Alert: ${result.analysis.overallRiskScore > 70 ? "HIGH" : "MEDIUM"} Risk Score (${result.analysis.overallRiskScore}/100)`,
-                            severity: (result.analysis.overallRiskScore > 70 ? "HIGH" : "MEDIUM") as Severity,
-                            location: result.tokenData.tokenAddress,
-                            description: result.analysis.rugPullRisk,
-                            impact: result.analysis.recommendation,
-                            recommendation: "Review the on-chain analysis findings in detail and consider the risk factors before interacting with this token.",
-                            addedBy: "manual" as const,
-                          }]
-                        : s.manualFindings
+                      // Add on-chain findings to manual findings for high risk tokens
+                      const onchainFindings = result.auditFindings?.map((f: { id: string; title: string; severity: string; description: string; recommendation: string }) => ({
+                        id: f.id,
+                        title: f.title,
+                        severity: f.severity.toUpperCase() as Severity,
+                        location: result.tokenData?.tokenAddress || "On-Chain",
+                        description: f.description,
+                        impact: f.recommendation,
+                        recommendation: f.recommendation,
+                        addedBy: "ai" as const,
+                      })) || []
                       
                       return {
                         ...s,
                         onChainAnalysis: newOnChainAnalysis,
-                        manualFindings: newManualFindings,
+                        manualFindings: [
+                          ...s.manualFindings.filter(f => !f.id.startsWith("OC-")), // Remove old on-chain findings
+                          ...onchainFindings,
+                        ],
                       }
                     })
                   }}

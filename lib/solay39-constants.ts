@@ -620,6 +620,43 @@ export interface PortfolioProject {
       manipulationRisk?: string
     }
     topHolders?: { address: string; percentage: number }[]
+    // Audit findings and sections from merge endpoint
+    auditFindings?: {
+      id: string
+      title: string
+      severity: string
+      category: string
+      description: string
+      recommendation: string
+      section: string
+      content: string
+      status: string
+      source: string
+    }[]
+    auditSections?: {
+      id: string
+      title: string
+      icon: string
+      badge: string | null
+      severity: string
+      content: string
+      source: string
+    }[]
+    scorePanel?: {
+      riskScore: number
+      riskLabel: string
+      contractScore: string
+      decentralizationScore: string
+      liquidityScore: string
+      manipulationRisk: string
+      marketCap: string
+      totalHolders: number
+      liquidity: string
+      lpLocked: boolean
+      mintAuthority: string | null
+      freezeAuthority: string | null
+      recommendation: string
+    }
   }
 }
 
