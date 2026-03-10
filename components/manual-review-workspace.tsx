@@ -373,9 +373,6 @@ export default function ManualReviewWorkspace({
         solanaSignature: solSignature,
       }
 
-      console.log("[v0] completedSession.onChainAnalysis:", completedSession.onChainAnalysis)
-      console.log("[v0] session.onChainAnalysis:", session.onChainAnalysis)
-
       setSession(completedSession)
       onReviewComplete(completedSession)
     } catch (err: unknown) {
@@ -497,14 +494,9 @@ export default function ManualReviewWorkspace({
                   contractAddress={contractAddress}
                   network={network}
                   onAnalysisComplete={(result) => {
-                    console.log("[v0] onAnalysisComplete called with result:", result)
-                    console.log("[v0] result.analysis:", result.analysis)
                     // Save full on-chain analysis to session for PDF export
                     setSession(s => {
-                      console.log("[v0] Updating session with onChainAnalysis")
-                      return {
-                      ...s,
-                      onChainAnalysis: {
+                      const newOnChainAnalysis = {
                         executiveSummary: result.analysis.executiveSummary,
                         tokenEconomics: result.analysis.tokenEconomics,
                         whaleDistribution: result.analysis.whaleDistribution,
@@ -525,9 +517,9 @@ export default function ManualReviewWorkspace({
                           address: h.address,
                           percentage: h.percentage,
                         })),
-                      },
-                      // Add AI findings from on-chain analysis to manual findings if high risk
-                      manualFindings: result.analysis.overallRiskScore > 50 
+                      }
+                      
+                      const newManualFindings = result.analysis.overallRiskScore > 50 
                         ? [...s.manualFindings, {
                             id: `onchain-${Date.now()}`,
                             title: `On-Chain Risk Alert: ${result.analysis.overallRiskScore > 70 ? "HIGH" : "MEDIUM"} Risk Score (${result.analysis.overallRiskScore}/100)`,
@@ -538,8 +530,14 @@ export default function ManualReviewWorkspace({
                             recommendation: "Review the on-chain analysis findings in detail and consider the risk factors before interacting with this token.",
                             addedBy: "manual" as const,
                           }]
-                        : s.manualFindings,
-                    }})
+                        : s.manualFindings
+                      
+                      return {
+                        ...s,
+                        onChainAnalysis: newOnChainAnalysis,
+                        manualFindings: newManualFindings,
+                      }
+                    })
                   }}
                 />
               </div>
