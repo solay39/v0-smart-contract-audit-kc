@@ -281,7 +281,7 @@ async function callAI(prompt: string): Promise<{ success: boolean; text?: string
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-6",
           max_tokens: 6000,
           messages: [{ role: "user", content: prompt }],
         }),
@@ -303,7 +303,7 @@ async function callAI(prompt: string): Promise<{ success: boolean; text?: string
           "Authorization": `Bearer ${process.env.AI_GATEWAY_API_KEY || process.env.OPENAI_API_KEY}`,
         },
         body: JSON.stringify({
-          model: "anthropic/claude-sonnet-4-20250514",
+          model: "anthropic/claude-sonnet-4-6",
           max_tokens: 6000,
           messages: [{ role: "user", content: prompt }],
         }),
