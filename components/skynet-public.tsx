@@ -3238,6 +3238,33 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 16</span>
             </div>
             
+            {/* Token Info Card */}
+            {p.onChainAnalysis.tokenName && (
+              <div className="bg-s39-bg2 border border-s39-cyan/30 p-4 mb-4 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-lg bg-s39-bg1 border border-s39-border flex items-center justify-center text-s39-cyan font-bold text-lg">
+                  {p.onChainAnalysis.tokenSymbol?.slice(0, 2) || "??"}
+                </div>
+                <div className="flex-1">
+                  <div className="text-s39-lite font-bold text-sm">{p.onChainAnalysis.tokenName}</div>
+                  <div className="text-s39-dim text-[9px]">{p.onChainAnalysis.tokenSymbol} • {p.onChainAnalysis.tokenNetwork}</div>
+                  {p.onChainAnalysis.price && (
+                    <div className="text-s39-green text-[10px] font-mono mt-1">${p.onChainAnalysis.price.toFixed(8)}</div>
+                  )}
+                </div>
+                <div className="text-right">
+                  {p.onChainAnalysis.marketCap && (
+                    <div className="text-[8px] text-s39-dim">Market Cap: <span className="text-s39-mid font-mono">${(p.onChainAnalysis.marketCap / 1e6).toFixed(2)}M</span></div>
+                  )}
+                  {p.onChainAnalysis.liquidity && (
+                    <div className="text-[8px] text-s39-dim">Liquidity: <span className="text-s39-mid font-mono">${(p.onChainAnalysis.liquidity / 1e6).toFixed(2)}M</span></div>
+                  )}
+                  {p.onChainAnalysis.holders && (
+                    <div className="text-[8px] text-s39-dim">Holders: <span className="text-s39-mid font-mono">{p.onChainAnalysis.holders.toLocaleString()}</span></div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Risk Score and Scores Grid */}
             <div className="grid grid-cols-5 gap-2 mb-4">
               <div className="bg-s39-bg2 border p-3 text-center" style={{ borderColor: (p.onChainAnalysis.overallRiskScore || 50) <= 30 ? "#00ff8840" : (p.onChainAnalysis.overallRiskScore || 50) <= 60 ? "#ffd60040" : "#ff2d5540" }}>
@@ -3712,7 +3739,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               </section>
             )}
 
-            {/* ── SECTION: AUDITOR SIGNATURES ── */}
+            {/* ── SECTION: AUDITOR SIGNATURES ���─ */}
             {p.auditorSignatures && (
               <section className="border border-purple-900/40 rounded-xl overflow-hidden bg-s39-bg1 mt-6">
                 <div className="p-5 sm:p-6 bg-purple-950/10 border-b border-purple-900/30">

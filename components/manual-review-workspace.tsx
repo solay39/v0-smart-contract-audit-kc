@@ -65,6 +65,17 @@ interface ManualFinding {
 }
 
 interface OnChainAnalysis {
+  // Token info
+  tokenName?: string
+  tokenSymbol?: string
+  tokenAddress?: string
+  tokenNetwork?: string
+  marketCap?: number
+  liquidity?: number
+  price?: number
+  volume24h?: number
+  holders?: number
+  // Analysis results
   executiveSummary?: string
   tokenEconomics?: string
   whaleDistribution?: string
@@ -497,6 +508,17 @@ export default function ManualReviewWorkspace({
                     // Save full on-chain analysis to session for PDF export
                     setSession(s => {
                       const newOnChainAnalysis = {
+                        // Token info
+                        tokenName: result.tokenData.tokenName,
+                        tokenSymbol: result.tokenData.tokenSymbol,
+                        tokenAddress: result.tokenData.tokenAddress,
+                        tokenNetwork: result.tokenData.network,
+                        marketCap: result.tokenData.marketCap,
+                        liquidity: result.tokenData.liquidity,
+                        price: result.tokenData.price,
+                        volume24h: result.tokenData.volume24h,
+                        holders: result.tokenData.holders,
+                        // Analysis results
                         executiveSummary: result.analysis.executiveSummary,
                         tokenEconomics: result.analysis.tokenEconomics,
                         whaleDistribution: result.analysis.whaleDistribution,
@@ -1142,7 +1164,7 @@ export default function ManualReviewWorkspace({
   )
 }
 
-// ─── Fallback checklist statica adattata al network ───────────────
+// ─── Fallback checklist statica adattata al network ────────��──────
 
 function buildFallbackChecklist(network: string, source: string): DynamicCheckItem[] {
   const isSolana = network === "Solana"

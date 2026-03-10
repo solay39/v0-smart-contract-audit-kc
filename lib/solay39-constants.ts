@@ -585,8 +585,19 @@ export interface PortfolioProject {
     status: "pass" | "fail" | "pending" | "n/a"
     note?: string
   }[]
-  // On-Chain AI Analysis
+  // Manual On-Chain Analysis
   onChainAnalysis?: {
+    // Token info
+    tokenName?: string
+    tokenSymbol?: string
+    tokenAddress?: string
+    tokenNetwork?: string
+    marketCap?: number
+    liquidity?: number
+    price?: number
+    volume24h?: number
+    holders?: number
+    // Analysis results
     executiveSummary?: string
     tokenEconomics?: string
     whaleDistribution?: string

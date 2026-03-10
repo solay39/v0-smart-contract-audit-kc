@@ -347,31 +347,42 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       status: string
       note?: string
     }[]
-    // On-Chain AI Analysis
-    onChainAnalysis?: {
-      executiveSummary?: string
-      tokenEconomics?: string
-      whaleDistribution?: string
-      insiderWallets?: string
-      devWalletAnalysis?: string
-      supplyAnalysis?: string
-      rugPullRisk?: string
-      priceManipulation?: string
-      hiddenGovernance?: string
-      complexBugs?: string
-      liquidityAnalysis?: string
-      clusterAnalysis?: string
-      scenarioAnalysis?: string
-      recommendation?: string
-      overallRiskScore?: number
-      scores?: {
-        smartContractSecurity?: number
-        decentralization?: number
-        liquidityHealth?: number
-        manipulationRisk?: string
-      }
-      topHolders?: { address: string; percentage: number }[]
+  // Manual On-Chain Analysis
+  onChainAnalysis?: {
+    // Token info
+    tokenName?: string
+    tokenSymbol?: string
+    tokenAddress?: string
+    tokenNetwork?: string
+    marketCap?: number
+    liquidity?: number
+    price?: number
+    volume24h?: number
+    holders?: number
+    // Analysis results
+    executiveSummary?: string
+    tokenEconomics?: string
+    whaleDistribution?: string
+    insiderWallets?: string
+    devWalletAnalysis?: string
+    supplyAnalysis?: string
+    rugPullRisk?: string
+    priceManipulation?: string
+    hiddenGovernance?: string
+    complexBugs?: string
+    liquidityAnalysis?: string
+    clusterAnalysis?: string
+    scenarioAnalysis?: string
+    recommendation?: string
+    overallRiskScore?: number
+    scores?: {
+      smartContractSecurity?: number
+      decentralization?: number
+      liquidityHealth?: number
+      manipulationRisk?: string
     }
+    topHolders?: { address: string; percentage: number }[]
+  }
   } | null>(null)
   // Tier-1 advanced sections
   const [governanceSecurity, setGovernanceSecurity] = useState<Record<string, unknown> | null>(null)
@@ -1152,6 +1163,17 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       })),
       // Manual On-Chain Analysis for PDF export
       onChainAnalysis: manualReviewSession?.onChainAnalysis ? {
+        // Token info
+        tokenName: manualReviewSession.onChainAnalysis.tokenName,
+        tokenSymbol: manualReviewSession.onChainAnalysis.tokenSymbol,
+        tokenAddress: manualReviewSession.onChainAnalysis.tokenAddress,
+        tokenNetwork: manualReviewSession.onChainAnalysis.tokenNetwork,
+        marketCap: manualReviewSession.onChainAnalysis.marketCap,
+        liquidity: manualReviewSession.onChainAnalysis.liquidity,
+        price: manualReviewSession.onChainAnalysis.price,
+        volume24h: manualReviewSession.onChainAnalysis.volume24h,
+        holders: manualReviewSession.onChainAnalysis.holders,
+        // Analysis results
         executiveSummary: manualReviewSession.onChainAnalysis.executiveSummary,
         tokenEconomics: manualReviewSession.onChainAnalysis.tokenEconomics,
         whaleDistribution: manualReviewSession.onChainAnalysis.whaleDistribution,
@@ -2480,6 +2502,17 @@ const TABS: [TabId, string][] = [
           })),
           // Manual On-Chain Analysis for PDF export
           onChainAnalysis: session.onChainAnalysis ? {
+            // Token info
+            tokenName: session.onChainAnalysis.tokenName,
+            tokenSymbol: session.onChainAnalysis.tokenSymbol,
+            tokenAddress: session.onChainAnalysis.tokenAddress,
+            tokenNetwork: session.onChainAnalysis.tokenNetwork,
+            marketCap: session.onChainAnalysis.marketCap,
+            liquidity: session.onChainAnalysis.liquidity,
+            price: session.onChainAnalysis.price,
+            volume24h: session.onChainAnalysis.volume24h,
+            holders: session.onChainAnalysis.holders,
+            // Analysis results
             executiveSummary: session.onChainAnalysis.executiveSummary,
             tokenEconomics: session.onChainAnalysis.tokenEconomics,
             whaleDistribution: session.onChainAnalysis.whaleDistribution,
