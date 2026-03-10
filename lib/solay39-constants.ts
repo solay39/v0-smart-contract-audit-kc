@@ -575,6 +575,41 @@ export interface PortfolioProject {
     signatureSol?: string
     reviewNotes?: string
   }
+  // Security Checklist
+  securityChecklist?: {
+    id: string
+    category: string
+    question: string
+    why: string
+    severity: string
+    status: "pass" | "fail" | "pending" | "n/a"
+    note?: string
+  }[]
+  // On-Chain AI Analysis
+  onChainAnalysis?: {
+    executiveSummary?: string
+    tokenEconomics?: string
+    whaleDistribution?: string
+    insiderWallets?: string
+    devWalletAnalysis?: string
+    supplyAnalysis?: string
+    rugPullRisk?: string
+    priceManipulation?: string
+    hiddenGovernance?: string
+    complexBugs?: string
+    liquidityAnalysis?: string
+    clusterAnalysis?: string
+    scenarioAnalysis?: string
+    recommendation?: string
+    overallRiskScore?: number
+    scores?: {
+      smartContractSecurity?: number
+      decentralization?: number
+      liquidityHealth?: number
+      manipulationRisk?: string
+    }
+    topHolders?: { address: string; percentage: number }[]
+  }
 }
 
 // Keep backward compat alias

@@ -106,6 +106,10 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
           auditorSignatures: project.auditorSignatures || local.auditorSignatures,
           testCoverage: project.testCoverage || local.testCoverage,
           solanaAttestation: project.solanaAttestation || local.solanaAttestation,
+          // Manual Review + Security Checklist + On-Chain Analysis
+          manualReview: project.manualReview || local.manualReview,
+          securityChecklist: project.securityChecklist || local.securityChecklist,
+          onChainAnalysis: project.onChainAnalysis || local.onChainAnalysis,
         })
       }
       setLoading(false)

@@ -1140,6 +1140,36 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         signatureSol: manualReviewSession.solanaSignature,
         reviewNotes: manualReviewSession.reviewNotes,
       } : undefined,
+      // Security Checklist for PDF export
+      securityChecklist: manualReviewSession?.checks?.map(c => ({
+        id: c.id,
+        category: c.category,
+        question: c.question,
+        why: c.why || "",
+        severity: c.severity,
+        status: c.status as "pass" | "fail" | "pending" | "n/a",
+        note: c.note || "",
+      })),
+      // On-Chain AI Analysis for PDF export
+      onChainAnalysis: manualReviewSession?.onChainAnalysis ? {
+        executiveSummary: manualReviewSession.onChainAnalysis.executiveSummary,
+        tokenEconomics: manualReviewSession.onChainAnalysis.tokenEconomics,
+        whaleDistribution: manualReviewSession.onChainAnalysis.whaleDistribution,
+        insiderWallets: manualReviewSession.onChainAnalysis.insiderWallets,
+        devWalletAnalysis: manualReviewSession.onChainAnalysis.devWalletAnalysis,
+        supplyAnalysis: manualReviewSession.onChainAnalysis.supplyAnalysis,
+        rugPullRisk: manualReviewSession.onChainAnalysis.rugPullRisk,
+        priceManipulation: manualReviewSession.onChainAnalysis.priceManipulation,
+        hiddenGovernance: manualReviewSession.onChainAnalysis.hiddenGovernance,
+        complexBugs: manualReviewSession.onChainAnalysis.complexBugs,
+        liquidityAnalysis: manualReviewSession.onChainAnalysis.liquidityAnalysis,
+        clusterAnalysis: manualReviewSession.onChainAnalysis.clusterAnalysis,
+        scenarioAnalysis: manualReviewSession.onChainAnalysis.scenarioAnalysis,
+        recommendation: manualReviewSession.onChainAnalysis.recommendation,
+        overallRiskScore: manualReviewSession.onChainAnalysis.overallRiskScore,
+        scores: manualReviewSession.onChainAnalysis.scores,
+        topHolders: manualReviewSession.onChainAnalysis.topHolders,
+      } : undefined,
     }
 
     // ── Step 3: Compute SHA-256 report integrity before saving ──

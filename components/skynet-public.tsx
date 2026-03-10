@@ -3175,6 +3175,163 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
           </div>
         )}
 
+        {/* ── SECTION 15: SECURITY CHECKLIST RESULTS ── */}
+        {p.securityChecklist && p.securityChecklist.length > 0 && (
+          <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
+            <div className="flex items-center gap-2 mb-4">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7l2.5 2.5L11 4" stroke="#00ff88" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><rect x="1" y="1" width="12" height="12" rx="2" stroke="#00ff88" strokeWidth="1"/></svg>
+              <span className="text-[9px] text-s39-green tracking-[0.15em]">SECURITY CHECKLIST RESULTS</span>
+              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 15</span>
+            </div>
+            
+            {/* Summary Stats */}
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="bg-s39-bg2 border border-s39-green/30 p-3 text-center">
+                <div className="text-[7px] text-s39-dim tracking-widest mb-1">PASSED</div>
+                <div className="text-lg font-bold text-s39-green font-mono">{p.securityChecklist.filter(c => c.status === "pass").length}</div>
+              </div>
+              <div className="bg-s39-bg2 border border-s39-red/30 p-3 text-center">
+                <div className="text-[7px] text-s39-dim tracking-widest mb-1">FAILED</div>
+                <div className="text-lg font-bold text-s39-red font-mono">{p.securityChecklist.filter(c => c.status === "fail").length}</div>
+              </div>
+              <div className="bg-s39-bg2 border border-s39-yellow/30 p-3 text-center">
+                <div className="text-[7px] text-s39-dim tracking-widest mb-1">PENDING</div>
+                <div className="text-lg font-bold text-s39-yellow font-mono">{p.securityChecklist.filter(c => c.status === "pending").length}</div>
+              </div>
+            </div>
+            
+            {/* Checklist Items by Category */}
+            {Array.from(new Set(p.securityChecklist.map(c => c.category))).map(cat => {
+              const items = p.securityChecklist!.filter(c => c.category === cat)
+              return (
+                <div key={cat} className="mb-4 last:mb-0">
+                  <div className="text-[8px] text-s39-cyan tracking-widest font-bold mb-2">{cat.toUpperCase()}</div>
+                  {items.map((item, i) => {
+                    const statusColor = item.status === "pass" ? "#00ff88" : item.status === "fail" ? "#ff2d55" : item.status === "n/a" ? "#445566" : "#ffd600"
+                    const statusIcon = item.status === "pass" ? "✓" : item.status === "fail" ? "✗" : item.status === "n/a" ? "—" : "?"
+                    const sevColor = item.severity === "CRITICAL" ? "#ff2d55" : item.severity === "HIGH" ? "#ff6b00" : item.severity === "MEDIUM" ? "#ffd600" : "#00e5ff"
+                    return (
+                      <div key={i} className="flex gap-3 py-2 border-b border-s39-border last:border-0" style={{ borderLeftWidth: 3, borderLeftColor: statusColor, paddingLeft: 12 }}>
+                        <span className="text-sm shrink-0" style={{ color: statusColor }}>{statusIcon}</span>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[9px] text-s39-mid">{item.question}</span>
+                            <span className="text-[7px] font-bold ml-auto" style={{ color: sevColor }}>{item.severity}</span>
+                          </div>
+                          {item.note && <div className="text-[8px] text-s39-dim italic mt-1">{item.note}</div>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* ── SECTION 16: ON-CHAIN AI ANALYSIS ── */}
+        {p.onChainAnalysis && (
+          <div className="bg-s39-bg1 border border-s39-border p-5 sm:p-6 mb-4">
+            <div className="flex items-center gap-2 mb-4">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#00e5ff" strokeWidth="1"/><path d="M7 4v3l2 1" stroke="#00e5ff" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <span className="text-[9px] text-s39-cyan tracking-[0.15em]">ON-CHAIN AI ANALYSIS</span>
+              <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">SECTION 16</span>
+            </div>
+            
+            {/* Risk Score and Scores Grid */}
+            <div className="grid grid-cols-5 gap-2 mb-4">
+              <div className="bg-s39-bg2 border p-3 text-center" style={{ borderColor: (p.onChainAnalysis.overallRiskScore || 50) <= 30 ? "#00ff8840" : (p.onChainAnalysis.overallRiskScore || 50) <= 60 ? "#ffd60040" : "#ff2d5540" }}>
+                <div className="text-[7px] text-s39-dim tracking-widest mb-1">RISK SCORE</div>
+                <div className="text-lg font-bold font-mono" style={{ color: (p.onChainAnalysis.overallRiskScore || 50) <= 30 ? "#00ff88" : (p.onChainAnalysis.overallRiskScore || 50) <= 60 ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis.overallRiskScore || 50}/100</div>
+              </div>
+              {p.onChainAnalysis.scores && (
+                <>
+                  <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
+                    <div className="text-[7px] text-s39-dim tracking-widest mb-1">CONTRACT</div>
+                    <div className="text-lg font-bold font-mono" style={{ color: (p.onChainAnalysis.scores.smartContractSecurity || 5) >= 7 ? "#00ff88" : (p.onChainAnalysis.scores.smartContractSecurity || 5) >= 5 ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis.scores.smartContractSecurity || 5}/10</div>
+                  </div>
+                  <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
+                    <div className="text-[7px] text-s39-dim tracking-widest mb-1">DECENTR.</div>
+                    <div className="text-lg font-bold font-mono" style={{ color: (p.onChainAnalysis.scores.decentralization || 5) >= 7 ? "#00ff88" : (p.onChainAnalysis.scores.decentralization || 5) >= 4 ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis.scores.decentralization || 5}/10</div>
+                  </div>
+                  <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
+                    <div className="text-[7px] text-s39-dim tracking-widest mb-1">LIQUIDITY</div>
+                    <div className="text-lg font-bold font-mono" style={{ color: (p.onChainAnalysis.scores.liquidityHealth || 5) >= 7 ? "#00ff88" : (p.onChainAnalysis.scores.liquidityHealth || 5) >= 4 ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis.scores.liquidityHealth || 5}/10</div>
+                  </div>
+                  <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
+                    <div className="text-[7px] text-s39-dim tracking-widest mb-1">MANIP.</div>
+                    <div className="text-sm font-bold font-mono" style={{ color: p.onChainAnalysis.scores.manipulationRisk === "LOW" ? "#00ff88" : p.onChainAnalysis.scores.manipulationRisk === "MEDIUM" ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis.scores.manipulationRisk || "MEDIUM"}</div>
+                  </div>
+                </>
+              )}
+            </div>
+            
+            {/* Analysis Sections */}
+            {p.onChainAnalysis.executiveSummary && (
+              <div className="bg-s39-bg2 border border-s39-border p-4 mb-3">
+                <div className="text-[8px] text-s39-cyan tracking-widest mb-2 font-bold">EXECUTIVE SUMMARY</div>
+                <div className="text-[9px] text-s39-mid leading-relaxed whitespace-pre-wrap">{p.onChainAnalysis.executiveSummary}</div>
+              </div>
+            )}
+            
+            {p.onChainAnalysis.whaleDistribution && (
+              <div className="bg-s39-bg2 border border-s39-border p-4 mb-3">
+                <div className="text-[8px] text-s39-cyan tracking-widest mb-2 font-bold">WHALE DISTRIBUTION</div>
+                <div className="text-[9px] text-s39-mid leading-relaxed whitespace-pre-wrap">{p.onChainAnalysis.whaleDistribution}</div>
+              </div>
+            )}
+            
+            {p.onChainAnalysis.insiderWallets && (
+              <div className="bg-s39-bg2 border border-s39-border p-4 mb-3">
+                <div className="text-[8px] text-s39-orange tracking-widest mb-2 font-bold">INSIDER WALLETS DETECTION</div>
+                <div className="text-[9px] text-s39-mid leading-relaxed whitespace-pre-wrap">{p.onChainAnalysis.insiderWallets}</div>
+              </div>
+            )}
+            
+            {p.onChainAnalysis.rugPullRisk && (
+              <div className="bg-s39-bg2 border border-s39-red/30 p-4 mb-3">
+                <div className="text-[8px] text-s39-red tracking-widest mb-2 font-bold">RUG PULL RISK ASSESSMENT</div>
+                <div className="text-[9px] text-s39-mid leading-relaxed whitespace-pre-wrap">{p.onChainAnalysis.rugPullRisk}</div>
+              </div>
+            )}
+            
+            {p.onChainAnalysis.recommendation && (
+              <div className="bg-s39-bg2 border-2 border-s39-cyan/30 p-4">
+                <div className="text-[8px] text-s39-cyan tracking-widest mb-2 font-bold">AI RECOMMENDATION</div>
+                <div className="text-[9px] text-s39-lite leading-relaxed whitespace-pre-wrap font-medium">{p.onChainAnalysis.recommendation}</div>
+              </div>
+            )}
+            
+            {/* Top Holders Table */}
+            {p.onChainAnalysis.topHolders && p.onChainAnalysis.topHolders.length > 0 && (
+              <div className="mt-4">
+                <div className="text-[8px] text-s39-dim tracking-widest mb-2">TOP HOLDERS DISTRIBUTION</div>
+                <table className="w-full text-[9px]">
+                  <thead>
+                    <tr className="bg-s39-bg2">
+                      <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">#</th>
+                      <th className="text-left text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">ADDRESS</th>
+                      <th className="text-right text-[7px] text-s39-dim tracking-widest px-3 py-2 border-b border-s39-border">%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {p.onChainAnalysis.topHolders.slice(0, 10).map((h, i) => {
+                      const pctColor = h.percentage > 20 ? "#ff2d55" : h.percentage > 10 ? "#ffd600" : "#00ff88"
+                      return (
+                        <tr key={i} className="border-b border-s39-border last:border-0">
+                          <td className="px-3 py-2 text-s39-dim">{i + 1}</td>
+                          <td className="px-3 py-2 font-mono text-[8px]">{h.address.slice(0, 8)}...{h.address.slice(-6)}</td>
+                          <td className="px-3 py-2 text-right font-bold font-mono" style={{ color: pctColor }}>{h.percentage.toFixed(2)}%</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── SECTION 17: FINAL SECURITY ASSESSMENT ── */}
         {p.finalAssessment && (
           <div className="bg-s39-bg1 border-2 border-s39-green/30 p-5 sm:p-6 mb-4">
