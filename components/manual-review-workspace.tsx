@@ -145,6 +145,8 @@ interface ManualReviewWorkspaceProps {
     impact: string
     recommendation: string
   }>) => void
+  // Chiamata immediatamente per salvare i dati on-chain analysis per il PDF/report
+  onOnChainAnalysisData?: (data: OnChainAnalysis) => void
   // Chiamata quando l'auditor completa e firma la review
   onReviewComplete: (session: ReviewSession) => void
 }
@@ -168,6 +170,7 @@ export default function ManualReviewWorkspace({
   network,
   aiFindings,
   onOnChainFindings,
+  onOnChainAnalysisData,
   onReviewComplete,
 }: ManualReviewWorkspaceProps) {
 
@@ -758,6 +761,43 @@ export default function ManualReviewWorkspace({
                       })
                       
                       onOnChainFindings(ocForCallback)
+                    }
+                    
+                    // ── Immediately push full on-chain analysis data to audit workspace ──
+                    if (onOnChainAnalysisData) {
+                      const td3 = result.tokenData || {}
+                      const an3 = result.analysis || {}
+                      onOnChainAnalysisData({
+                        tokenName: td3.name || td3.tokenName,
+                        tokenSymbol: td3.symbol || td3.tokenSymbol,
+                        tokenAddress: td3.tokenAddress,
+                        tokenNetwork: td3.network,
+                        marketCap: td3.marketCap,
+                        liquidity: (td3.liquidityPools || []).reduce((sum: number, lp: { liquidity?: string }) => sum + parseFloat(lp.liquidity || "0"), 0),
+                        price: td3.price,
+                        volume24h: td3.volume24h,
+                        holders: td3.totalHolders || td3.holders,
+                        executiveSummary: an3.executiveSummary,
+                        tokenEconomics: an3.tokenEconomics,
+                        whaleDistribution: an3.whaleDistribution,
+                        insiderWallets: an3.insiderWallets,
+                        devWalletAnalysis: an3.devWalletAnalysis,
+                        supplyAnalysis: an3.supplyAnalysis,
+                        rugPullRisk: an3.rugPullRisk,
+                        priceManipulation: an3.priceManipulation,
+                        hiddenGovernance: an3.hiddenGovernance,
+                        complexBugs: an3.complexBugs,
+                        liquidityAnalysis: an3.liquidityAnalysis,
+                        clusterAnalysis: an3.clusterAnalysis,
+                        scenarioAnalysis: an3.scenarioAnalysis,
+                        recommendation: an3.recommendation,
+                        overallRiskScore: an3.overallRiskScore,
+                        scores: an3.scores,
+                        topHolders: (td3.topHolders || []).map((h: { address: string; percentage: number }) => ({
+                          address: h.address,
+                          percentage: h.percentage,
+                        })),
+                      })
                     }
                   }}
                 />

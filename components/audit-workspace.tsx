@@ -1193,35 +1193,37 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         note: c.note || "",
       })),
       // Manual On-Chain Analysis for PDF export
-      onChainAnalysis: manualReviewSession?.onChainAnalysis ? {
+      // Use dedicated onChainAnalysisData state (populated immediately on SAVE TO AUDIT)
+      // with fallback to manualReviewSession.onChainAnalysis (populated on full review completion)
+      onChainAnalysis: (onChainAnalysisData || manualReviewSession?.onChainAnalysis) ? {
         // Token info
-        tokenName: manualReviewSession.onChainAnalysis.tokenName,
-        tokenSymbol: manualReviewSession.onChainAnalysis.tokenSymbol,
-        tokenAddress: manualReviewSession.onChainAnalysis.tokenAddress,
-        tokenNetwork: manualReviewSession.onChainAnalysis.tokenNetwork,
-        marketCap: manualReviewSession.onChainAnalysis.marketCap,
-        liquidity: manualReviewSession.onChainAnalysis.liquidity,
-        price: manualReviewSession.onChainAnalysis.price,
-        volume24h: manualReviewSession.onChainAnalysis.volume24h,
-        holders: manualReviewSession.onChainAnalysis.holders,
+        tokenName: onChainAnalysisData?.tokenName || manualReviewSession?.onChainAnalysis?.tokenName,
+        tokenSymbol: onChainAnalysisData?.tokenSymbol || manualReviewSession?.onChainAnalysis?.tokenSymbol,
+        tokenAddress: onChainAnalysisData?.tokenAddress || manualReviewSession?.onChainAnalysis?.tokenAddress,
+        tokenNetwork: onChainAnalysisData?.tokenNetwork || manualReviewSession?.onChainAnalysis?.tokenNetwork,
+        marketCap: onChainAnalysisData?.marketCap || manualReviewSession?.onChainAnalysis?.marketCap,
+        liquidity: onChainAnalysisData?.liquidity || manualReviewSession?.onChainAnalysis?.liquidity,
+        price: onChainAnalysisData?.price || manualReviewSession?.onChainAnalysis?.price,
+        volume24h: onChainAnalysisData?.volume24h || manualReviewSession?.onChainAnalysis?.volume24h,
+        holders: onChainAnalysisData?.holders || manualReviewSession?.onChainAnalysis?.holders,
         // Analysis results
-        executiveSummary: manualReviewSession.onChainAnalysis.executiveSummary,
-        tokenEconomics: manualReviewSession.onChainAnalysis.tokenEconomics,
-        whaleDistribution: manualReviewSession.onChainAnalysis.whaleDistribution,
-        insiderWallets: manualReviewSession.onChainAnalysis.insiderWallets,
-        devWalletAnalysis: manualReviewSession.onChainAnalysis.devWalletAnalysis,
-        supplyAnalysis: manualReviewSession.onChainAnalysis.supplyAnalysis,
-        rugPullRisk: manualReviewSession.onChainAnalysis.rugPullRisk,
-        priceManipulation: manualReviewSession.onChainAnalysis.priceManipulation,
-        hiddenGovernance: manualReviewSession.onChainAnalysis.hiddenGovernance,
-        complexBugs: manualReviewSession.onChainAnalysis.complexBugs,
-        liquidityAnalysis: manualReviewSession.onChainAnalysis.liquidityAnalysis,
-        clusterAnalysis: manualReviewSession.onChainAnalysis.clusterAnalysis,
-        scenarioAnalysis: manualReviewSession.onChainAnalysis.scenarioAnalysis,
-        recommendation: manualReviewSession.onChainAnalysis.recommendation,
-        overallRiskScore: manualReviewSession.onChainAnalysis.overallRiskScore,
-        scores: manualReviewSession.onChainAnalysis.scores,
-        topHolders: manualReviewSession.onChainAnalysis.topHolders,
+        executiveSummary: onChainAnalysisData?.executiveSummary || manualReviewSession?.onChainAnalysis?.executiveSummary,
+        tokenEconomics: onChainAnalysisData?.tokenEconomics || manualReviewSession?.onChainAnalysis?.tokenEconomics,
+        whaleDistribution: onChainAnalysisData?.whaleDistribution || manualReviewSession?.onChainAnalysis?.whaleDistribution,
+        insiderWallets: onChainAnalysisData?.insiderWallets || manualReviewSession?.onChainAnalysis?.insiderWallets,
+        devWalletAnalysis: onChainAnalysisData?.devWalletAnalysis || manualReviewSession?.onChainAnalysis?.devWalletAnalysis,
+        supplyAnalysis: onChainAnalysisData?.supplyAnalysis || manualReviewSession?.onChainAnalysis?.supplyAnalysis,
+        rugPullRisk: onChainAnalysisData?.rugPullRisk || manualReviewSession?.onChainAnalysis?.rugPullRisk,
+        priceManipulation: onChainAnalysisData?.priceManipulation || manualReviewSession?.onChainAnalysis?.priceManipulation,
+        hiddenGovernance: onChainAnalysisData?.hiddenGovernance || manualReviewSession?.onChainAnalysis?.hiddenGovernance,
+        complexBugs: onChainAnalysisData?.complexBugs || manualReviewSession?.onChainAnalysis?.complexBugs,
+        liquidityAnalysis: onChainAnalysisData?.liquidityAnalysis || manualReviewSession?.onChainAnalysis?.liquidityAnalysis,
+        clusterAnalysis: onChainAnalysisData?.clusterAnalysis || manualReviewSession?.onChainAnalysis?.clusterAnalysis,
+        scenarioAnalysis: onChainAnalysisData?.scenarioAnalysis || manualReviewSession?.onChainAnalysis?.scenarioAnalysis,
+        recommendation: onChainAnalysisData?.recommendation || manualReviewSession?.onChainAnalysis?.recommendation,
+        overallRiskScore: onChainAnalysisData?.overallRiskScore || manualReviewSession?.onChainAnalysis?.overallRiskScore,
+        scores: onChainAnalysisData?.scores || manualReviewSession?.onChainAnalysis?.scores,
+        topHolders: onChainAnalysisData?.topHolders || manualReviewSession?.onChainAnalysis?.topHolders,
       } : undefined,
     }
 
@@ -1630,25 +1632,34 @@ const TABS: [TabId, string][] = [
       status: c.status as "pass" | "fail" | "pending" | "n/a",
       note: c.note || "",
     })),
-    // On-Chain AI Analysis
-    onChainAnalysis: manualReviewSession?.onChainAnalysis ? {
-      executiveSummary: manualReviewSession.onChainAnalysis.executiveSummary,
-      tokenEconomics: manualReviewSession.onChainAnalysis.tokenEconomics,
-      whaleDistribution: manualReviewSession.onChainAnalysis.whaleDistribution,
-      insiderWallets: manualReviewSession.onChainAnalysis.insiderWallets,
-      devWalletAnalysis: manualReviewSession.onChainAnalysis.devWalletAnalysis,
-      supplyAnalysis: manualReviewSession.onChainAnalysis.supplyAnalysis,
-      rugPullRisk: manualReviewSession.onChainAnalysis.rugPullRisk,
-      priceManipulation: manualReviewSession.onChainAnalysis.priceManipulation,
-      hiddenGovernance: manualReviewSession.onChainAnalysis.hiddenGovernance,
-      complexBugs: manualReviewSession.onChainAnalysis.complexBugs,
-      liquidityAnalysis: manualReviewSession.onChainAnalysis.liquidityAnalysis,
-      clusterAnalysis: manualReviewSession.onChainAnalysis.clusterAnalysis,
-      scenarioAnalysis: manualReviewSession.onChainAnalysis.scenarioAnalysis,
-      recommendation: manualReviewSession.onChainAnalysis.recommendation,
-      overallRiskScore: manualReviewSession.onChainAnalysis.overallRiskScore,
-      scores: manualReviewSession.onChainAnalysis.scores,
-      topHolders: manualReviewSession.onChainAnalysis.topHolders,
+    // Manual On-Chain Analysis - use dedicated state with fallback
+    onChainAnalysis: (onChainAnalysisData || manualReviewSession?.onChainAnalysis) ? {
+      tokenName: onChainAnalysisData?.tokenName || manualReviewSession?.onChainAnalysis?.tokenName,
+      tokenSymbol: onChainAnalysisData?.tokenSymbol || manualReviewSession?.onChainAnalysis?.tokenSymbol,
+      tokenAddress: onChainAnalysisData?.tokenAddress || manualReviewSession?.onChainAnalysis?.tokenAddress,
+      tokenNetwork: onChainAnalysisData?.tokenNetwork || manualReviewSession?.onChainAnalysis?.tokenNetwork,
+      marketCap: onChainAnalysisData?.marketCap || manualReviewSession?.onChainAnalysis?.marketCap,
+      liquidity: onChainAnalysisData?.liquidity || manualReviewSession?.onChainAnalysis?.liquidity,
+      price: onChainAnalysisData?.price || manualReviewSession?.onChainAnalysis?.price,
+      volume24h: onChainAnalysisData?.volume24h || manualReviewSession?.onChainAnalysis?.volume24h,
+      holders: onChainAnalysisData?.holders || manualReviewSession?.onChainAnalysis?.holders,
+      executiveSummary: onChainAnalysisData?.executiveSummary || manualReviewSession?.onChainAnalysis?.executiveSummary,
+      tokenEconomics: onChainAnalysisData?.tokenEconomics || manualReviewSession?.onChainAnalysis?.tokenEconomics,
+      whaleDistribution: onChainAnalysisData?.whaleDistribution || manualReviewSession?.onChainAnalysis?.whaleDistribution,
+      insiderWallets: onChainAnalysisData?.insiderWallets || manualReviewSession?.onChainAnalysis?.insiderWallets,
+      devWalletAnalysis: onChainAnalysisData?.devWalletAnalysis || manualReviewSession?.onChainAnalysis?.devWalletAnalysis,
+      supplyAnalysis: onChainAnalysisData?.supplyAnalysis || manualReviewSession?.onChainAnalysis?.supplyAnalysis,
+      rugPullRisk: onChainAnalysisData?.rugPullRisk || manualReviewSession?.onChainAnalysis?.rugPullRisk,
+      priceManipulation: onChainAnalysisData?.priceManipulation || manualReviewSession?.onChainAnalysis?.priceManipulation,
+      hiddenGovernance: onChainAnalysisData?.hiddenGovernance || manualReviewSession?.onChainAnalysis?.hiddenGovernance,
+      complexBugs: onChainAnalysisData?.complexBugs || manualReviewSession?.onChainAnalysis?.complexBugs,
+      liquidityAnalysis: onChainAnalysisData?.liquidityAnalysis || manualReviewSession?.onChainAnalysis?.liquidityAnalysis,
+      clusterAnalysis: onChainAnalysisData?.clusterAnalysis || manualReviewSession?.onChainAnalysis?.clusterAnalysis,
+      scenarioAnalysis: onChainAnalysisData?.scenarioAnalysis || manualReviewSession?.onChainAnalysis?.scenarioAnalysis,
+      recommendation: onChainAnalysisData?.recommendation || manualReviewSession?.onChainAnalysis?.recommendation,
+      overallRiskScore: onChainAnalysisData?.overallRiskScore || manualReviewSession?.onChainAnalysis?.overallRiskScore,
+      scores: onChainAnalysisData?.scores || manualReviewSession?.onChainAnalysis?.scores,
+      topHolders: onChainAnalysisData?.topHolders || manualReviewSession?.onChainAnalysis?.topHolders,
     } : undefined,
   })}
                   className="w-full"
@@ -2487,6 +2498,15 @@ const TABS: [TabId, string][] = [
             likelihood: "Medium",
           })
         })
+      }}
+      onOnChainAnalysisData={(data) => {
+        // ── Immediately store the full on-chain analysis data for PDF export ──
+        // This ensures it's available even if the user doesn't complete the full review flow
+        setOnChainAnalysisData(data)
+        // Also update project name with token name
+        if (data.tokenName) {
+          setProjectName(data.tokenName)
+        }
       }}
       onReviewComplete={(session) => {
         // Aggiungi i finding confermati ai findings del workspace
