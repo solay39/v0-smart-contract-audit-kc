@@ -135,6 +135,16 @@ interface ManualReviewWorkspaceProps {
     recommendation: string
     proofOfConcept?: string
   }>
+  // Chiamata immediatamente quando l'auditor clicca "SAVE TO AUDIT REPORT" nel pannello on-chain
+  onOnChainFindings?: (findings: Array<{
+    id: string
+    title: string
+    severity: string
+    location: string
+    description: string
+    impact: string
+    recommendation: string
+  }>) => void
   // Chiamata quando l'auditor completa e firma la review
   onReviewComplete: (session: ReviewSession) => void
 }
@@ -157,6 +167,7 @@ export default function ManualReviewWorkspace({
   contractName,
   network,
   aiFindings,
+  onOnChainFindings,
   onReviewComplete,
 }: ManualReviewWorkspaceProps) {
 
@@ -507,65 +518,247 @@ export default function ManualReviewWorkspace({
                   onAnalysisComplete={(result) => {
                     // Save full on-chain analysis to session for PDF export
                     setSession(s => {
+                      const td = result.tokenData || {}
+                      const an = result.analysis || {}
+                      
                       const newOnChainAnalysis = {
-                        // Token info
-                        tokenName: result.tokenData?.name || result.tokenData?.tokenName,
-                        tokenSymbol: result.tokenData?.symbol || result.tokenData?.tokenSymbol,
-                        tokenAddress: result.tokenData?.tokenAddress,
-                        tokenNetwork: result.tokenData?.network,
-                        marketCap: result.tokenData?.marketCap,
-                        liquidity: result.tokenData?.liquidity,
-                        price: result.tokenData?.price,
-                        volume24h: result.tokenData?.volume24h,
-                        holders: result.tokenData?.totalHolders || result.tokenData?.holders,
+                        // Token info - use correct field names
+                        tokenName: td.name || td.tokenName,
+                        tokenSymbol: td.symbol || td.tokenSymbol,
+                        tokenAddress: td.tokenAddress,
+                        tokenNetwork: td.network,
+                        marketCap: td.marketCap,
+                        liquidity: (td.liquidityPools || []).reduce((sum: number, lp: { liquidity?: string }) => sum + parseFloat(lp.liquidity || "0"), 0),
+                        price: td.price,
+                        volume24h: td.volume24h,
+                        holders: td.totalHolders || td.holders,
                         // Analysis results
-                        executiveSummary: result.analysis?.executiveSummary,
-                        tokenEconomics: result.analysis?.tokenEconomics,
-                        whaleDistribution: result.analysis?.whaleDistribution,
-                        insiderWallets: result.analysis?.insiderWallets,
-                        devWalletAnalysis: result.analysis?.devWalletAnalysis,
-                        supplyAnalysis: result.analysis?.supplyAnalysis,
-                        rugPullRisk: result.analysis?.rugPullRisk,
-                        priceManipulation: result.analysis?.priceManipulation,
-                        hiddenGovernance: result.analysis?.hiddenGovernance,
-                        complexBugs: result.analysis?.complexBugs,
-                        liquidityAnalysis: result.analysis?.liquidityAnalysis,
-                        clusterAnalysis: result.analysis?.clusterAnalysis,
-                        scenarioAnalysis: result.analysis?.scenarioAnalysis,
-                        recommendation: result.analysis?.recommendation,
-                        overallRiskScore: result.analysis?.overallRiskScore,
-                        scores: result.analysis?.scores,
-                        topHolders: result.tokenData?.topHolders?.map((h: { address: string; percentage: number }) => ({
+                        executiveSummary: an.executiveSummary,
+                        tokenEconomics: an.tokenEconomics,
+                        whaleDistribution: an.whaleDistribution,
+                        insiderWallets: an.insiderWallets,
+                        devWalletAnalysis: an.devWalletAnalysis,
+                        supplyAnalysis: an.supplyAnalysis,
+                        rugPullRisk: an.rugPullRisk,
+                        priceManipulation: an.priceManipulation,
+                        hiddenGovernance: an.hiddenGovernance,
+                        complexBugs: an.complexBugs,
+                        liquidityAnalysis: an.liquidityAnalysis,
+                        clusterAnalysis: an.clusterAnalysis,
+                        scenarioAnalysis: an.scenarioAnalysis,
+                        recommendation: an.recommendation,
+                        overallRiskScore: an.overallRiskScore,
+                        scores: an.scores,
+                        topHolders: (td.topHolders || []).map((h: { address: string; percentage: number }) => ({
                           address: h.address,
                           percentage: h.percentage,
                         })),
-                        // New: audit findings and sections from merge endpoint
-                        auditFindings: result.auditFindings,
-                        auditSections: result.auditSections,
-                        scorePanel: result.scorePanel,
                       }
                       
-                      // Add on-chain findings to manual findings for high risk tokens
-                      const onchainFindings = result.auditFindings?.map((f: { id: string; title: string; severity: string; description: string; recommendation: string }) => ({
-                        id: f.id,
-                        title: f.title,
-                        severity: f.severity.toUpperCase() as Severity,
-                        location: result.tokenData?.tokenAddress || "On-Chain",
-                        description: f.description,
-                        impact: f.recommendation,
-                        recommendation: f.recommendation,
-                        addedBy: "ai" as const,
-                      })) || []
+                      // ── Build full set of on-chain findings (OC-001…) ──────────────
+                      const ts = Date.now()
+                      const top6Pct = (td.topHolders || []).slice(0, 6).reduce((sum: number, h: { percentage: number }) => sum + h.percentage, 0)
+                      const totalLiq = (td.liquidityPools || []).reduce((sum: number, lp: { liquidity?: string }) => sum + parseFloat(lp.liquidity || "0"), 0)
+                      const lpLocked = (td.liquidityPools || []).some((lp: { lpLocked?: boolean }) => lp.lpLocked)
+
+                      const ocFindings: typeof s.manualFindings = []
+
+                      if (td.mintAuthority) {
+                        ocFindings.push({
+                          id: `onchain-oc001-${ts}`,
+                          title: "OC-001 · Active Mint Authority Detected",
+                          severity: "HIGH" as Severity,
+                          location: String(td.mintAuthority),
+                          description: an.tokenEconomics || `Mint authority is ACTIVE at ${td.mintAuthority}. The controller can create unlimited new tokens at any time, inflating the supply and diluting all existing holders.`,
+                          impact: "Unlimited supply inflation. Existing holders diluted to zero at will.",
+                          recommendation: "Disable (revoke) the mint authority if a fixed supply is intended. Verify team's stated tokenomics match on-chain reality.",
+                          addedBy: "manual" as const,
+                        })
+                      }
+
+                      if (td.freezeAuthority) {
+                        ocFindings.push({
+                          id: `onchain-oc002-${ts}`,
+                          title: "OC-002 · Active Freeze Authority Detected",
+                          severity: "HIGH" as Severity,
+                          location: String(td.freezeAuthority),
+                          description: an.hiddenGovernance || `Freeze authority is ACTIVE at ${td.freezeAuthority}. Any wallet can be frozen and prevented from transacting at any time.`,
+                          impact: "Any wallet including investor wallets can be frozen instantly, blocking all transfers.",
+                          recommendation: "Disable freeze authority or document its use for compliance. Users must be warned of this centralised power.",
+                          addedBy: "manual" as const,
+                        })
+                      }
+
+                      if (top6Pct > 50) {
+                        ocFindings.push({
+                          id: `onchain-oc003-${ts}`,
+                          title: `OC-003 · High Whale Concentration — Top 6 Hold ${top6Pct.toFixed(1)}%`,
+                          severity: (top6Pct > 70 ? "CRITICAL" : "HIGH") as Severity,
+                          location: td.tokenAddress || "Token Contract",
+                          description: an.whaleDistribution || `Top 6 wallets control ${top6Pct.toFixed(1)}% of supply. This is a critical centralisation risk.`,
+                          impact: "Coordinated dump by top holders can collapse price instantly. Retail investors at extreme risk.",
+                          recommendation: "Monitor top wallets for coordinated selling. Prefer tokens where top 10 wallets hold <30%.",
+                          addedBy: "manual" as const,
+                        })
+                      }
+
+                      if (!lpLocked && totalLiq > 0) {
+                        ocFindings.push({
+                          id: `onchain-oc004-${ts}`,
+                          title: "OC-004 · Liquidity Pool NOT Locked",
+                          severity: "HIGH" as Severity,
+                          location: "DEX Liquidity Pool",
+                          description: `$${totalLiq.toLocaleString()} in liquidity is present but LP tokens are NOT locked. Developers can remove all liquidity instantly (direct rug pull vector).`,
+                          impact: "Complete loss of tradeable liquidity in a single transaction. Price drops to zero immediately.",
+                          recommendation: "Request team to lock LP via Team Finance or Unicrypt for ≥6 months. Verify lock on-chain before investing.",
+                          addedBy: "manual" as const,
+                        })
+                      }
+
+                      if ((td.liquidityPools || []).length === 0) {
+                        ocFindings.push({
+                          id: `onchain-oc005-${ts}`,
+                          title: "OC-005 · No Liquidity Pool Found",
+                          severity: "CRITICAL" as Severity,
+                          location: td.tokenAddress || "Token Contract",
+                          description: "No DEX liquidity pools detected for this token. Trading is impossible or occurs in unknown dark pools.",
+                          impact: "Token cannot be bought or sold on any verifiable DEX. Exit is impossible.",
+                          recommendation: "Do not invest. Token has no verifiable liquidity.",
+                          addedBy: "manual" as const,
+                        })
+                      }
+
+                      if (td.hasBlacklistFunction) {
+                        ocFindings.push({
+                          id: `onchain-oc006-${ts}`,
+                          title: "OC-006 · Blacklist Function in Contract",
+                          severity: "MEDIUM" as Severity,
+                          location: td.tokenAddress || "Token Contract",
+                          description: an.hiddenGovernance || "The smart contract includes a blacklist function. The owner can block specific wallets from transacting.",
+                          impact: "Investors can be selectively blocked from selling (honeypot vector). Transfers become conditional on owner approval.",
+                          recommendation: "Verify if blacklist is used for legitimate compliance or as a trap. Renounced ownership mitigates this risk.",
+                          addedBy: "manual" as const,
+                        })
+                      }
+
+                      if (td.hasPauseFunction) {
+                        ocFindings.push({
+                          id: `onchain-oc007-${ts}`,
+                          title: "OC-007 · Pausable Transfer Function",
+                          severity: "MEDIUM" as Severity,
+                          location: td.tokenAddress || "Token Contract",
+                          description: "Contract can pause all token transfers. In a rug scenario, the team could allow buying while blocking sells.",
+                          impact: "All transfers halted at owner's discretion. Funds permanently locked during pause.",
+                          recommendation: "Audit when/how the pause function can be triggered. Prefer renounced ownership.",
+                          addedBy: "manual" as const,
+                        })
+                      }
+
+                      if (td.isVerified === false) {
+                        ocFindings.push({
+                          id: `onchain-oc008-${ts}`,
+                          title: "OC-008 · Smart Contract Not Verified on Explorer",
+                          severity: "CRITICAL" as Severity,
+                          location: td.tokenAddress || "Token Contract",
+                          description: "The smart contract source code is NOT published on the block explorer. It is impossible to audit what the contract actually does.",
+                          impact: "Hidden malicious code possible. No independent verification of token mechanics.",
+                          recommendation: "Do not interact with unverified contracts. Request the team to verify the source immediately on the block explorer.",
+                          addedBy: "manual" as const,
+                        })
+                      }
+
+                      // Always add summary finding with full executive summary
+                      ocFindings.push({
+                        id: `onchain-oc000-${ts}`,
+                        title: `OC-000 · On-Chain Risk Assessment: ${an.overallRiskScore > 70 ? "HIGH" : an.overallRiskScore > 40 ? "MEDIUM" : "LOW"} RISK (Score ${an.overallRiskScore}/100)`,
+                        severity: (an.overallRiskScore > 70 ? "HIGH" : an.overallRiskScore > 40 ? "MEDIUM" : "LOW") as Severity,
+                        location: td.tokenAddress || "Token Contract",
+                        description: an.executiveSummary || an.recommendation || "On-chain analysis completed.",
+                        impact: an.rugPullRisk || "See full on-chain analysis for details.",
+                        recommendation: an.recommendation || "Review all on-chain findings carefully before interacting with this token.",
+                        addedBy: "manual" as const,
+                      })
+
+                      const newManualFindings = [
+                        ...s.manualFindings.filter(f => !f.id.startsWith("onchain-")), // remove stale onchain findings
+                        ...ocFindings,
+                      ]
                       
                       return {
                         ...s,
                         onChainAnalysis: newOnChainAnalysis,
-                        manualFindings: [
-                          ...s.manualFindings.filter(f => !f.id.startsWith("OC-")), // Remove old on-chain findings
-                          ...onchainFindings,
-                        ],
+                        manualFindings: newManualFindings,
                       }
                     })
+                    
+                    // ── Immediately push on-chain findings to the audit workspace ──
+                    if (onOnChainFindings) {
+                      const td2 = result.tokenData || {}
+                      const an2 = result.analysis || {}
+                      const top6 = (td2.topHolders || []).slice(0, 6).reduce((s: number, h: { percentage: number }) => s + h.percentage, 0)
+                      const liq2 = (td2.liquidityPools || []).reduce((s: number, lp: { liquidity?: string }) => s + parseFloat(lp.liquidity || "0"), 0)
+                      const locked2 = (td2.liquidityPools || []).some((lp: { lpLocked?: boolean }) => lp.lpLocked)
+                      const ts2 = Date.now()
+                      
+                      const ocForCallback: Array<{id: string; title: string; severity: string; location: string; description: string; impact: string; recommendation: string}> = []
+                      
+                      if (td2.mintAuthority) {
+                        ocForCallback.push({
+                          id: `OC-001-${ts2}`,
+                          title: "OC-001 · Active Mint Authority Detected",
+                          severity: "HIGH",
+                          location: String(td2.mintAuthority),
+                          description: an2.tokenEconomics || `Mint authority is ACTIVE. Unlimited token minting possible.`,
+                          impact: "Unlimited supply inflation.",
+                          recommendation: "Disable mint authority if fixed supply intended.",
+                        })
+                      }
+                      if (td2.freezeAuthority) {
+                        ocForCallback.push({
+                          id: `OC-002-${ts2}`,
+                          title: "OC-002 · Active Freeze Authority Detected",
+                          severity: "HIGH",
+                          location: String(td2.freezeAuthority),
+                          description: `Freeze authority is ACTIVE. Any wallet can be frozen.`,
+                          impact: "Wallets can be frozen instantly.",
+                          recommendation: "Disable freeze authority.",
+                        })
+                      }
+                      if (top6 > 50) {
+                        ocForCallback.push({
+                          id: `OC-003-${ts2}`,
+                          title: `OC-003 · High Whale Concentration — Top 6 Hold ${top6.toFixed(1)}%`,
+                          severity: top6 > 70 ? "CRITICAL" : "HIGH",
+                          location: td2.tokenAddress || "Token",
+                          description: `Top 6 wallets control ${top6.toFixed(1)}% of supply.`,
+                          impact: "Coordinated dump risk.",
+                          recommendation: "Monitor top wallets.",
+                        })
+                      }
+                      if (!locked2 && liq2 > 0) {
+                        ocForCallback.push({
+                          id: `OC-004-${ts2}`,
+                          title: "OC-004 · Liquidity Pool NOT Locked",
+                          severity: "HIGH",
+                          location: "DEX LP",
+                          description: `$${liq2.toLocaleString()} liquidity but LP not locked.`,
+                          impact: "Rug pull vector.",
+                          recommendation: "Lock LP for ≥6 months.",
+                        })
+                      }
+                      // Summary
+                      ocForCallback.push({
+                        id: `OC-000-${ts2}`,
+                        title: `OC-000 · Risk Score: ${an2.overallRiskScore}/100`,
+                        severity: an2.overallRiskScore > 70 ? "HIGH" : an2.overallRiskScore > 40 ? "MEDIUM" : "LOW",
+                        location: td2.tokenAddress || "Token",
+                        description: an2.executiveSummary || "On-chain analysis completed.",
+                        impact: an2.rugPullRisk || "See analysis.",
+                        recommendation: an2.recommendation || "Review findings.",
+                      })
+                      
+                      onOnChainFindings(ocForCallback)
+                    }
                   }}
                 />
               </div>

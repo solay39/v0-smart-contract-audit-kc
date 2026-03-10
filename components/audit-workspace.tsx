@@ -2437,6 +2437,20 @@ const TABS: [TabId, string][] = [
         recommendation: String((f as Record<string, unknown>).recommendation || ""),
         proofOfConcept: (f as Record<string, unknown>).proofOfConcept as string | undefined,
       }))}
+      onOnChainFindings={(ocFindings) => {
+        // ── Immediately inject on-chain findings into the audit findings panel ──
+        ocFindings.forEach(f => {
+          importFinding({
+            title: f.title,
+            severity: f.severity as Finding["severity"],
+            location: f.location,
+            description: f.description,
+            impact: f.impact,
+            recommendation: f.recommendation,
+            likelihood: "Medium",
+          })
+        })
+      }}
       onReviewComplete={(session) => {
         // Aggiungi i finding confermati ai findings del workspace
         const confirmedCount = session.aiFindings.filter(f => f.decision === "confirmed" || f.decision === "modified").length
