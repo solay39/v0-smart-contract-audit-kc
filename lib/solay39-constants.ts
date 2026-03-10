@@ -2,6 +2,20 @@
 // SOLAY39 — CONSTANTS & TYPES
 // ════════════════════════════════════════════════════════════════
 
+// Re-export helper functions for consistent audit scoring
+export {
+  checkMintProtection,
+  calculateEngagementMetrics,
+  calculateTier1Score,
+  generateScopeTable,
+  generateConsistentSimulations,
+  TIER1_SCORING_CONFIG,
+  type ScoringConfig,
+  type ScoredFinding,
+  type ScopeEntry as ScopeEntryV2,
+  type AttackSimResult,
+} from "./audit-engine-helpers"
+
 export const FOUNDER_EMAIL = "lippo.f80@gmail.com"
 export const FOUNDER_PASS = "Solay39!Audit#2025"
 export const PUB_EMAIL = "solay2126@gmail.com"
@@ -29,6 +43,17 @@ export interface Finding {
   cvss?: { vectorString: string; baseScore: number; severity: string; [key: string]: unknown }
   cwe?: { id: string; name: string; url: string }
   swc?: { id: string; name: string; url: string } | null
+  /**
+   * FIX 06: Distinguish code vulnerabilities from operational notes
+   * 
+   * - isCodeFinding = true: Smart contract vulnerability (counts toward score)
+   * - isCodeFinding = false: Operational/market risk like "LP not locked" (NOT counted in score)
+   * 
+   * CertiK and Halborn separate these explicitly:
+   * - Code Security Findings (count toward score)
+   * - Operational/Market Risks (separate informational section)
+   */
+  isCodeFinding?: boolean
 }
 
 // ── Code Quality & Complexity Metrics ────────────────────────

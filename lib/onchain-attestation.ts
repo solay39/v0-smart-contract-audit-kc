@@ -383,6 +383,117 @@ export async function verifyAuditAllChains(auditId: string): Promise<OnChainAudi
   return results
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// FIX 05: VERIFIED ON-CHAIN STATUS (instead of PENDING)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Extended ABI for the publishAudit registry format
+const REGISTRY_ABI_V2 = parseAbi([
+  "function verifyReport(bytes32 auditKey, bytes32 hash) view returns (bool valid, tuple(string reportId, string projectName, bytes32 reportHash, address contractAddr, uint256 auditDate, uint8 score, uint8 criticalCount, uint8 highCount, string ipfsCid, bool isActive) record)",
+  "function getAllAudits() view returns (bytes32[])",
+  "event AuditPublished(bytes32 indexed auditKey, string reportId, address contractAddr, bytes32 reportHash, uint256 timestamp)",
+])
+
+export interface VerifyAuditResult {
+  status: "VERIFIED" | "HASH_MISMATCH" | "NOT_FOUND" | "PENDING" | "ERROR"
+  record?: {
+    projectName: string
+    auditDate: Date
+    score: number
+    criticals: number
+    highs: number
+    ipfsCid: string
+    txHash?: string
+  }
+  error?: string
+}
+
+/**
+ * FIX 05: Verify audit on-chain using the deployed Solay39AuditRegistry contract.
+ * 
+ * Returns "VERIFIED" if the report hash matches on-chain,
+ * "HASH_MISMATCH" if found but hash differs,
+ * "NOT_FOUND" if audit not registered,
+ * "PENDING" if registry not yet deployed,
+ * "ERROR" if RPC call fails.
+ */
+export async function verifyAuditOnChain(
+  auditKey: string,
+  reportHash: string,
+  network: "bsc" | "ethereum" | "arbitrum" = "bsc"
+): Promise<VerifyAuditResult> {
+  // Check if registry is deployed from env or use known address
+  const REGISTRY_ADDRESS = 
+    process.env.NEXT_PUBLIC_REGISTRY_ADDRESS ||
+    REGISTRY_ADDRESSES[network === "ethereum" ? "mainnet" : network]
+  
+  // If no registry deployed yet, return PENDING
+  if (!REGISTRY_ADDRESS || REGISTRY_ADDRESS === "0x0000000000000000000000000000000000000000") {
+    return { 
+      status: "PENDING", 
+      error: "Registry contract not deployed. Run scripts/deploy-registry.ts" 
+    }
+  }
+
+  const RPC_URLS: Record<string, string> = {
+    bsc: "https://bsc-dataseed.binance.org",
+    ethereum: "https://cloudflare-eth.com",
+    arbitrum: "https://arb1.arbitrum.io/rpc",
+  }
+
+  try {
+    const chainKey = network === "ethereum" ? "mainnet" : network
+    const client = getPublicClient(chainKey as SupportedChain)
+    
+    // Convert auditKey to bytes32
+    const auditKeyHash = keccak256(toBytes(auditKey))
+    const reportHashBytes = sha256ToBytes32(reportHash)
+    
+    const result = await client.readContract({
+      address: REGISTRY_ADDRESS as `0x${string}`,
+      abi: REGISTRY_ABI_V2,
+      functionName: "verifyReport",
+      args: [auditKeyHash, reportHashBytes],
+    })
+    
+    // Type assertion for the tuple return
+    const [valid, record] = result as [boolean, {
+      reportId: string
+      projectName: string
+      reportHash: Hex
+      contractAddr: `0x${string}`
+      auditDate: bigint
+      score: number
+      criticalCount: number
+      highCount: number
+      ipfsCid: string
+      isActive: boolean
+    }]
+
+    if (!record.isActive) {
+      return { status: "NOT_FOUND" }
+    }
+
+    return {
+      status: valid ? "VERIFIED" : "HASH_MISMATCH",
+      record: {
+        projectName: record.projectName,
+        auditDate: new Date(Number(record.auditDate) * 1000),
+        score: record.score,
+        criticals: record.criticalCount,
+        highs: record.highCount,
+        ipfsCid: record.ipfsCid,
+      },
+    }
+  } catch (err) {
+    console.error("[verifyAuditOnChain] RPC error:", err)
+    return {
+      status: "ERROR",
+      error: err instanceof Error ? err.message : "RPC call failed",
+    }
+  }
+}
+
 // Type augmentation for window.ethereum
 declare global {
   interface Window {

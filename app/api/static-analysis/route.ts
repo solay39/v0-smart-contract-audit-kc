@@ -93,162 +93,185 @@ async function runRealAnalysis(code: string, contractName: string): Promise<Anal
 }
 
 // Pattern-based analysis when external service unavailable
+// FIXED: Smarter patterns to reduce false positives and add missing checks
 function runPatternAnalysis(code: string): AnalysisResult {
   const findings: SlitherFinding[] = []
   const mythrilFindings: MythrilFinding[] = []
-  
   const lines = code.split("\n")
-  
-  // Slither-style pattern detection
-  const patterns = [
-    {
-      regex: /pragma\s+solidity\s*\^?[<>=]*\s*(0\.[0-7]\.\d+|0\.8\.[0-9])/,
-      check: "solc-version",
-      impact: "INFORMATIONAL",
-      desc: "Different versions of Solidity are used"
-    },
-    {
-      regex: /\.call\{.*value:/,
-      check: "low-level-calls",
-      impact: "INFORMATIONAL",
-      desc: "Low level call in contract"
-    },
-    {
-      regex: /tx\.origin/,
-      check: "tx-origin",
-      impact: "MEDIUM",
-      desc: "Dangerous usage of tx.origin"
-    },
-    {
-      regex: /block\.timestamp|now/,
-      check: "timestamp",
-      impact: "LOW",
-      desc: "Dangerous usage of block.timestamp"
-    },
-    {
-      regex: /delegatecall/,
-      check: "controlled-delegatecall",
-      impact: "HIGH",
-      desc: "Controlled delegatecall destination"
-    },
-    {
-      regex: /selfdestruct|suicide/,
-      check: "suicidal",
-      impact: "HIGH",
-      desc: "Contract can be self-destructed"
-    },
-    {
-      regex: /assembly\s*\{/,
-      check: "assembly",
-      impact: "INFORMATIONAL",
-      desc: "Assembly usage"
-    },
-    {
-      regex: /unchecked\s*\{/,
-      check: "unchecked-arithmetic",
-      impact: "MEDIUM",
-      desc: "Unchecked arithmetic operations"
-    },
-    {
-      regex: /\.transfer\(|\.send\(/,
-      check: "calls-loop",
-      impact: "LOW",
-      desc: "Multiple calls in a loop"
-    },
-    {
-      regex: /external.*call.*\n.*state/i,
-      check: "reentrancy-eth",
-      impact: "HIGH",
-      desc: "Potential reentrancy vulnerability"
-    },
-  ]
-  
-  lines.forEach((line, idx) => {
-    patterns.forEach(p => {
-      if (p.regex.test(line)) {
-        findings.push({
-          check: p.check,
-          impact: p.impact,
-          confidence: "MEDIUM",
-          description: p.desc,
-          elements: [{
-            type: "node",
-            name: "",
-            filename: "Contract.sol",
-            lines: [idx + 1]
-          }]
-        })
-      }
+
+  // Helper functions
+  function addSlither(line: number, check: string, impact: string, desc: string) {
+    findings.push({
+      check, impact, confidence: "MEDIUM", description: desc,
+      elements: [{ type: "node", name: "", filename: "Contract.sol", lines: [line] }],
     })
-  })
-  
-  // Mythril-style SWC detection
-  const swcPatterns = [
-    {
-      regex: /delegatecall.*\(/,
-      swc_id: "SWC-112",
-      swc_title: "Delegatecall to Untrusted Callee",
-      severity: "HIGH"
-    },
-    {
-      regex: /tx\.origin/,
-      swc_id: "SWC-115",
-      swc_title: "Authorization through tx.origin",
-      severity: "MEDIUM"
-    },
-    {
-      regex: /block\.(timestamp|number)/,
-      swc_id: "SWC-116",
-      swc_title: "Block values as a proxy for time",
-      severity: "LOW"
-    },
-    {
-      regex: /selfdestruct/,
-      swc_id: "SWC-106",
-      swc_title: "Unprotected SELFDESTRUCT Instruction",
-      severity: "HIGH"
-    },
-    {
-      regex: /\.call\{value:/,
-      swc_id: "SWC-107",
-      swc_title: "Reentrancy",
-      severity: "HIGH"
-    },
-  ]
-  
-  lines.forEach((line, idx) => {
-    swcPatterns.forEach(p => {
-      if (p.regex.test(line)) {
-        mythrilFindings.push({
-          swc_id: p.swc_id,
-          swc_title: p.swc_title,
-          severity: p.severity,
-          description: `Potential ${p.swc_title} detected`,
-          contract: "Contract",
-          function: "",
-          lineno: idx + 1,
-          code: line.trim().slice(0, 100)
-        })
-      }
+  }
+  function addMythril(line: number, swc_id: string, title: string, sev: string, codeSnip: string) {
+    mythrilFindings.push({
+      swc_id, swc_title: title, severity: sev,
+      description: `Potential ${title} detected`,
+      contract: "Contract", function: "", lineno: line,
+      code: codeSnip.trim().slice(0, 100),
     })
+  }
+
+  lines.forEach((line, idx) => {
+    const n = idx + 1
+
+    // Pragma version
+    if (/pragma\s+solidity\s*\^/.test(line)) {
+      addSlither(n, "solc-version", "INFORMATIONAL", "Floating pragma version detected")
+    }
+
+    // Low-level calls
+    if (/\.call\{.*value:/.test(line)) {
+      addSlither(n, "low-level-calls", "INFORMATIONAL", "Low level ETH transfer call")
+    }
+
+    // tx.origin
+    if (/tx\.origin/.test(line) && /require|==|!=/.test(line)) {
+      addSlither(n, "tx-origin", "MEDIUM", "Dangerous usage of tx.origin for authorization")
+      addMythril(n, "SWC-115", "Authorization through tx.origin", "MEDIUM", line)
+    }
+
+    // FIX: Timestamp — only flag if suspicious context (not permit deadline)
+    if (/block\.timestamp|now\b/.test(line)) {
+      const isLegitDeadline = /deadline|expir|lock|until|PERMIT|permit/.test(line.toLowerCase())
+      const isSuspicious = /lottery|random|seed|winner|entropy/.test(line.toLowerCase())
+
+      if (isSuspicious) {
+        addSlither(n, "timestamp", "LOW", "block.timestamp used for game/random logic — miner-influenceable")
+        addMythril(n, "SWC-116", "Block values as proxy for randomness", "LOW", line)
+      } else if (!isLegitDeadline) {
+        addSlither(n, "timestamp", "INFORMATIONAL", "block.timestamp usage — verify not used for critical decisions")
+      }
+      // isLegitDeadline → NO finding (permit deadline, lock period = legitimate)
+    }
+
+    // delegatecall
+    if (/\.delegatecall\(/.test(line)) {
+      addSlither(n, "controlled-delegatecall", "HIGH", "Controlled delegatecall destination")
+      addMythril(n, "SWC-112", "Delegatecall to Untrusted Callee", "HIGH", line)
+    }
+
+    // selfdestruct
+    if (/selfdestruct\(|suicide\(/.test(line)) {
+      addSlither(n, "suicidal", "HIGH", "Contract can be self-destructed")
+      addMythril(n, "SWC-106", "Unprotected SELFDESTRUCT", "HIGH", line)
+    }
+
+    // assembly
+    if (/assembly\s*\{/.test(line)) {
+      addSlither(n, "assembly", "INFORMATIONAL", "Inline assembly usage")
+    }
+
+    // FIX: unchecked — only flag if non-standard context
+    if (/unchecked\s*\{/.test(line)) {
+      const context = lines.slice(Math.max(0, idx - 3), idx + 5).join(" ")
+      const isStandardBalance = /balanceOf|totalSupply/.test(context)
+      const isSimpleCounter = /\+\+\s*$|-- $/.test(context) && !/transfer|withdraw|value/.test(context)
+
+      if (!isStandardBalance && !isSimpleCounter) {
+        addSlither(n, "unchecked-arithmetic", "MEDIUM",
+          "Unchecked arithmetic in non-standard context — verify overflow impossibility")
+      }
+      // Standard usage (ERC-20 balance, counter) → no finding
+    }
+
+    // NEW: EIP-2612 permit analysis
+    if (/function\s+permit\s*\(/.test(line)) {
+      const fullCode = code
+      const hasDomainSep = /DOMAIN_SEPARATOR|computeDomainSeparator/.test(fullCode)
+      const hasChainId = /block\.chainid|INITIAL_CHAIN_ID/.test(fullCode)
+      const hasNonces = /nonces\[/.test(fullCode)
+
+      if (!hasDomainSep) {
+        addSlither(n, "eip2612-no-domain-separator", "HIGH",
+          "permit() function without DOMAIN_SEPARATOR — signatures valid on all chains")
+        addMythril(n, "SWC-121", "Missing Protection against Signature Replay", "HIGH", line)
+      } else if (!hasChainId) {
+        addSlither(n, "eip2612-no-chainid", "MEDIUM",
+          "DOMAIN_SEPARATOR does not include chainId — cross-chain replay possible")
+      }
+      if (!hasNonces) {
+        addSlither(n, "eip2612-no-nonces", "HIGH",
+          "permit() without nonce tracking — signature replay possible")
+      }
+    }
+
+    // NEW: mint + supply cap check
+    if (/function\s+mint\s*\(/.test(line)) {
+      const mintSignature = lines.slice(idx, idx + 3).join(" ")
+      const isProtected = /onlyOwner|onlyRole|onlyMinter/.test(mintSignature)
+      const hasSupplyCap = /MAX_SUPPLY|maxSupply|totalSupply.*<=|<= MAX/.test(code)
+
+      if (!isProtected) {
+        addSlither(n, "unprotected-mint", "HIGH",
+          "mint() function lacks access control — anyone can inflate supply")
+        addMythril(n, "SWC-105", "Unprotected Ether Withdrawal (mint equivalent)", "HIGH", line)
+      } else if (!hasSupplyCap) {
+        addSlither(n, "uncapped-mint", "MEDIUM",
+          "mint() has access control but no supply cap — compromised owner can inflate unboundedly")
+      }
+    }
+
+    // FIX: Reentrancy — correct multi-line check
+    if (/\.call\{value:|\.call\(/.test(line)) {
+      const nextLines = lines.slice(idx + 1, idx + 15).join("\n")
+      const hasStateChange = /\w+\s*=\s*[^=]|\.push\(|delete\s/.test(nextLines)
+      const hasGuard = /nonReentrant|ReentrancyGuard/.test(code)
+
+      if (hasStateChange && !hasGuard) {
+        addSlither(n, "reentrancy-eth", "HIGH",
+          "State change after external call — potential reentrancy (no ReentrancyGuard detected)")
+        addMythril(n, "SWC-107", "Reentrancy", "HIGH", line)
+      }
+    }
+
+    // NEW: transferOwnership zero-address
+    if (/function\s+transferOwnership\s*\(/.test(line)) {
+      const funcBody = lines.slice(idx, idx + 10).join("\n")
+      const hasZeroCheck = /address\(0\)|!=\s*address/.test(funcBody)
+      if (!hasZeroCheck) {
+        addSlither(n, "missing-zero-check", "LOW",
+          "transferOwnership() without zero-address validation — accidental lock possible")
+      }
+    }
   })
-  
+
+  // Deduplicate by check+line
+  const seenSlither = new Set<string>()
+  const uniqueSlither = findings.filter(f => {
+    const key = `${f.check}-${f.elements[0].lines[0]}`
+    if (seenSlither.has(key)) return false
+    seenSlither.add(key)
+    return true
+  })
+
+  const seenMythril = new Set<string>()
+  const uniqueMythril = mythrilFindings.filter(f => {
+    const key = `${f.swc_id}-${f.lineno}`
+    if (seenMythril.has(key)) return false
+    seenMythril.add(key)
+    return true
+  })
+
   return {
     slither: {
       tool: "slither",
-      version: "0.11.5-pattern",
+      version: "0.11.5-pattern-fixed",
       success: true,
-      findings,
-      detectors_run: patterns.length,
-      error: null
+      findings: uniqueSlither,
+      detectors_run: 14,
+      error: null,
     },
     mythril: {
       tool: "mythril",
-      version: "0.24.x-pattern",
+      version: "0.24.x-pattern-fixed",
       success: true,
-      findings: mythrilFindings,
-      error: null
-    }
+      findings: uniqueMythril,
+      error: null,
+    },
   }
 }
 
