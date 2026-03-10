@@ -426,6 +426,43 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     memo: string
     timestamp: string
   } | null>(null)
+  
+  // ── Dedicated state for on-chain analysis data (independent of manualReviewSession) ──
+  // This is populated immediately when the user clicks "SAVE TO AUDIT REPORT" in the on-chain panel
+  // so that it survives even if the user doesn't complete the full manual review flow
+  const [onChainAnalysisData, setOnChainAnalysisData] = useState<{
+    tokenName?: string
+    tokenSymbol?: string
+    tokenAddress?: string
+    tokenNetwork?: string
+    marketCap?: number
+    liquidity?: number
+    price?: number
+    volume24h?: number
+    holders?: number
+    executiveSummary?: string
+    tokenEconomics?: string
+    whaleDistribution?: string
+    insiderWallets?: string
+    devWalletAnalysis?: string
+    supplyAnalysis?: string
+    rugPullRisk?: string
+    priceManipulation?: string
+    hiddenGovernance?: string
+    complexBugs?: string
+    liquidityAnalysis?: string
+    clusterAnalysis?: string
+    scenarioAnalysis?: string
+    recommendation?: string
+    overallRiskScore?: number
+    scores?: {
+      smartContractSecurity?: number
+      decentralization?: number
+      liquidityHealth?: number
+      manipulationRisk?: string
+    }
+    topHolders?: { address: string; percentage: number }[]
+  } | null>(null)
 
   const allChecks = Object.values(checks).flatMap((c) => Object.values(c))
   // SINGLE SOURCE OF TRUTH: always use V2 engine for score computation
