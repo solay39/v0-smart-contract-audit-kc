@@ -61,6 +61,14 @@ export function OnChainAnalysisPanel({ contractAddress, network, onAnalysisCompl
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [expandedSection, setExpandedSection] = useState<string | null>("summary")
+  const [savedToAudit, setSavedToAudit] = useState(false)
+
+  const handleSaveToAudit = () => {
+    if (result && onAnalysisComplete) {
+      onAnalysisComplete(result)
+      setSavedToAudit(true)
+    }
+  }
 
   const runAnalysis = async () => {
     if (!contractAddress) {
@@ -528,12 +536,55 @@ export function OnChainAnalysisPanel({ contractAddress, network, onAnalysisCompl
             severity={result.analysis.overallRiskScore <= 30 ? "safe" : result.analysis.overallRiskScore <= 60 ? "warning" : "danger"}
           />
 
+          {/* Save to Audit Button */}
+          <div style={{ 
+            display: "flex", 
+            justifyContent: "center", 
+            marginTop: 16,
+            paddingTop: 16,
+            borderTop: "1px solid #1e2a3a",
+          }}>
+            <button
+              onClick={handleSaveToAudit}
+              disabled={savedToAudit}
+              style={{
+                background: savedToAudit ? "#0d1117" : "linear-gradient(135deg, #00ff88 0%, #00e5ff 100%)",
+                color: savedToAudit ? "#00ff88" : "#0a0c10",
+                border: savedToAudit ? "1px solid #00ff8850" : "none",
+                padding: "12px 32px",
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                cursor: savedToAudit ? "default" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              {savedToAudit ? (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M3 7l2.5 2.5L11 4" stroke="#00ff88" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  SAVED TO AUDIT
+                </>
+              ) : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M11 8.5V11a1 1 0 01-1 1H3a1 1 0 01-1-1V4a1 1 0 011-1h2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M8 2h4v4M12 2L6.5 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  SAVE TO AUDIT REPORT
+                </>
+              )}
+            </button>
+          </div>
+
           {/* Timestamp */}
           <div style={{ 
             textAlign: "center", 
-            marginTop: 16, 
-            padding: "12px 0",
-            borderTop: "1px solid #1e2a3a",
+            marginTop: 12, 
+            padding: "8px 0",
             color: "#445566",
             fontSize: 8,
           }}>

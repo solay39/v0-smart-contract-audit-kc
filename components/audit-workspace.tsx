@@ -1173,10 +1173,6 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     }
 
     // ── Step 3: Compute SHA-256 report integrity before saving ──
-    console.log("[v0] portfolioEntry.onChainAnalysis:", portfolioEntry.onChainAnalysis)
-    console.log("[v0] portfolioEntry.securityChecklist:", portfolioEntry.securityChecklist)
-    console.log("[v0] manualReviewSession:", manualReviewSession)
-    
     const reportJson = JSON.stringify(portfolioEntry)
     const sha256 = await computeReportHash(reportJson)
     const reportIntegrity = buildReportIntegrity(portfolioEntry.id, sha256)
