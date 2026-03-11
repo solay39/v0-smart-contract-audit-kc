@@ -21,6 +21,7 @@ import { computeReportHash, buildReportIntegrity } from "@/lib/enterprise-standa
 import Solay39Validator from "@/components/solay39-validator"
 import { useAuditValidator, ValidationPanel } from "@/components/validation-panel"
 import ManualReviewWorkspace from "@/components/manual-review-workspace"
+import { Tier1AnalysisPanel } from "@/components/tier1-analysis-panel"
 
 // ════════════════════════════════════════════════════════════════
 // BLOCKCHAIN TAB — Solana On-Chain Attestation
@@ -317,6 +318,14 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const [architectureOverview, setArchitectureOverview] = useState("")
   const [attackSurface, setAttackSurface] = useState<{ title: string; type: string; description: string; likelihood: string; mitigated: boolean }[]>([])
   const [toolingUsed, setToolingUsed] = useState<string[]>([])
+  // Tier-1 Analysis Results (Slither, Mythril, Foundry, Halmos, Cross-contract)
+  const [tier1Results, setTier1Results] = useState<{
+    staticAnalysis?: { slither: { version: string; success: boolean; findingsCount: number; detectorsRun: number }; mythril: { version: string; success: boolean; findingsCount: number }; rawFindings: number } | null
+    fuzzingResults?: { success: boolean; runs: number; vulnerabilitiesFound: number; tool: string; version: string } | null
+    formalVerificationResults?: { success: boolean; proofsChecked: number; failed: number; tool: string; version: string } | null
+    crossContractAnalysis?: { success: boolean; risksFound: number; externalDependencies: string[] } | null
+    analysisMode: string
+  } | null>(null)
   // Manual Review Session
   const [manualReviewSession, setManualReviewSession] = useState<{
     completedAt?: string
@@ -1290,6 +1299,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     setAiNote("")
     setContractMeta(null)
     setApiScoreBreakdown(null)
+    setTier1Results(null)
     try {
       const res = await fetch("/api/skynet", {
         method: "POST",
@@ -1340,6 +1350,16 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       if (data.architectureOverview) setArchitectureOverview(data.architectureOverview)
       if (data.attackSurface) setAttackSurface(data.attackSurface)
       if (data.toolingUsed) setToolingUsed(data.toolingUsed)
+      // Tier-1 Analysis Engine Results (Slither, Mythril, Foundry, Halmos, Cross-contract)
+      if (data.staticAnalysis || data.fuzzingResults || data.formalVerificationResults || data.crossContractAnalysis) {
+        setTier1Results({
+          staticAnalysis: data.staticAnalysis,
+          fuzzingResults: data.fuzzingResults,
+          formalVerificationResults: data.formalVerificationResults,
+          crossContractAnalysis: data.crossContractAnalysis,
+          analysisMode: data.analysisMode || "pattern",
+        })
+      }
       // Tier-1 advanced
       if (data.governanceSecurity) setGovernanceSecurity(data.governanceSecurity)
       if (data.upgradeabilityAnalysis) setUpgradeabilityAnalysis(data.upgradeabilityAnalysis)
@@ -2358,6 +2378,19 @@ const TABS: [TabId, string][] = [
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Tier-1 Analysis Engine Panel */}
+            {tier1Results && (
+              <div className="mb-5">
+                <Tier1AnalysisPanel
+                  staticAnalysis={tier1Results.staticAnalysis}
+                  fuzzingResults={tier1Results.fuzzingResults}
+                  formalVerificationResults={tier1Results.formalVerificationResults}
+                  crossContractAnalysis={tier1Results.crossContractAnalysis}
+                  analysisMode={tier1Results.analysisMode}
+                />
               </div>
             )}
 

@@ -1491,13 +1491,74 @@ ${truncatedCode}`
           return true
         })
 
-      // ── REAL STATIC ANALYSIS: Run Slither + Mythril ──────────────────
+      // ── TIER-1 ANALYSIS: Run all tools in parallel ──────────────────
+      // This includes: Static Analysis (Slither/Mythril), Fuzzing (Foundry),
+      // Formal Verification (Halmos), and Cross-contract Analysis
+      
       let staticAnalysisResults: StaticAnalysisResult | null = null
       let staticAnalysisFindings: Finding[] = []
+      let fuzzResults: { success: boolean; vulnerabilities?: Array<{ test: string; severity: string; details: string }> } | null = null
+      let formalVerifyResults: { success: boolean; proofs?: Array<{ property: string; status: string; counterexample?: string }> } | null = null
+      let crossContractResults: { success: boolean; risks?: Array<{ type: string; severity: string; details: string }> } | null = null
       
       // Only run on Solidity code
       if (!meta.isNonEVM && meta.codeLanguage === "Solidity") {
-        staticAnalysisResults = await runStaticAnalysis(code, contractName || "Contract")
+        const baseUrl = process.env.VERCEL_URL 
+          ? `https://${process.env.VERCEL_URL}` 
+          : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+        
+        // Run all analysis tools in parallel for speed
+        const [staticRes, fuzzRes, formalRes, crossRes] = await Promise.allSettled([
+          runStaticAnalysis(code, contractName || "Contract"),
+          // Foundry Fuzzing (if backend configured)
+          (async () => {
+            if (!process.env.STATIC_ANALYSIS_API_URL) return null
+            try {
+              const res = await fetch(`${baseUrl}/api/fuzz`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code, contractName: contractName || "Contract", runs: 10000 }),
+              })
+              return res.ok ? await res.json() : null
+            } catch { return null }
+          })(),
+          // Formal Verification (if backend configured)
+          (async () => {
+            if (!process.env.STATIC_ANALYSIS_API_URL) return null
+            try {
+              const res = await fetch(`${baseUrl}/api/formal-verify`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code, contractName: contractName || "Contract" }),
+              })
+              return res.ok ? await res.json() : null
+            } catch { return null }
+          })(),
+          // Cross-contract Analysis
+          (async () => {
+            if (!contractAddress) return null
+            try {
+              const res = await fetch(`${baseUrl}/api/cross-contract`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                  code, 
+                  contractAddress, 
+                  network: network || "ethereum" 
+                }),
+              })
+              return res.ok ? await res.json() : null
+            } catch { return null }
+          })(),
+        ])
+        
+        // Extract results
+        staticAnalysisResults = staticRes.status === "fulfilled" ? staticRes.value : null
+        fuzzResults = fuzzRes.status === "fulfilled" ? fuzzRes.value : null
+        formalVerifyResults = formalRes.status === "fulfilled" ? formalRes.value : null
+        crossContractResults = crossRes.status === "fulfilled" ? crossRes.value : null
+        
+        // Convert static analysis to findings
         if (staticAnalysisResults) {
           staticAnalysisFindings = convertStaticAnalysisToFindings(staticAnalysisResults)
           
@@ -1511,6 +1572,56 @@ ${truncatedCode}`
             if (!isDuplicate) {
               findings.push(sf)
             }
+          }
+        }
+        
+        // Convert fuzz vulnerabilities to findings
+        if (fuzzResults?.vulnerabilities) {
+          for (const vuln of fuzzResults.vulnerabilities) {
+            const severity = vuln.severity === "CRITICAL" ? "CRITICAL" : 
+                           vuln.severity === "HIGH" ? "HIGH" : 
+                           vuln.severity === "MEDIUM" ? "MEDIUM" : "LOW"
+            findings.push({
+              title: `[Foundry Fuzz] ${vuln.test}`,
+              severity,
+              location: "Fuzz Test",
+              description: vuln.details,
+              impact: "Property violation detected during 10,000 fuzz runs",
+              recommendation: "Fix the invariant violation identified by fuzzing",
+            })
+          }
+        }
+        
+        // Convert formal verification counterexamples to findings
+        if (formalVerifyResults?.proofs) {
+          for (const proof of formalVerifyResults.proofs) {
+            if (proof.status === "FAILED" && proof.counterexample) {
+              findings.push({
+                title: `[Halmos] ${proof.property} Violated`,
+                severity: "CRITICAL",
+                location: "Formal Verification",
+                description: `Mathematical proof failed: ${proof.property}. Counterexample: ${proof.counterexample}`,
+                impact: "Formal verification found a concrete violation of expected behavior",
+                recommendation: "Review the counterexample and fix the underlying logic error",
+              })
+            }
+          }
+        }
+        
+        // Convert cross-contract risks to findings
+        if (crossContractResults?.risks) {
+          for (const risk of crossContractResults.risks) {
+            const severity = risk.severity === "CRITICAL" ? "CRITICAL" :
+                           risk.severity === "HIGH" ? "HIGH" :
+                           risk.severity === "MEDIUM" ? "MEDIUM" : "LOW"
+            findings.push({
+              title: `[Cross-Contract] ${risk.type}`,
+              severity,
+              location: "External Integration",
+              description: risk.details,
+              impact: "Risk identified in cross-contract interaction",
+              recommendation: "Review external contract dependencies and add appropriate safeguards",
+            })
           }
         }
       }
@@ -2014,6 +2125,30 @@ return Response.json({
     },
     rawFindings: staticAnalysisFindings.length,
   } : null,
+  // Foundry Fuzzing Results
+  fuzzingResults: fuzzResults ? {
+    success: fuzzResults.success,
+    runs: 10000,
+    vulnerabilitiesFound: fuzzResults.vulnerabilities?.length || 0,
+    tool: "Foundry Forge",
+    version: "latest",
+  } : null,
+  // Formal Verification Results (Halmos)
+  formalVerificationResults: formalVerifyResults ? {
+    success: formalVerifyResults.success,
+    proofsChecked: formalVerifyResults.proofs?.length || 0,
+    failed: formalVerifyResults.proofs?.filter(p => p.status === "FAILED").length || 0,
+    tool: "Halmos",
+    version: "0.1.x",
+  } : null,
+  // Cross-Contract Analysis Results
+  crossContractAnalysis: crossContractResults ? {
+    success: crossContractResults.success,
+    risksFound: crossContractResults.risks?.length || 0,
+    externalDependencies: crossContractResults.risks?.map(r => r.type) || [],
+  } : null,
+  // Analysis Mode (real vs pattern-based)
+  analysisMode: process.env.STATIC_ANALYSIS_API_URL ? "tier1-real" : "tier1-pattern",
   // Tier-1 sections
   privilegedRoles,
         trustAssumptions,
