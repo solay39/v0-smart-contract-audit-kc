@@ -75,33 +75,48 @@ async function fetchEVMTokenData(address: string, network: string): Promise<OnCh
     // 2. Get holder data from blockchain explorer API
     const etherscanKey = process.env.ETHERSCAN_API_KEY || ""
     const holdersUrl = `https://api.etherscan.io/v2/api?chainid=${chainId}&module=token&action=tokenholderlist&contractaddress=${address}&page=1&offset=100${etherscanKey ? `&apikey=${etherscanKey}` : ""}`
-    const holderCountUrl = `https://api.etherscan.io/v2/api?chainid=${chainId}&module=token&action=tokeninfo&contractaddress=${address}${etherscanKey ? `&apikey=${etherscanKey}` : ""}`
+    const tokenInfoUrl = `https://api.etherscan.io/v2/api?chainid=${chainId}&module=token&action=tokeninfo&contractaddress=${address}${etherscanKey ? `&apikey=${etherscanKey}` : ""}`
 
     let topHolders: TokenHolder[] = []
     let totalHolders = 0
+    let totalSupplyRaw = "0"
+    let decimals = 18
     
     try {
-      // Fetch top holders list and total holder count in parallel
-      const [holdersRes, holderCountRes] = await Promise.all([
+      // Fetch top holders list and token info (including total supply) in parallel
+      const [holdersRes, tokenInfoRes] = await Promise.all([
         fetch(holdersUrl),
-        fetch(holderCountUrl),
+        fetch(tokenInfoUrl),
       ])
       const holdersData = await holdersRes.json()
-      const holderCountData = await holderCountRes.json()
+      const tokenInfoData = await tokenInfoRes.json()
 
-      if (holdersData?.result) {
-        topHolders = holdersData.result.slice(0, 20).map((h: { TokenHolderAddress: string; TokenHolderQuantity: string; share?: number }) => ({
-          address: h.TokenHolderAddress,
-          balance: h.TokenHolderQuantity,
-          percentage: h.share || 0,
-        }))
-        totalHolders = holdersData.result.length
+      // Get total supply and decimals from tokeninfo API
+      if (tokenInfoData?.status === "1" && tokenInfoData?.result?.[0]) {
+        const info = tokenInfoData.result[0]
+        totalSupplyRaw = info.totalSupply || "0"
+        decimals = parseInt(info.divisor || info.decimals || "18", 10)
+        const holderCount = parseInt(info.holdersCount || "0", 10)
+        if (!isNaN(holderCount) && holderCount > 0) totalHolders = holderCount
       }
 
-      // Use the accurate holder count from tokeninfo API if available
-      if (holderCountData?.status === "1" && holderCountData?.result?.[0]?.holdersCount) {
-        const count = parseInt(holderCountData.result[0].holdersCount, 10)
-        if (!isNaN(count) && count > 0) totalHolders = count
+      // FIX: Calculate percentage from balance/totalSupply instead of relying on non-existent 'share' field
+      if (holdersData?.result && Array.isArray(holdersData.result)) {
+        const totalSupplyBigInt = BigInt(totalSupplyRaw || "1")
+        topHolders = holdersData.result.slice(0, 20).map((h: { TokenHolderAddress: string; TokenHolderQuantity: string }) => {
+          const balanceBigInt = BigInt(h.TokenHolderQuantity || "0")
+          // Calculate percentage: (balance / totalSupply) * 100
+          // Use BigInt math: (balance * 10000) / totalSupply gives basis points, then divide by 100
+          const percentageBasisPoints = totalSupplyBigInt > 0n 
+            ? Number((balanceBigInt * 10000n) / totalSupplyBigInt)
+            : 0
+          return {
+            address: h.TokenHolderAddress,
+            balance: h.TokenHolderQuantity,
+            percentage: percentageBasisPoints / 100, // Convert basis points to percentage
+          }
+        })
+        if (totalHolders === 0) totalHolders = holdersData.result.length
       }
     } catch { /* continue */ }
     
@@ -122,14 +137,76 @@ async function fetchEVMTokenData(address: string, network: string): Promise<OnCh
       hasBlacklistFunction = source.includes("blacklist") || source.includes("isblacklisted") || source.includes("_isexcluded")
     } catch { /* continue */ }
     
-    // 4. Check LP lock status via Team Finance / Unicrypt APIs
+    // 4. Check LP lock status via Team Finance / Unicrypt / GoPlusLabs APIs
     const liquidityPools: OnChainData["liquidityPools"] = []
-    if (pair) {
+    let lpLocked = false
+    let lockDuration = ""
+    
+    // Try GoPlusLabs Security API (free, reliable) for LP lock status
+    try {
+      const chainIdForGoPlus = {
+        1: "1", 56: "56", 137: "137", 42161: "42161", 8453: "8453", 43114: "43114"
+      }[chainId] || "1"
+      const goPlusRes = await fetch(`https://api.gopluslabs.io/api/v1/token_security/${chainIdForGoPlus}?contract_addresses=${address}`)
+      const goPlusData = await goPlusRes.json()
+      const tokenSecurity = goPlusData?.result?.[address.toLowerCase()]
+      
+      if (tokenSecurity) {
+        // GoPlus returns lp_holders with locked status
+        const lpHolders = tokenSecurity.lp_holders || []
+        for (const lp of lpHolders) {
+          if (lp.is_locked === "1" || lp.locked_detail?.length > 0) {
+            lpLocked = true
+            // Get lock end time if available
+            const lockDetail = lp.locked_detail?.[0]
+            if (lockDetail?.end_time) {
+              const endDate = new Date(parseInt(lockDetail.end_time) * 1000)
+              lockDuration = endDate > new Date() ? `Locked until ${endDate.toISOString().split('T')[0]}` : "Lock expired"
+            }
+          }
+        }
+        
+        // Also check direct lock fields
+        if (tokenSecurity.is_in_dex === "1" && tokenSecurity.lp_total_supply) {
+          // Has DEX liquidity
+        }
+      }
+    } catch { /* continue - GoPlus not available */ }
+    
+    // Fallback: Check Team Finance API directly
+    if (!lpLocked) {
+      try {
+        const teamFinanceRes = await fetch(`https://api.team.finance/api/v2/locks?chainId=${chainId}&tokenAddress=${address}`)
+        const teamFinanceData = await teamFinanceRes.json()
+        if (teamFinanceData?.locks?.length > 0) {
+          lpLocked = true
+          const lock = teamFinanceData.locks[0]
+          if (lock.unlockTime) {
+            const endDate = new Date(lock.unlockTime * 1000)
+            lockDuration = `Team Finance: Locked until ${endDate.toISOString().split('T')[0]}`
+          }
+        }
+      } catch { /* continue */ }
+    }
+    
+    // Add all DEX pairs found
+    if (dexData?.pairs) {
+      for (const p of dexData.pairs.slice(0, 5)) {
+        liquidityPools.push({
+          dex: p.dexId || "Unknown DEX",
+          pair: `${p.baseToken?.symbol || "?"}-${p.quoteToken?.symbol || "?"}`,
+          liquidity: p.liquidity?.usd?.toString() || "0",
+          lpLocked,
+          lockDuration: lockDuration || undefined,
+        })
+      }
+    } else if (pair) {
       liquidityPools.push({
         dex: pair.dexId || "Unknown DEX",
         pair: `${pair.baseToken?.symbol || "?"}-${pair.quoteToken?.symbol || "?"}`,
         liquidity: pair.liquidity?.usd?.toString() || "0",
-        lpLocked: false, // Would need Team Finance API to verify
+        lpLocked,
+        lockDuration: lockDuration || undefined,
       })
     }
 
@@ -193,8 +270,8 @@ async function fetchEVMTokenData(address: string, network: string): Promise<OnCh
       network,
       name: tokenNameFallback || "Unknown",
       symbol: tokenSymbolFallback || "???",
-      decimals: 18,
-      totalSupply: pair?.fdv?.toString() || "0",
+      decimals,
+      totalSupply: totalSupplyRaw || pair?.fdv?.toString() || "0",
       topHolders,
       totalHolders,
       liquidityPools,
