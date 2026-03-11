@@ -1,7 +1,7 @@
+import { NextRequest, NextResponse } from "next/server"
+
 export const runtime = "nodejs"
 export const maxDuration = 120
-
-import { NextRequest, NextResponse } from "next/server"
 
 /**
  * Formal Verification API using Halmos
