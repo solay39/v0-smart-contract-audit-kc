@@ -1542,9 +1542,11 @@ ${truncatedCode}`
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
-                  code, 
+                  code,
+                  contractName: contractName || "Contract",
                   contractAddress, 
-                  network: network || "ethereum" 
+                  network: network || "ethereum",
+                  fetchDependencies: true // REAL ON-CHAIN: Fetch dependency contracts from Etherscan
                 }),
               })
               return res.ok ? await res.json() : null

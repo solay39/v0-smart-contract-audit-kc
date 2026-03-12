@@ -45,6 +45,80 @@ interface CrossContractReport {
   recommendations: string[]
 }
 
+// Chain IDs for Etherscan API v2
+const CHAIN_IDS: Record<string, number> = {
+  ethereum: 1,
+  bsc: 56,
+  polygon: 137,
+  arbitrum: 42161,
+  base: 8453,
+  avalanche: 43114,
+  optimism: 10,
+}
+
+// Fetch contract source code from Etherscan
+async function fetchContractSource(address: string, network: string = "ethereum"): Promise<{ name: string; source: string; abi: string } | null> {
+  const chainId = CHAIN_IDS[network.toLowerCase()] || 1
+  const apiKey = process.env.ETHERSCAN_API_KEY || ""
+  
+  try {
+    const url = `https://api.etherscan.io/v2/api?chainid=${chainId}&module=contract&action=getsourcecode&address=${address}${apiKey ? `&apikey=${apiKey}` : ""}`
+    const res = await fetch(url)
+    const data = await res.json()
+    
+    if (data.status === "1" && data.result?.[0]?.SourceCode) {
+      const result = data.result[0]
+      let sourceCode = result.SourceCode
+      
+      // Handle Solidity Standard JSON format (wrapped in {{}})
+      if (sourceCode.startsWith("{{")) {
+        try {
+          const parsed = JSON.parse(sourceCode.slice(1, -1))
+          // Combine all source files
+          const sources = parsed.sources || {}
+          sourceCode = Object.values(sources)
+            .map((s: unknown) => (s as { content?: string }).content || "")
+            .join("\n\n")
+        } catch {
+          // Keep original if parsing fails
+        }
+      }
+      
+      return {
+        name: result.ContractName || "Unknown",
+        source: sourceCode,
+        abi: result.ABI || "[]"
+      }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+// Extract imported contract addresses from source code
+function extractDependencyAddresses(code: string): string[] {
+  const addresses: string[] = []
+  
+  // Match hardcoded addresses
+  const addressMatches = code.matchAll(/(?:address|constant|immutable)[^=]*=\s*(0x[a-fA-F0-9]{40})/gi)
+  for (const match of addressMatches) {
+    if (!addresses.includes(match[1].toLowerCase())) {
+      addresses.push(match[1].toLowerCase())
+    }
+  }
+  
+  // Match addresses in constructor or initializer
+  const constructorAddresses = code.matchAll(/(?:constructor|initialize)\s*\([^)]*\)\s*[^{]*\{[^}]*?(0x[a-fA-F0-9]{40})/gi)
+  for (const match of constructorAddresses) {
+    if (!addresses.includes(match[1].toLowerCase())) {
+      addresses.push(match[1].toLowerCase())
+    }
+  }
+  
+  return addresses
+}
+
 // Known DeFi protocols and their risk profiles
 const KNOWN_PROTOCOLS: Record<string, { name: string; type: ContractDependency["type"]; risk: ContractDependency["risk"] }> = {
   // Oracles
@@ -378,7 +452,7 @@ function analyzeCrossContract(code: string, contractName: string): CrossContract
 
 export async function POST(req: NextRequest) {
   try {
-    const { code, contractName = "Contract", relatedContracts = [] } = await req.json()
+    const { code, contractName = "Contract", contractAddress, network = "ethereum", fetchDependencies = true } = await req.json()
     
     if (!code) {
       return NextResponse.json({ error: "Missing 'code' parameter" }, { status: 400 })
@@ -386,23 +460,135 @@ export async function POST(req: NextRequest) {
     
     const report = analyzeCrossContract(code, contractName)
     
-    // If related contracts provided, analyze interactions
-    if (relatedContracts.length > 0) {
-      for (const related of relatedContracts) {
-        const relatedReport = analyzeCrossContract(related.code, related.name)
-        report.dependencies.push(...relatedReport.dependencies.map(d => ({
-          ...d,
-          description: `[${related.name}] ${d.description}`
-        })))
-        report.risks.push(...relatedReport.risks.map(r => ({
-          ...r,
-          id: `${related.name}-${r.id}`,
-          affectedContracts: [related.name, ...r.affectedContracts]
-        })))
+    // REAL ON-CHAIN: Fetch dependency contracts from Etherscan
+    if (fetchDependencies && contractAddress) {
+      // Extract addresses referenced in the code
+      const dependencyAddresses = extractDependencyAddresses(code)
+      
+      // Add known protocol addresses found in code patterns
+      const knownAddressMatches = code.matchAll(/(0x[a-fA-F0-9]{40})/gi)
+      for (const match of knownAddressMatches) {
+        const addr = match[1].toLowerCase()
+        if (!dependencyAddresses.includes(addr)) {
+          dependencyAddresses.push(addr)
+        }
       }
+      
+      // Limit to first 10 dependencies to avoid rate limits
+      const addressesToFetch = dependencyAddresses.slice(0, 10)
+      
+      // Fetch all dependency contracts in parallel
+      const fetchPromises = addressesToFetch.map(async (addr) => {
+        // Check if it's a known protocol first
+        const known = KNOWN_PROTOCOLS[addr]
+        if (known) {
+          return {
+            address: addr,
+            name: known.name,
+            type: known.type,
+            risk: known.risk,
+            critical: known.type === "oracle" || known.type === "lending",
+            description: `Known protocol: ${known.name}`,
+            source: null as string | null,
+            fetchedFromChain: false
+          }
+        }
+        
+        // Fetch from Etherscan
+        const contractData = await fetchContractSource(addr, network)
+        if (contractData) {
+          return {
+            address: addr,
+            name: contractData.name,
+            type: "unknown" as const,
+            risk: "MEDIUM" as const,
+            critical: false,
+            description: `External dependency: ${contractData.name}`,
+            source: contractData.source,
+            fetchedFromChain: true
+          }
+        }
+        
+        return {
+          address: addr,
+          name: "Unverified Contract",
+          type: "unknown" as const,
+          risk: "HIGH" as const,
+          critical: true,
+          description: "Contract source not verified on Etherscan - CANNOT AUDIT",
+          source: null,
+          fetchedFromChain: false
+        }
+      })
+      
+      const fetchedDeps = await Promise.all(fetchPromises)
+      
+      // Analyze fetched dependencies
+      for (const dep of fetchedDeps) {
+        report.dependencies.push({
+          address: dep.address,
+          name: dep.name,
+          type: dep.type,
+          critical: dep.critical,
+          risk: dep.risk,
+          description: dep.description
+        })
+        
+        // If we got source code, analyze it too
+        if (dep.source && dep.fetchedFromChain) {
+          const depReport = analyzeCrossContract(dep.source, dep.name)
+          
+          // Merge critical risks from dependencies
+          for (const risk of depReport.risks) {
+            if (risk.severity === "CRITICAL" || risk.severity === "HIGH") {
+              report.risks.push({
+                ...risk,
+                id: `DEP-${dep.name}-${risk.id}`,
+                title: `[${dep.name}] ${risk.title}`,
+                affectedContracts: [dep.name, contractName, ...risk.affectedContracts]
+              })
+            }
+          }
+          
+          // Check for vulnerable dependency versions
+          if (/openzeppelin.*3\.[0-3]|openzeppelin.*2\./.test(dep.source.toLowerCase())) {
+            report.risks.push({
+              id: `DEP-${dep.name}-VER`,
+              title: `[${dep.name}] Outdated OpenZeppelin Version`,
+              severity: "HIGH",
+              category: "dependency",
+              description: `Dependency ${dep.name} uses outdated OpenZeppelin contracts with known vulnerabilities`,
+              affectedContracts: [dep.name, contractName],
+              mitigation: "Update dependency to latest OpenZeppelin version (5.x)"
+            })
+          }
+        }
+        
+        // Flag unverified contracts as high risk
+        if (!dep.source && dep.risk === "HIGH") {
+          report.risks.push({
+            id: `DEP-${dep.address.slice(0, 10)}-UNVERIFIED`,
+            title: "Unverified Dependency Contract",
+            severity: "HIGH",
+            category: "dependency",
+            description: `Contract at ${dep.address} is not verified on Etherscan - source code cannot be audited`,
+            affectedContracts: [dep.address, contractName],
+            mitigation: "Request contract verification or replace with verified alternative"
+          })
+        }
+      }
+      
+      // Add metadata about on-chain analysis
+      report.attackSurfaces.push(`${fetchedDeps.filter(d => d.fetchedFromChain).length} dependency contracts fetched from ${network}`)
+      report.attackSurfaces.push(`${fetchedDeps.filter(d => !d.source).length} unverified contracts detected`)
     }
     
-    return NextResponse.json(report)
+    return NextResponse.json({
+      ...report,
+      analysisMode: fetchDependencies && contractAddress ? "on-chain-real" : "static-only",
+      network: network,
+      timestamp: new Date().toISOString()
+    })
     
   } catch (error) {
     return NextResponse.json(
