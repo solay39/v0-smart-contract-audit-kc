@@ -1257,7 +1257,7 @@ You MUST respond ONLY with valid JSON (no markdown, no code fences):
     "assetsAtRisk": ["string — e.g. Token supply integrity, Transfer functionality, Proxy implementation address"]
   },
   "formalVerification": {
-    "tool": "string — e.g. Certora Prover (conceptual) + Foundry invariants",
+    "tool": "string — e.g. Halmos + Foundry invariants",
     "invariants": [
       { "id": "INV-01", "property": "string", "description": "string", "status": "VERIFIED|FAILED|PARTIAL", "method": "string" }
     ]

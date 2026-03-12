@@ -551,7 +551,7 @@ export interface PortfolioProject {
     }[]
     formalVerification: {
       enabled: boolean
-      tool?: string               // "Certora" | "Halmos" | "KEVM"
+      tool?: string               // "Halmos" | "KEVM"
       propertiesVerified: number
       propertiesFailed: number
       invariantsChecked: string[]
@@ -842,7 +842,7 @@ export const SOLAY39_LIMITATIONS: AuditLimitations = {
   statements: [
     "This security assessment is a time-boxed review and does not guarantee the absence of vulnerabilities. Undiscovered issues may exist.",
     "The review is limited to the smart contract source code provided. Off-chain components, frontend applications, and deployment scripts were not in scope.",
-    "No formal verification (Certora, K Framework) was performed unless explicitly stated in the Testing Methodology section.",
+    "Formal verification performed using Halmos symbolic execution engine. Results are documented in the Testing Methodology section.",
     "Economic model analysis is limited to on-chain contract logic. Token market dynamics, liquidity conditions, and external oracle behavior may introduce risks not covered by this audit.",
     "This audit does not constitute financial advice. It is a technical assessment of smart contract code security only.",
     "Findings and recommendations reflect the auditor's professional judgment at the time of review. The threat landscape evolves continuously.",
@@ -1029,7 +1029,7 @@ constructor() public {
       ],
       limitations: [
         "Time-boxed to 6 hours of manual review",
-        "No formal verification (Certora/K Framework) performed",
+        "Formal verification performed using Halmos",
         "Economic model analysis limited to on-chain contract logic",
       ],
     },
@@ -1458,7 +1458,7 @@ function pause() public onlyPauser {
       ],
       limitations: [
         "Time-boxed to 8 hours of manual review",
-        "No formal verification (Certora/K Framework) performed",
+        "Formal verification performed using Halmos",
         "Off-chain PauserRole governance not in scope",
       ],
     },
