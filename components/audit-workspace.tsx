@@ -1240,14 +1240,20 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
 
     // ── Step 3.5: Save to Vercel Blob for server-side persistence ──
     try {
-      await fetch("/api/audits", {
+      const blobRes = await fetch("/api/audits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ audit: enrichedEntry }),
       })
-    } catch {
-      // Non-critical: localStorage is the primary fallback
-      console.warn("Failed to persist audit to server Blob")
+      if (!blobRes.ok) {
+        const errorData = await blobRes.json().catch(() => ({}))
+        console.error("[v0] Blob save failed:", blobRes.status, errorData)
+      } else {
+        const blobData = await blobRes.json()
+        console.log("[v0] Audit saved to Blob:", blobData.id, blobData.url)
+      }
+    } catch (blobErr) {
+      console.error("[v0] Blob save exception:", blobErr)
     }
 
     // ── Step 4: Upload to GitHub ──
