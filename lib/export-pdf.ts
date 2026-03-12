@@ -787,14 +787,18 @@ ${(() => {
   const leadAuditors = eng?.numberOfAuditors || 1
   const reviewers = teamSize - leadAuditors
   
-  const teamRoles = [
-    { role: "Lead Security Architects", count: 4, focus: "Architecture review, threat modeling, final approval" },
-    { role: "Senior Auditors", count: 20, focus: "Deep code review, vulnerability detection, PoC development" },
-    { role: "Protocol Specialists", count: 28, focus: "DeFi mechanics, economic attacks, cross-chain security" },
-    { role: "Static Analysis Engineers", count: 18, focus: "Slither, Mythril, Semgrep, custom detectors" },
-    { role: "Fuzzing & Testing Team", count: 22, focus: "Foundry, Echidna, invariant testing, coverage analysis" },
-    { role: "Formal Verification Team", count: 8, focus: "Halmos, symbolic execution, mathematical proofs" },
-    { role: "AI/ML Security Team", count: 8, focus: "AI-assisted analysis, pattern recognition, anomaly detection" },
+// Dynamic team based on actual engagement data
+  const actualTeamSize = eng?.securityEngineersInvolved || 1
+  const teamRoles = actualTeamSize === 1 ? [
+    { role: "Security Auditor", count: 1, focus: "Full-stack audit: code review, static analysis, on-chain verification" },
+  ] : actualTeamSize <= 3 ? [
+    { role: "Lead Security Auditor", count: 1, focus: "Architecture review, threat modeling, final sign-off" },
+    { role: "Smart Contract Auditor", count: actualTeamSize - 1, focus: "Manual code review, vulnerability analysis" },
+  ] : [
+    { role: "Lead Security Auditor", count: Math.ceil(actualTeamSize * 0.1), focus: "Architecture review, threat modeling, final sign-off" },
+    { role: "Smart Contract Auditors", count: Math.ceil(actualTeamSize * 0.4), focus: "Manual code review, vulnerability analysis" },
+    { role: "Static Analysis Engineers", count: Math.ceil(actualTeamSize * 0.3), focus: "Slither, Mythril, Foundry fuzzing" },
+    { role: "On-Chain Analysts", count: Math.ceil(actualTeamSize * 0.2), focus: "Holder analysis, liquidity verification, ownership checks" },
   ]
   
   const teamHtml = teamRoles.map(t => 
@@ -813,7 +817,7 @@ ${(() => {
       <p style="color:#8899aa;font-size:10px;line-height:1.6">${ap.description}</p>
     </div>` : `<div style="margin-bottom:14px">
       <div style="font-size:18px;font-weight:700;color:#eef4fa;margin-bottom:4px">Solay39 Security</div>
-      <p style="color:#8899aa;font-size:10px;line-height:1.6">Solay39 is a blockchain security firm specializing in smart contract audits. Our team combines deep manual review with AI-assisted analysis to deliver comprehensive security assessments for DeFi protocols, NFT platforms, and cross-chain applications.</p>
+      <p style="color:#8899aa;font-size:10px;line-height:1.6">Solay39 is a blockchain security firm specializing in smart contract audits. We combine deep manual code review with automated static analysis (Slither, Mythril), formal verification (Halmos), and dynamic testing (Foundry) to deliver comprehensive security assessments for DeFi protocols, NFT platforms, and cross-chain applications.</p>
     </div>`}
     
     ${h2("Review Team")}
@@ -836,7 +840,7 @@ ${(() => {
     </div>
     
     ${h2("Methodology")}
-    <p style="color:#8899aa;font-size:10px;line-height:1.6;margin-bottom:14px">${ap?.methodology || "Our audit methodology combines manual code review with automated static analysis (Slither, Mythril), dynamic testing (Foundry, Echidna), and AI-assisted vulnerability detection. Each finding is verified by at least two independent reviewers before inclusion in the final report."}</p>
+    <p style="color:#8899aa;font-size:10px;line-height:1.6;margin-bottom:14px">${ap?.methodology || "Our audit methodology combines manual code review with automated static analysis (Slither, Mythril), formal verification (Halmos), and dynamic testing (Foundry, Echidna). Each finding is verified through multiple analysis passes before inclusion in the final report."}</p>
     
     ${h2("Areas of Expertise")}
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">

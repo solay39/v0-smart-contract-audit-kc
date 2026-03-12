@@ -119,6 +119,14 @@ async function fetchEVMTokenData(address: string, network: string): Promise<OnCh
         if (totalHolders === 0) totalHolders = holdersData.result.length
       }
     } catch { /* continue */ }
+
+    // Fallback: If no holders data, try to use DEX Screener liquidity data for whale estimation
+    if (topHolders.length === 0 && pair?.liquidity?.usd) {
+      // Can't get real holders without API, note this in the response
+      topHolders = [
+        { address: "Data unavailable", balance: "0", percentage: 0, label: "Etherscan API key required for holder data" }
+      ]
+    }
     
     // 3. Get contract source to check for dangerous functions
     let hasMintFunction = false
@@ -717,7 +725,9 @@ BE BRUTALLY HONEST. This is a professional security audit.`
     executiveSummary: `${data.name} (${data.symbol}) on ${data.network}. Risk Score: ${riskScore}/100. ${riskScore > 70 ? "HIGH RISK - Multiple red flags detected. Not recommended for investment." : riskScore > 40 ? "MEDIUM RISK - Some concerns identified. Proceed with caution." : "LOWER RISK - Standard DeFi risks apply."}`,
     tokenEconomics: `Total Supply: ${data.totalSupply}. ${data.mintAuthority ? "WARNING: Mint authority is ACTIVE - the team can create unlimited new tokens, causing inflation and diluting existing holders." : "Mint authority is DISABLED - fixed supply, no inflation risk."} ${data.freezeAuthority ? "WARNING: Freeze authority is ACTIVE - any wallet can be frozen at any time." : ""}`,
     tokenomicsAnalysis: `Total Supply: ${data.totalSupply}. ${data.mintAuthority ? "WARNING: Mint authority is ACTIVE." : "Mint authority is DISABLED."}`,
-    whaleDistribution: `TOP HOLDER CONCENTRATION:\n- #1 Wallet: ${top1Pct.toFixed(2)}% of supply\n- Top 6 Wallets: ${top6Pct.toFixed(2)}% of supply\n\n${top6Pct > 70 ? "CRITICAL: Extreme concentration. ~" + top6Pct.toFixed(0) + "% of supply controlled by top 6 wallets. High risk of coordinated dump." : top6Pct > 50 ? "WARNING: High concentration. Risk of whale manipulation." : "Distribution appears reasonable."}`,
+    whaleDistribution: top1Pct === 0 && top6Pct === 0 
+      ? `TOP HOLDER CONCENTRATION:\nHolder data unavailable. Etherscan API key required for detailed holder analysis.\n\nTo get holder data, add ETHERSCAN_API_KEY environment variable.`
+      : `TOP HOLDER CONCENTRATION:\n- #1 Wallet: ${top1Pct.toFixed(2)}% of supply\n- Top 6 Wallets: ${top6Pct.toFixed(2)}% of supply\n\n${top6Pct > 70 ? "CRITICAL: Extreme concentration. ~" + top6Pct.toFixed(0) + "% of supply controlled by top 6 wallets. High risk of coordinated dump." : top6Pct > 50 ? "WARNING: High concentration. Risk of whale manipulation." : "Distribution appears reasonable."}`,
     insiderWallets: `Wallet Pattern Analysis:\nTypical pattern observed:\n- Deployer -> Treasury wallet -> Distribution wallet -> Exchange/DEX\n\nThis suggests many top wallets are likely:\n- Team wallets\n- Treasury allocations\n- Marketing/Advisor allocations\n- Early investors\n\nThese are NOT independent retail holders.`,
     devWalletAnalysis: `Developer wallet analysis requires transaction history tracing. Key concerns:\n${data.hasMintFunction ? "- Mint function EXISTS - team can create new tokens" : "- No mint function"}\n${data.owner ? "- Owner: " + data.owner : "- Ownership renounced or unknown"}\n\nRecommendation: Trace deployer wallet and verify if team wallets have vesting schedules.`,
     supplyAnalysis: `Total Supply: ${data.totalSupply}\nCirculating: Unknown (requires manual verification)\n${data.mintAuthority ? "Supply is NOT FIXED - can be inflated by mint authority: " + data.mintAuthority : "Supply is FIXED - no new tokens can be minted."}`,
