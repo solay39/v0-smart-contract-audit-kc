@@ -328,20 +328,43 @@ function extractContractMeta(code: string, network: string): ContractMeta {
 function computeScoreBreakdown(
   baseScore: number,
   meta: ContractMeta,
-  findingCount: { critical: number; high: number; medium: number; low: number; info: number }
+  findingCount: { critical: number; high: number; medium: number; low: number; info: number },
+  // NEW: passa i findings per distinguere code findings da LP/economic
+  findings?: Array<{ severity: string; title?: string; id?: string }>
 ): Record<string, number> {
-  // Code Security: directly from findings
+
+  // Separa code findings da LP/economic findings
+  // H-01 "LP NOT Locked" è risk assessment economico, NON una vulnerabilità del codice.
+  // NON deve penalizzare codeSecurity.
+  const isLpLockFinding = (f: { title?: string; id?: string }) => {
+    const t = (f.title || '').toLowerCase()
+    const id = (f.id || '').toLowerCase()
+    return t.includes('lp') && (t.includes('lock') || t.includes('locked')) ||
+           t.includes('liquidity') && t.includes('lock') ||
+           id.includes('oc-004')
+  }
+
+  const codeFindings = findings
+    ? {
+        critical: findings.filter(f => f.severity === 'CRITICAL' && !isLpLockFinding(f)).length,
+        high:     findings.filter(f => f.severity === 'HIGH'     && !isLpLockFinding(f)).length,
+        medium:   findings.filter(f => f.severity === 'MEDIUM'   && !isLpLockFinding(f)).length,
+        low:      findings.filter(f => f.severity === 'LOW'      && !isLpLockFinding(f)).length,
+        info:     findings.filter(f => f.severity === 'INFO'     && !isLpLockFinding(f)).length,
+      }
+    : findingCount
+
+  // Code Security: solo code findings
   let codeSecurity = 100
-    - findingCount.critical * 25
-    - findingCount.high * 10
-    - findingCount.medium * 3
-    - findingCount.low * 1
+    - codeFindings.critical * 25
+    - codeFindings.high     * 10
+    - codeFindings.medium   *  3
+    - codeFindings.low      *  1
   codeSecurity = Math.max(0, Math.min(100, codeSecurity))
 
   // Architecture Risk: only meaningful for protocols/proxies, not simple ERC-20s
   let architectureRisk: number
   if (meta.contractType === "erc20") {
-    // Simple token: architecture is trivial. Score capped at codeSecurity
     architectureRisk = Math.min(codeSecurity, meta.usesOZ ? 95 : 88)
   } else if (meta.contractType === "defi-protocol") {
     architectureRisk = Math.max(0, codeSecurity - 5)
@@ -354,12 +377,10 @@ function computeScoreBreakdown(
   // Governance Risk: based on actual on-chain governance features
   let governanceRisk: number
   if (!meta.hasOwner && !meta.hasPausable && !meta.hasMintOutsideConstructor) {
-    // Fully trustless: high governance score
     governanceRisk = 95
   } else if (meta.ownerRenounced) {
     governanceRisk = 92
   } else if (meta.hasOwner && meta.pausableProtected) {
-    // Owner exists with proper OZ access control
     governanceRisk = 82
   } else if (meta.hasOwner) {
     governanceRisk = 72
@@ -367,7 +388,7 @@ function computeScoreBreakdown(
     governanceRisk = 85
   }
 
-  // Centralization: directly from contract features
+  // Centralization (On-Chain)
   let centralization: number
   if (meta.centralizationLevel === "Low") {
     centralization = meta.ownerRenounced ? 95 : 88
@@ -377,24 +398,43 @@ function computeScoreBreakdown(
     centralization = meta.hasOwner ? 50 : 35
   }
 
-  // Testing Coverage: we can only estimate — does it use established libs?
-  let testingCoverage: number
-  if (meta.usesOZ) {
-    testingCoverage = Math.min(95, codeSecurity + 2)
-  } else if (meta.hasSafeMath) {
-    testingCoverage = Math.min(90, codeSecurity)
+  // Economic Model: LP lock non bloccato → penalità economica (non code)
+  const lpNotLocked = findings ? findings.some(f => isLpLockFinding(f) && f.severity === 'HIGH') : false
+  let economicModel = meta.usesOZ ? 92 : 85
+  if (lpNotLocked) economicModel -= 15
+  economicModel = Math.max(0, economicModel)
+
+  // Operational Security
+  let operationalSecurity: number
+  if (meta.usesOZ && !meta.hasMintOutsideConstructor) {
+    operationalSecurity = 95
+  } else if (meta.usesOZ) {
+    operationalSecurity = 90
   } else {
-    testingCoverage = Math.min(85, codeSecurity - 2)
+    operationalSecurity = 80
   }
 
-  // Tier-1: max score is 98 — "security is risk reduction, not perfection"
+  // Final Score (weighted, Solay39 model)
+  // Code 35% | Arch 20% | Gov 15% | OnChain 10% | Econ 10% | Ops 10%
   const cap = (v: number) => Math.round(Math.max(0, Math.min(98, v)))
+  const cs  = cap(codeSecurity)
+  const ar  = cap(architectureRisk)
+  const gr  = cap(governanceRisk)
+  const ct  = cap(centralization)
+  const em  = cap(economicModel)
+  const os  = cap(operationalSecurity)
+
+  const rawFinal = cs * 0.35 + ar * 0.20 + gr * 0.15 + ct * 0.10 + em * 0.10 + os * 0.10
+  const finalScore = Math.round(Math.max(0, Math.min(98, rawFinal)))
+
   return {
-    codeSecurity: cap(codeSecurity),
-    architectureRisk: cap(architectureRisk),
-    governanceRisk: cap(governanceRisk),
-    centralization: cap(centralization),
-    testingCoverage: cap(testingCoverage),
+    codeSecurity:        cs,
+    architectureRisk:    ar,
+    governanceRisk:      gr,
+    centralization:      ct,
+    economicModel:       em,
+    operationalSecurity: os,
+    finalScore,
   }
 }
 
@@ -1741,11 +1781,19 @@ ${truncatedCode}`
       const projectNameClean = (meta.scopeLabel ?? "CONTRACT").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12)
       const auditId = "SOL-" + new Date().getFullYear() + "-" + projectNameClean + "-01"
 
+      // Calculate realistic engagement hours based on LOC
+      const _engLoc = realLOC > 0 ? realLOC : (Number(parsed.engagement?.linesOfCode) || 100)
+      const _engHours = Math.ceil(_engLoc / 12) + 10   // ~12 LOC/h + 10h overhead
+      const _engTeam  = _engLoc <= 500 ? 1 : _engLoc <= 2000 ? 2 : 3
+
       const aiEngagement = parsed.engagement ? {
         compilerVersionUsed: String(parsed.engagement.compilerVersionUsed || defaultCompiler),
-        linesOfCode: realLOC > 0 ? realLOC : (Number(parsed.engagement.linesOfCode) || 0),
+        linesOfCode: _engLoc,
         objectives: Array.isArray(parsed.engagement.objectives) ? parsed.engagement.objectives.map(String) : [],
         auditDurationDays: Number(parsed.engagement.auditDurationDays) || 1,
+        engineeringHours: _engHours,
+        securityEngineersInvolved: _engTeam,
+        numberOfAuditors: _engTeam,
         // Enterprise fields
         auditId,
         reviewTeam: {
@@ -1777,7 +1825,7 @@ ${truncatedCode}`
         low: findings.filter((f: { severity: string }) => f.severity === "LOW").length,
         info: findings.filter((f: { severity: string }) => f.severity === "INFO").length,
       }
-      const scoreBreakdown = computeScoreBreakdown(98, meta, fCount)
+      const scoreBreakdown = computeScoreBreakdown(98, meta, fCount, findings)
 
   // Build tooling section - transparent AI labeling
   const toolingUsed = [
@@ -2248,7 +2296,7 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
         low: findings.filter(f => f.severity === "LOW").length,
         info: findings.filter(f => f.severity === "INFO").length,
       }
-      const scoreBreakdown = computeScoreBreakdown(100, meta, fCount)
+      const scoreBreakdown = computeScoreBreakdown(100, meta, fCount, findings)
 
       // ── Generate enterprise fields for static path too ──
       const staticProjectName = (meta.scopeLabel ?? "CONTRACT").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12)

@@ -783,8 +783,8 @@ ${(() => {
   const eng = tier1?.engagement as AuditEngagement | undefined
   
   // Generate review team display - 100+ engineers
-  const teamSize = eng?.securityEngineersInvolved || 108
-  const leadAuditors = eng?.numberOfAuditors || 24
+  const teamSize = eng?.securityEngineersInvolved || 1
+  const leadAuditors = eng?.numberOfAuditors || 1
   const reviewers = teamSize - leadAuditors
   
   const teamRoles = [
