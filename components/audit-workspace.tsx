@@ -525,7 +525,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
 
   // ── Publish to Portfolio + GitHub ──
   const [publishing, setPublishing] = useState(false)
-  const [publishResult, setPublishResult] = useState<{ success?: boolean; githubUrl?: string; githubError?: string; error?: string } | null>(null)
+  const [publishResult, setPublishResult] = useState<{ success?: boolean; githubUrl?: string; githubError?: string; blobUrl?: string; error?: string } | null>(null)
 
   const handleValidateAndPublish = async () => {
     const currentNetwork = project.network || "Ethereum"
@@ -1238,25 +1238,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     // ── Step 3.1: Save to local portfolio store ──
     savePublishedAudit(enrichedEntry)
 
-    // ── Step 3.5: Save to Vercel Blob for server-side persistence ──
-    try {
-      const blobRes = await fetch("/api/audits", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audit: enrichedEntry }),
-      })
-      if (!blobRes.ok) {
-        const errorData = await blobRes.json().catch(() => ({}))
-        console.error("[v0] Blob save failed:", blobRes.status, errorData)
-      } else {
-        const blobData = await blobRes.json()
-        console.log("[v0] Audit saved to Blob:", blobData.id, blobData.url)
-      }
-    } catch (blobErr) {
-      console.error("[v0] Blob save exception:", blobErr)
-    }
-
-    // ── Step 4: Upload to GitHub ──
+    // ── Step 3.5: Save to Vercel Blob + GitHub via /api/publish ──
     try {
       const fileName = `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${project.date || new Date().toISOString().slice(0, 10)}.pdf`
 
@@ -1264,24 +1246,31 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          project: portfolioEntry,
-          pdfBase64: btoa(
-            `SOLAY39 Audit Report - ${project.name} - Score: ${score} - ${project.date}`
-          ),
+          audit: enrichedEntry,  // This is saved to Vercel Blob
+          pdfBase64: btoa(`SOLAY39 Audit Report - ${project.name} - Score: ${score} - ${project.date}`),
           fileName,
-          portfolioData: portfolioEntry,
         }),
       })
+      
       const data = await res.json()
+      
+      if (data.blobUrl) {
+        console.log("[v0] Audit saved to Blob:", data.id, data.blobUrl)
+      } else {
+        console.error("[v0] Blob save failed:", data.blobError)
+      }
+      
       setPublishResult({
-        success: true,
+        success: !!data.blobUrl,
         githubUrl: data.githubUrl || undefined,
         githubError: data.githubError || undefined,
+        blobUrl: data.blobUrl || undefined,
       })
     } catch (err) {
+      console.error("[v0] Publish exception:", err)
       setPublishResult({
-        success: true,
-        githubError: `GitHub upload failed: ${err instanceof Error ? err.message : String(err)}`,
+        success: false,
+        githubError: `Publish failed: ${err instanceof Error ? err.message : String(err)}`,
       })
     }
 
