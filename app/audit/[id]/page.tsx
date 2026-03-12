@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { list } from "@vercel/blob"
 import { DEFAULT_PROJECTS, ratingOf, getWeightedScore, type PortfolioProject } from "@/lib/solay39-constants"
 import { AuditDetailClient } from "./client"
 
@@ -11,13 +12,29 @@ const projectMap = new Map(DEFAULT_PROJECTS.map((p) => [p.id, p]))
 // Fetch audit from Vercel Blob (server-side) — fully resilient
 async function fetchBlobAudit(id: string): Promise<PortfolioProject | null> {
   try {
-    const { list } = await import("@vercel/blob")
-    const { blobs } = await list({ prefix: `audits/${id}.json`, limit: 1 })
-    if (blobs.length === 0) return null
-    const res = await fetch(blobs[0].url)
-    if (!res.ok) return null
+    // Try exact match first
+    let { blobs } = await list({ prefix: `audits/${id}.json`, limit: 1 })
+    
+    // If not found, try prefix without .json (handles random suffix from Blob)
+    if (blobs.length === 0) {
+      const prefixResult = await list({ prefix: `audits/${id}`, limit: 10 })
+      blobs = prefixResult.blobs.filter(b => b.pathname.includes(id) && b.pathname.endsWith('.json'))
+    }
+    
+    if (blobs.length === 0) {
+      console.log(`[audit/${id}] Not found in Blob storage`)
+      return null
+    }
+    
+    console.log(`[audit/${id}] Found in Blob:`, blobs[0].pathname)
+    const res = await fetch(blobs[0].url, { next: { revalidate: 60 } })
+    if (!res.ok) {
+      console.log(`[audit/${id}] Blob fetch failed:`, res.status)
+      return null
+    }
     return (await res.json()) as PortfolioProject
-  } catch {
+  } catch (err) {
+    console.error(`[audit/${id}] Blob error:`, err)
     return null
   }
 }
@@ -25,8 +42,9 @@ async function fetchBlobAudit(id: string): Promise<PortfolioProject | null> {
 type Props = { params: Promise<{ id: string }> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params
+  
   try {
-    const { id } = await params
     const p = projectMap.get(id) || (await fetchBlobAudit(id))
 
     if (!p) {
@@ -51,7 +69,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       twitter: { card: "summary_large_image", title, description: desc, images: [ogImage] },
       alternates: { canonical: url },
     }
-  } catch {
+  } catch (err) {
+    console.error(`[audit/${id}] Metadata error:`, err)
     return { title: "Solay39 Audit", description: "Smart contract security audit." }
   }
 }
@@ -61,12 +80,13 @@ export async function generateStaticParams() {
 }
 
 export default async function AuditPage({ params }: Props) {
+  const { id } = await params
+  
   try {
-    const { id } = await params
     const project: PortfolioProject | null = projectMap.get(id) || (await fetchBlobAudit(id)) || null
     return <AuditDetailClient project={project} auditId={id} />
-  } catch {
-    const { id } = await params
+  } catch (err) {
+    console.error(`[audit/${id}] Page render error:`, err)
     return <AuditDetailClient project={null} auditId={id} />
   }
 }

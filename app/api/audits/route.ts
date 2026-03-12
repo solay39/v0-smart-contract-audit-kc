@@ -36,11 +36,25 @@ export async function POST(request: NextRequest) {
     const blobPath = `${BLOB_PREFIX}${audit.id}.json`
     console.log("[audits] Saving to Blob:", blobPath)
 
+    // First check if this audit already exists and delete it to update
+    try {
+      const { blobs: existing } = await list({ prefix: blobPath })
+      if (existing.length > 0) {
+        console.log("[audits] Deleting existing audit:", existing[0].pathname)
+        await del(existing[0].url)
+      }
+    } catch (delErr) {
+      console.warn("[audits] Delete check failed (non-critical):", delErr)
+    }
+
     const blob = await put(blobPath, JSON.stringify(audit), {
       access: "public",
       contentType: "application/json",
       addRandomSuffix: false,
     })
+    
+    console.log("[audits] Blob pathname:", blob.pathname)
+    console.log("[audits] Blob URL:", blob.url)
 
     console.log("[audits] Saved successfully:", blob.url)
 
@@ -66,7 +80,16 @@ export async function GET(request: NextRequest) {
 
     if (id) {
       // Fetch a specific audit by ID
-      const { blobs } = await list({ prefix: `${BLOB_PREFIX}${id}.json` })
+      // Try exact match first, then prefix match (in case of random suffix)
+      let { blobs } = await list({ prefix: `${BLOB_PREFIX}${id}.json` })
+      
+      // If exact match fails, try prefix without .json (handles random suffix)
+      if (blobs.length === 0) {
+        const prefixResult = await list({ prefix: `${BLOB_PREFIX}${id}` })
+        blobs = prefixResult.blobs.filter(b => b.pathname.includes(id) && b.pathname.endsWith('.json'))
+      }
+      
+      console.log(`[audits] GET id=${id}, found ${blobs.length} blobs`)
 
       if (blobs.length === 0) {
         return NextResponse.json({ audit: null })
@@ -75,6 +98,7 @@ export async function GET(request: NextRequest) {
       // Fetch the JSON content from the blob URL
       const res = await fetch(blobs[0].url)
       if (!res.ok) {
+        console.log(`[audits] Blob fetch failed for ${id}:`, res.status)
         return NextResponse.json({ audit: null })
       }
 
