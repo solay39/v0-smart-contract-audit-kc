@@ -425,7 +425,26 @@ function computeScoreBreakdown(
   const os  = cap(operationalSecurity)
 
   const rawFinal = cs * 0.35 + ar * 0.20 + gr * 0.15 + ct * 0.10 + em * 0.10 + os * 0.10
-  const finalScore = Math.round(Math.max(0, Math.min(98, rawFinal)))
+  
+  // IMPORTANT: Score cannot be A (>=80) with open HIGH/CRITICAL issues
+  // Count open HIGH/CRITICAL (exclude LP lock INFO downgrades)
+  const openHighCount = findings?.filter(f => 
+    (f.severity === 'HIGH' || f.severity === 'CRITICAL') && 
+    (!('status' in f) || f.status === 'open' || f.status === 'OPEN')
+  ).length || 0
+  const openCriticalCount = findings?.filter(f => 
+    f.severity === 'CRITICAL' && 
+    (!('status' in f) || f.status === 'open' || f.status === 'OPEN')
+  ).length || 0
+
+  // Cap score based on open issues:
+  // CRITICAL open → max 59 (C grade)
+  // HIGH open → max 79 (B grade)  
+  let maxScore = 98
+  if (openCriticalCount > 0) maxScore = 59
+  else if (openHighCount > 0) maxScore = 79
+
+  const finalScore = Math.round(Math.max(0, Math.min(maxScore, rawFinal)))
 
   return {
     codeSecurity:        cs,
@@ -822,7 +841,7 @@ function staticAnalysis(code: string, meta: ContractMeta): Finding[] {
     })
   }
 
-  /* ── 13. Flash Loan Price Manipulation ── */
+  /* ��─ 13. Flash Loan Price Manipulation ── */
   {
     const readsAMMPrice = /getReserves\(\)|reserve0|reserve1|token0\.balanceOf|token1\.balanceOf/.test(code)
     const hasFlashLoanIntegration = /flashLoan|flashSwap|FLASHLOAN|uniswapV2Call|uniswapV3Flash|pancakeCall|onFlashLoan/.test(code)

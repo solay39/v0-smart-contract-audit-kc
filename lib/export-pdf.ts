@@ -287,7 +287,7 @@ ${(() => {
       ["Audit Date", eng?.auditDate || project.date || today],
       ["Delivery Date", eng?.deliveryDate || project.date || today],
       ["Duration", eng ? `${eng.auditDurationDays} day(s)` : "N/A"],
-      ["Security Engineers", eng?.securityEngineersInvolved ? `${eng.securityEngineersInvolved} engineers (${eng.numberOfAuditors || 4} lead auditors + ${(eng.securityEngineersInvolved || 12) - (eng.numberOfAuditors || 4)} reviewers)` : "12 engineers"],
+      ["Security Engineers", eng?.securityEngineersInvolved ? `${eng.securityEngineersInvolved} engineer${eng.securityEngineersInvolved > 1 ? "s" : ""}` : "1 engineer"],
       ["Engineering Hours", eng?.engineeringHours ? `${eng.engineeringHours}h total` : "N/A"],
       ["Lead Auditor", eng?.leadAuditor || "Solay39 Lead Auditor"],
       ["Compiler Version", eng?.compilerVersionUsed || "N/A"],
@@ -965,7 +965,7 @@ ${(() => {
         <span style="color:${riskColor};font-size:14px;font-weight:700">${riskScore}/100 ${riskLabel}</span>
       </div>
       <p style="color:#8899aa;font-size:9px;line-height:1.6">
-        This analysis was performed using Claude and GPT-4 AI models analyzing real on-chain data including holder distribution, liquidity pools, token authorities, and transaction patterns.
+        This analysis examines real on-chain data including holder distribution, liquidity pools, token authorities, and transaction patterns using proprietary security analysis tools.
       </p>
     </div>
     

@@ -572,7 +572,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         auditDateEnd: new Date().toISOString().slice(0, 10),
         durationDays,
         engineeringHours: engHours,
-        numberOfAuditors: 24,  // Lead auditors + senior reviewers
+        numberOfAuditors: 1,  // Automated + 1 lead auditor
         linesOfCode: loc,
         codeSecurityScore: v2Result.codeSecurity,
         architectureScore: v2Result.architecture,
@@ -996,16 +996,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         auditDate,
         deliveryDate,
         auditDurationDays: realDays,
-        numberOfAuditors: 24,
-        engineeringHours: (() => {
-          if (loc <= 50) return 80
-          if (loc <= 150) return 160
-          if (loc <= 300) return 320
-          if (loc <= 600) return 480
-          if (loc <= 1000) return 800
-          return 1200
-        })(),
-        securityEngineersInvolved: 108,
+        numberOfAuditors: 1,
+        engineeringHours: Math.ceil(loc / 12) + 10, // ~12 LOC/h + 10h overhead
+        securityEngineersInvolved: loc <= 500 ? 1 : loc <= 2000 ? 2 : 3,
         leadAuditor: "Solay39 Founder",
         compilerVersionUsed: (aiEngagement?.compilerVersionUsed as string) || contractMeta?.codeLanguage || contractMeta?.solidityVersion || "N/A",
         contractsReviewed: 1,
@@ -1529,16 +1522,9 @@ const TABS: [TabId, string][] = [
       auditDate,
       deliveryDate,
       auditDurationDays: realDays,
-      numberOfAuditors: 24,
-      engineeringHours: (() => {
-        if (loc <= 50) return 80
-        if (loc <= 150) return 160
-        if (loc <= 300) return 320
-        if (loc <= 600) return 480
-        if (loc <= 1000) return 800
-        return 1200
-      })(),
-      securityEngineersInvolved: 108,
+      numberOfAuditors: 1,
+      engineeringHours: Math.ceil(loc / 12) + 10, // ~12 LOC/h + 10h overhead
+      securityEngineersInvolved: loc <= 500 ? 1 : loc <= 2000 ? 2 : 3,
       leadAuditor: "Solay39 Lead Auditor",
       compilerVersionUsed: (aiEngagement.compilerVersionUsed as string) || "N/A",
       contractsReviewed: 1,

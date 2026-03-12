@@ -606,14 +606,23 @@ export default function ManualReviewWorkspace({
                       }
 
                       if (!lpLocked && totalLiq > 0) {
+                        // Check if contract is trustless (no owner)
+                        const isTrustless = td.owner === null || td.owner === "0x0000000000000000000000000000000000000000" || td.owner === undefined
                         ocFindings.push({
                           id: `onchain-oc004-${ts}`,
                           title: "OC-004 · Liquidity Pool NOT Locked",
-                          severity: "HIGH" as Severity,
+                          // Downgrade to INFO if trustless contract
+                          severity: (isTrustless ? "INFO" : "HIGH") as Severity,
                           location: "DEX Liquidity Pool",
-                          description: `$${totalLiq.toLocaleString()} in liquidity is present but LP tokens are NOT locked. Developers can remove all liquidity instantly (direct rug pull vector).`,
-                          impact: "Complete loss of tradeable liquidity in a single transaction. Price drops to zero immediately.",
-                          recommendation: "Request team to lock LP via Team Finance or Unicrypt for ≥6 months. Verify lock on-chain before investing.",
+                          description: isTrustless
+                            ? `$${totalLiq.toLocaleString()} liquidity present. LP not locked, but contract is trustless (no owner). Deployer cannot modify contract. LP lock recommended as best practice.`
+                            : `$${totalLiq.toLocaleString()} in liquidity is present but LP tokens are NOT locked. Developers can remove all liquidity instantly (direct rug pull vector).`,
+                          impact: isTrustless
+                            ? "Limited risk: contract has no admin functions. LP lock is best practice only."
+                            : "Complete loss of tradeable liquidity in a single transaction. Price drops to zero immediately.",
+                          recommendation: isTrustless
+                            ? "LP lock recommended but not critical since contract is trustless."
+                            : "Request team to lock LP via Team Finance or Unicrypt for ≥6 months. Verify lock on-chain before investing.",
                           addedBy: "manual" as const,
                         })
                       }
@@ -739,14 +748,17 @@ export default function ManualReviewWorkspace({
                         })
                       }
                       if (!locked2 && liq2 > 0) {
+                        const isTrustless2 = td2.owner === null || td2.owner === "0x0000000000000000000000000000000000000000" || td2.owner === undefined
                         ocForCallback.push({
                           id: `OC-004-${ts2}`,
                           title: "OC-004 · Liquidity Pool NOT Locked",
-                          severity: "HIGH",
+                          severity: isTrustless2 ? "INFO" : "HIGH",
                           location: "DEX LP",
-                          description: `$${liq2.toLocaleString()} liquidity but LP not locked.`,
-                          impact: "Rug pull vector.",
-                          recommendation: "Lock LP for ≥6 months.",
+                          description: isTrustless2
+                            ? `$${liq2.toLocaleString()} liquidity. LP not locked, but contract is trustless (no owner).`
+                            : `$${liq2.toLocaleString()} liquidity but LP not locked.`,
+                          impact: isTrustless2 ? "Limited risk: trustless contract." : "Rug pull vector.",
+                          recommendation: isTrustless2 ? "LP lock recommended as best practice." : "Lock LP for ≥6 months.",
                         })
                       }
                       // Summary

@@ -142,15 +142,24 @@ function buildAuditSections(onchain: OnChainAnalysis) {
   }
 
   // 3. LP not locked
+  // IMPORTANT: LP lock is only relevant if there's an owner who could rug.
+  // For trustless contracts (owner === null || owner === 0x0), LP lock is informational only.
   const lpLocked = td.liquidityPools.some((lp) => lp.lpLocked)
+  const isTrustless = td.owner === null || td.owner === "0x0000000000000000000000000000000000000000" || td.owner === undefined
+  
   if (!lpLocked && totalLiquidity > 0) {
     findings.push({
       id: "OC-004",
       title: "Liquidity Pool NOT Locked",
-      severity: "high",
+      // Downgrade to INFO if contract is trustless (no owner who could rug)
+      severity: isTrustless ? "info" : "high",
       category: "Liquidity",
-      description: `$${totalLiquidity.toLocaleString()} in liquidity is present but LP tokens are NOT locked. Developers can remove all liquidity instantly (direct rug pull vector).`,
-      recommendation: "Request team to lock LP via Team Finance, Unicrypt, or similar for ≥6 months. Verify lock on-chain.",
+      description: isTrustless 
+        ? `$${totalLiquidity.toLocaleString()} liquidity present. LP not locked, but contract is trustless (no owner). Deployer cannot modify contract or drain via code. LP lock is a best practice, not a critical risk here.`
+        : `$${totalLiquidity.toLocaleString()} in liquidity is present but LP tokens are NOT locked. Developers can remove all liquidity instantly (direct rug pull vector).`,
+      recommendation: isTrustless
+        ? "LP lock recommended as best practice, but risk is limited since contract has no owner."
+        : "Request team to lock LP via Team Finance, Unicrypt, or similar for ≥6 months. Verify lock on-chain.",
       section: "rugPullRisk",
       content: a.rugPullRisk,
       status: "open",
