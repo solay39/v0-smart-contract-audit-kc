@@ -27,13 +27,18 @@ export async function POST(req: Request) {
       const blobPath = `${BLOB_PREFIX}${audit.id}.json`
       
       try {
-        // Delete existing blob to allow overwrite
-        const { blobs: existing } = await list({ prefix: blobPath })
-        if (existing.length > 0) {
-          await del(existing[0].url)
+        // Delete ALL existing blobs with this prefix (handles random suffix issue)
+        const { blobs: existing } = await list({ prefix: `${BLOB_PREFIX}${audit.id}` })
+        for (const blob of existing) {
+          try {
+            await del(blob.url)
+            console.log("[publish] Deleted existing blob:", blob.pathname)
+          } catch {
+            // Ignore delete errors
+          }
         }
         
-        // Save to Vercel Blob
+        // Save to Vercel Blob (public store)
         const blob = await put(blobPath, JSON.stringify(audit), {
           access: "public",
           contentType: "application/json",
@@ -41,14 +46,14 @@ export async function POST(req: Request) {
         })
         
         blobUrl = blob.url
-        console.log("[publish] Audit saved to Blob:", blobUrl)
+        console.log("[publish] Audit saved to Blob:", blob.pathname, "URL:", blobUrl)
       } catch (err) {
         blobError = `Blob save error: ${err instanceof Error ? err.message : String(err)}`
         console.error("[publish]", blobError)
       }
     } else {
-      blobError = "Missing audit.id or audit.name - audit not saved to Blob"
-      console.warn("[publish]", blobError)
+      blobError = `Missing audit.id (${audit?.id}) or audit.name (${audit?.name}) - audit not saved to Blob`
+      console.error("[publish]", blobError, "audit keys:", audit ? Object.keys(audit) : "null")
     }
 
     // ── Upload PDF to GitHub (OPTIONAL) ───────────────────────
@@ -125,11 +130,66 @@ export async function POST(req: Request) {
   }
 }
 
-// GET — Health check
-export async function GET() {
+// GET — Health check or list all audits
+export async function GET(req: Request) {
+  const url = new URL(req.url)
+  const listAll = url.searchParams.get("list") === "true"
+  
+  if (listAll) {
+    try {
+      const { blobs } = await list({ prefix: BLOB_PREFIX })
+      return Response.json({
+        count: blobs.length,
+        audits: blobs.map(b => ({
+          pathname: b.pathname,
+          url: b.url,
+          uploadedAt: b.uploadedAt,
+          size: b.size,
+        })),
+      })
+    } catch (err) {
+      return Response.json({ error: String(err) }, { status: 500 })
+    }
+  }
+  
   return Response.json({
     status: "ok",
     route: "/api/publish",
-    description: "POST an audit object to save it to Vercel Blob and optionally GitHub.",
+    description: "POST to save audit, DELETE to remove, GET?list=true to list all.",
   })
+}
+
+// DELETE — Remove an audit from Vercel Blob
+export async function DELETE(req: Request) {
+  try {
+    const { id, url: blobUrl } = await req.json()
+    
+    if (!id && !blobUrl) {
+      return Response.json({ error: "Provide 'id' or 'url' to delete" }, { status: 400 })
+    }
+
+    let deleted = 0
+    
+    if (blobUrl) {
+      // Delete by URL directly
+      await del(blobUrl)
+      deleted = 1
+    } else if (id) {
+      // Delete by ID - find all matching blobs
+      const { blobs } = await list({ prefix: `${BLOB_PREFIX}${id}` })
+      for (const blob of blobs) {
+        await del(blob.url)
+        deleted++
+      }
+    }
+
+    return Response.json({
+      success: deleted > 0,
+      deleted,
+      id,
+    })
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    return Response.json({ error: `Delete failed: ${msg}` }, { status: 500 })
+  }
 }
