@@ -3275,19 +3275,19 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                 <>
                   <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
                     <div className="text-[7px] text-s39-dim tracking-widest mb-1">CONTRACT</div>
-                    <div className="text-lg font-bold font-mono" style={{ color: (p.onChainAnalysis?.scores?.smartContractSecurity || 5) >= 7 ? "#00ff88" : (p.onChainAnalysis?.scores?.smartContractSecurity || 5) >= 5 ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis.scores.smartContractSecurity || 5}/10</div>
+                    <div className="text-lg font-bold font-mono" style={{ color: (p.onChainAnalysis?.scores?.smartContractSecurity || 5) >= 7 ? "#00ff88" : (p.onChainAnalysis?.scores?.smartContractSecurity || 5) >= 5 ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis?.scores?.smartContractSecurity || 5}/10</div>
                   </div>
                   <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
                     <div className="text-[7px] text-s39-dim tracking-widest mb-1">DECENTR.</div>
-                    <div className="text-lg font-bold font-mono" style={{ color: (p.onChainAnalysis.scores.decentralization || 5) >= 7 ? "#00ff88" : (p.onChainAnalysis.scores.decentralization || 5) >= 4 ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis.scores.decentralization || 5}/10</div>
+                    <div className="text-lg font-bold font-mono" style={{ color: (p.onChainAnalysis?.scores?.decentralization || 5) >= 7 ? "#00ff88" : (p.onChainAnalysis?.scores?.decentralization || 5) >= 4 ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis?.scores?.decentralization || 5}/10</div>
                   </div>
                   <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
                     <div className="text-[7px] text-s39-dim tracking-widest mb-1">LIQUIDITY</div>
-                    <div className="text-lg font-bold font-mono" style={{ color: (p.onChainAnalysis.scores.liquidityHealth || 5) >= 7 ? "#00ff88" : (p.onChainAnalysis.scores.liquidityHealth || 5) >= 4 ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis.scores.liquidityHealth || 5}/10</div>
+                    <div className="text-lg font-bold font-mono" style={{ color: (p.onChainAnalysis?.scores?.liquidityHealth || 5) >= 7 ? "#00ff88" : (p.onChainAnalysis?.scores?.liquidityHealth || 5) >= 4 ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis?.scores?.liquidityHealth || 5}/10</div>
                   </div>
                   <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
                     <div className="text-[7px] text-s39-dim tracking-widest mb-1">MANIP.</div>
-                    <div className="text-sm font-bold font-mono" style={{ color: p.onChainAnalysis.scores.manipulationRisk === "LOW" ? "#00ff88" : p.onChainAnalysis.scores.manipulationRisk === "MEDIUM" ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis.scores.manipulationRisk || "MEDIUM"}</div>
+                    <div className="text-sm font-bold font-mono" style={{ color: p.onChainAnalysis?.scores?.manipulationRisk === "LOW" ? "#00ff88" : p.onChainAnalysis?.scores?.manipulationRisk === "MEDIUM" ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis?.scores?.manipulationRisk || "MEDIUM"}</div>
                   </div>
                 </>
               )}
@@ -3363,7 +3363,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                     </tr>
                   </thead>
                   <tbody>
-                    {p.onChainAnalysis.topHolders.slice(0, 10).map((h, i) => {
+                    {(p.onChainAnalysis?.topHolders ?? []).slice(0, 10).map((h, i) => {
                       const pctColor = h.percentage > 20 ? "#ff2d55" : h.percentage > 10 ? "#ffd600" : "#00ff88"
                       return (
                         <tr key={i} className="border-b border-s39-border last:border-0">
@@ -3795,21 +3795,20 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-[7px] text-purple-400 tracking-widest mb-1">LEAD AUDITOR</div>
-                          <div className="text-[12px] text-s39-white font-bold">{p.auditorSignatures.leadAuditor.name}</div>
-                          <div className="text-[9px] text-s39-mid">{p.auditorSignatures.leadAuditor.title}</div>
-                          {p.auditorSignatures.leadAuditor.walletAddress && (
-                            <div className="text-[8px] text-cyan-400 font-mono mt-1 truncate">
-                              {p.auditorSignatures.leadAuditor.walletAddress}
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-right shrink-0">
-                          <div className="w-24 h-10 border-b-2 border-purple-700/50 mb-1 flex items-end justify-center">
-                            <span className="text-[10px] text-purple-400 italic font-serif pb-1">{p.auditorSignatures.leadAuditor.name.split(" ")[0]}</span>
-                          </div>
-                          {p.auditorSignatures.leadAuditor.signedAt && (
-                            <div className="text-[7px] text-s39-dim">
-                              {new Date(p.auditorSignatures.leadAuditor.signedAt).toLocaleDateString()}
+<div className="text-[12px] text-s39-white font-bold">{p.auditorSignatures?.leadAuditor?.name}</div>
+                <div className="text-[9px] text-s39-mid">{p.auditorSignatures?.leadAuditor?.title}</div>
+                {p.auditorSignatures?.leadAuditor?.walletAddress && (
+                  <div className="text-[7px] text-s39-dim font-mono mt-0.5">
+                    {p.auditorSignatures?.leadAuditor?.walletAddress}
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <span className="text-[10px] text-purple-400 italic font-serif pb-1">{(p.auditorSignatures?.leadAuditor?.name ?? "").split(" ")[0]}</span>
+                <div className="h-px w-16 bg-s39-border" />
+                {p.auditorSignatures?.leadAuditor?.signedAt && (
+                  <span className="text-[7px] text-s39-dim font-mono">
+                    {new Date(p.auditorSignatures?.leadAuditor?.signedAt ?? "").toLocaleDateString()}
                             </div>
                           )}
                         </div>
@@ -4013,7 +4012,7 @@ console.log("Signer:", recovered);
                       </div>
                     </div>
                     <div className="mt-3 text-[7px] text-s39-dim border-t border-s39-border pt-2">
-                      On-chain attestation will be published when the Audit Registry contract is deployed. The report hash ({p.signedReport?.reportHash ? p.signedReport.reportHash.slice(0, 16) + "..." : "computed at publish"}) is ready for attestation.
+                      On-chain attestation will be published when the Audit Registry contract is deployed. The report hash ({p.signedReport?.reportHash ? (p.signedReport?.reportHash ?? "").slice(0, 16) + "..." : "computed at publish"}) is ready for attestation.
                     </div>
                   </div>
                 )}
@@ -4607,29 +4606,29 @@ console.log("Signer:", recovered);
                           <span className="text-[9px] text-cyan-400 tracking-widest font-bold">FUZZ TESTING</span>
                         </div>
                         <span className={`text-[7px] px-2 py-0.5 rounded font-mono ${
-                          p.testCoverage.fuzzTesting.status === "PASSED" ? "bg-emerald-950/30 text-emerald-400 border border-emerald-900/40" :
-                          p.testCoverage.fuzzTesting.status === "ISSUES_FOUND" ? "bg-yellow-950/30 text-yellow-400 border border-yellow-900/40" :
-                          "bg-s39-bg2 text-s39-dim border border-s39-border"
-                        }`}>
-                          {p.testCoverage.fuzzTesting.status}
+p.testCoverage?.fuzzTesting?.status === "PASSED" ? "bg-emerald-950/30 text-emerald-400 border border-emerald-900/40" :
+                        p.testCoverage?.fuzzTesting?.status === "ISSUES_FOUND" ? "bg-yellow-950/30 text-yellow-400 border border-yellow-900/40" :
+                        "bg-red-950/30 text-red-400 border border-red-900/40"
+                      }`}>
+                        {p.testCoverage?.fuzzTesting?.status}
                         </span>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div>
                           <div className="text-[7px] text-s39-dim">Runs Completed</div>
-                          <div className="text-[11px] text-cyan-300 font-mono">{p.testCoverage.fuzzTesting.runsCompleted.toLocaleString()}</div>
+                          <div className="text-[11px] text-cyan-300 font-mono">{(p.testCoverage?.fuzzTesting?.runsCompleted ?? 0).toLocaleString()}</div>
                         </div>
                         <div>
                           <div className="text-[7px] text-s39-dim">Edge Cases Found</div>
-                          <div className="text-[11px] text-cyan-300 font-mono">{p.testCoverage.fuzzTesting.edgeCasesFound}</div>
+                          <div className="text-[11px] text-cyan-300 font-mono">{p.testCoverage?.fuzzTesting?.edgeCasesFound ?? 0}</div>
                         </div>
                         <div>
                           <div className="text-[7px] text-s39-dim">Max Depth</div>
-                          <div className="text-[11px] text-cyan-300 font-mono">{p.testCoverage.fuzzTesting.maxDepth}</div>
+                          <div className="text-[11px] text-cyan-300 font-mono">{p.testCoverage?.fuzzTesting?.maxDepth ?? 0}</div>
                         </div>
                         <div>
                           <div className="text-[7px] text-s39-dim">Mutations</div>
-                          <div className="text-[11px] text-cyan-300 font-mono">{p.testCoverage.fuzzTesting.mutations.toLocaleString()}</div>
+                          <div className="text-[11px] text-cyan-300 font-mono">{(p.testCoverage?.fuzzTesting?.mutations ?? 0).toLocaleString()}</div>
                         </div>
                       </div>
                     </div>
@@ -4697,30 +4696,30 @@ console.log("Signer:", recovered);
                             <span className="text-[9px] text-purple-400 tracking-widest font-bold">FORMAL VERIFICATION</span>
                           </div>
                           <span className={`text-[7px] px-2 py-0.5 rounded font-mono ${
-                            p.testCoverage.formalVerification.status === "VERIFIED" ? "bg-emerald-950/30 text-emerald-400 border border-emerald-900/40" :
-                            p.testCoverage.formalVerification.status === "PARTIAL" ? "bg-yellow-950/30 text-yellow-400 border border-yellow-900/40" :
-                            "bg-s39-bg2 text-s39-dim border border-s39-border"
-                          }`}>
-                            {p.testCoverage.formalVerification.status}
+p.testCoverage?.formalVerification?.status === "VERIFIED" ? "bg-emerald-950/30 text-emerald-400 border border-emerald-900/40" :
+                        p.testCoverage?.formalVerification?.status === "PARTIAL" ? "bg-yellow-950/30 text-yellow-400 border border-yellow-900/40" :
+                        "bg-red-950/30 text-red-400 border border-red-900/40"
+                      }`}>
+                        {p.testCoverage?.formalVerification?.status}
                           </span>
                         </div>
-                        {p.testCoverage.formalVerification.tool && (
-                          <div className="text-[8px] text-s39-dim mb-2">Tool: {p.testCoverage.formalVerification.tool}</div>
+{p.testCoverage?.formalVerification?.tool && (
+                      <div className="text-[8px] text-s39-dim mb-2">Tool: {p.testCoverage?.formalVerification?.tool}</div>
                         )}
                         <div className="flex gap-4 mb-3">
                           <div>
-                            <div className="text-[14px] text-emerald-400 font-bold font-mono">{p.testCoverage.formalVerification.propertiesVerified}</div>
+                            <div className="text-[14px] text-emerald-400 font-bold font-mono">{p.testCoverage?.formalVerification?.propertiesVerified ?? 0}</div>
                             <div className="text-[7px] text-s39-dim">Verified</div>
                           </div>
                           <div>
-                            <div className="text-[14px] text-red-400 font-bold font-mono">{p.testCoverage.formalVerification.propertiesFailed}</div>
+                            <div className="text-[14px] text-red-400 font-bold font-mono">{p.testCoverage?.formalVerification?.propertiesFailed ?? 0}</div>
                             <div className="text-[7px] text-s39-dim">Failed</div>
                           </div>
                         </div>
-                        {p.testCoverage.formalVerification.invariantsChecked && (
-                          <div className="space-y-1 border-t border-s39-border pt-2">
-                            <div className="text-[7px] text-s39-dim">Invariants Checked:</div>
-                            {p.testCoverage.formalVerification.invariantsChecked.slice(0, 4).map((inv, i) => (
+{p.testCoverage?.formalVerification?.invariantsChecked && (
+                      <div className="mt-2 space-y-1">
+                        <div className="text-[8px] text-s39-dim">Invariants:</div>
+                        {(p.testCoverage?.formalVerification?.invariantsChecked ?? []).slice(0, 4).map((inv, i) => (
                               <div key={i} className="text-[8px] text-purple-300 flex items-center gap-1">
                                 <span className="text-emerald-400">✓</span>
                                 {inv}
@@ -4743,14 +4742,14 @@ console.log("Signer:", recovered);
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <div className="text-[7px] text-s39-dim">Paths Explored</div>
-                            <div className="text-[12px] text-s39-white font-mono">{p.testCoverage.symbolicExecution.pathsExplored.toLocaleString()}</div>
+                            <div className="text-[12px] text-s39-white font-mono">{(p.testCoverage?.symbolicExecution?.pathsExplored ?? 0).toLocaleString()}</div>
                           </div>
                           <div>
                             <div className="text-[7px] text-s39-dim">Max Depth</div>
-                            <div className="text-[12px] text-s39-white font-mono">{p.testCoverage.symbolicExecution.maxPathDepth}</div>
+                            <div className="text-[12px] text-s39-white font-mono">{p.testCoverage?.symbolicExecution?.maxPathDepth ?? 0}</div>
                           </div>
                         </div>
-                        {p.testCoverage.symbolicExecution.timeoutReached && (
+                        {p.testCoverage?.symbolicExecution?.timeoutReached && (
                           <div className="text-[7px] text-yellow-400 mt-2">
                             Note: Analysis timeout reached on some paths
                           </div>
@@ -4772,19 +4771,19 @@ console.log("Signer:", recovered);
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div>
                           <div className="text-[7px] text-s39-dim">Avg Gas/Function</div>
-                          <div className="text-[11px] text-orange-300 font-mono">{p.testCoverage.gasAnalysis.averageGasPerFunction.toLocaleString()}</div>
+                          <div className="text-[11px] text-orange-300 font-mono">{(p.testCoverage?.gasAnalysis?.averageGasPerFunction ?? 0).toLocaleString()}</div>
                         </div>
                         <div>
                           <div className="text-[7px] text-s39-dim">Most Expensive</div>
-                          <div className="text-[11px] text-orange-300 font-mono truncate">{p.testCoverage.gasAnalysis.mostExpensiveFunction}()</div>
+                          <div className="text-[11px] text-orange-300 font-mono truncate">{p.testCoverage?.gasAnalysis?.mostExpensiveFunction ?? "N/A"}()</div>
                         </div>
                         <div>
                           <div className="text-[7px] text-s39-dim">Max Gas</div>
-                          <div className="text-[11px] text-orange-300 font-mono">{p.testCoverage.gasAnalysis.mostExpensiveGas.toLocaleString()}</div>
+                          <div className="text-[11px] text-orange-300 font-mono">{(p.testCoverage?.gasAnalysis?.mostExpensiveGas ?? 0).toLocaleString()}</div>
                         </div>
                         <div>
                           <div className="text-[7px] text-s39-dim">Deploy Cost</div>
-                          <div className="text-[11px] text-orange-300 font-mono">{p.testCoverage.gasAnalysis.totalDeploymentCost.toLocaleString()}</div>
+                          <div className="text-[11px] text-orange-300 font-mono">{(p.testCoverage?.gasAnalysis?.totalDeploymentCost ?? 0).toLocaleString()}</div>
                         </div>
                       </div>
                     </div>
@@ -5058,7 +5057,7 @@ console.log("Signer:", recovered);
   )
 }
 
-// ════════════════════════════════════════��══════════════════════════
+// ════════════════════════════════════════��═══════��══════════════════
 // METHODOLOGY PAGE
 // ═════════════════════════════════════════════════════════════��═════
 function MethodologyPage() {
