@@ -181,10 +181,24 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
     )
   }
 
+  // Ensure required fields exist to prevent render errors
+  const safeProject: PortfolioProject = {
+    ...liveProject,
+    id: liveProject.id || auditId,
+    name: liveProject.name || "Unknown Project",
+    score: liveProject.score ?? 0,
+    criticals: liveProject.criticals ?? 0,
+    highs: liveProject.highs ?? 0,
+    mediums: liveProject.mediums ?? 0,
+    lows: liveProject.lows ?? 0,
+    infos: liveProject.infos ?? 0,
+    date: liveProject.date || new Date().toISOString().slice(0, 10),
+  }
+
   return (
     <AuditErrorBoundary auditId={auditId}>
       <ProjectDetail
-        p={liveProject}
+        p={safeProject}
         backHref="/"
         isLive={isLive}
       />

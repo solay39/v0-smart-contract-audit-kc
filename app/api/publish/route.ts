@@ -26,6 +26,15 @@ export async function POST(req: Request) {
     if (audit?.id && audit?.name) {
       const blobPath = `${BLOB_PREFIX}${audit.id}.json`
       
+      // Validate required fields for rendering
+      const requiredFields = ['id', 'name', 'score', 'criticals', 'highs', 'mediums', 'lows']
+      const missingFields = requiredFields.filter(f => audit[f] === undefined)
+      if (missingFields.length > 0) {
+        console.warn("[publish] Audit missing fields:", missingFields.join(', '))
+      }
+      
+      console.log("[publish] Saving audit:", audit.id, audit.name, "score:", audit.score)
+      
       try {
         // Delete ALL existing blobs with this prefix (handles random suffix issue)
         const { blobs: existing } = await list({ prefix: `${BLOB_PREFIX}${audit.id}` })
@@ -38,8 +47,20 @@ export async function POST(req: Request) {
           }
         }
         
+        // Ensure audit has all required fields with defaults
+        const auditToSave = {
+          ...audit,
+          score: audit.score ?? 0,
+          criticals: audit.criticals ?? 0,
+          highs: audit.highs ?? 0,
+          mediums: audit.mediums ?? 0,
+          lows: audit.lows ?? 0,
+          infos: audit.infos ?? 0,
+          date: audit.date ?? new Date().toISOString().slice(0, 10),
+        }
+        
         // Save to Vercel Blob (public store)
-        const blob = await put(blobPath, JSON.stringify(audit), {
+        const blob = await put(blobPath, JSON.stringify(auditToSave), {
           access: "public",
           contentType: "application/json",
           addRandomSuffix: false,

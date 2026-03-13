@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { list } from "@vercel/blob"
 import { DEFAULT_PROJECTS, ratingOf, getWeightedScore, type PortfolioProject } from "@/lib/solay39-constants"
 import { AuditDetailClient } from "./client"
 
@@ -8,26 +9,40 @@ export const dynamicParams = true
 // Build a lookup map at module scope
 const projectMap = new Map(DEFAULT_PROJECTS.map((p) => [p.id, p]))
 
-// Fetch audit from Vercel Blob via API (avoids server-side @vercel/blob issues)
+// Fetch audit from Vercel Blob directly (server-side)
 async function fetchBlobAudit(id: string): Promise<PortfolioProject | null> {
   try {
-    // Use internal API to fetch from Blob (works reliably on Edge/Node)
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : process.env.NEXT_PUBLIC_SITE_URL || "https://www.solay39.eu"
+    // List blobs with this prefix
+    const { blobs } = await list({ prefix: `audits/${id}` })
     
-    const res = await fetch(`${baseUrl}/api/audits?id=${encodeURIComponent(id)}`, {
-      next: { revalidate: 60 },
-    })
+    // Find the matching JSON file
+    const match = blobs.find(b => b.pathname.endsWith('.json') && b.pathname.includes(id))
     
+    if (!match) {
+      return null
+    }
+    
+    // Fetch the audit data from the blob URL
+    const res = await fetch(match.url, { next: { revalidate: 60 } })
     if (!res.ok) {
       return null
     }
     
-    const data = await res.json()
-    return data.audit || null
+    const audit = await res.json() as PortfolioProject
+    
+    // Ensure required fields
+    return {
+      ...audit,
+      id: audit.id || id,
+      name: audit.name || "Unknown",
+      score: audit.score ?? 0,
+      criticals: audit.criticals ?? 0,
+      highs: audit.highs ?? 0,
+      mediums: audit.mediums ?? 0,
+      lows: audit.lows ?? 0,
+    }
   } catch (err) {
-    console.error(`[audit/${id}] Fetch error:`, err)
+    console.error(`[audit/${id}] Blob error:`, err)
     return null
   }
 }
