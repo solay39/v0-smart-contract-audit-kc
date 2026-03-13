@@ -1491,7 +1491,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                 <div className="text-[10px] text-s39-cyan font-mono">{p.codeMetrics?.compilerVersion}</div>
               </div>
               <div className="bg-s39-bg2 border border-s39-border p-3">
-                <div className="text-[7px] text-s39-dim tracking-widest mb-1">STANDARD</div>
+                <div className="text-[7px] text-s39-dim tracking-widests mb-1">STANDARD</div>
                 <div className="text-[10px] text-s39-mid">{p.codeMetrics?.standardUsed}</div>
               </div>
               <div className="bg-s39-bg2 border border-s39-border p-3">
@@ -5060,7 +5060,7 @@ console.log("Signer:", recovered);
 
 // ════════════════════════════════════════��══════════════════════════
 // METHODOLOGY PAGE
-// ═════════════════════════════════════════════════════════════��═════
+// ═══════════════════════════════════════════════════════════════════
 function MethodologyPage() {
   const phases: [string, string, string, string][] = [
     ["01", "System Comprehension", "#00e5ff", "Complete architectural analysis: trust boundaries, funds flow, actor model, threat surface and external dependencies."],
