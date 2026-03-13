@@ -3807,9 +3807,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                           <span className="text-[10px] text-purple-400 italic font-serif pb-1">{(p.auditorSignatures?.leadAuditor?.name ?? "").split(" ")[0]}</span>
                           <div className="h-px w-16 bg-s39-border" />
                           {p.auditorSignatures?.leadAuditor?.signedAt && (
-                            <span className="text-[7px] text-s39-dim font-mono">
-                              {new Date(p.auditorSignatures?.leadAuditor?.signedAt ?? "").toLocaleDateString()}
-                            </span>
+                            <span className="text-[7px] text-s39-dim font-mono">{new Date(p.auditorSignatures?.leadAuditor?.signedAt ?? "").toLocaleDateString()}</span>
                           )}
                         </div>
                       </div>
@@ -5057,7 +5055,7 @@ p.testCoverage?.formalVerification?.status === "VERIFIED" ? "bg-emerald-950/30 t
   )
 }
 
-// ════════════════════════════════════════��═══════��══════════════���═══
+// ════════════════════════════════════════��═══════��══════════════�����═══
 // METHODOLOGY PAGE
 // ══════════════════════════════════���═���═══��════════════════���═══��═════
 function MethodologyPage() {
