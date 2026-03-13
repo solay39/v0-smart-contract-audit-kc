@@ -1088,7 +1088,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                 </div>
                 {p.codeReference.auditedFiles && p.codeReference.auditedFiles.length > 0 && (
                   <div className="text-[8px] text-s39-white font-bold mt-2 pt-2 border-t border-s39-border">
-                    Total: {(p.codeReference?.auditedFiles ?? []).reduce((a, f) => a + (f.linesOfCode ?? 0), 0)} LOC
+                    Total: {p.codeReference.auditedFiles.reduce((a, f) => a + f.linesOfCode, 0)} LOC
                   </div>
                 )}
               </div>
@@ -1165,7 +1165,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                   <tr className="bg-s39-bg2">
                     <td className="px-3 py-2 text-s39-white font-bold">TOTAL</td>
                     <td className="px-3 py-2 text-s39-dim" />
-                    <td className="text-center px-3 py-2 text-s39-white font-bold font-mono">{(p.scopeTable ?? []).reduce((a: number, s: { linesOfCode: number }) => a + (s.linesOfCode ?? 0), 0)}</td>
+                    <td className="text-center px-3 py-2 text-s39-white font-bold font-mono">{p.scopeTable.reduce((a: number, s: { linesOfCode: number }) => a + s.linesOfCode, 0)}</td>
                     <td className="px-3 py-2 text-s39-dim" />
                   </tr>
                 </tbody>
@@ -1278,15 +1278,15 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
               <div className="bg-s39-bg2 border border-s39-border p-3">
                 <div className="text-[7px] text-s39-dim tracking-widest mb-1">AUDIT DATE</div>
-                <div className="text-[11px] text-s39-white font-bold font-mono">{p.engagement?.auditDate}</div>
+                <div className="text-[11px] text-s39-white font-bold font-mono">{p.engagement.auditDate}</div>
               </div>
               <div className="bg-s39-bg2 border border-s39-border p-3">
                 <div className="text-[7px] text-s39-dim tracking-widest mb-1">DURATION</div>
-                <div className="text-[11px] text-s39-white font-bold font-mono">{p.engagement?.auditDurationDays} {p.engagement?.auditDurationDays === 1 ? "day" : "days"}</div>
+                <div className="text-[11px] text-s39-white font-bold font-mono">{p.engagement.auditDurationDays} {p.engagement.auditDurationDays === 1 ? "day" : "days"}</div>
               </div>
               <div className="bg-s39-bg2 border border-s39-border p-3">
                 <div className="text-[7px] text-s39-dim tracking-widest mb-1">LINES OF CODE</div>
-                <div className="text-[11px] text-s39-white font-bold font-mono">{(p.engagement?.linesOfCode ?? 0).toLocaleString()}</div>
+                <div className="text-[11px] text-s39-white font-bold font-mono">{p.engagement.linesOfCode.toLocaleString()}</div>
               </div>
             </div>
 
@@ -1295,33 +1295,33 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 items-center">
                 <div>
                   <div className="text-[7px] text-s39-green tracking-widest mb-1">TOTAL ENGINEERING HOURS</div>
-                  <div className="text-[28px] text-s39-green font-bold font-mono leading-none">{p.engagement?.engineeringHours || (p.engagement?.auditDurationDays ?? 0) * (p.engagement?.securityEngineersInvolved || 1) * 10}<span className="text-[10px] text-s39-dim ml-1">hrs</span></div>
+                  <div className="text-[28px] text-s39-green font-bold font-mono leading-none">{p.engagement.engineeringHours || p.engagement.auditDurationDays * (p.engagement.securityEngineersInvolved || 1) * 10}<span className="text-[10px] text-s39-dim ml-1">hrs</span></div>
                 </div>
                 <div>
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1">SECURITY ENGINEERS INVOLVED</div>
-                  <div className="text-[28px] text-s39-white font-bold font-mono leading-none">{p.engagement?.securityEngineersInvolved || p.engagement?.numberOfAuditors}</div>
+                  <div className="text-[28px] text-s39-white font-bold font-mono leading-none">{p.engagement.securityEngineersInvolved || p.engagement.numberOfAuditors}</div>
                 </div>
                 <div className="col-span-2 sm:col-span-1">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1">LEAD AUDITOR</div>
-                  <div className="text-[11px] text-s39-cyan font-bold">{p.engagement?.leadAuditor}</div>
-                  <div className="text-[8px] text-s39-dim mt-0.5">Compiler: {p.engagement?.compilerVersionUsed}</div>
+                  <div className="text-[11px] text-s39-cyan font-bold">{p.engagement.leadAuditor}</div>
+                  <div className="text-[8px] text-s39-dim mt-0.5">Compiler: {p.engagement.compilerVersionUsed}</div>
                 </div>
               </div>
             </div>
 
             <div className="bg-s39-bg2 border border-s39-border p-3 mb-4">
               <div className="text-[7px] text-s39-dim tracking-widest mb-1">COMMIT / VERIFICATION</div>
-              <div className="text-[9px] text-s39-mid font-mono break-all">{p.engagement?.commitHash}</div>
-              {p.engagement?.repositoryUrl && (
-                <a href={p.engagement?.repositoryUrl} target="_blank" rel="noreferrer" className="text-[8px] text-s39-cyan hover:underline mt-1 inline-block">{p.engagement?.repositoryUrl}</a>
+              <div className="text-[9px] text-s39-mid font-mono break-all">{p.engagement.commitHash}</div>
+              {p.engagement.repositoryUrl && (
+                <a href={p.engagement.repositoryUrl} target="_blank" rel="noreferrer" className="text-[8px] text-s39-cyan hover:underline mt-1 inline-block">{p.engagement.repositoryUrl}</a>
               )}
             </div>
 
-            {p.engagement?.objectives && p.engagement.objectives.length > 0 && (
+            {p.engagement.objectives && p.engagement.objectives.length > 0 && (
               <div>
                 <div className="text-[7px] text-s39-dim tracking-widest mb-2">ENGAGEMENT OBJECTIVES</div>
                 <div className="flex flex-col gap-1.5">
-                  {(p.engagement?.objectives ?? []).map((obj, i) => (
+                  {p.engagement.objectives.map((obj, i) => (
                     <div key={i} className="flex items-start gap-2">
                       <span className="text-s39-green text-[9px] shrink-0 mt-0.5 font-mono">{i + 1}.</span>
                       <span className="text-[9px] text-s39-mid leading-relaxed">{obj}</span>
@@ -1337,9 +1337,9 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                 <div className="text-[8px] text-s39-dim font-mono tracking-wider mb-1">AUDIT ID</div>
                 <div className="flex items-center gap-3">
                   <div className="text-[9px] text-s39-cyan font-mono tracking-wide">
-                    {p.engagement?.auditId}
+                    {p.engagement.auditId}
                   </div>
-                  <OnChainVerificationBadge auditId={p.engagement?.auditId ?? ""} compact />
+                  <OnChainVerificationBadge auditId={p.engagement.auditId} compact />
                 </div>
               </div>
             )}
@@ -1358,13 +1358,13 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                     </span>
                     {p.engagement.reviewTeam.leadAuditor?.signedOff && (
                       <span className="text-[7px] text-emerald-400 font-mono ml-auto">
-                        {'\u2713 SIGNED OFF '}{p.engagement?.reviewTeam?.leadAuditor?.signOffDate}
+                        {'\u2713 SIGNED OFF '}{p.engagement.reviewTeam.leadAuditor.signOffDate}
                       </span>
                     )}
                   </div>
-                  {p.engagement?.reviewTeam?.note && (
+                  {p.engagement.reviewTeam.note && (
                     <div className="text-[8px] text-s39-dim italic">
-                      {p.engagement?.reviewTeam?.note}
+                      {p.engagement.reviewTeam.note}
                     </div>
                   )}
                 </div>
@@ -1431,7 +1431,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                   {/* Total row */}
                   <tr className="bg-s39-bg2">
                     <td className="px-3 py-2 text-[8px] text-s39-dim font-bold" colSpan={3}>TOTAL</td>
-                    <td className="px-3 py-2 text-s39-white font-bold font-mono">{(p.scopeTable ?? []).reduce((a, s) => a + (s.linesOfCode ?? 0), 0)}</td>
+                    <td className="px-3 py-2 text-s39-white font-bold font-mono">{p.scopeTable.reduce((a, s) => a + s.linesOfCode, 0)}</td>
                     <td className="px-3 py-2" colSpan={2} />
                   </tr>
                 </tbody>
@@ -1465,22 +1465,22 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
               <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
                 <div className="text-[7px] text-s39-dim tracking-widest mb-1">TOTAL LOC</div>
-                <div className="text-lg font-bold text-s39-white font-mono">{p.codeMetrics?.totalLOC ?? 0}</div>
+                <div className="text-lg font-bold text-s39-white font-mono">{p.codeMetrics.totalLOC}</div>
               </div>
               <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
                 <div className="text-[7px] text-s39-dim tracking-widest mb-1">CONTRACTS</div>
-                <div className="text-lg font-bold text-s39-white font-mono">{p.codeMetrics?.totalContracts ?? 1}</div>
+                <div className="text-lg font-bold text-s39-white font-mono">{p.codeMetrics.totalContracts}</div>
               </div>
               <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
                 <div className="text-[7px] text-s39-dim tracking-widest mb-1">COMPLEXITY</div>
-                <div className={`text-lg font-bold font-mono ${p.codeMetrics?.cyclomaticComplexity === "High" ? "text-s39-red" : p.codeMetrics?.cyclomaticComplexity === "Medium" ? "text-s39-yellow" : "text-s39-green"}`}>
-                  {p.codeMetrics?.cyclomaticComplexity || "Low"}
+                <div className={`text-lg font-bold font-mono ${p.codeMetrics.cyclomaticComplexity === "High" ? "text-s39-red" : p.codeMetrics.cyclomaticComplexity === "Medium" ? "text-s39-yellow" : "text-s39-green"}`}>
+                  {p.codeMetrics.cyclomaticComplexity || "Low"}
                 </div>
               </div>
               <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
                 <div className="text-[7px] text-s39-dim tracking-widest mb-1">UPGRADE PATTERN</div>
-                <div className={`text-sm font-bold font-mono ${(p.codeMetrics?.upgradeabilityPattern ?? "none") === "none" ? "text-s39-green" : "text-s39-yellow"}`}>
-                  {(p.codeMetrics?.upgradeabilityPattern ?? "none") === "none" ? "IMMUTABLE" : (p.codeMetrics?.upgradeabilityPattern ?? "").toUpperCase()}
+                <div className={`text-sm font-bold font-mono ${p.codeMetrics.upgradeabilityPattern === "none" ? "text-s39-green" : "text-s39-yellow"}`}>
+                  {p.codeMetrics.upgradeabilityPattern === "none" ? "IMMUTABLE" : p.codeMetrics.upgradeabilityPattern.toUpperCase()}
                 </div>
               </div>
             </div>
@@ -1488,26 +1488,26 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="bg-s39-bg2 border border-s39-border p-3">
                 <div className="text-[7px] text-s39-dim tracking-widest mb-1">COMPILER</div>
-                <div className="text-[10px] text-s39-cyan font-mono">{p.codeMetrics?.compilerVersion}</div>
+                <div className="text-[10px] text-s39-cyan font-mono">{p.codeMetrics.compilerVersion}</div>
               </div>
               <div className="bg-s39-bg2 border border-s39-border p-3">
-                <div className="text-[7px] text-s39-dim tracking-widests mb-1">STANDARD</div>
-                <div className="text-[10px] text-s39-mid">{p.codeMetrics?.standardUsed}</div>
+                <div className="text-[7px] text-s39-dim tracking-widest mb-1">STANDARD</div>
+                <div className="text-[10px] text-s39-mid">{p.codeMetrics.standardUsed}</div>
               </div>
               <div className="bg-s39-bg2 border border-s39-border p-3">
                 <div className="text-[7px] text-s39-dim tracking-widest mb-1">EXTERNAL DEPENDENCIES</div>
                 <div className="text-[10px] text-s39-mid">
-                  {(p.codeMetrics?.externalDependencies?.length ?? 0) > 0 ? (p.codeMetrics?.externalDependencies ?? []).join(", ") : "None"}
+                  {p.codeMetrics.externalDependencies.length > 0 ? p.codeMetrics.externalDependencies.join(", ") : "None"}
                 </div>
               </div>
             </div>
-            {p.codeMetrics?.testCoverage && (
+            {p.codeMetrics.testCoverage && (
               <div className="mt-3 bg-s39-bg2 border border-s39-border p-3 flex items-center gap-3">
                 <div className="text-[7px] text-s39-dim tracking-widest">TEST COVERAGE</div>
                 <div className="flex-1 h-2 bg-s39-bg0 overflow-hidden">
-                  <div className="h-full bg-s39-green/60" style={{ width: p.codeMetrics?.testCoverage }} />
+                  <div className="h-full bg-s39-green/60" style={{ width: p.codeMetrics.testCoverage }} />
                 </div>
-                <span className="text-[10px] text-s39-green font-bold font-mono">{p.codeMetrics?.testCoverage}</span>
+                <span className="text-[10px] text-s39-green font-bold font-mono">{p.codeMetrics.testCoverage}</span>
               </div>
             )}
 
@@ -1525,11 +1525,11 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                   </thead>
                   <tbody>
                     {[
-                      { metric: "Cyclomatic Complexity", value: p.codeMetrics?.cyclomaticComplexity || "Low", risk: (p.codeMetrics?.cyclomaticComplexity === "High" ? "HIGH" : p.codeMetrics?.cyclomaticComplexity === "Medium" ? "MEDIUM" : "LOW") },
-                      { metric: "Lines of Code", value: (p.codeMetrics?.totalLOC ?? 0).toLocaleString(), risk: ((p.codeMetrics?.totalLOC ?? 0) > 1000 ? "MEDIUM" : "LOW") },
-                      { metric: "External Dependencies", value: String(p.codeMetrics?.externalDependencies?.length ?? 0), risk: ((p.codeMetrics?.externalDependencies?.length ?? 0) > 3 ? "MEDIUM" : "LOW") },
-                      { metric: "Upgradeability", value: (p.codeMetrics?.upgradeabilityPattern ?? "none") === "none" ? "Immutable" : (p.codeMetrics?.upgradeabilityPattern ?? ""), risk: ((p.codeMetrics?.upgradeabilityPattern ?? "none") === "none" ? "LOW" : "MEDIUM") },
-                      { metric: "Compiler Version", value: p.codeMetrics?.compilerVersion ?? "", risk: ((p.codeMetrics?.compilerVersion ?? "").includes("0.8") ? "LOW" : "MEDIUM") },
+                      { metric: "Cyclomatic Complexity", value: p.codeMetrics.cyclomaticComplexity || "Low", risk: (p.codeMetrics.cyclomaticComplexity === "High" ? "HIGH" : p.codeMetrics.cyclomaticComplexity === "Medium" ? "MEDIUM" : "LOW") },
+                      { metric: "Lines of Code", value: p.codeMetrics.totalLOC.toLocaleString(), risk: (p.codeMetrics.totalLOC > 1000 ? "MEDIUM" : "LOW") },
+                      { metric: "External Dependencies", value: String(p.codeMetrics.externalDependencies.length), risk: (p.codeMetrics.externalDependencies.length > 3 ? "MEDIUM" : "LOW") },
+                      { metric: "Upgradeability", value: p.codeMetrics.upgradeabilityPattern === "none" ? "Immutable" : p.codeMetrics.upgradeabilityPattern, risk: (p.codeMetrics.upgradeabilityPattern === "none" ? "LOW" : "MEDIUM") },
+                      { metric: "Compiler Version", value: p.codeMetrics.compilerVersion, risk: (p.codeMetrics.compilerVersion.includes("0.8") ? "LOW" : "MEDIUM") },
                     ].map((row, i) => {
                       const riskColor = row.risk === "HIGH" ? "#ff2d55" : row.risk === "MEDIUM" ? "#ffd600" : "#00ff88"
                       return (
@@ -1561,9 +1561,9 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                   </thead>
                   <tbody>
                     {(() => {
-                      const ver = p.codeMetrics?.compilerVersion || ""
+                      const ver = p.codeMetrics.compilerVersion || ""
                       const solMajor = ver.match(/0\.(\d+)/)?.[1]
-                      const ozVer = p.codeMetrics?.standardUsed || ""
+                      const ozVer = p.codeMetrics.standardUsed || ""
                       const ozMajor = ozVer.match(/(\d+)\./)?.[1]
                       // Compatibility check per the standard table
                       const isCompat = (() => {
@@ -1598,7 +1598,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                       ))
                     })()}
                     {/* External dependencies */}
-                    {(p.codeMetrics?.externalDependencies ?? []).map((dep, i) => (
+                    {p.codeMetrics.externalDependencies.map((dep, i) => (
                       <tr key={`dep-${i}`} className="border-b border-s39-border last:border-0">
                         <td className="px-3 py-2 text-s39-dim">External Dependency</td>
                         <td className="px-3 py-2 text-s39-cyan font-mono">{dep}</td>
@@ -1621,9 +1621,9 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2L2 12h10L7 2z" stroke="#ffd600" strokeWidth="1" strokeLinejoin="round"/><path d="M7 6v3M7 10.5v.5" stroke="#ffd600" strokeWidth="1" strokeLinecap="round"/></svg>
               <span className="text-[9px] text-s39-yellow tracking-[0.15em]">RISK CLASSIFICATION MODEL</span>
             </div>
-            <p className="text-[9px] text-s39-mid leading-relaxed mb-4">{p.riskModel?.methodology}</p>
+            <p className="text-[9px] text-s39-mid leading-relaxed mb-4">{p.riskModel.methodology}</p>
             <div className="flex flex-col gap-2 mb-4">
-              {(p.riskModel?.severityMatrix ?? []).map((s, i) => {
+              {p.riskModel.severityMatrix.map((s, i) => {
                 const col = s.level === "CRITICAL" ? "#ff2d55" : s.level === "HIGH" ? "#ff6b00" : s.level === "MEDIUM" ? "#ffd600" : s.level === "LOW" ? "#00e5ff" : "#00ff88"
                 return (
                   <div key={i} className="flex items-start gap-3 bg-s39-bg2 border border-s39-border p-3" style={{ borderLeftColor: col, borderLeftWidth: 3 }}>
@@ -1636,7 +1636,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                 )
               })}
             </div>
-            <p className="text-[8px] text-s39-dim italic">{p.riskModel?.disclaimer}</p>
+            <p className="text-[8px] text-s39-dim italic">{p.riskModel.disclaimer}</p>
           </div>
         )}
 
@@ -2360,23 +2360,23 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
                 <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">CONTRACTS ANALYZED</div>
-                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics?.totalContracts ?? 1}</div>
+                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.totalContracts}</div>
                 </div>
                 <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">LINES OF CODE</div>
-                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{(p.codeMetrics?.totalLOC ?? 0).toLocaleString()}</div>
+                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.totalLOC.toLocaleString()}</div>
                 </div>
                 <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">FUNCTIONS REVIEWED</div>
-                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics?.functionsReviewed || Math.round((p.codeMetrics?.totalLOC ?? 0) / 8)}</div>
+                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.functionsReviewed || Math.round(p.codeMetrics.totalLOC / 8)}</div>
                 </div>
                 <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">EXT. DEPENDENCIES</div>
-                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics?.externalDependencies?.length ?? 0}</div>
+                  <div className="text-xl font-bold text-[#aa44ff] font-mono">{p.codeMetrics.externalDependencies.length}</div>
                 </div>
                 <div className="bg-[#0a0e14] border border-[#aa44ff30] p-3 text-center">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-1.5">TEST COVERAGE</div>
-                  <div className="text-xl font-bold text-s39-green font-mono">{p.codeMetrics?.testCoverage || "N/A"}</div>
+                  <div className="text-xl font-bold text-s39-green font-mono">{p.codeMetrics.testCoverage || "N/A"}</div>
                 </div>
               </div>
             )}
@@ -2409,10 +2409,10 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-2 h-2 bg-s39-green" />
                 <span className="text-[8px] text-s39-green tracking-widest font-bold">1. STATIC ANALYSIS</span>
-                <span className="text-[7px] text-s39-dim ml-auto">{p.testingMethodology?.staticAnalysisTools?.length ?? 0} tool(s) executed</span>
+                <span className="text-[7px] text-s39-dim ml-auto">{p.testingMethodology.staticAnalysisTools.length} tool(s) executed</span>
               </div>
               <div className="flex flex-col gap-3">
-                {(p.testingMethodology?.staticAnalysisTools ?? []).map((t, i) => (
+                {p.testingMethodology.staticAnalysisTools.map((t, i) => (
                   <div key={i} className="border border-s39-border overflow-hidden">
                     {/* Tool Header */}
                     <div className="flex items-center gap-2 px-3 py-2 bg-s39-bg2 border-b border-s39-border">
@@ -2445,15 +2445,15 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
             </div>
 
             {/* ════ 2. FUZZING — Foundry + Echidna ═══��� */}
-            {p.testingMethodology?.dynamicAnalysisTools && p.testingMethodology?.dynamicAnalysisTools?.length > 0 && (
+            {p.testingMethodology.dynamicAnalysisTools && p.testingMethodology.dynamicAnalysisTools.length > 0 && (
               <div className="mb-5">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-2 h-2 bg-[#aa44ff]" />
                   <span className="text-[8px] text-[#aa44ff] tracking-widest font-bold">2. FUZZING & DYNAMIC ANALYSIS</span>
-                  <span className="text-[7px] text-s39-dim ml-auto">{p.testingMethodology?.dynamicAnalysisTools?.length ?? 0} tool(s) executed</span>
+                  <span className="text-[7px] text-s39-dim ml-auto">{p.testingMethodology.dynamicAnalysisTools.length} tool(s) executed</span>
                 </div>
                 <div className="flex flex-col gap-3">
-                  {(p.testingMethodology?.dynamicAnalysisTools ?? []).map((t, i) => (
+                  {p.testingMethodology.dynamicAnalysisTools.map((t, i) => (
                     <div key={i} className="border border-s39-border overflow-hidden">
                       <div className="flex items-center gap-2 px-3 py-2 bg-s39-bg2 border-b border-s39-border">
                         <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="#aa44ff" strokeWidth="0.8"/><path d="M3 5l1.5 1.5L7 4" stroke="#aa44ff" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -2557,7 +2557,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                   {p.engagement?.commitHash && (
                     <div>
                       <span className="text-[7px] text-s39-dim tracking-widest">COMMIT: </span>
-                      <span className="text-[8px] text-s39-cyan font-mono">{(p.engagement?.commitHash?.length ?? 0) > 24 ? (p.engagement?.commitHash ?? "").slice(0, 24) + "..." : p.engagement?.commitHash}</span>
+                      <span className="text-[8px] text-s39-cyan font-mono">{p.engagement.commitHash.length > 24 ? p.engagement.commitHash.slice(0, 24) + "..." : p.engagement.commitHash}</span>
                     </div>
                   )}
                   <div>
@@ -2573,7 +2573,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                 <div className="bg-s39-bg0 p-3">
                   <div className="text-[7px] text-s39-dim tracking-widest mb-2">REVIEW PHASES COMPLETED</div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                    {(p.testingMethodology?.reviewPhases ?? []).map((phase, i) => (
+                    {p.testingMethodology.reviewPhases.map((phase, i) => (
                       <div key={i} className="flex items-center gap-2">
                         <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="1" y="1" width="8" height="8" rx="1" stroke="#00e5ff" strokeWidth="0.8"/><path d="M3 5l1.5 1.5L7 4" stroke="#00e5ff" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
                         <span className="text-[9px] text-s39-mid">{phase}</span>
@@ -2587,7 +2587,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
             {/* ════ VERIFICATION SUMMARY ═���══ */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-5">
               {[
-                { label: "STATIC ANALYSIS", value: (p.testingMethodology?.staticAnalysisTools?.length ?? 0) + " tool(s)", active: true, color: "#00ff88" },
+                { label: "STATIC ANALYSIS", value: p.testingMethodology.staticAnalysisTools.length + " tool(s)", active: true, color: "#00ff88" },
                 { label: "FUZZING", value: p.testingMethodology.fuzzingApplied ? (p.testingMethodology.fuzzingDetails?.match(/\d[\d,]*\s*runs/)?.[0] || "APPLIED") : "N/A", active: p.testingMethodology.fuzzingApplied, color: "#aa44ff" },
                 { label: "SYMBOLIC EXEC", value: p.testingMethodology.symbolicExecution ? (p.testingMethodology.symbolicDetails?.match(/\d+ execution/)?.[0] || "APPLIED") : "N/A", active: p.testingMethodology.symbolicExecution, color: "#ffd600" },
                 { label: "UNIT TESTS", value: p.testingMethodology.unitTestReview ? `${p.testingMethodology.unitTestReview.passing}/${p.testingMethodology.unitTestReview.totalTests} PASS` : "N/A", active: !!p.testingMethodology.unitTestReview, color: "#00e5ff" },
@@ -2606,7 +2606,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               <div className="bg-s39-bg2 border border-s39-border p-3">
                 <div className="text-[8px] text-s39-dim tracking-widest mb-2">TESTING ASSUMPTIONS</div>
                 <div className="flex flex-col gap-1.5">
-                  {(p.testingMethodology?.assumptions ?? []).map((a, i) => (
+                  {p.testingMethodology.assumptions.map((a, i) => (
                     <div key={i} className="flex items-start gap-2">
                       <span className="text-s39-cyan text-[8px] shrink-0 mt-0.5 font-mono">*</span>
                       <span className="text-[8px] text-s39-mid leading-relaxed">{a}</span>
@@ -2617,7 +2617,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               <div className="bg-s39-bg2 border border-s39-border p-3">
                 <div className="text-[8px] text-s39-dim tracking-widest mb-2">TESTING LIMITATIONS</div>
                 <div className="flex flex-col gap-1.5">
-                  {(p.testingMethodology?.limitations ?? []).map((l, i) => (
+                  {p.testingMethodology.limitations.map((l, i) => (
                     <div key={i} className="flex items-start gap-2">
                       <span className="text-s39-orange text-[8px] shrink-0 mt-0.5 font-mono">!</span>
                       <span className="text-[8px] text-s39-mid leading-relaxed">{l}</span>
@@ -2640,8 +2640,8 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
               <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
                 <div className="text-[7px] text-s39-dim tracking-widest mb-1">GOVERNANCE</div>
-                <div className={`text-sm font-bold ${p.governanceSecurity?.hasGovernance ? "text-[#4488ff]" : "text-s39-dim"}`}>
-                  {p.governanceSecurity?.hasGovernance ? "ACTIVE" : "NONE"}
+                <div className={`text-sm font-bold ${p.governanceSecurity.hasGovernance ? "text-[#4488ff]" : "text-s39-dim"}`}>
+                  {p.governanceSecurity.hasGovernance ? "ACTIVE" : "NONE"}
                 </div>
               </div>
               {p.governanceSecurity.timelockDelay && (
@@ -2657,11 +2657,11 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                 </div>
               )}
             </div>
-            {p.governanceSecurity?.votingRisks && p.governanceSecurity?.votingRisks?.length > 0 && (
+            {p.governanceSecurity.votingRisks && p.governanceSecurity.votingRisks.length > 0 && (
               <div>
                 <div className="text-[8px] text-s39-dim tracking-widest mb-2">VOTING RISKS</div>
                 <div className="flex flex-col gap-2">
-                  {(p.governanceSecurity?.votingRisks ?? []).map((risk, i) => (
+                  {p.governanceSecurity.votingRisks.map((risk, i) => (
                     <div key={i} className="flex items-center gap-2 bg-s39-bg2 border border-s39-border px-3 py-2">
                       <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="none" stroke="#ff6b00" strokeWidth="1"/><path d="M5 3v2.5M5 7h.01" stroke="#ff6b00" strokeWidth="1" strokeLinecap="round"/></svg>
                       <span className="text-[10px] text-s39-mid">{risk}</span>
@@ -3248,7 +3248,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                   <div className="text-s39-lite font-bold text-sm">{p.onChainAnalysis.tokenName}</div>
                   <div className="text-s39-dim text-[9px]">{p.onChainAnalysis.tokenSymbol} • {p.onChainAnalysis.tokenNetwork}</div>
                   {p.onChainAnalysis.price && (
-                    <div className="text-s39-green text-[10px] font-mono mt-1">${p.onChainAnalysis?.price?.toFixed(8)}</div>
+                    <div className="text-s39-green text-[10px] font-mono mt-1">${p.onChainAnalysis.price.toFixed(8)}</div>
                   )}
                 </div>
                 <div className="text-right">
@@ -3259,7 +3259,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                     <div className="text-[8px] text-s39-dim">Liquidity: <span className="text-s39-mid font-mono">${(p.onChainAnalysis.liquidity / 1e6).toFixed(2)}M</span></div>
                   )}
                   {p.onChainAnalysis.holders && (
-                    <div className="text-[8px] text-s39-dim">Holders: <span className="text-s39-mid font-mono">{(p.onChainAnalysis?.holders ?? 0).toLocaleString()}</span></div>
+                    <div className="text-[8px] text-s39-dim">Holders: <span className="text-s39-mid font-mono">{p.onChainAnalysis.holders.toLocaleString()}</span></div>
                   )}
                 </div>
               </div>
@@ -3267,27 +3267,27 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
 
             {/* Risk Score and Scores Grid */}
             <div className="grid grid-cols-5 gap-2 mb-4">
-              <div className="bg-s39-bg2 border p-3 text-center" style={{ borderColor: (p.onChainAnalysis?.overallRiskScore || 50) <= 30 ? "#00ff8840" : (p.onChainAnalysis?.overallRiskScore || 50) <= 60 ? "#ffd60040" : "#ff2d5540" }}>
-                <div className="text-[7px] text-s39-dim tracking-widests mb-1">RISK SCORE</div>
-                <div className="text-lg font-bold font-mono" style={{ color: (p.onChainAnalysis?.overallRiskScore || 50) <= 30 ? "#00ff88" : (p.onChainAnalysis?.overallRiskScore || 50) <= 60 ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis?.overallRiskScore || 50}/100</div>
+              <div className="bg-s39-bg2 border p-3 text-center" style={{ borderColor: (p.onChainAnalysis.overallRiskScore || 50) <= 30 ? "#00ff8840" : (p.onChainAnalysis.overallRiskScore || 50) <= 60 ? "#ffd60040" : "#ff2d5540" }}>
+                <div className="text-[7px] text-s39-dim tracking-widest mb-1">RISK SCORE</div>
+                <div className="text-lg font-bold font-mono" style={{ color: (p.onChainAnalysis.overallRiskScore || 50) <= 30 ? "#00ff88" : (p.onChainAnalysis.overallRiskScore || 50) <= 60 ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis.overallRiskScore || 50}/100</div>
               </div>
               {p.onChainAnalysis.scores && (
                 <>
                   <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
                     <div className="text-[7px] text-s39-dim tracking-widest mb-1">CONTRACT</div>
-                    <div className="text-lg font-bold font-mono" style={{ color: (p.onChainAnalysis?.scores?.smartContractSecurity || 5) >= 7 ? "#00ff88" : (p.onChainAnalysis?.scores?.smartContractSecurity || 5) >= 5 ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis?.scores?.smartContractSecurity || 5}/10</div>
+                    <div className="text-lg font-bold font-mono" style={{ color: (p.onChainAnalysis.scores.smartContractSecurity || 5) >= 7 ? "#00ff88" : (p.onChainAnalysis.scores.smartContractSecurity || 5) >= 5 ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis.scores.smartContractSecurity || 5}/10</div>
                   </div>
                   <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
                     <div className="text-[7px] text-s39-dim tracking-widest mb-1">DECENTR.</div>
-                    <div className="text-lg font-bold font-mono" style={{ color: (p.onChainAnalysis?.scores?.decentralization || 5) >= 7 ? "#00ff88" : (p.onChainAnalysis?.scores?.decentralization || 5) >= 4 ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis?.scores?.decentralization || 5}/10</div>
+                    <div className="text-lg font-bold font-mono" style={{ color: (p.onChainAnalysis.scores.decentralization || 5) >= 7 ? "#00ff88" : (p.onChainAnalysis.scores.decentralization || 5) >= 4 ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis.scores.decentralization || 5}/10</div>
                   </div>
                   <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
                     <div className="text-[7px] text-s39-dim tracking-widest mb-1">LIQUIDITY</div>
-                    <div className="text-lg font-bold font-mono" style={{ color: (p.onChainAnalysis?.scores?.liquidityHealth || 5) >= 7 ? "#00ff88" : (p.onChainAnalysis?.scores?.liquidityHealth || 5) >= 4 ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis?.scores?.liquidityHealth || 5}/10</div>
+                    <div className="text-lg font-bold font-mono" style={{ color: (p.onChainAnalysis.scores.liquidityHealth || 5) >= 7 ? "#00ff88" : (p.onChainAnalysis.scores.liquidityHealth || 5) >= 4 ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis.scores.liquidityHealth || 5}/10</div>
                   </div>
                   <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
                     <div className="text-[7px] text-s39-dim tracking-widest mb-1">MANIP.</div>
-                    <div className="text-sm font-bold font-mono" style={{ color: p.onChainAnalysis?.scores?.manipulationRisk === "LOW" ? "#00ff88" : p.onChainAnalysis?.scores?.manipulationRisk === "MEDIUM" ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis?.scores?.manipulationRisk || "MEDIUM"}</div>
+                    <div className="text-sm font-bold font-mono" style={{ color: p.onChainAnalysis.scores.manipulationRisk === "LOW" ? "#00ff88" : p.onChainAnalysis.scores.manipulationRisk === "MEDIUM" ? "#ffd600" : "#ff2d55" }}>{p.onChainAnalysis.scores.manipulationRisk || "MEDIUM"}</div>
                   </div>
                 </>
               )}
@@ -3330,10 +3330,10 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
             )}
             
             {/* On-Chain Audit Findings */}
-            {p.onChainAnalysis?.auditFindings && p.onChainAnalysis?.auditFindings?.length > 0 && (
+            {p.onChainAnalysis.auditFindings && p.onChainAnalysis.auditFindings.length > 0 && (
               <div className="mt-4 mb-4">
                 <div className="text-[8px] text-s39-red tracking-widest mb-2 font-bold">ON-CHAIN SECURITY FINDINGS</div>
-                {(p.onChainAnalysis?.auditFindings ?? []).map((f, i) => {
+                {p.onChainAnalysis.auditFindings.map((f, i) => {
                   const sevColor = f.severity === "critical" ? "#ff2d55" : f.severity === "high" ? "#ff6b00" : f.severity === "medium" ? "#ffd600" : "#00e5ff"
                   return (
                     <div key={i} className="bg-s39-bg2 border p-3 mb-2" style={{ borderColor: sevColor + "40", borderLeftWidth: 3, borderLeftColor: sevColor }}>
@@ -3351,7 +3351,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
             )}
 
             {/* Top Holders Table */}
-            {p.onChainAnalysis?.topHolders && p.onChainAnalysis?.topHolders?.length > 0 && (
+            {p.onChainAnalysis.topHolders && p.onChainAnalysis.topHolders.length > 0 && (
               <div className="mt-4">
                 <div className="text-[8px] text-s39-dim tracking-widest mb-2">TOP HOLDERS DISTRIBUTION</div>
                 <table className="w-full text-[9px]">
@@ -3363,7 +3363,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                     </tr>
                   </thead>
                   <tbody>
-                    {p.onChainAnalysis?.topHolders?.slice(0, 10).map((h, i) => {
+                    {p.onChainAnalysis.topHolders.slice(0, 10).map((h, i) => {
                       const pctColor = h.percentage > 20 ? "#ff2d55" : h.percentage > 10 ? "#ffd600" : "#00ff88"
                       return (
                         <tr key={i} className="border-b border-s39-border last:border-0">
@@ -3400,23 +3400,23 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
 
             {/* Production Readiness */}
             <div className={`border p-4 mb-3 ${
-              (p.finalAssessment?.productionReadiness ?? "").toLowerCase().includes("not recommended") || (p.finalAssessment?.productionReadiness ?? "").toLowerCase().includes("not ready")
+              p.finalAssessment.productionReadiness.toLowerCase().includes("not recommended") || p.finalAssessment.productionReadiness.toLowerCase().includes("not ready")
                 ? "bg-[#1a0000] border-s39-red/30"
                 : "bg-[#001a08] border-s39-green/30"
             }`}>
               <div className="text-[8px] text-s39-dim tracking-widest mb-1">PRODUCTION READINESS</div>
               <div className={`text-[11px] font-bold leading-relaxed ${
-                (p.finalAssessment?.productionReadiness ?? "").toLowerCase().includes("not recommended") || (p.finalAssessment?.productionReadiness ?? "").toLowerCase().includes("not ready")
+                p.finalAssessment.productionReadiness.toLowerCase().includes("not recommended") || p.finalAssessment.productionReadiness.toLowerCase().includes("not ready")
                   ? "text-s39-red"
                   : "text-s39-green"
               }`}>
-                {(p.finalAssessment?.productionReadiness ?? "").toLowerCase().includes("not recommended") || (p.finalAssessment?.productionReadiness ?? "").toLowerCase().includes("not ready")
+                {p.finalAssessment.productionReadiness.toLowerCase().includes("not recommended") || p.finalAssessment.productionReadiness.toLowerCase().includes("not ready")
                   ? "NOT READY FOR PRODUCTION"
                   : "PRODUCTION READY"
                 }
               </div>
               <div className="text-[9px] text-s39-mid leading-relaxed mt-1.5">
-                {p.finalAssessment?.productionReadiness}
+                {p.finalAssessment.productionReadiness}
               </div>
             </div>
 
@@ -3624,28 +3624,28 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                 <div className="flex items-center gap-4 flex-wrap">
                   <div>
                     <div className="text-[7px] text-s39-dim tracking-widest">AUDIT PERIOD</div>
-                    <div className="text-[10px] text-s39-white font-mono mt-0.5">{p.engagement?.auditDate} to {p.engagement?.deliveryDate}</div>
+                    <div className="text-[10px] text-s39-white font-mono mt-0.5">{p.engagement.auditDate} to {p.engagement.deliveryDate}</div>
                   </div>
                   <div>
                     <div className="text-[7px] text-s39-dim tracking-widest">DURATION</div>
-                    <div className="text-[10px] text-s39-white font-mono mt-0.5">{p.engagement?.auditDurationDays} day{p.engagement?.auditDurationDays !== 1 ? "s" : ""}</div>
+                    <div className="text-[10px] text-s39-white font-mono mt-0.5">{p.engagement.auditDurationDays} day{p.engagement.auditDurationDays !== 1 ? "s" : ""}</div>
                   </div>
                   <div>
                     <div className="text-[7px] text-s39-green tracking-widest">ENGINEERING HOURS</div>
-                    <div className="text-[10px] text-s39-green font-mono font-bold mt-0.5">{p.engagement?.engineeringHours || (p.engagement?.auditDurationDays ?? 0) * (p.engagement?.securityEngineersInvolved || 1) * 10}h</div>
+                    <div className="text-[10px] text-s39-green font-mono font-bold mt-0.5">{p.engagement.engineeringHours || p.engagement.auditDurationDays * (p.engagement.securityEngineersInvolved || 1) * 10}h</div>
                   </div>
                   <div>
                     <div className="text-[7px] text-s39-dim tracking-widest">ENGINEERS</div>
-                    <div className="text-[10px] text-s39-white font-mono mt-0.5">{p.engagement?.securityEngineersInvolved || p.engagement?.numberOfAuditors}</div>
+                    <div className="text-[10px] text-s39-white font-mono mt-0.5">{p.engagement.securityEngineersInvolved || p.engagement.numberOfAuditors}</div>
                   </div>
                   <div>
                     <div className="text-[7px] text-s39-dim tracking-widest">REPORT VALID AS OF</div>
-                    <div className="text-[10px] text-s39-white font-mono mt-0.5">{p.engagement?.deliveryDate}</div>
+                    <div className="text-[10px] text-s39-white font-mono mt-0.5">{p.engagement.deliveryDate}</div>
                   </div>
-                  {p.engagement?.commitHash && (
+                  {p.engagement.commitHash && (
                     <div>
                       <div className="text-[7px] text-s39-dim tracking-widest">COMMIT REVIEWED</div>
-                      <div className="text-[10px] text-s39-cyan font-mono mt-0.5">{(p.engagement?.commitHash?.length ?? 0) > 20 ? (p.engagement?.commitHash ?? "").slice(0, 20) + "..." : p.engagement?.commitHash}</div>
+                      <div className="text-[10px] text-s39-cyan font-mono mt-0.5">{p.engagement.commitHash.length > 20 ? p.engagement.commitHash.slice(0, 20) + "..." : p.engagement.commitHash}</div>
                     </div>
                   )}
                 </div>
@@ -3656,7 +3656,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
             <div className="mb-4">
               <div className="text-[8px] text-s39-dim tracking-widest mb-2">SCOPE & REVIEW LIMITATIONS</div>
               <div className="flex flex-col gap-2">
-                {(p.limitations?.statements ?? []).map((s, i) => (
+                {p.limitations.statements.map((s, i) => (
                   <div key={i} className="flex items-start gap-2.5 py-1">
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="shrink-0 mt-0.5"><circle cx="5" cy="5" r="4" stroke="#ff6b00" strokeWidth="0.8"/><path d="M5 3v3M5 7.2v.3" stroke="#ff6b00" strokeWidth="0.8" strokeLinecap="round"/></svg>
                     <span className="text-[9px] text-s39-mid leading-relaxed">{s}</span>
@@ -3818,9 +3818,9 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                   )}
 
                   {/* Security Engineers */}
-                  {p.auditorSignatures?.securityEngineers && p.auditorSignatures?.securityEngineers?.length > 0 && (
+                  {p.auditorSignatures.securityEngineers && p.auditorSignatures.securityEngineers.length > 0 && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {(p.auditorSignatures?.securityEngineers ?? []).map((eng, i) => (
+                      {p.auditorSignatures.securityEngineers.map((eng, i) => (
                         <div key={i} className="p-3 rounded bg-s39-bg0 border border-s39-border">
                           <div className="flex items-start gap-3">
                             <div className="w-9 h-9 rounded-full bg-cyan-950/40 border border-cyan-800/40 flex items-center justify-center shrink-0">
@@ -3844,9 +3844,9 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                   )}
 
                   {/* Reviewers */}
-                  {p.auditorSignatures?.reviewers && p.auditorSignatures?.reviewers?.length > 0 && (
+                  {p.auditorSignatures.reviewers && p.auditorSignatures.reviewers.length > 0 && (
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {(p.auditorSignatures?.reviewers ?? []).map((rev, i) => (
+                      {p.auditorSignatures.reviewers.map((rev, i) => (
                         <div key={i} className="p-2.5 rounded bg-s39-bg0 border border-s39-border">
                           <div className="text-[7px] text-s39-dim tracking-widest mb-0.5">REVIEWER</div>
                           <div className="text-[9px] text-s39-white font-bold truncate">{rev.name}</div>
@@ -4636,11 +4636,11 @@ console.log("Signer:", recovered);
                   )}
 
                   {/* Static Analysis Tools */}
-                  {p.testCoverage?.staticAnalysis && p.testCoverage?.staticAnalysis?.length > 0 && (
+                  {p.testCoverage.staticAnalysis && p.testCoverage.staticAnalysis.length > 0 && (
                     <div className="space-y-2">
                       <div className="text-[8px] text-s39-dim tracking-widest">STATIC ANALYSIS TOOLS</div>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {(p.testCoverage?.staticAnalysis ?? []).map((tool, i) => (
+                        {p.testCoverage.staticAnalysis.map((tool, i) => (
                           <div key={i} className="bg-s39-bg0 border border-s39-border p-3 rounded">
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-[10px] text-s39-white font-bold">{tool.tool}</span>
@@ -4964,7 +4964,7 @@ console.log("Signer:", recovered);
             <div className="mb-4">
               <div className="text-[8px] text-s39-dim tracking-widest mb-2">AREAS OF EXPERTISE</div>
               <div className="flex flex-wrap gap-2">
-                {(p.auditorProfile?.experience ?? []).map((exp, i) => (
+                {p.auditorProfile.experience.map((exp, i) => (
                   <span key={i} className="text-[8px] text-s39-cyan bg-s39-cyan/5 border border-s39-cyan/20 px-2.5 py-1">{exp}</span>
                 ))}
               </div>
