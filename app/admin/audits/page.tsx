@@ -11,6 +11,7 @@ interface BlobAudit {
   uploadedAt: string
   size: number
   status?: "ok" | "error" | "checking"
+  auditData?: Record<string, unknown>
 }
 
 export default function AdminAuditsPage() {
@@ -23,7 +24,8 @@ export default function AdminAuditsPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch("/api/publish?list=true")
+      // Use /api/audits to list all audits
+      const res = await fetch("/api/audits")
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`)
       }
@@ -31,7 +33,15 @@ export default function AdminAuditsPage() {
       if (data.error) {
         throw new Error(data.error)
       }
-      setAudits(data.audits || [])
+      // Transform audits to match BlobAudit interface
+      const auditList: BlobAudit[] = (data.audits || []).map((a: Record<string, unknown>) => ({
+        pathname: `audits/${a.id}.json`,
+        url: "", // Not needed for display
+        uploadedAt: (a.date as string) || new Date().toISOString(),
+        size: JSON.stringify(a).length,
+        auditData: a, // Keep full audit data for display
+      }))
+      setAudits(auditList)
     } catch (err) {
       setError(`Failed to fetch audits: ${err instanceof Error ? err.message : String(err)}`)
     }
@@ -64,19 +74,20 @@ export default function AdminAuditsPage() {
   }
 
   const deleteAudit = async (audit: BlobAudit, skipConfirm = false) => {
-    if (!skipConfirm && !confirm(`Delete ${audit.pathname}?`)) return
-    setDeleting(audit.url)
+    const id = getId(audit.pathname)
+    if (!skipConfirm && !confirm(`Delete audit: ${id}?`)) return
+    setDeleting(audit.pathname)
     try {
-      const res = await fetch("/api/publish", {
+      const res = await fetch("/api/audits", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: audit.url }),
+        body: JSON.stringify({ id }),
       })
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error || `HTTP ${res.status}`)
       }
-      setAudits((prev) => prev.filter((a) => a.url !== audit.url))
+      setAudits((prev) => prev.filter((a) => a.pathname !== audit.pathname))
     } catch (err) {
       setError(`Delete failed: ${err instanceof Error ? err.message : String(err)}`)
     }
@@ -149,9 +160,11 @@ export default function AdminAuditsPage() {
                   {!audit.status && <div className="h-4 w-4" />}
                   
                   <div>
-                    <p className="font-mono text-sm">{getId(audit.pathname)}</p>
+                    <p className="font-mono text-sm font-medium">
+                      {audit.auditData?.name ? String(audit.auditData.name) : getId(audit.pathname)}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(audit.uploadedAt).toLocaleString()} · {(audit.size / 1024).toFixed(1)} KB
+                      ID: {getId(audit.pathname)} · {new Date(audit.uploadedAt).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -170,9 +183,9 @@ export default function AdminAuditsPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => deleteAudit(audit)}
-                    disabled={deleting === audit.url}
+                    disabled={deleting === audit.pathname}
                   >
-                    <Trash2 className={`h-4 w-4 text-red-500 ${deleting === audit.url ? "animate-pulse" : ""}`} />
+                    <Trash2 className={`h-4 w-4 text-red-500 ${deleting === audit.pathname ? "animate-pulse" : ""}`} />
                   </Button>
                 </div>
               </div>

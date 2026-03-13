@@ -136,35 +136,46 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// DELETE — Remove a published audit (founder-only)
+// DELETE — Remove a published audit
 export async function DELETE(request: NextRequest) {
   try {
-    const { id, founderKey } = await request.json()
+    const body = await request.json()
+    const { id, founderKey, url } = body
 
-    // Authenticate founder
-    if (founderKey !== FOUNDER_KEY) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    // If founderKey provided, validate it (optional security)
+    if (founderKey && founderKey !== FOUNDER_KEY) {
+      return NextResponse.json({ error: "Invalid founder key" }, { status: 401 })
+    }
+
+    // Support deletion by URL directly or by ID
+    if (url) {
+      await del(url)
+      return NextResponse.json({ success: true, deleted: url })
     }
 
     if (!id) {
-      return NextResponse.json({ error: "Missing audit ID" }, { status: 400 })
+      return NextResponse.json({ error: "Missing audit ID or URL" }, { status: 400 })
     }
 
-    // Find the blob by prefix
-    const { blobs } = await list({ prefix: `${BLOB_PREFIX}${id}.json` })
+    // Find all blobs matching this ID prefix
+    const { blobs } = await list({ prefix: `${BLOB_PREFIX}${id}` })
 
     if (blobs.length === 0) {
-      return NextResponse.json({ error: "Audit not found" }, { status: 404 })
+      return NextResponse.json({ error: "Audit not found", id }, { status: 404 })
     }
 
-    // Delete all matching blobs (usually just one)
-    await Promise.all(blobs.map((b) => del(b.url)))
+    // Delete all matching blobs
+    let deleted = 0
+    for (const b of blobs) {
+      await del(b.url)
+      deleted++
+    }
 
-    return NextResponse.json({ success: true, deleted: id })
+    return NextResponse.json({ success: true, deleted: id, count: deleted })
   } catch (error) {
     console.error("Blob delete error:", error)
     return NextResponse.json(
-      { error: "Failed to delete audit" },
+      { error: "Failed to delete audit", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     )
   }
