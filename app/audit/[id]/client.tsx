@@ -5,31 +5,25 @@ import { ProjectDetail, getPublishedAudits } from "@/components/skynet-public"
 import { type PortfolioProject } from "@/lib/solay39-constants"
 
 // Error boundary to catch rendering crashes in ProjectDetail
-class AuditErrorBoundary extends Component<{ children: ReactNode; auditId: string }, { hasError: boolean; errorMsg: string }> {
+class AuditErrorBoundary extends Component<{ children: ReactNode; auditId: string }, { hasError: boolean }> {
   constructor(props: { children: ReactNode; auditId: string }) {
     super(props)
-    this.state = { hasError: false, errorMsg: "" }
+    this.state = { hasError: false }
   }
-  static getDerivedStateFromError(error: Error) { return { hasError: true, errorMsg: error?.message || "Unknown error" } }
-  componentDidCatch(error: Error, info: { componentStack?: string }) { 
-    console.error("[v0] ProjectDetail crash:", error.message, error.stack)
-    console.error("[v0] Component stack:", info.componentStack)
-  }
+  static getDerivedStateFromError() { return { hasError: true } }
+  componentDidCatch(error: Error) { console.error("[Solay39] ProjectDetail crash:", error.message) }
   render() {
     if (this.state.hasError) {
       return (
         <div className="min-h-dvh bg-s39-bg0 flex items-center justify-center">
-          <div className="text-center max-w-lg mx-auto p-6">
+          <div className="text-center max-w-md mx-auto p-6">
             <div className="text-[9px] text-red-400 tracking-[0.15em] mb-3 font-mono">RENDER ERROR</div>
             <h1 className="text-xl font-bold text-s39-white mb-3 font-mono">Failed to render audit report</h1>
-            <p className="text-[10px] text-s39-dim mb-4 leading-relaxed">
+            <p className="text-[10px] text-s39-dim mb-6 leading-relaxed">
               The audit data may be incomplete or corrupted. Try reloading or running the audit again.
             </p>
-            <div className="bg-red-950/30 border border-red-500/30 p-3 mb-6 text-left overflow-auto max-h-32">
-              <code className="text-[8px] text-red-300 font-mono break-all whitespace-pre-wrap">{this.state.errorMsg}</code>
-            </div>
             <div className="flex gap-3 justify-center">
-              <button onClick={() => { this.setState({ hasError: false, errorMsg: "" }); window.location.reload() }}
+              <button onClick={() => { this.setState({ hasError: false }); window.location.reload() }}
                 className="text-[9px] text-s39-green border border-s39-green/30 px-4 py-2 font-mono tracking-wider hover:bg-s39-green/5 transition-colors cursor-pointer bg-transparent">
                 RELOAD
               </button>

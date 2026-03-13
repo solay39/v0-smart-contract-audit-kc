@@ -298,38 +298,24 @@ function simulateLiquidityDrain(code: string, meta: ContractMeta): AttackVectorR
 
 function simulateMEV(code: string, _meta: ContractMeta): AttackVectorResult {
   const hasSlippageProtection = hasPattern(code, [/minAmount|amountOutMin|slippage|deadline/i])
-  
-  // FIX: cerca FUNZIONI di swap, non solo il nome del contratto
-  // Prima cercava /swap|exchange|trade|uniswap|pancake/i
-  // che triggera su nomi tipo "PancakeSwap Token" anche se non ha AMM
-  const hasSwapFunction = hasPattern(code, [
-    /function\s+swap/i,
-    /function\s+exchange/i,
-    /function\s+trade/i,
-    /IUniswapV[23]Router/i,
-    /IPancakeRouter/i,
-    /swapExactTokens/i,
-    /swapTokensForExact/i,
-    /getAmountsOut/i,
-    /getAmountsIn/i,
-  ])
-  
+  const hasSwap = hasPattern(code, [/swap|exchange|trade|uniswap|pancake/i])
   const hasCommitReveal = hasPattern(code, [/commit|reveal|hash.*secret/i])
-  const isVulnerable = hasSwapFunction && !hasSlippageProtection
+
+  const isVulnerable = hasSwap && !hasSlippageProtection
 
   return {
     id: "SIM-006",
     attackType: "MEV / Front-Running",
     category: "economic",
-    status: !hasSwapFunction ? "NOT_APPLICABLE" : isVulnerable ? "VULNERABLE" : "SAFE",
+    status: !hasSwap ? "NOT_APPLICABLE" : isVulnerable ? "VULNERABLE" : "SAFE",
     gasUsed: 180_000,
     maxDrainableUSD: isVulnerable ? 500_000 : 0,
     confidence: 82,
     description: isVulnerable
       ? "Swap/trade operations without slippage protection. Transactions can be sandwiched by MEV bots."
-      : hasSwapFunction
+      : hasSwap
         ? "Slippage protection detected on swap operations."
-        : "No on-chain swap/AMM logic detected in this contract.",
+        : "No DEX interaction patterns detected.",
     attackFlow: isVulnerable
       ? ["1. Monitor mempool for pending swap", "2. Front-run with large buy to move price", "3. Victim swap executes at worse price", "4. Back-run with sell for profit"]
       : ["1. Attempt sandwich attack", "2. amountOutMin/deadline check reverts", "3. MEV extraction blocked"],

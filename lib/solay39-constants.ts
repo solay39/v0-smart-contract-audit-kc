@@ -551,7 +551,7 @@ export interface PortfolioProject {
     }[]
     formalVerification: {
       enabled: boolean
-      tool?: string               // "Halmos" | "KEVM"
+      tool?: string               // "Certora" | "Halmos" | "KEVM"
       propertiesVerified: number
       propertiesFailed: number
       invariantsChecked: string[]
@@ -842,7 +842,7 @@ export const SOLAY39_LIMITATIONS: AuditLimitations = {
   statements: [
     "This security assessment is a time-boxed review and does not guarantee the absence of vulnerabilities. Undiscovered issues may exist.",
     "The review is limited to the smart contract source code provided. Off-chain components, frontend applications, and deployment scripts were not in scope.",
-    "Formal verification performed using Halmos symbolic execution engine. Results are documented in the Testing Methodology section.",
+    "No formal verification (Certora, K Framework) was performed unless explicitly stated in the Testing Methodology section.",
     "Economic model analysis is limited to on-chain contract logic. Token market dynamics, liquidity conditions, and external oracle behavior may introduce risks not covered by this audit.",
     "This audit does not constitute financial advice. It is a technical assessment of smart contract code security only.",
     "Findings and recommendations reflect the auditor's professional judgment at the time of review. The threat landscape evolves continuously.",
@@ -1029,7 +1029,7 @@ constructor() public {
       ],
       limitations: [
         "Time-boxed to 6 hours of manual review",
-        "Formal verification performed using Halmos",
+        "No formal verification (Certora/K Framework) performed",
         "Economic model analysis limited to on-chain contract logic",
       ],
     },
@@ -1099,9 +1099,9 @@ constructor() public {
       auditDate: "2026-02-25",
       deliveryDate: "2026-02-25",
   auditDurationDays: 5,
-  numberOfAuditors: 1,
-  engineeringHours: 25,
-  securityEngineersInvolved: 1,
+  numberOfAuditors: 24,
+  engineeringHours: 320,
+  securityEngineersInvolved: 108,
   leadAuditor: "Solay39 Lead Security Architect",
       compilerVersionUsed: "solc 0.4.18",
       contractsReviewed: 1,
@@ -1277,9 +1277,9 @@ function transfer(address _to, uint256 _value) public returns (bool) {
   auditDate: "2026-02-25",
   deliveryDate: "2026-02-25",
   auditDurationDays: 7,
-  numberOfAuditors: 1,
-  engineeringHours: 37,
-  securityEngineersInvolved: 1,
+  numberOfAuditors: 24,
+  engineeringHours: 480,
+  securityEngineersInvolved: 108,
   leadAuditor: "Solay39 Lead Security Architect",
       compilerVersionUsed: "solc 0.4.24",
       contractsReviewed: 1,
@@ -1458,7 +1458,7 @@ function pause() public onlyPauser {
       ],
       limitations: [
         "Time-boxed to 8 hours of manual review",
-        "Formal verification performed using Halmos",
+        "No formal verification (Certora/K Framework) performed",
         "Off-chain PauserRole governance not in scope",
       ],
     },
