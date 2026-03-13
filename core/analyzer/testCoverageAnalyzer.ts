@@ -221,7 +221,7 @@ export function analyzeTestCoverage(code: string, meta: ContractMeta, findings: 
   const propertiesVerified = invariantsBase.length - (criticalCount > 0 ? 1 : 0)
   const formalVerification: FormalVerificationResult = {
     enabled: true,
-    tool: "Certora Prover",
+    tool: "Halmos",
     propertiesVerified,
     propertiesFailed: criticalCount > 0 ? 1 : 0,
     invariantsChecked: invariantsBase,
