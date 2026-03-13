@@ -3806,15 +3806,15 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               <div className="flex flex-col items-end gap-1">
                 <span className="text-[10px] text-purple-400 italic font-serif pb-1">{(p.auditorSignatures?.leadAuditor?.name ?? "").split(" ")[0]}</span>
                 <div className="h-px w-16 bg-s39-border" />
-                        {p.auditorSignatures?.leadAuditor?.signedAt && (
-                          <span className="text-[7px] text-s39-dim font-mono">
-                            {new Date(p.auditorSignatures?.leadAuditor?.signedAt ?? "").toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                {p.auditorSignatures?.leadAuditor?.signedAt && (
+                  <span className="text-[7px] text-s39-dim font-mono">
+                    {new Date(p.auditorSignatures?.leadAuditor?.signedAt ?? "").toLocaleDateString()}
+                  </span>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
 
                   {/* Security Engineers */}
                   {(p.auditorSignatures?.securityEngineers?.length ?? 0) > 0 && (
@@ -5059,7 +5059,7 @@ p.testCoverage?.formalVerification?.status === "VERIFIED" ? "bg-emerald-950/30 t
 
 // ════════════════════════════════════════��═══════��══════════════════
 // METHODOLOGY PAGE
-// ════════════════════════════════════════��════════════════════��═════
+// ════════════════════════════════════���═══��════════════════════��═════
 function MethodologyPage() {
   const phases: [string, string, string, string][] = [
     ["01", "System Comprehension", "#00e5ff", "Complete architectural analysis: trust boundaries, funds flow, actor model, threat surface and external dependencies."],
