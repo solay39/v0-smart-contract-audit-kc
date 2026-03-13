@@ -3795,26 +3795,26 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-[7px] text-purple-400 tracking-widest mb-1">LEAD AUDITOR</div>
-<div className="text-[12px] text-s39-white font-bold">{p.auditorSignatures?.leadAuditor?.name}</div>
-                <div className="text-[9px] text-s39-mid">{p.auditorSignatures?.leadAuditor?.title}</div>
-                {p.auditorSignatures?.leadAuditor?.walletAddress && (
-                  <div className="text-[7px] text-s39-dim font-mono mt-0.5">
-                    {p.auditorSignatures?.leadAuditor?.walletAddress}
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <span className="text-[10px] text-purple-400 italic font-serif pb-1">{(p.auditorSignatures?.leadAuditor?.name ?? "").split(" ")[0]}</span>
-                <div className="h-px w-16 bg-s39-border" />
-                {p.auditorSignatures?.leadAuditor?.signedAt && (
-                  <span className="text-[7px] text-s39-dim font-mono">
-                    {new Date(p.auditorSignatures?.leadAuditor?.signedAt ?? "").toLocaleDateString()}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+                          <div className="text-[12px] text-s39-white font-bold">{p.auditorSignatures?.leadAuditor?.name}</div>
+                          <div className="text-[9px] text-s39-mid">{p.auditorSignatures?.leadAuditor?.title}</div>
+                          {p.auditorSignatures?.leadAuditor?.walletAddress && (
+                            <div className="text-[7px] text-s39-dim font-mono mt-0.5">
+                              {p.auditorSignatures?.leadAuditor?.walletAddress}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-[10px] text-purple-400 italic font-serif pb-1">{(p.auditorSignatures?.leadAuditor?.name ?? "").split(" ")[0]}</span>
+                          <div className="h-px w-16 bg-s39-border" />
+                          {p.auditorSignatures?.leadAuditor?.signedAt && (
+                            <span className="text-[7px] text-s39-dim font-mono">
+                              {new Date(p.auditorSignatures?.leadAuditor?.signedAt ?? "").toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Security Engineers */}
                   {(p.auditorSignatures?.securityEngineers?.length ?? 0) > 0 && (
@@ -5059,7 +5059,7 @@ p.testCoverage?.formalVerification?.status === "VERIFIED" ? "bg-emerald-950/30 t
 
 // ════════════════════════════════════════��═══════��══════════════════
 // METHODOLOGY PAGE
-// ════════════════════════════════════���═══��════════════════════��═════
+// ════════════════════════════════════���═══��════════════════���═══��═════
 function MethodologyPage() {
   const phases: [string, string, string, string][] = [
     ["01", "System Comprehension", "#00e5ff", "Complete architectural analysis: trust boundaries, funds flow, actor model, threat surface and external dependencies."],
