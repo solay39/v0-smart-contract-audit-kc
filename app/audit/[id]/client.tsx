@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Component, type ReactNode } from "react"
 import { ProjectDetail, getPublishedAudits } from "@/components/skynet-public"
-import { type PortfolioProject } from "@/lib/solay39-constants"
+import type { PortfolioProject } from "@/lib/solay39-constants"
 
 // Error boundary to catch rendering crashes in ProjectDetail
 class AuditErrorBoundary extends Component<{ children: ReactNode; auditId: string }, { hasError: boolean }> {
@@ -181,7 +181,8 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
     )
   }
 
-  // Ensure required fields exist to prevent render errors
+  // Ensure ALL required fields exist to prevent render errors
+  // This includes nested objects that ProjectDetail accesses
   const safeProject: PortfolioProject = {
     ...liveProject,
     id: liveProject.id || auditId,
@@ -193,6 +194,80 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
     lows: liveProject.lows ?? 0,
     infos: liveProject.infos ?? 0,
     date: liveProject.date || new Date().toISOString().slice(0, 10),
+    findings: liveProject.findings ?? [],
+    // Engagement defaults
+    engagement: liveProject.engagement ?? {
+      auditId: liveProject.id || auditId,
+      auditDate: liveProject.date || new Date().toISOString().slice(0, 10),
+      deliveryDate: liveProject.date || new Date().toISOString().slice(0, 10),
+      auditDurationDays: 7,
+      linesOfCode: 0,
+      engineeringHours: 0,
+      securityEngineersInvolved: 1,
+      numberOfAuditors: 1,
+      leadAuditor: "Solay39 Security Team",
+      compilerVersionUsed: "0.8.x",
+      commitHash: "",
+      objectives: [],
+    },
+    // Code metrics defaults
+    codeMetrics: liveProject.codeMetrics ?? {
+      totalLOC: 0,
+      totalContracts: 1,
+      cyclomaticComplexity: "Low",
+      upgradeabilityPattern: "none",
+      compilerVersion: "0.8.x",
+      standardUsed: "ERC-20",
+      externalDependencies: [],
+      testCoverage: "N/A",
+    },
+    // Risk model defaults
+    riskModel: liveProject.riskModel ?? {
+      methodology: "Solay39 Risk Assessment Framework",
+      severityMatrix: [],
+      disclaimer: "This audit is valid only for the specific commit hash reviewed.",
+    },
+    // On-chain analysis defaults
+    onChainAnalysis: liveProject.onChainAnalysis ?? {
+      overallRiskScore: 0,
+      scores: {},
+    },
+    // Governance security defaults
+    governanceSecurity: liveProject.governanceSecurity ?? {
+      hasGovernance: false,
+      votingRisks: [],
+    },
+    // Testing methodology defaults
+    testingMethodology: liveProject.testingMethodology ?? {
+      staticAnalysisTools: [],
+      dynamicAnalysisTools: [],
+      reviewPhases: [],
+      assumptions: [],
+      limitations: { statements: [] },
+    },
+    // Test coverage defaults
+    testCoverage: liveProject.testCoverage ?? {
+      staticAnalysis: [],
+    },
+    // Auditor signatures defaults
+    auditorSignatures: liveProject.auditorSignatures ?? {
+      securityEngineers: [],
+      reviewers: [],
+    },
+    // Code reference defaults
+    codeReference: liveProject.codeReference ?? {
+      auditedFiles: [],
+    },
+    // Scope table defaults
+    scopeTable: liveProject.scopeTable ?? [],
+    // Final assessment defaults
+    finalAssessment: liveProject.finalAssessment ?? {
+      productionReadiness: "Conditional",
+    },
+    // Auditor profile defaults
+    auditorProfile: liveProject.auditorProfile ?? {
+      experience: [],
+    },
   }
 
   return (
