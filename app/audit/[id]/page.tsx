@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import { list } from "@vercel/blob"
 import { DEFAULT_PROJECTS, ratingOf, getWeightedScore, type PortfolioProject } from "@/lib/solay39-constants"
 import { AuditDetailClient } from "./client"
 
@@ -9,32 +8,26 @@ export const dynamicParams = true
 // Build a lookup map at module scope
 const projectMap = new Map(DEFAULT_PROJECTS.map((p) => [p.id, p]))
 
-// Fetch audit from Vercel Blob (server-side) — fully resilient
+// Fetch audit from Vercel Blob via API (avoids server-side @vercel/blob issues)
 async function fetchBlobAudit(id: string): Promise<PortfolioProject | null> {
   try {
-    // Try exact match first
-    let { blobs } = await list({ prefix: `audits/${id}.json`, limit: 1 })
+    // Use internal API to fetch from Blob (works reliably on Edge/Node)
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : process.env.NEXT_PUBLIC_SITE_URL || "https://www.solay39.eu"
     
-    // If not found, try prefix without .json (handles random suffix from Blob)
-    if (blobs.length === 0) {
-      const prefixResult = await list({ prefix: `audits/${id}`, limit: 10 })
-      blobs = prefixResult.blobs.filter(b => b.pathname.includes(id) && b.pathname.endsWith('.json'))
-    }
+    const res = await fetch(`${baseUrl}/api/audits?id=${encodeURIComponent(id)}`, {
+      next: { revalidate: 60 },
+    })
     
-    if (blobs.length === 0) {
-      console.log(`[audit/${id}] Not found in Blob storage`)
-      return null
-    }
-    
-    console.log(`[audit/${id}] Found in Blob:`, blobs[0].pathname)
-    const res = await fetch(blobs[0].url, { next: { revalidate: 60 } })
     if (!res.ok) {
-      console.log(`[audit/${id}] Blob fetch failed:`, res.status)
       return null
     }
-    return (await res.json()) as PortfolioProject
+    
+    const data = await res.json()
+    return data.audit || null
   } catch (err) {
-    console.error(`[audit/${id}] Blob error:`, err)
+    console.error(`[audit/${id}] Fetch error:`, err)
     return null
   }
 }
