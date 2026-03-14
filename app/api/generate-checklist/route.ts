@@ -1,10 +1,5 @@
-// ═══════════════════════════════════════════════════════════════════
-// SOLAY39 — Dynamic Checklist Generator
+// SOLAY39 — Dynamic Checklist Generator (UPGRADE v2)
 // app/api/generate-checklist/route.ts
-//
-// Genera una checklist SPECIFICA per il contratto in input.
-// Non è una lista generica — ogni domanda è calibrata sul codice reale.
-// ═══════════════════════════════════════════════════════════════════
 
 export const maxDuration = 30
 
@@ -23,174 +18,146 @@ interface CheckItem {
   note: ""
 }
 
-// Garantisce almeno 6-10 domande base anche per contratti semplici
-function mergeWithBaseChecklist(
-  aiChecks: CheckItem[],
-  network: string,
-  source: string
-): CheckItem[] {
-  const isSolana = network === "Solana"
-  const hasOwner = /onlyOwner|Ownable|owner\(\)/.test(source)
-  const hasProxy = /upgradeable|proxy|UUPSUpgradeable/.test(source.toLowerCase())
-  const hasMint = /function\s+mint/.test(source)
+function mergeWithBaseChecklist(aiChecks: CheckItem[], network: string, source: string): CheckItem[] {
+  const isSolana      = network === "Solana"
+  const hasOwner      = /onlyOwner|Ownable|owner\(\)/.test(source)
+  const hasProxy      = /upgradeable|proxy|UUPSUpgradeable/i.test(source)
+  const hasMint       = /function\s+mint/.test(source)
+  const hasTransfer   = /\.transfer\(|\.call\{value:/.test(source)
+  const hasApprove    = /function\s+approve/.test(source)
+  const hasLiquidity  = /addLiquidity|removeLiquidity|pool|swap/i.test(source)
+  const hasDelegateCall = /\.delegatecall\(/.test(source)
+  const hasBlock      = /block\.timestamp|block\.number/.test(source)
+  const pm            = source.match(/pragma\s+solidity\s+([^;]+);/)
+  const oldSolidity   = pm && /0\.[0-7]/.test(pm[1])
+  const has777        = /ERC777|tokensReceived|tokensToSend/.test(source)
+  const hasSig        = /ecrecover|ECDSA/.test(source)
 
-  // Base questions always present regardless of contract complexity
   const base: CheckItem[] = isSolana ? [
-    { id: "base-s1", category: "Signer Verification", question: "Are all state-modifying instructions verifying the signer account explicitly?", why: "Missing signer check is #1 Solana exploit vector", severity: "CRITICAL", aiGenerated: true, status: "pending", note: "" },
-    { id: "base-s2", category: "Account Validation", question: "Are account owners verified before reading or writing account data?", why: "Account confusion attacks exploit missing owner checks", severity: "HIGH", aiGenerated: true, status: "pending", note: "" },
-    { id: "base-s3", category: "Arithmetic Safety", question: "Are all arithmetic operations using checked_add / checked_sub / checked_mul?", why: "Rust release mode disables overflow panics by default", severity: "MEDIUM", aiGenerated: true, status: "pending", note: "" },
-    { id: "base-s4", category: "CPI Security", question: "Are all Cross-Program Invocations verifying the target program ID?", why: "Unverified CPI targets allow calling malicious programs", severity: "HIGH", aiGenerated: true, status: "pending", note: "" },
-    { id: "base-s5", category: "PDA Security", question: "Are PDA seeds unique enough to prevent account collisions?", why: "Predictable seeds allow front-running PDA creation", severity: "MEDIUM", aiGenerated: true, status: "pending", note: "" },
+    { id: "base-s1", category: "Signer Verification",  question: "Are all state-modifying instructions verifying the signer account explicitly?",    why: "Missing signer check = #1 Solana exploit vector — CWE-284",            severity: "CRITICAL", aiGenerated: true, status: "pending", note: "" },
+    { id: "base-s2", category: "Account Validation",   question: "Are account owners verified before reading/writing account data?",                  why: "Account confusion attacks exploit missing owner checks",                 severity: "HIGH",     aiGenerated: true, status: "pending", note: "" },
+    { id: "base-s3", category: "Arithmetic Safety",    question: "Are all arithmetic operations using checked_add / checked_sub / checked_mul?",       why: "Rust release mode disables overflow panics — SWC-101",                 severity: "MEDIUM",   aiGenerated: true, status: "pending", note: "" },
+    { id: "base-s4", category: "CPI Security",         question: "Are all Cross-Program Invocations verifying the target program ID?",                 why: "Unverified CPI targets allow calling malicious programs",              severity: "HIGH",     aiGenerated: true, status: "pending", note: "" },
+    { id: "base-s5", category: "PDA Security",         question: "Are PDA seeds unique enough to prevent account collisions?",                         why: "Predictable seeds allow front-running PDA creation",                   severity: "MEDIUM",   aiGenerated: true, status: "pending", note: "" },
   ] : [
-    { id: "base-e1", category: "Access Control", question: "Are all state-changing functions restricted to authorized callers only?", why: "Unrestricted functions are the most common exploit entry point", severity: "CRITICAL", aiGenerated: true, status: "pending", note: "" },
-    { id: "base-e2", category: "Access Control", question: "Is the contract ownership transfer a two-step process (propose + accept)?", why: "One-step ownership transfer risks transferring to wrong address permanently", severity: "HIGH", aiGenerated: true, status: "pending", note: "" },
-    { id: "base-e3", category: "Supply Integrity", question: "Is the total supply fixed and immutable as claimed, with no hidden mint path?", why: "Hidden mint functions allow silent supply inflation", severity: "CRITICAL", aiGenerated: true, status: "pending", note: "" },
-    { id: "base-e4", category: "Token Standard", question: "Do transfer() and transferFrom() correctly return a boolean and revert on failure?", why: "Non-compliant return values cause integration failures with DeFi protocols", severity: "MEDIUM", aiGenerated: true, status: "pending", note: "" },
-    { id: "base-e5", category: "Code Quality", question: "Is the Solidity version pinned (not floating ^) to a specific compiler version?", why: "Floating pragma can compile with future incompatible compiler versions", severity: "LOW", aiGenerated: true, status: "pending", note: "" },
-    { id: "base-e6", category: "Deployment", question: "Does the deployed bytecode match the verified source on the block explorer?", why: "Mismatched bytecode means the audited code is not what is running on-chain", severity: "CRITICAL", aiGenerated: true, status: "pending", note: "" },
-    ...(hasOwner ? [
-      { id: "base-e7", category: "Centralization", question: "Is the owner address a multisig or EOA? If EOA, what is the key management policy?", why: "A single compromised EOA gives full admin control", severity: "HIGH", aiGenerated: true as const, status: "pending" as const, note: "" as const },
-    ] : []),
-    ...(hasProxy ? [
-      { id: "base-e8", category: "Upgradeability", question: "Is the upgrade function behind a timelock of at least 48 hours?", why: "Immediate upgrades allow admin to drain funds before users can exit", severity: "HIGH", aiGenerated: true as const, status: "pending" as const, note: "" as const },
-      { id: "base-e9", category: "Upgradeability", question: "Is the initialize() function callable only once (Initializable modifier)?", why: "Unprotected initializers allow anyone to reset contract ownership", severity: "CRITICAL", aiGenerated: true as const, status: "pending" as const, note: "" as const },
-    ] : []),
-    ...(hasMint ? [
-      { id: "base-e10", category: "Mint Control", question: "Is the mint function protected by a role check (onlyOwner / onlyMinter)?", why: "Unprotected mint allows infinite token creation by anyone", severity: "CRITICAL", aiGenerated: true as const, status: "pending" as const, note: "" as const },
-    ] : []),
+    { id: "base-e1",  category: "Access Control",     question: "Are all privileged functions (pause/mint/upgrade/drain) restricted to authorized callers only?",      why: "Unrestricted privileged functions = most common exploit — SWC-105",    severity: "CRITICAL", aiGenerated: true, status: "pending", note: "" },
+    { id: "base-e2",  category: "Access Control",     question: "Is ownership transfer two-step (propose → accept)?",                                                  why: "One-step transfer risks permanent lock from typo — SWC-123",           severity: "HIGH",     aiGenerated: true, status: "pending", note: "" },
+    ...(hasTransfer    ? [{ id: "base-e3",  category: "Reentrancy",          question: "Do all ETH-sending functions update state BEFORE the external call (CEI)?",         why: "Post-interaction state = reentrancy — SWC-107, CWE-841",               severity: "CRITICAL" as const, aiGenerated: true as const, status: "pending" as const, note: "" as const }] : []),
+    ...(hasOwner       ? [{ id: "base-e4",  category: "Centralization",      question: "Is the owner a multisig + timelock? Can owner drain funds in one tx?",              why: "Single-EOA no-timelock = rug risk — OC-004",                           severity: "HIGH" as const,     aiGenerated: true as const, status: "pending" as const, note: "" as const }] : []),
+    ...(hasMint        ? [{ id: "base-e5",  category: "Token Logic",         question: "Is the mint function supply-capped? Can owner mint unlimited tokens?",               why: "Uncapped mint = infinite inflation — supply manipulation",              severity: "CRITICAL" as const, aiGenerated: true as const, status: "pending" as const, note: "" as const }] : []),
+    ...(oldSolidity    ? [{ id: "base-e6",  category: "Arithmetic",          question: "Are all arithmetic operations using SafeMath or Solidity >=0.8.0?",                  why: "Pre-0.8 silently overflows — SWC-101, CWE-190",                        severity: "HIGH" as const,     aiGenerated: true as const, status: "pending" as const, note: "" as const }] : []),
+    ...(hasApprove     ? [{ id: "base-e7",  category: "Token Logic",         question: "Does approve() mitigate the front-running race condition?",                          why: "ERC-20 allowance race — SWC-114, CWE-362",                             severity: "LOW" as const,      aiGenerated: true as const, status: "pending" as const, note: "" as const }] : []),
+    ...(has777         ? [{ id: "base-e8",  category: "Reentrancy",          question: "Are ERC-777 tokensReceived / tokensToSend hooks guarded against reentrancy?",        why: "ERC-777 hooks fire before transfer completes — SWC-107 variant",       severity: "HIGH" as const,     aiGenerated: true as const, status: "pending" as const, note: "" as const }] : []),
+    ...(hasSig         ? [{ id: "base-e9",  category: "Signature",           question: "Do ecrecover / ECDSA.recover calls include nonce, chainId, and domain separator?",   why: "Missing replay protection — SWC-121, CWE-294",                         severity: "HIGH" as const,     aiGenerated: true as const, status: "pending" as const, note: "" as const }] : []),
+    ...(hasLiquidity   ? [{ id: "base-e10", category: "Economic",            question: "Is LP token locked? What is the lock duration and can it be unlocked early?",         why: "Unlocked LP = instant rug pull — OC-004 on-chain risk",                severity: "HIGH" as const,     aiGenerated: true as const, status: "pending" as const, note: "" as const }] : []),
+    ...(hasDelegateCall? [{ id: "base-e11", category: "Dangerous Functions", question: "Is the delegatecall target immutable or can users supply it?",                        why: "User-controlled delegatecall = arbitrary storage write — SWC-112",     severity: "CRITICAL" as const, aiGenerated: true as const, status: "pending" as const, note: "" as const }] : []),
+    ...(hasBlock       ? [{ id: "base-e12", category: "Oracle",              question: "Is block.timestamp used for time-sensitive logic? Is it manipulatable by validators?",why: "Block timestamp drifts ±12s — SWC-116",                               severity: "MEDIUM" as const,   aiGenerated: true as const, status: "pending" as const, note: "" as const }] : []),
+    ...(hasProxy       ? [{ id: "base-e13", category: "Upgradeability",      question: "Is the upgrade function restricted with a timelock before taking effect?",             why: "Instant upgrades by single key allow malicious injection",             severity: "HIGH" as const,     aiGenerated: true as const, status: "pending" as const, note: "" as const }] : []),
+    { id: "base-e14", category: "Best Practices", question: "Is the pragma version pinned (no ^ caret) and does bytecode match the explorer source?", why: "Floating pragma risks untested compiler — SWC-103",  severity: "LOW",  aiGenerated: true, status: "pending", note: "" },
+    { id: "base-e15", category: "Best Practices", question: "Are events emitted for all critical state changes (ownership, parameter updates)?",       why: "Missing events prevent off-chain monitoring — SWC-129", severity: "LOW", aiGenerated: true, status: "pending", note: "" },
   ]
 
-  // Merge: keep AI questions first (more specific), add base ones not already covered
-  const existingIds = new Set(aiChecks.map(c => c.id))
-  const existingQuestions = aiChecks.map(c => c.question.toLowerCase().slice(0, 40))
+  const merged = [...aiChecks]
+  for (const b of base) {
+    const covered = aiChecks.some(a => a.category.toLowerCase() === b.category.toLowerCase() && a.severity === b.severity)
+    if (!covered) merged.push(b)
+  }
+  return merged.slice(0, 22)
+}
 
-  const toAdd = base.filter(b =>
-    !existingIds.has(b.id) &&
-    !existingQuestions.some(q => q.includes(b.question.toLowerCase().slice(0, 25)))
-  )
+async function callAI(prompt: string): Promise<{ success: boolean; text?: string; error?: string }> {
+  const anthropicKey = process.env.ANTHROPIC_API_KEY
+  const openaiKey    = process.env.OPENAI_API_KEY
+  const gatewayKey   = process.env.AI_GATEWAY_API_KEY
 
-  return [...aiChecks, ...toAdd]
+  if (anthropicKey) {
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
+      })
+      if (res.ok) { const d = await res.json(); return { success: true, text: d.content?.[0]?.text || "" } }
+    } catch { /* fallback */ }
+  }
+  if (gatewayKey || openaiKey) {
+    try {
+      const res = await fetch("https://api.vercel.ai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${gatewayKey || openaiKey}` },
+        body: JSON.stringify({ model: "anthropic/claude-sonnet-4-6", max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
+      })
+      if (res.ok) { const d = await res.json(); return { success: true, text: d.choices?.[0]?.message?.content || "" } }
+    } catch { /* fallback */ }
+  }
+  if (openaiKey) {
+    try {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${openaiKey}` },
+        body: JSON.stringify({ model: "gpt-4o", max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
+      })
+      if (res.ok) { const d = await res.json(); return { success: true, text: d.choices?.[0]?.message?.content || "" } }
+    } catch { /* fallback */ }
+  }
+  return { success: false, error: "No AI provider configured" }
 }
 
 export async function POST(req: NextRequest) {
-  const { contractSource, contractAddress, network, aiFindings } = await req.json()
-
-  if (!contractSource) {
-    return NextResponse.json({ error: "Missing contractSource" }, { status: 400 })
-  }
-
-  const isSolana = network === "Solana"
-
-  // Costruiamo il prompt per la checklist dinamica
-  const prompt = `You are a senior smart contract security auditor creating a SPECIFIC manual review checklist for this contract.
-
-Network: ${network}
-Contract: ${contractAddress}
-Language: ${isSolana ? "Rust/Anchor" : "Solidity"}
-
-CONTRACT SOURCE (first 6000 chars):
-${contractSource.slice(0, 6000)}
-
-AI PRE-ANALYSIS found these potential findings:
-${(aiFindings || []).slice(0, 8).map((f: { severity: string; title: string; location: string }) => `- [${f.severity}] ${f.title} at ${f.location}`).join("\n") || "None"}
-
-Generate a checklist of 15-25 specific questions for a HUMAN AUDITOR to manually verify.
-
-Rules:
-1. Questions must be specific to THIS contract — not generic
-2. If the contract has a mint function, ask about mint authority specifically
-3. If it has CPI calls (Solana) or external calls (EVM), ask about those specifically
-4. Reference actual function names and line patterns from the code
-5. Group by category
-6. Each question should take 2-5 minutes to verify manually
-7. Focus on what AI might miss: business logic, economic attacks, edge cases
-
-${isSolana ? `
-Solana-specific categories to include:
-- Signer Verification, Account Validation, CPI Security, PDA Derivation, Token Operations, Arithmetic Safety
-` : `
-EVM-specific categories to include:
-- Access Control, Reentrancy, Arithmetic, External Calls, Token Logic, Business Logic, Upgradeability (if proxy)
-`}
-
-Respond ONLY with valid JSON array:
-[
-  {
-    "id": "c1",
-    "category": "Access Control",
-    "question": "Is the withdraw() function at line 42 restricted to the authority account only?",
-    "why": "Missing authority check allows any caller to drain the vault",
-    "severity": "CRITICAL",
-    "relevantCode": "pub fn withdraw(ctx: Context<Withdraw>, amount: u64) -> Result<()> {",
-    "lineRef": "lib.rs:42-48",
-    "aiGenerated": true,
-    "status": "pending",
-    "note": ""
-  }
-]`
-
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY
-    if (!apiKey) {
-      // Fallback senza AI
-      return NextResponse.json({ checks: [], fallback: true })
+    const { source, network, contractName } = await req.json()
+    if (!source) return NextResponse.json({ error: "Missing source" }, { status: 400 })
+
+    const prompt = `You are a senior Solidity security auditor. Generate a targeted checklist for this contract.
+
+CONTRACT: ${contractName || "Unknown"}
+NETWORK: ${network || "Ethereum"}
+
+SOURCE:
+\`\`\`solidity
+${source.slice(0, 10000)}
+\`\`\`
+
+Generate 10–16 checklist items. Rules:
+1. Every question must reference ACTUAL function/variable names from THIS contract
+2. Include SWC/CWE IDs in the "why" field where applicable
+3. severity: CRITICAL (funds at immediate risk), HIGH (with conditions), MEDIUM (integrity), LOW (best practice), INFO
+4. relevantCode: exact 1-2 line snippet from the source
+
+Respond ONLY with JSON:
+{
+  "checklist": [
+    {
+      "id": "c1",
+      "category": "Access Control|Reentrancy|Token Logic|Business Logic|Economic|External Calls|Upgradeability|Arithmetic|Signature|Oracle",
+      "question": "Contract-specific question referencing real function/variable",
+      "why": "Why this matters — include SWC/CWE",
+      "severity": "CRITICAL|HIGH|MEDIUM|LOW|INFO",
+      "relevantCode": "exact 1-2 line snippet from source",
+      "lineRef": "~line N or FunctionName()"
+    }
+  ]
+}`
+
+    const aiResult = await callAI(prompt)
+    let aiChecks: CheckItem[] = []
+    if (aiResult.success && aiResult.text) {
+      try {
+        const raw = aiResult.text
+        const s = raw.indexOf("{"), e = raw.lastIndexOf("}")
+        if (s !== -1 && e !== -1) {
+          const parsed = JSON.parse(raw.slice(s, e + 1))
+          aiChecks = (parsed.checklist || []).map((c: CheckItem, i: number) => ({
+            ...c, id: c.id || `ai${i + 1}`, aiGenerated: true as const, status: "pending" as const, note: "" as const,
+          }))
+        }
+      } catch { /* use base */ }
     }
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 4000,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    })
+    const merged = mergeWithBaseChecklist(aiChecks, network || "Ethereum", source)
+    return NextResponse.json({ checklist: merged, generated: aiChecks.length, total: merged.length })
 
-    if (!response.ok) {
-      return NextResponse.json({ checks: [], error: "AI unavailable" })
-    }
-
-    const data = await response.json()
-    const text = data.content?.[0]?.text || ""
-
-    // Parse JSON dalla risposta
-    const jsonStart = text.indexOf("[")
-    const jsonEnd = text.lastIndexOf("]")
-
-    if (jsonStart === -1 || jsonEnd === -1) {
-      return NextResponse.json({ checks: [], error: "Invalid AI response" })
-    }
-
-    const checks: CheckItem[] = JSON.parse(text.slice(jsonStart, jsonEnd + 1))
-
-    // Valida e sanitizza
-    const sanitized = checks
-      .filter(c => c.question && c.category && c.severity)
-      .map((c, i) => ({
-        id: c.id || `c${i + 1}`,
-        category: String(c.category),
-        question: String(c.question),
-        why: String(c.why || ""),
-        severity: (["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"].includes(c.severity) ? c.severity : "MEDIUM") as CheckItem["severity"],
-        relevantCode: c.relevantCode ? String(c.relevantCode) : undefined,
-        lineRef: c.lineRef ? String(c.lineRef) : undefined,
-        aiGenerated: true as const,
-        status: "pending" as const,
-        note: "" as const,
-      }))
-      .slice(0, 30) // max 30 items
-
-    // Sempre garantire almeno 6-10 domande base anche per contratti semplici
-    const merged = mergeWithBaseChecklist(sanitized, network, contractSource)
-    return NextResponse.json({ checks: merged })
-
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err)
-    console.error("[generate-checklist] Error:", msg)
-    return NextResponse.json({ checks: [], error: msg })
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 })
   }
 }
