@@ -23,6 +23,10 @@ RUN curl -L https://foundry.paradigm.xyz | bash
 ENV PATH="/root/.foundry/bin:$PATH"
 RUN foundryup
 
+# Install Halmos (a16z Formal Verification)
+# Halmos uses Z3 solver for symbolic bounded model checking
+RUN pip install halmos z3-solver
+
 # Python deps
 WORKDIR /app
 COPY requirements.txt .

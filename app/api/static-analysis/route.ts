@@ -55,8 +55,8 @@ interface AnalysisResult {
   }
 }
 
-// Real analysis using external service
-async function runRealAnalysis(code: string, contractName: string): Promise<AnalysisResult | null> {
+// Real analysis using external service (Railway backend)
+async function runRealAnalysis(code: string, contractName: string, includeHalmos = false): Promise<AnalysisResult | null> {
   const apiUrl = process.env.STATIC_ANALYSIS_API_URL
   
   if (!apiUrl) {
@@ -64,8 +64,13 @@ async function runRealAnalysis(code: string, contractName: string): Promise<Anal
   }
   
   try {
-    // Call Railway backend (/api/analyze endpoint)
-    const analyzeUrl = apiUrl.endsWith("/") ? `${apiUrl}api/analyze` : `${apiUrl}/api/analyze`
+    // Call Railway backend (/analyze endpoint - no /api prefix)
+    const analyzeUrl = apiUrl.endsWith("/") ? `${apiUrl}analyze` : `${apiUrl}/analyze`
+    
+    const tools = ["slither", "mythril", "foundry"]
+    if (includeHalmos) {
+      tools.push("halmos")
+    }
     
     const response = await fetch(analyzeUrl, {
       method: "POST",
@@ -76,7 +81,7 @@ async function runRealAnalysis(code: string, contractName: string): Promise<Anal
       body: JSON.stringify({
         code,
         contractName,
-        tools: ["slither", "mythril", "foundry"],
+        tools,
       }),
     })
     
@@ -277,7 +282,7 @@ function runPatternAnalysis(code: string): AnalysisResult {
 
 export async function POST(req: NextRequest) {
   try {
-    const { code, contractName = "Contract" } = await req.json()
+    const { code, contractName = "Contract", includeHalmos = false } = await req.json()
     
     if (!code || typeof code !== "string") {
       return NextResponse.json(
@@ -297,8 +302,8 @@ export async function POST(req: NextRequest) {
       }, { status: 400 })
     }
     
-    // Try real analysis first
-    let result = await runRealAnalysis(code, contractName)
+    // Try real analysis first (includes Halmos if requested)
+    let result = await runRealAnalysis(code, contractName, includeHalmos)
     
     // Fallback to pattern analysis
     if (!result) {
@@ -326,16 +331,23 @@ export async function GET() {
   const hasExternalService = !!process.env.STATIC_ANALYSIS_API_URL
   
   return NextResponse.json({
-    service: "Solay39 Static Analysis",
-    tools: ["slither", "mythril"],
+    service: "Solay39 Static Analysis + Formal Verification",
+    tools: ["slither", "mythril", "foundry", "halmos"],
     mode: hasExternalService ? "real" : "pattern-based",
     configured: hasExternalService,
+    capabilities: {
+      slither: "Static analysis with 90+ detectors",
+      mythril: "Symbolic execution for deep bug finding",
+      foundry: "Fuzz testing with 5000+ runs",
+      halmos: "Formal verification - mathematical proofs (a16z)"
+    },
     setupInstructions: hasExternalService ? null : {
-      message: "Configure STATIC_ANALYSIS_API_URL for real Slither/Mythril analysis",
+      message: "Configure STATIC_ANALYSIS_API_URL for real tool execution",
+      railway: "Deploy railway-backend/ to Railway.app",
       options: [
-        "Deploy scripts/static-analysis/analyze.py as a cloud function",
-        "Use a Docker container with slither-analyzer and mythril installed",
-        "Self-host using Railway, Render, or similar"
+        "Deploy railway-backend/ to Railway with Docker",
+        "Tools: slither-analyzer, mythril, foundry, halmos",
+        "Halmos uses Z3 solver for bounded model checking"
       ]
     }
   })

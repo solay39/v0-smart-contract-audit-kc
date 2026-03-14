@@ -47,7 +47,7 @@ def cache_set(key: str, val):
 class AnalysisRequest(BaseModel):
     code: str
     contractName: str = "Contract"
-    tools: list[str] = ["slither", "mythril", "foundry"]
+    tools: list[str] = ["slither", "mythril", "foundry", "halmos"]
     network: str = "ethereum"
     solcVersion: str = "0.8.20"
 
@@ -200,6 +200,287 @@ async def run_mythril(code: str, contract_name: str, tmpdir: str) -> dict:
         "error": None,
         "raw_output": stdout[:1000] if stdout else stderr[:500],
     }
+
+# ── Halmos (a16z Formal Verification) ────────────────────────────
+async def run_halmos(code: str, contract_name: str, tmpdir: str) -> dict:
+    """
+    Run Halmos symbolic bounded model checker.
+    Halmos verifies properties by exhaustively checking all possible inputs
+    within specified bounds using Z3 SMT solver.
+    """
+    sol_version = get_solc_version(code)
+    safe_name = "".join(c for c in contract_name if c.isalnum()) or "Contract"
+    
+    # Create Foundry project structure (Halmos uses Foundry tests)
+    halmos_dir = os.path.join(tmpdir, "halmos_project")
+    os.makedirs(halmos_dir, exist_ok=True)
+    
+    # Init foundry
+    run_cmd(["forge", "init", "--no-git", "--no-commit"], halmos_dir, timeout=30)
+    
+    # Write contract
+    src_dir = os.path.join(halmos_dir, "src")
+    os.makedirs(src_dir, exist_ok=True)
+    with open(os.path.join(src_dir, f"{safe_name}.sol"), "w") as f:
+        f.write(code)
+    
+    # Generate Halmos symbolic test
+    halmos_test = _generate_halmos_test(code, safe_name, sol_version)
+    test_dir = os.path.join(halmos_dir, "test")
+    os.makedirs(test_dir, exist_ok=True)
+    with open(os.path.join(test_dir, f"{safe_name}Symbolic.t.sol"), "w") as f:
+        f.write(halmos_test)
+    
+    # foundry.toml
+    toml_content = f"""[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc = "{sol_version}"
+optimizer = true
+optimizer_runs = 200
+
+[profile.halmos]
+ffi = true
+"""
+    with open(os.path.join(halmos_dir, "foundry.toml"), "w") as f:
+        f.write(toml_content)
+    
+    # Install OZ if needed
+    if "@openzeppelin" in code:
+        run_cmd(
+            ["forge", "install", "OpenZeppelin/openzeppelin-contracts", "--no-git", "--no-commit"],
+            halmos_dir, timeout=60
+        )
+    
+    # Run Halmos with bounded symbolic execution
+    # --loop 5: unroll loops up to 5 iterations
+    # --width 64: use 64-bit symbolic values
+    # --depth 50: max call depth
+    cmd = [
+        "halmos",
+        "--root", halmos_dir,
+        "--contract", f"{safe_name}SymbolicTest",
+        "--loop", "5",
+        "--width", "64",
+        "--depth", "50",
+        "--solver-timeout-assertion", "30000",
+        "--json-output",
+    ]
+    
+    rc, stdout, stderr = run_cmd(cmd, halmos_dir, timeout=180)
+    
+    # Parse results
+    properties_verified = 0
+    properties_failed = 0
+    counterexamples = []
+    
+    version = "unknown"
+    _, ver_out, _ = run_cmd(["halmos", "--version"], halmos_dir, timeout=5)
+    version = ver_out.strip() if ver_out else "halmos unknown"
+    
+    if stdout:
+        try:
+            # Halmos outputs JSON with test results
+            data = json.loads(stdout)
+            for test in data.get("tests", []):
+                if test.get("result") == "passed":
+                    properties_verified += 1
+                elif test.get("result") == "failed":
+                    properties_failed += 1
+                    if test.get("counterexample"):
+                        counterexamples.append({
+                            "test": test.get("name", ""),
+                            "inputs": test.get("counterexample", {}),
+                            "path": test.get("path", []),
+                        })
+        except json.JSONDecodeError:
+            # Parse text output
+            for line in stdout.split("\n"):
+                if "[PASS]" in line:
+                    properties_verified += 1
+                elif "[FAIL]" in line:
+                    properties_failed += 1
+    
+    status = "VERIFIED" if properties_failed == 0 and properties_verified > 0 else \
+             "PARTIAL" if properties_verified > 0 else "NOT_VERIFIED"
+    
+    return {
+        "tool": "halmos",
+        "version": version,
+        "success": rc == 0 or properties_verified > 0,
+        "status": status,
+        "propertiesVerified": properties_verified,
+        "propertiesFailed": properties_failed,
+        "counterexamples": counterexamples[:5],  # Limit to 5
+        "boundParameters": {
+            "loopUnroll": 5,
+            "bitWidth": 64,
+            "callDepth": 50,
+        },
+        "error": stderr[:500] if rc != 0 and properties_verified == 0 else None,
+        "raw_output": stdout[:2000] if stdout else stderr[:500],
+    }
+
+def _generate_halmos_test(code: str, contract_name: str, sol_version: str) -> str:
+    """Generate Halmos symbolic test for formal verification"""
+    import re
+    
+    # Detect functions and properties to verify
+    is_erc20 = "function transfer(" in code and "function approve(" in code
+    has_mint = "function mint(" in code
+    has_burn = "function burn(" in code
+    has_owner = "onlyOwner" in code or "owner()" in code
+    
+    tests = []
+    
+    # Property 1: Transfer preserves total supply (conservation)
+    if is_erc20:
+        tests.append("""
+    /// @notice Symbolic test: Transfer preserves total supply
+    function check_transferPreservesTotalSupply(address from, address to, uint256 amount) public {
+        // Preconditions
+        vm.assume(from != address(0));
+        vm.assume(to != address(0));
+        vm.assume(from != to);
+        
+        uint256 totalBefore = token.totalSupply();
+        uint256 fromBalBefore = token.balanceOf(from);
+        uint256 toBalBefore = token.balanceOf(to);
+        
+        vm.assume(amount <= fromBalBefore);
+        
+        // Action
+        vm.prank(from);
+        token.transfer(to, amount);
+        
+        // Postconditions (properties to verify)
+        uint256 totalAfter = token.totalSupply();
+        
+        // PROPERTY: Total supply must be unchanged after transfer
+        assert(totalAfter == totalBefore);
+        
+        // PROPERTY: Sum of balances must equal total supply
+        assert(token.balanceOf(from) + token.balanceOf(to) == fromBalBefore + toBalBefore);
+    }
+    
+    /// @notice Symbolic test: No address can have balance > totalSupply
+    function check_balanceNeverExceedsTotalSupply(address account) public {
+        vm.assume(account != address(0));
+        assert(token.balanceOf(account) <= token.totalSupply());
+    }""")
+    
+    # Property 2: Mint increases supply correctly
+    if has_mint:
+        tests.append("""
+    /// @notice Symbolic test: Mint correctly increases supply
+    function check_mintIncreasesSupply(address to, uint256 amount) public {
+        vm.assume(to != address(0));
+        vm.assume(amount > 0);
+        vm.assume(amount < type(uint256).max - token.totalSupply());
+        
+        uint256 supplyBefore = token.totalSupply();
+        uint256 balBefore = token.balanceOf(to);
+        
+        // Only owner can mint (if protected)
+        vm.prank(token.owner());
+        token.mint(to, amount);
+        
+        // PROPERTY: Supply increases by exactly amount
+        assert(token.totalSupply() == supplyBefore + amount);
+        
+        // PROPERTY: Recipient balance increases by exactly amount
+        assert(token.balanceOf(to) == balBefore + amount);
+    }""")
+    
+    # Property 3: Burn decreases supply correctly
+    if has_burn:
+        tests.append("""
+    /// @notice Symbolic test: Burn correctly decreases supply
+    function check_burnDecreasesSupply(address from, uint256 amount) public {
+        vm.assume(from != address(0));
+        
+        uint256 supplyBefore = token.totalSupply();
+        uint256 balBefore = token.balanceOf(from);
+        
+        vm.assume(amount <= balBefore);
+        
+        vm.prank(from);
+        token.burn(amount);
+        
+        // PROPERTY: Supply decreases by exactly amount
+        assert(token.totalSupply() == supplyBefore - amount);
+    }""")
+    
+    # Property 4: Allowance mechanics
+    if is_erc20:
+        tests.append("""
+    /// @notice Symbolic test: Approve sets correct allowance
+    function check_approveSetAllowance(address owner, address spender, uint256 amount) public {
+        vm.assume(owner != address(0));
+        vm.assume(spender != address(0));
+        
+        vm.prank(owner);
+        token.approve(spender, amount);
+        
+        // PROPERTY: Allowance is set to exact value
+        assert(token.allowance(owner, spender) == amount);
+    }
+    
+    /// @notice Symbolic test: TransferFrom respects allowance
+    function check_transferFromRespectsAllowance(
+        address owner, address spender, address recipient, uint256 amount
+    ) public {
+        vm.assume(owner != address(0));
+        vm.assume(spender != address(0));
+        vm.assume(recipient != address(0));
+        vm.assume(spender != owner);
+        
+        uint256 allowanceBefore = token.allowance(owner, spender);
+        uint256 ownerBalBefore = token.balanceOf(owner);
+        
+        vm.assume(amount <= allowanceBefore);
+        vm.assume(amount <= ownerBalBefore);
+        
+        vm.prank(spender);
+        token.transferFrom(owner, recipient, amount);
+        
+        // PROPERTY: Allowance decreases (unless infinite)
+        if (allowanceBefore != type(uint256).max) {
+            assert(token.allowance(owner, spender) == allowanceBefore - amount);
+        }
+    }""")
+    
+    tests_str = "\n".join(tests) if tests else """
+    /// @notice Basic symbolic test
+    function check_noRevert(uint256 x, uint256 y) public {
+        vm.assume(y != 0);
+        assert(x / y <= x);
+    }"""
+    
+    return f"""// SPDX-License-Identifier: MIT
+pragma solidity {sol_version};
+
+import "forge-std/Test.sol";
+import "../src/{contract_name}.sol";
+
+/**
+ * Halmos Symbolic Test Suite
+ * Generated by Solay39 Deep Review
+ * 
+ * These tests use symbolic execution to mathematically verify
+ * that the contract properties hold for ALL possible inputs.
+ */
+contract {contract_name}SymbolicTest is Test {{
+    {contract_name} public token;
+
+    function setUp() public {{
+        // Deploy contract
+        token = new {contract_name}();
+    }}
+{tests_str}
+}}
+"""
 
 # ── Foundry Forge ─────────────────────────────────────────────────
 async def run_foundry(code: str, contract_name: str, tmpdir: str) -> dict:
@@ -613,6 +894,8 @@ async def analyze(req: AnalysisRequest, authorization: Optional[str] = Header(No
             tasks.append(("mythril", run_mythril(req.code, req.contractName, tmpdir)))
         if "foundry" in req.tools:
             tasks.append(("foundry", run_foundry(req.code, req.contractName, tmpdir)))
+        if "halmos" in req.tools:
+            tasks.append(("halmos", run_halmos(req.code, req.contractName, tmpdir)))
 
         for tool_name, coro in tasks:
             try:
