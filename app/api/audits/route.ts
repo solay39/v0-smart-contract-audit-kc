@@ -10,7 +10,8 @@ import { type NextRequest, NextResponse } from "next/server"
 const BLOB_PREFIX = "audits/"
 
 // Founder password for protected operations (delete)
-const FOUNDER_KEY = process.env.SOLAY39_FOUNDER_KEY || "solay39-founder-2024"
+// Primary: env var, Fallback: hardcoded founder password
+const FOUNDER_KEY = process.env.SOLAY39_FOUNDER_KEY || "Solay39!Audit#2025"
 
 // POST — Save a published audit report
 export async function POST(request: NextRequest) {
@@ -97,17 +98,28 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// PATCH — Verify founder key (for frontend auth)
+export async function PATCH(request: NextRequest) {
+  try {
+    const { founderKey } = await request.json()
+    
+    if (founderKey === FOUNDER_KEY) {
+      return NextResponse.json({ valid: true })
+    }
+    
+    return NextResponse.json({ valid: false }, { status: 401 })
+  } catch {
+    return NextResponse.json({ valid: false }, { status: 400 })
+  }
+}
+
 // DELETE — Remove a published audit (founder-only)
 export async function DELETE(request: NextRequest) {
   try {
     const { id, founderKey } = await request.json()
 
-    console.log("[v0] DELETE audit request - id:", id, "keyProvided:", !!founderKey)
-    console.log("[v0] FOUNDER_KEY configured:", !!FOUNDER_KEY, "matches:", founderKey === FOUNDER_KEY)
-
     // Authenticate founder
     if (founderKey !== FOUNDER_KEY) {
-      console.log("[v0] Auth failed - provided:", founderKey?.slice(0, 5) + "...", "expected:", FOUNDER_KEY?.slice(0, 5) + "...")
       return NextResponse.json({ error: "Unauthorized - invalid founder key" }, { status: 401 })
     }
 
@@ -116,14 +128,11 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Find the blob by prefix
-    console.log("[v0] Searching for blob:", `${BLOB_PREFIX}${id}.json`)
     const { blobs } = await list({ prefix: `${BLOB_PREFIX}${id}.json` })
-    console.log("[v0] Found blobs:", blobs.length, blobs.map(b => b.pathname))
 
     if (blobs.length === 0) {
       // Try without .json suffix (in case ID already includes it)
       const { blobs: altBlobs } = await list({ prefix: `${BLOB_PREFIX}${id}` })
-      console.log("[v0] Alt search found:", altBlobs.length)
       
       if (altBlobs.length === 0) {
         return NextResponse.json({ error: "Audit not found in Blob storage" }, { status: 404 })
@@ -131,13 +140,11 @@ export async function DELETE(request: NextRequest) {
       
       // Delete alt blobs
       await Promise.all(altBlobs.map((b) => del(b.url)))
-      console.log("[v0] Deleted alt blobs for:", id)
       return NextResponse.json({ success: true, deleted: id })
     }
 
     // Delete all matching blobs (usually just one)
     await Promise.all(blobs.map((b) => del(b.url)))
-    console.log("[v0] Successfully deleted audit:", id)
 
     return NextResponse.json({ success: true, deleted: id })
   } catch (error) {
