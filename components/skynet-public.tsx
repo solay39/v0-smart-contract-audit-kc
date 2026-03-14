@@ -5060,7 +5060,7 @@ console.log("Signer:", recovered);
 
 // ════════════════════════════════════════��══════════════════════════
 // METHODOLOGY PAGE
-// ═══════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════��═════
 function MethodologyPage() {
   const phases: [string, string, string, string][] = [
     ["01", "System Comprehension", "#00e5ff", "Complete architectural analysis: trust boundaries, funds flow, actor model, threat surface and external dependencies."],
@@ -5395,7 +5395,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
             >
               {"<- Login"}
             </button>
-            {/* Founder admin toggle - discreet lock icon */}
+            {/* Founder admin toggle - Admin button */}
             <button
               onClick={() => {
                 if (founderAuthed) {
@@ -5404,17 +5404,17 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                   setFounderMode(prev => !prev)
                 }
               }}
-              className={`w-6 h-6 flex items-center justify-center text-[10px] cursor-pointer bg-transparent border rounded transition-all ${
+              className={`px-2 py-1 flex items-center gap-1.5 text-[8px] cursor-pointer bg-transparent border rounded transition-all tracking-wider font-mono ${
                 founderAuthed
                   ? "text-red-400 border-red-800/60 hover:bg-red-500/10"
                   : founderMode
                     ? "text-yellow-500 border-yellow-800/40 hover:bg-yellow-500/10"
-                    : "text-s39-dim/40 border-transparent hover:text-s39-dim hover:border-s39-border"
+                    : "text-s39-dim border-s39-border hover:text-s39-mid hover:border-s39-muted"
               }`}
-              title={founderAuthed ? "Exit admin mode" : "Admin"}
+              title={founderAuthed ? "Exit admin mode" : "Admin panel - manage audits"}
             >
-              {founderAuthed ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>
-                : <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>}
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>
+              {founderAuthed ? "EXIT" : "ADMIN"}
             </button>
           </div>
         </div>
