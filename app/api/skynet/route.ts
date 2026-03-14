@@ -1152,6 +1152,20 @@ ABSOLUTE INTEGRITY RULES — NEVER VIOLATE THESE:
 
 13. REALISTIC SCORING: NEVER score 100/100. Max is 98. Scale: 96-98 = exceptional, 90-95 = very strong, 80-89 = good.
 
+13b. INTERNAL CONSISTENCY — CRITICAL:
+    - NEVER contradict yourself in the report. If you say "No mint capability" in one section, you CANNOT say "Centralized mint authority" in another.
+    - Before generating findings, check the CONTRACT METADATA for mint/pause/blacklist capabilities.
+    - If metadata says "hasMintOutsideConstructor: false" → DO NOT generate ANY mint-related findings
+    - If metadata says "hasPausable: false" → DO NOT generate ANY pause-related findings
+    - If metadata says "hasOwner: false" → DO NOT generate centralization findings about owner control
+    - Review ALL your findings before output to ensure they are internally consistent
+
+13c. REALISTIC ENGAGEMENT METRICS — CRITICAL:
+    - numberOfAuditors: 1 for contracts <500 LOC, 2 for 500-2000 LOC, 3 for >2000 LOC. NEVER MORE THAN 4.
+    - engineeringHours: Calculate as (LOC / 12) + 4 (tools) + 2 (report). Typical range: 15-100 hours.
+    - auditDurationDays: engineeringHours / 8, rounded up. Typical range: 1-14 days.
+    - DO NOT invent unrealistic numbers like "108 engineers" or "500 hours" for a simple ERC-20 token.
+
 14. PROOF OF CONCEPT PER FINDING (CRITICAL for Tier-1):
     Every finding MUST include a "proofOfConcept" field with:
     - The exact vulnerable code snippet (file name, line numbers)
@@ -1243,12 +1257,16 @@ You MUST respond ONLY with valid JSON (no markdown, no code fences):
   },
   "engagement": {
     "compilerVersionUsed": "string (e.g. solc 0.8.20)",
-    "linesOfCode": number,
+    "linesOfCode": number (MUST match actual LOC from metadata),
     "objectives": ["string — list of specific audit objectives"],
-    "auditDurationDays": number
+    "auditDurationDays": number (REALISTIC: 1-5 days for simple contracts, 5-14 for complex protocols),
+    "numberOfAuditors": number (REALISTIC: 1 for simple contracts, 2-3 for complex protocols — NEVER more than 4),
+    "engineeringHours": number (REALISTIC: LOC / 12 for manual review + 4h tools + 2h report — typically 20-80 hours total),
+    "commitHash": "string (from metadata or N/A)",
+    "repositoryUrl": "string (from metadata or N/A)"
   },
   "scopeTable": [
-    { "contract": "ContractName.sol or ProgramName.rs", "linesOfCode": number, "language": "ACTUAL language from metadata (Solidity X.Y.Z / Rust/Anchor / Move / etc.)" }
+    { "contract": "ContractName.sol or ProgramName.rs", "linesOfCode": number (MUST match metadata), "language": "ACTUAL language from metadata (Solidity X.Y.Z / Rust/Anchor / Move / etc.)" }
   ],
   "threatModel": {
     "attackerProfiles": [
@@ -1741,25 +1759,48 @@ ${truncatedCode}`
       const projectNameClean = (meta.scopeLabel ?? "CONTRACT").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12)
       const auditId = "SOL-" + new Date().getFullYear() + "-" + projectNameClean + "-01"
 
-      const aiEngagement = parsed.engagement ? {
-        compilerVersionUsed: String(parsed.engagement.compilerVersionUsed || defaultCompiler),
-        linesOfCode: realLOC > 0 ? realLOC : (Number(parsed.engagement.linesOfCode) || 0),
-        objectives: Array.isArray(parsed.engagement.objectives) ? parsed.engagement.objectives.map(String) : [],
-        auditDurationDays: Number(parsed.engagement.auditDurationDays) || 1,
+      // Calculate REALISTIC engagement metrics based on actual LOC
+      const manualReviewHours = Math.ceil(realLOC / 12) // 12 LOC/hour is conservative standard
+      const toolSetupHours = 4 // Slither, Mythril, Foundry setup
+      const reportWritingHours = Math.ceil(findings.length * 1.5) + 2 // 1.5h per finding + 2h base
+      const totalEngHours = manualReviewHours + toolSetupHours + reportWritingHours
+      const realisticDays = Math.max(1, Math.ceil(totalEngHours / 8))
+      const realisticAuditors = realLOC < 500 ? 1 : realLOC < 2000 ? 2 : Math.min(3, Math.ceil(realLOC / 1500))
+
+      const aiEngagement = {
+        compilerVersionUsed: String(parsed.engagement?.compilerVersionUsed || defaultCompiler),
+        linesOfCode: realLOC,
+        objectives: Array.isArray(parsed.engagement?.objectives) ? parsed.engagement.objectives.map(String) : [
+          "Identify security vulnerabilities in smart contract code",
+          "Assess centralization and trust assumptions",
+          "Evaluate economic attack vectors",
+          "Verify access control implementation"
+        ],
+        // REALISTIC values - ignore AI if unrealistic
+        auditDurationDays: realisticDays,
+        numberOfAuditors: realisticAuditors,
+        engineeringHours: totalEngHours,
+        commitHash: contractAddr !== "0x_VERIFY_ON_EXPLORER" ? `Verified on ${chainNetwork} explorer` : "N/A",
+        repositoryUrl: contractAddr !== "0x_VERIFY_ON_EXPLORER" 
+          ? `https://etherscan.io/address/${contractAddr}#code` 
+          : "N/A",
+        contractsReviewed: 1,
         // Enterprise fields
         auditId,
+        auditDate: new Date().toISOString().slice(0, 10),
+        deliveryDate: new Date().toISOString().slice(0, 10),
         reviewTeam: {
           leadAuditor: {
             name: "Solay39 Founder",
             role: "Lead Auditor",
-            credentials: "Smart contract security specialist \u2014 manual adversarial review, EVM bytecode analysis, DeFi protocol security",
+            credentials: "Smart contract security specialist — manual adversarial review, EVM bytecode analysis, DeFi protocol security",
             signedOff: true,
             signOffDate: new Date().toISOString().slice(0, 10),
           },
           reviewStatus: "SINGLE_REVIEW",
           note: "Independent second reviewer available for enterprise engagements. Contact solay2126@gmail.com.",
         },
-      } : { compilerVersionUsed: defaultCompiler, linesOfCode: realLOC, objectives: [], auditDurationDays: 1, auditId, reviewTeam: null }
+      }
 
       const aiScopeTable = Array.isArray(parsed.scopeTable)
         ? parsed.scopeTable.map((s: Record<string, unknown>) => ({
@@ -1826,9 +1867,41 @@ ${truncatedCode}`
         remediationExample: generateRemediationExample(f.title, f.severity),
       }))
 
-      // ── ANTI FALSE-POSITIVE: Final validation on enriched findings ──
-      // Catches any remaining "Unrestricted Mint" CRITICAL when on-chain data proves mint is guarded
-      const finalFindings = enrichedFindings.map((f: Record<string, unknown>) => {
+      // ── ANTI FALSE-POSITIVE & CONSISTENCY FILTER ──
+      // 1. Remove findings that contradict metadata
+      // 2. Downgrade false CRITICAL to appropriate severity
+      const filteredFindings = enrichedFindings.filter((f: Record<string, unknown>) => {
+        const tl = String(f.title || "").toLowerCase()
+        
+        // Remove mint findings if no mint capability exists
+        if ((tl.includes("mint") || tl.includes("minting")) && !meta.hasMintOutsideConstructor && !meta.hasConstructorOnlyMint) {
+          console.log("[v0] Removed contradictory finding:", f.title, "(no mint in code)")
+          return false
+        }
+        
+        // Remove pause findings if no pause capability exists
+        if ((tl.includes("pause") || tl.includes("pausable")) && !meta.hasPausable) {
+          console.log("[v0] Removed contradictory finding:", f.title, "(no pause in code)")
+          return false
+        }
+        
+        // Remove blacklist findings if no blacklist capability exists
+        if ((tl.includes("blacklist") || tl.includes("blocklist")) && !meta.hasBlacklist) {
+          console.log("[v0] Removed contradictory finding:", f.title, "(no blacklist in code)")
+          return false
+        }
+        
+        // Remove owner/admin findings if no owner exists
+        if (tl.includes("centralized") && tl.includes("owner") && !meta.hasOwner) {
+          console.log("[v0] Removed contradictory finding:", f.title, "(no owner in code)")
+          return false
+        }
+        
+        return true
+      })
+
+      // Downgrade remaining false positives
+      const finalFindings = filteredFindings.map((f: Record<string, unknown>) => {
         const tl = String(f.title || "").toLowerCase()
         if (
           tl.includes("unrestricted") && tl.includes("mint") &&
@@ -1845,7 +1918,7 @@ ${truncatedCode}`
               title: "Centralized Mint Authority",
               severity: "MEDIUM",
               location: "Mint function with role-based access control",
-              description: "The mint() function is restricted to an authorized minter address or role. While centralized, this does not represent an open vulnerability \u2014 it requires the minter key to be compromised to inflate supply.",
+              description: "The mint() function is restricted to an authorized minter address or role. While centralized, this does not represent an open vulnerability — it requires the minter key to be compromised to inflate supply.",
               impact: "A compromised or malicious minter key could mint additional tokens, diluting existing holders.",
               recommendation: "Consider implementing a supply cap, timelocks, or multi-sig requirements for minting operations.",
               cvss: { vectorString: "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:N/I:L/A:N", baseScore: 2.7, severity: "LOW" },
