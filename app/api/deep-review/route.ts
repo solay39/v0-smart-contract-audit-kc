@@ -221,52 +221,92 @@ ABSOLUTE RULES:
 
 async function callAI(prompt: string): Promise<{ success: boolean; text?: string; error?: string }> {
   const anthropicKey = process.env.ANTHROPIC_API_KEY
-  const gatewayEnabled = process.env.AI_GATEWAY_API_KEY || process.env.OPENAI_API_KEY
+  const openaiKey = process.env.OPENAI_API_KEY
+  const gatewayKey = process.env.AI_GATEWAY_API_KEY
 
+  // Try Claude first (best for security analysis)
   if (anthropicKey) {
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
-        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
+        headers: { 
+          "Content-Type": "application/json", 
+          "x-api-key": anthropicKey, 
+          "anthropic-version": "2023-06-01" 
+        },
+        body: JSON.stringify({ 
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 8000, 
+          messages: [{ role: "user", content: prompt }] 
+        }),
       })
       if (res.ok) {
         const data = await res.json()
-        return { success: true, text: data.content?.[0]?.text || "" }
+        const text = data.content?.[0]?.text || ""
+        if (text) return { success: true, text }
+      } else {
+        console.error("[deep-review] Claude API error:", res.status, await res.text().catch(() => ""))
       }
-    } catch { /* fallback */ }
+    } catch (e) { 
+      console.error("[deep-review] Claude fetch error:", e)
+    }
   }
 
-  if (gatewayEnabled) {
-    try {
-      const res = await fetch("https://api.vercel.ai/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.AI_GATEWAY_API_KEY || process.env.OPENAI_API_KEY}` },
-        body: JSON.stringify({ model: "anthropic/claude-sonnet-4-6", max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        return { success: true, text: data.choices?.[0]?.message?.content || "" }
-      }
-    } catch { /* fallback */ }
-  }
-
-  const openaiKey = process.env.OPENAI_API_KEY
+  // Try GPT-4o as fallback
   if (openaiKey) {
     try {
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${openaiKey}` },
-        body: JSON.stringify({ model: "gpt-4o", max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
+        headers: { 
+          "Content-Type": "application/json", 
+          "Authorization": `Bearer ${openaiKey}` 
+        },
+        body: JSON.stringify({ 
+          model: "gpt-4o", 
+          max_tokens: 8000, 
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" }
+        }),
       })
       if (res.ok) {
         const data = await res.json()
-        return { success: true, text: data.choices?.[0]?.message?.content || "" }
+        const text = data.choices?.[0]?.message?.content || ""
+        if (text) return { success: true, text }
+      } else {
+        console.error("[deep-review] OpenAI API error:", res.status, await res.text().catch(() => ""))
       }
-    } catch { /* fallback */ }
+    } catch (e) { 
+      console.error("[deep-review] OpenAI fetch error:", e)
+    }
   }
 
-  return { success: false, error: "No AI provider available. Set ANTHROPIC_API_KEY, AI_GATEWAY_API_KEY, or OPENAI_API_KEY." }
+  // Try Vercel AI Gateway as last resort
+  if (gatewayKey) {
+    try {
+      const res = await fetch("https://api.vercel.ai/v1/chat/completions", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json", 
+          "Authorization": `Bearer ${gatewayKey}` 
+        },
+        body: JSON.stringify({ 
+          model: "anthropic/claude-sonnet-4-20250514", 
+          max_tokens: 8000, 
+          messages: [{ role: "user", content: prompt }] 
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const text = data.choices?.[0]?.message?.content || ""
+        if (text) return { success: true, text }
+      }
+    } catch { /* exhausted */ }
+  }
+
+  return { 
+    success: false, 
+    error: "No AI provider available or all failed. Set ANTHROPIC_API_KEY or OPENAI_API_KEY." 
+  }
 }
 
 export async function POST(req: NextRequest) {
