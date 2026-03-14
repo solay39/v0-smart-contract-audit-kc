@@ -5060,7 +5060,7 @@ console.log("Signer:", recovered);
 
 // ════════════════════════════════════════��══════════════════════════
 // METHODOLOGY PAGE
-// ═══════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════���═════
 function MethodologyPage() {
   const phases: [string, string, string, string][] = [
     ["01", "System Comprehension", "#00e5ff", "Complete architectural analysis: trust boundaries, funds flow, actor model, threat surface and external dependencies."],
@@ -5205,24 +5205,45 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
 
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  
   const handleDeleteAudit = useCallback(async (auditId: string) => {
-    if (!founderAuthed || !founderKey) return
+    if (!founderAuthed || !founderKey) {
+      setDeleteError("Not authenticated")
+      return
+    }
     setDeleting(auditId)
+    setDeleteError(null)
+    
     try {
+      console.log("[v0] Deleting audit:", auditId)
       const res = await fetch("/api/audits", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: auditId, founderKey }),
       })
-      if (res.ok) {
+      
+      const data = await res.json()
+      console.log("[v0] Delete response:", res.status, data)
+      
+      if (res.ok && data.success) {
         // Remove from local state
         setAllProjects(prev => prev.filter(p => p.id !== auditId))
         // Also remove from localStorage
         const local = getPublishedAudits().filter(p => p.id !== auditId)
         localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(local))
         setDeleteConfirm(null)
+        console.log("[v0] Audit deleted successfully")
+      } else {
+        // Show error to user
+        setDeleteError(data.error || `Delete failed: ${res.status}`)
+        console.error("[v0] Delete failed:", data.error)
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Network error"
+      setDeleteError(msg)
+      console.error("[v0] Delete exception:", err)
+    }
     setDeleting(null)
   }, [founderAuthed, founderKey])
 
@@ -5395,7 +5416,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
             >
               {"<- Login"}
             </button>
-            {/* Founder admin toggle - discreet lock icon */}
+            {/* Founder admin toggle - Admin button */}
             <button
               onClick={() => {
                 if (founderAuthed) {
@@ -5404,17 +5425,17 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                   setFounderMode(prev => !prev)
                 }
               }}
-              className={`w-6 h-6 flex items-center justify-center text-[10px] cursor-pointer bg-transparent border rounded transition-all ${
+              className={`px-2 py-1 flex items-center gap-1.5 text-[8px] cursor-pointer bg-transparent border rounded transition-all tracking-wider font-mono ${
                 founderAuthed
                   ? "text-red-400 border-red-800/60 hover:bg-red-500/10"
                   : founderMode
                     ? "text-yellow-500 border-yellow-800/40 hover:bg-yellow-500/10"
-                    : "text-s39-dim/40 border-transparent hover:text-s39-dim hover:border-s39-border"
+                    : "text-s39-dim border-s39-border hover:text-s39-mid hover:border-s39-muted"
               }`}
-              title={founderAuthed ? "Exit admin mode" : "Admin"}
+              title={founderAuthed ? "Exit admin mode" : "Admin panel - manage audits"}
             >
-              {founderAuthed ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>
-                : <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>}
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>
+              {founderAuthed ? "EXIT" : "ADMIN"}
             </button>
           </div>
         </div>
@@ -5863,6 +5884,11 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
             <p className="text-[8px] text-red-400/60 mb-4 font-mono">
               This action is irreversible. The audit will be removed from Blob storage.
             </p>
+            {deleteError && (
+              <div className="text-[9px] text-red-500 bg-red-500/10 border border-red-500/30 p-2 mb-3 font-mono">
+                Error: {deleteError}
+              </div>
+            )}
             <div className="flex gap-3">
               <button
                 onClick={() => handleDeleteAudit(deleteConfirm)}

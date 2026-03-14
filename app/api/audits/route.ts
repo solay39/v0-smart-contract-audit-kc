@@ -10,7 +10,8 @@ import { type NextRequest, NextResponse } from "next/server"
 const BLOB_PREFIX = "audits/"
 
 // Founder password for protected operations (delete)
-const FOUNDER_KEY = process.env.SOLAY39_FOUNDER_KEY || "solay39-founder-2024"
+// Primary: env var, Fallback: hardcoded founder password
+const FOUNDER_KEY = process.env.SOLAY39_FOUNDER_KEY || "Solay39!Audit#2025"
 
 // POST — Save a published audit report
 export async function POST(request: NextRequest) {
@@ -97,6 +98,21 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// PATCH — Verify founder key (for frontend auth)
+export async function PATCH(request: NextRequest) {
+  try {
+    const { founderKey } = await request.json()
+    
+    if (founderKey === FOUNDER_KEY) {
+      return NextResponse.json({ valid: true })
+    }
+    
+    return NextResponse.json({ valid: false }, { status: 401 })
+  } catch {
+    return NextResponse.json({ valid: false }, { status: 400 })
+  }
+}
+
 // DELETE — Remove a published audit (founder-only)
 export async function DELETE(request: NextRequest) {
   try {
@@ -104,7 +120,7 @@ export async function DELETE(request: NextRequest) {
 
     // Authenticate founder
     if (founderKey !== FOUNDER_KEY) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized - invalid founder key" }, { status: 401 })
     }
 
     if (!id) {
@@ -115,7 +131,16 @@ export async function DELETE(request: NextRequest) {
     const { blobs } = await list({ prefix: `${BLOB_PREFIX}${id}.json` })
 
     if (blobs.length === 0) {
-      return NextResponse.json({ error: "Audit not found" }, { status: 404 })
+      // Try without .json suffix (in case ID already includes it)
+      const { blobs: altBlobs } = await list({ prefix: `${BLOB_PREFIX}${id}` })
+      
+      if (altBlobs.length === 0) {
+        return NextResponse.json({ error: "Audit not found in Blob storage" }, { status: 404 })
+      }
+      
+      // Delete alt blobs
+      await Promise.all(altBlobs.map((b) => del(b.url)))
+      return NextResponse.json({ success: true, deleted: id })
     }
 
     // Delete all matching blobs (usually just one)
@@ -123,9 +148,9 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true, deleted: id })
   } catch (error) {
-    console.error("Blob delete error:", error)
+    console.error("[v0] Blob delete error:", error)
     return NextResponse.json(
-      { error: "Failed to delete audit" },
+      { error: "Failed to delete audit: " + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     )
   }
