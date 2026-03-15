@@ -67,14 +67,19 @@ export function savePublishedAudit(project: PortfolioProject) {
 
 // Async save to Blob - fire and forget, don't block UI
 async function saveToBlobAsync(project: PortfolioProject) {
+  console.log("[v0] saveToBlobAsync called for:", project.id, project.name)
   try {
     const res = await fetch("/api/audits", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ audit: project }),
     })
+    const data = await res.json()
+    console.log("[v0] Blob save response:", res.status, data)
     if (!res.ok) {
-      console.error("[v0] Failed to save audit to Blob:", res.status)
+      console.error("[v0] Failed to save audit to Blob:", res.status, data.error)
+    } else {
+      console.log("[v0] Audit saved to Blob successfully:", data.url)
     }
   } catch (err) {
     console.error("[v0] Blob save error:", err)
