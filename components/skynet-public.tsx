@@ -619,12 +619,22 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                   </div>
                 )}
               </div>
-              {/* Risk Outlook Badge */}
+              {/* Risk Outlook Badge - based on score + findings */}
               {(() => {
   const openCrits = p.findings?.filter(f => f.severity === "CRITICAL" && f.status !== "RESOLVED").length || 0
   const openHighs = p.findings?.filter(f => f.severity === "HIGH" && f.status !== "RESOLVED").length || 0
-  const outlook = openCrits > 0 ? "HIGH" : openHighs > 0 ? "ELEVATED" : (p.centralizationRisk === "High" ? "HIGH" : p.centralizationRisk === "Medium" ? "MODERATE" : "LOW")
-  const olColor = outlook === "LOW" ? "#00ff88" : outlook === "MODERATE" ? "#ffd600" : "#ff2d55"
+  const scoreVal = p.score ?? 0
+  // Score-based risk: 90+ = LOW, 80-89 = MODERATE, 70-79 = ELEVATED, <70 = HIGH
+  // Override with findings: open criticals = HIGH, open highs = ELEVATED (if worse than score-based)
+  let outlook = "LOW"
+  if (scoreVal >= 90) outlook = "LOW"
+  else if (scoreVal >= 80) outlook = "MODERATE"
+  else if (scoreVal >= 70) outlook = "ELEVATED"
+  else outlook = "HIGH"
+  // Open findings can only make it worse, not better
+  if (openCrits > 0) outlook = "HIGH"
+  else if (openHighs > 0 && (outlook === "LOW" || outlook === "MODERATE")) outlook = "ELEVATED"
+  const olColor = outlook === "LOW" ? "#00ff88" : outlook === "MODERATE" ? "#ffd600" : outlook === "ELEVATED" ? "#ff6b00" : "#ff2d55"
   return (
   <div className="flex items-center gap-2 mt-1">
   <span className="text-[7px] text-s39-dim tracking-widest">RISK OUTLOOK</span>
@@ -884,12 +894,19 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               </table>
             </div>
 
-            {/* Risk Outlook */}
+            {/* Risk Outlook - score-based */}
             {(() => {
   const openCrits2 = p.findings?.filter(f => f.severity === "CRITICAL" && f.status !== "RESOLVED").length || 0
   const openHighs2 = p.findings?.filter(f => f.severity === "HIGH" && f.status !== "RESOLVED").length || 0
-  const outlook = openCrits2 > 0 ? "HIGH RISK" : openHighs2 > 0 ? "ELEVATED RISK" : (p.centralizationRisk === "High" ? "HIGH RISK" : p.centralizationRisk === "Medium" ? "MODERATE RISK" : "LOW RISK")
-  const olColor = outlook === "LOW RISK" ? "#00ff88" : outlook === "MODERATE RISK" ? "#ffd600" : "#ff2d55"
+  const scoreVal2 = p.score ?? 0
+  let outlook = "LOW RISK"
+  if (scoreVal2 >= 90) outlook = "LOW RISK"
+  else if (scoreVal2 >= 80) outlook = "MODERATE RISK"
+  else if (scoreVal2 >= 70) outlook = "ELEVATED RISK"
+  else outlook = "HIGH RISK"
+  if (openCrits2 > 0) outlook = "HIGH RISK"
+  else if (openHighs2 > 0 && (outlook === "LOW RISK" || outlook === "MODERATE RISK")) outlook = "ELEVATED RISK"
+  const olColor = outlook === "LOW RISK" ? "#00ff88" : outlook === "MODERATE RISK" ? "#ffd600" : outlook === "ELEVATED RISK" ? "#ff6b00" : "#ff2d55"
               return (
                 <div className="flex items-center gap-3 mb-4 bg-s39-bg2 border border-s39-border p-3">
                   <div className="text-[8px] text-s39-dim tracking-widest">RISK OUTLOOK</div>
