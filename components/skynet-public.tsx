@@ -624,8 +624,8 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
   const openCrits = p.findings?.filter(f => f.severity === "CRITICAL" && f.status !== "RESOLVED").length || 0
   const openHighs = p.findings?.filter(f => f.severity === "HIGH" && f.status !== "RESOLVED").length || 0
   const scoreVal = p.score ?? 0
+  console.log("[v0] Risk calc:", { score: scoreVal, openCrits, openHighs, name: p.name })
   // Score-based risk: 90+ = LOW, 80-89 = MODERATE, 70-79 = ELEVATED, <70 = HIGH
-  // Override with findings: open criticals = HIGH, open highs = ELEVATED (if worse than score-based)
   let outlook = "LOW"
   if (scoreVal >= 90) outlook = "LOW"
   else if (scoreVal >= 80) outlook = "MODERATE"
@@ -634,6 +634,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
   // Open findings can only make it worse, not better
   if (openCrits > 0) outlook = "HIGH"
   else if (openHighs > 0 && (outlook === "LOW" || outlook === "MODERATE")) outlook = "ELEVATED"
+  console.log("[v0] Final outlook:", outlook)
   const olColor = outlook === "LOW" ? "#00ff88" : outlook === "MODERATE" ? "#ffd600" : outlook === "ELEVATED" ? "#ff6b00" : "#ff2d55"
   return (
   <div className="flex items-center gap-2 mt-1">
