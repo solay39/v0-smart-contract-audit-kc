@@ -12,12 +12,44 @@ const projectMap = new Map(DEFAULT_PROJECTS.map((p) => [p.id, p]))
 async function fetchBlobAudit(id: string): Promise<PortfolioProject | null> {
   try {
     const { list } = await import("@vercel/blob")
-    const { blobs } = await list({ prefix: `audits/${id}.json`, limit: 1 })
-    if (blobs.length === 0) return null
-    const res = await fetch(blobs[0].url)
-    if (!res.ok) return null
-    return (await res.json()) as PortfolioProject
-  } catch {
+    
+    // Try exact match first
+    let { blobs } = await list({ prefix: `audits/${id}.json`, limit: 1 })
+    
+    // If not found, try without .json (in case it's stored differently)
+    if (blobs.length === 0) {
+      const result = await list({ prefix: `audits/${id}`, limit: 5 })
+      blobs = result.blobs.filter(b => b.pathname.endsWith('.json'))
+    }
+    
+    // If still not found, search all audits and match by ID
+    if (blobs.length === 0) {
+      const allResult = await list({ prefix: `audits/` })
+      const matchingBlob = allResult.blobs.find(b => 
+        b.pathname.includes(id) || 
+        b.pathname.replace('audits/', '').replace('.json', '') === id
+      )
+      if (matchingBlob) {
+        blobs = [matchingBlob]
+      }
+    }
+    
+    if (blobs.length === 0) {
+      console.log("[v0] Audit not found in Blob:", id)
+      return null
+    }
+    
+    const res = await fetch(blobs[0].url, { cache: 'no-store' })
+    if (!res.ok) {
+      console.log("[v0] Failed to fetch blob content:", res.status)
+      return null
+    }
+    
+    const audit = await res.json() as PortfolioProject
+    console.log("[v0] Found audit:", audit.name, audit.id)
+    return audit
+  } catch (err) {
+    console.error("[v0] fetchBlobAudit error:", err)
     return null
   }
 }

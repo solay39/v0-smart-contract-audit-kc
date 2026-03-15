@@ -51,17 +51,35 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get("id")
 
     if (id) {
-      // Fetch a specific audit by ID
-      const { blobs } = await list({ prefix: `${BLOB_PREFIX}${id}.json` })
+      // Fetch a specific audit by ID - try multiple search strategies
+      let { blobs } = await list({ prefix: `${BLOB_PREFIX}${id}.json` })
+
+      // If not found, try without .json
+      if (blobs.length === 0) {
+        const result = await list({ prefix: `${BLOB_PREFIX}${id}` })
+        blobs = result.blobs.filter(b => b.pathname.endsWith('.json'))
+      }
+
+      // If still not found, search all and match
+      if (blobs.length === 0) {
+        const allResult = await list({ prefix: BLOB_PREFIX })
+        const matchingBlob = allResult.blobs.find(b => 
+          b.pathname.includes(id) || 
+          b.pathname.replace(BLOB_PREFIX, '').replace('.json', '') === id
+        )
+        if (matchingBlob) {
+          blobs = [matchingBlob]
+        }
+      }
 
       if (blobs.length === 0) {
-        return NextResponse.json({ audit: null })
+        return NextResponse.json({ audit: null, error: "Not found" })
       }
 
       // Fetch the JSON content from the blob URL
-      const res = await fetch(blobs[0].url)
+      const res = await fetch(blobs[0].url, { cache: 'no-store' })
       if (!res.ok) {
-        return NextResponse.json({ audit: null })
+        return NextResponse.json({ audit: null, error: "Fetch failed" })
       }
 
       const audit = await res.json()
