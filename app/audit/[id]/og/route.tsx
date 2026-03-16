@@ -1,64 +1,42 @@
 import { ImageResponse } from "next/og"
 import { DEFAULT_PROJECTS, scoreColor, ratingOf, getWeightedScore, type PortfolioProject } from "@/lib/solay39-constants"
+import { list } from "@vercel/blob"
 
 const projectMap = new Map(DEFAULT_PROJECTS.map((p) => [p.id, p]))
 
-// Fetch audit from Vercel Blob (edge-compatible with fallback URLs)
 async function fetchBlobAudit(id: string): Promise<PortfolioProject | null> {
-  // Try multiple blob URL patterns
-  const blobHosts = [
-    "rlxtrsfp2gxpjmqt.public.blob.vercel-storage.com",
-    "blob.vercel-storage.com",
-  ]
-  
-  for (const host of blobHosts) {
-    try {
-      const blobUrl = `https://${host}/audits/${id}.json`
-      const res = await fetch(blobUrl, { 
-        cache: "no-store",
-        headers: { "Accept": "application/json" }
-      })
-      if (res.ok) {
-        return (await res.json()) as PortfolioProject
-      }
-    } catch {
-      continue
+  try {
+    // Direct blob lookup — same logic as the API route, works server-side
+    let { blobs } = await list({ prefix: `audits/${id}.json`, limit: 1 })
+    if (blobs.length === 0) {
+      const r2 = await list({ prefix: `audits/${id}`, limit: 5 })
+      blobs = r2.blobs.filter(b => b.pathname.endsWith(".json"))
     }
-  }
-  
-  // Fallback: try internal API route with dynamic origin
-  const tryOrigins = [
-    "https://www.solay39.eu",
-    "https://solay39.eu", 
-    "https://solay39.vercel.app"
-  ]
-  
-  for (const origin of tryOrigins) {
-    try {
-      const apiUrl = `${origin}/api/audit/${id}`
-      const res = await fetch(apiUrl, { cache: "no-store" })
-      if (res.ok) {
-        return (await res.json()) as PortfolioProject
-      }
-    } catch {
-      continue
+    if (blobs.length === 0) {
+      const all = await list({ prefix: "audits/" })
+      const match = all.blobs.find(b =>
+        b.pathname.includes(id) ||
+        b.pathname.replace("audits/", "").replace(".json", "") === id
+      )
+      if (match) blobs = [match]
     }
+    if (blobs.length === 0) return null
+    const res = await fetch(blobs[0].url, { cache: "no-store" })
+    if (!res.ok) return null
+    return await res.json() as PortfolioProject
+  } catch {
+    return null
   }
-  
-  return null
 }
 
-export const runtime = "edge"
+// Node runtime per poter usare @vercel/blob
+export const runtime = "nodejs"
 
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const url = new URL(req.url)
-  const origin = url.origin || "https://www.solay39.eu"
-  
-  // First try static projects, then fetch from Blob (using origin from request)
   const p = projectMap.get(id) || (await fetchBlobAudit(id))
 
   if (!p) {
@@ -66,18 +44,13 @@ export async function GET(
       (
         <div
           style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "#0a0e14",
-            color: "#7a8c9e",
-            fontSize: 32,
-            fontFamily: "monospace",
+            width: "100%", height: "100%", display: "flex",
+            alignItems: "center", justifyContent: "center",
+            backgroundColor: "#0a0e14", color: "#7a8c9e",
+            fontSize: 32, fontFamily: "monospace",
           }}
         >
-          Audit Not Found
+          Audit Not Found — {id}
         </div>
       ),
       { width: 1200, height: 630 }
@@ -87,131 +60,57 @@ export async function GET(
   const ws = getWeightedScore(p)
   const wr = ratingOf(ws)
   const sc = scoreColor(ws)
-  const ratingColor = sc
 
   return new ImageResponse(
     (
       <div
         style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          backgroundColor: "#0a0e14",
-          padding: "60px 70px",
-          fontFamily: "monospace",
-          position: "relative",
-          overflow: "hidden",
+          width: "100%", height: "100%", display: "flex", flexDirection: "column",
+          backgroundColor: "#0a0e14", padding: "60px 70px",
+          fontFamily: "monospace", position: "relative", overflow: "hidden",
         }}
       >
-        {/* Background grid pattern */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            opacity: 0.03,
-            backgroundImage:
-              "linear-gradient(#00ff88 1px, transparent 1px), linear-gradient(90deg, #00ff88 1px, transparent 1px)",
-            backgroundSize: "40px 40px",
-          }}
-        />
-
-        {/* Top border accent */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 3,
-            background: "linear-gradient(90deg, #00ff88, #00e5ff, #00ff88)",
-          }}
-        />
+        {/* Top accent bar */}
+        <div style={{
+          position: "absolute", top: 0, left: 0, right: 0, height: 4,
+          background: "linear-gradient(90deg, #00ff88, #00e5ff, #00ff88)",
+        }} />
 
         {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 50,
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 50 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div
-              style={{
-                fontSize: 22,
-                fontWeight: 800,
-                color: "#00ff88",
-                letterSpacing: "0.15em",
-              }}
-            >
+            <div style={{ fontSize: 22, fontWeight: 800, color: "#00ff88", letterSpacing: "0.15em" }}>
               SOLAY39
             </div>
-            <div
-              style={{
-                fontSize: 14,
-                color: "#3e5060",
-                letterSpacing: "0.12em",
-              }}
-            >
+            <div style={{ fontSize: 14, color: "#3e5060", letterSpacing: "0.12em" }}>
               SKYNET SECURITY AUDIT
             </div>
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              border: "1px solid #00ff8833",
-              padding: "6px 16px",
-              color: "#00ff88",
-              fontSize: 12,
-              letterSpacing: "0.15em",
-            }}
-          >
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            border: "1px solid #00ff8833", padding: "6px 16px",
+            color: "#00ff88", fontSize: 12, letterSpacing: "0.15em",
+          }}>
             VERIFIED AUDIT
           </div>
         </div>
 
         {/* Main content */}
-        <div
-          style={{
-            display: "flex",
-            flex: 1,
-            gap: 50,
-            alignItems: "center",
-          }}
-        >
-          {/* Left side: Token info */}
+        <div style={{ display: "flex", flex: 1, gap: 50, alignItems: "center" }}>
+          {/* Left */}
           <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-            {/* Token name + ticker */}
             <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
-              {/* Logo placeholder */}
-              <div
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 12,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 28,
-                  fontWeight: 800,
-                  color: sc,
-                  backgroundColor: `${sc}15`,
-                  border: `2px solid ${sc}33`,
-                }}
-              >
-                {p.logoUrl ? (
+              <div style={{
+                width: 64, height: 64, borderRadius: 12,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 28, fontWeight: 800, color: sc,
+                backgroundColor: `${sc}15`, border: `2px solid ${sc}33`,
+              }}>
+                {p.logoUrl
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.logoUrl} width={56} height={56} alt="" style={{ borderRadius: 8 }} />
-                ) : (
-                  p.name.charAt(0).toUpperCase()
-                )}
+                  ? <img src={p.logoUrl} width={56} height={56} alt="" style={{ borderRadius: 8 }} />
+                  : p.name.charAt(0).toUpperCase()
+                }
               </div>
               <div style={{ display: "flex", flexDirection: "column" }}>
                 <div style={{ fontSize: 40, fontWeight: 800, color: "#e0eaf0", lineHeight: 1.1 }}>
@@ -225,25 +124,18 @@ export async function GET(
               </div>
             </div>
 
-            {/* Findings summary */}
             <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
               {[
                 { label: "CRITICAL", count: p.criticals, color: "#ff3b5c" },
-                { label: "HIGH", count: p.highs, color: "#ff8800" },
-                { label: "MEDIUM", count: p.mediums, color: "#ffc107" },
-                { label: "LOW", count: p.lows, color: "#00e5ff" },
+                { label: "HIGH",     count: p.highs,     color: "#ff8800" },
+                { label: "MEDIUM",   count: p.mediums,   color: "#ffc107" },
+                { label: "LOW",      count: p.lows,      color: "#00e5ff" },
               ].map((s) => (
-                <div
-                  key={s.label}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "6px 14px",
-                    border: `1px solid ${s.color}33`,
-                    backgroundColor: `${s.color}08`,
-                  }}
-                >
+                <div key={s.label} style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "6px 14px", border: `1px solid ${s.color}33`,
+                  backgroundColor: `${s.color}08`,
+                }}>
                   <span style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.count}</span>
                   <span style={{ fontSize: 10, color: s.color, letterSpacing: "0.1em", opacity: 0.8 }}>
                     {s.label}
@@ -252,7 +144,6 @@ export async function GET(
               ))}
             </div>
 
-            {/* Date + Auditor */}
             <div style={{ display: "flex", gap: 20, marginTop: 20 }}>
               <div style={{ fontSize: 12, color: "#3e5060" }}>
                 Auditor: <span style={{ color: "#7a8c9e" }}>{p.auditor || "Solay39"}</span>
@@ -263,62 +154,30 @@ export async function GET(
             </div>
           </div>
 
-          {/* Right side: Score */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 12,
-            }}
-          >
-            <div
-              style={{
-                width: 160,
-                height: 160,
-                borderRadius: "50%",
-                border: `4px solid ${sc}`,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: `${sc}08`,
-              }}
-            >
-              <div style={{ fontSize: 56, fontWeight: 900, color: sc, lineHeight: 1 }}>
-                {ws}
-              </div>
-              <div style={{ fontSize: 12, color: "#7a8c9e", letterSpacing: "0.12em", marginTop: 4 }}>
-                / 100
-              </div>
+          {/* Right: Score ring */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+            <div style={{
+              width: 160, height: 160, borderRadius: "50%",
+              border: `4px solid ${sc}`, display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center", backgroundColor: `${sc}08`,
+            }}>
+              <div style={{ fontSize: 56, fontWeight: 900, color: sc, lineHeight: 1 }}>{ws}</div>
+              <div style={{ fontSize: 12, color: "#7a8c9e", letterSpacing: "0.12em", marginTop: 4 }}>/ 100</div>
             </div>
-            <div
-              style={{
-                fontSize: 24,
-                fontWeight: 800,
-                color: ratingColor,
-                letterSpacing: "0.15em",
-                border: `2px solid ${ratingColor}44`,
-                padding: "6px 20px",
-              }}
-            >
+            <div style={{
+              fontSize: 24, fontWeight: 800, color: sc, letterSpacing: "0.15em",
+              border: `2px solid ${sc}44`, padding: "6px 20px",
+            }}>
               {wr}
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginTop: 30,
-            paddingTop: 20,
-            borderTop: "1px solid #1a2533",
-          }}
-        >
+        <div style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          marginTop: 30, paddingTop: 20, borderTop: "1px solid #1a2533",
+        }}>
           <div style={{ fontSize: 11, color: "#3e5060", letterSpacing: "0.1em" }}>
             solay39.eu/audit/{p.id}
           </div>
