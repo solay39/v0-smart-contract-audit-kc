@@ -624,7 +624,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
   const openCrits = p.findings?.filter(f => f.severity === "CRITICAL" && f.status !== "RESOLVED").length || 0
   const openHighs = p.findings?.filter(f => f.severity === "HIGH" && f.status !== "RESOLVED").length || 0
   const scoreVal = p.score ?? 0
-  console.log("[v0] Risk calc:", { score: scoreVal, openCrits, openHighs, name: p.name })
+
   // Score-based risk: 90+ = LOW, 80-89 = MODERATE, 70-79 = ELEVATED, <70 = HIGH
   let outlook = "LOW"
   if (scoreVal >= 90) outlook = "LOW"
@@ -634,7 +634,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
   // Open findings can only make it worse, not better
   if (openCrits > 0) outlook = "HIGH"
   else if (openHighs > 0 && (outlook === "LOW" || outlook === "MODERATE")) outlook = "ELEVATED"
-  console.log("[v0] Final outlook:", outlook)
+
   const olColor = outlook === "LOW" ? "#00ff88" : outlook === "MODERATE" ? "#ffd600" : outlook === "ELEVATED" ? "#ff6b00" : "#ff2d55"
   return (
   <div className="flex items-center gap-2 mt-1">
@@ -5252,6 +5252,29 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
 
   const [deleteError, setDeleteError] = useState<string | null>(null)
   
+  // Verifica la chiave founder LATO SERVER prima di sbloccare il pannello admin
+  const handleFounderAuth = async () => {
+    if (!founderKey || founderKey.length < 4) return
+    setDeleteError(null)
+    try {
+      const res = await fetch("/api/audits", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ founderKey }),
+      })
+      const data = await res.json()
+      if (data.valid) {
+        setFounderAuthed(true)
+        setDeleteError(null)
+      } else {
+        setDeleteError(data.error || "Chiave non valida")
+        setFounderAuthed(false)
+      }
+    } catch {
+      setDeleteError("Errore di rete — impossibile verificare la chiave")
+    }
+  }
+
   const handleDeleteAudit = useCallback(async (auditId: string) => {
     if (!founderAuthed || !founderKey) {
       setDeleteError("Not authenticated")
@@ -5261,7 +5284,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
     setDeleteError(null)
     
     try {
-      console.log("[v0] Deleting audit:", auditId)
+
       const res = await fetch("/api/audits", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -5269,7 +5292,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
       })
       
       const data = await res.json()
-      console.log("[v0] Delete response:", res.status, data)
+
       
       if (res.ok && data.success) {
         // Remove from local state
@@ -5278,16 +5301,16 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
         const local = getPublishedAudits().filter(p => p.id !== auditId)
         localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(local))
         setDeleteConfirm(null)
-        console.log("[v0] Audit deleted successfully")
+
       } else {
         // Show error to user
         setDeleteError(data.error || `Delete failed: ${res.status}`)
-        console.error("[v0] Delete failed:", data.error)
+
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Network error"
       setDeleteError(msg)
-      console.error("[v0] Delete exception:", err)
+
     }
     setDeleting(null)
   }, [founderAuthed, founderKey])
@@ -5539,17 +5562,21 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                 <input
                   type="password"
                   value={founderKey}
-                  onChange={(e) => setFounderKey(e.target.value)}
+                  onChange={(e) => { setFounderKey(e.target.value); setDeleteError(null) }}
+                  onKeyDown={async (e) => { if (e.key === "Enter") await handleFounderAuth() }}
                   placeholder="Enter founder key..."
                   className="flex-1 bg-s39-bg2 border border-s39-border text-s39-lite p-2 px-3 text-[10px] font-mono outline-none focus:border-red-500"
                 />
                 <button
-                  onClick={() => { if (founderKey.length >= 4) setFounderAuthed(true) }}
+                  onClick={handleFounderAuth}
                   className="text-[9px] text-red-400 border border-red-500/40 px-4 py-2 font-mono tracking-wider hover:bg-red-500/10 transition-colors cursor-pointer bg-transparent"
                 >
                   AUTHENTICATE
                 </button>
               </div>
+              {deleteError && (
+                <div className="mt-2 text-[8px] text-red-500 font-mono">{deleteError}</div>
+              )}
             </div>
           )}
           {founderMode && founderAuthed && (

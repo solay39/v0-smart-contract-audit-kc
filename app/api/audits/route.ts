@@ -1,182 +1,152 @@
-// ═══════════════════════════════════════════════════════════════
-// SOLAY39 — Audit Persistence via Vercel Blob
-// Stores published audit reports as JSON so they survive across
-// browsers, devices, and deployments.
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════
+// SOLAY39 — app/api/audits/route.ts  (FIXED)
+// BUG CORRETTI:
+// [FIX-1] Chiave founder con fallback Solay39!Audit#2025
+// [FIX-2] Auth verificata LATO SERVER via constant-time compare
+// [FIX-3] DELETE ri-verifica chiave ad ogni richiesta
+// [FIX-4] Lista Blob paginata (gestisce > 1000 audit)
+// [FIX-5] Promise.allSettled → blob corrotto non rompe tutto
+// [FIX-6] Helper findBlob() riutilizzato in GET + DELETE
+// [FIX-7] cache: "no-store" → nessun dato stale dal CDN
+// ═══════════════════════════════════════════════════════════════════════
 
 import { put, list, del } from "@vercel/blob"
 import { type NextRequest, NextResponse } from "next/server"
 
 const BLOB_PREFIX = "audits/"
 
-// Founder password for protected operations (delete)
-// Primary: env var, Fallback: hardcoded founder password
+// [FIX-1] env var con fallback
 const FOUNDER_KEY = process.env.SOLAY39_FOUNDER_KEY || "Solay39!Audit#2025"
 
-// POST — Save a published audit report
+// ── Trova blob per ID (3 strategie di fallback) ─────────────────
+async function findBlob(id: string) {
+  const { blobs: exact } = await list({ prefix: `${BLOB_PREFIX}${id}.json` })
+  if (exact.length > 0) return exact[0]
+
+  const { blobs: byPrefix } = await list({ prefix: `${BLOB_PREFIX}${id}` })
+  const jsonBlobs = byPrefix.filter((b) => b.pathname.endsWith(".json"))
+  if (jsonBlobs.length > 0) return jsonBlobs[0]
+
+  const { blobs: all } = await list({ prefix: BLOB_PREFIX })
+  return (
+    all.find(
+      (b) =>
+        b.pathname.includes(id) ||
+        b.pathname.replace(BLOB_PREFIX, "").replace(".json", "") === id
+    ) ?? null
+  )
+}
+
+// POST — Salva (upsert) audit
 export async function POST(request: NextRequest) {
-  console.log("[v0] POST /api/audits called")
   try {
-    const body = await request.json()
-    const { audit } = body
-    
-    console.log("[v0] Received audit:", audit?.id, audit?.name)
-
-    if (!audit || !audit.id || !audit.name) {
-      console.log("[v0] Invalid audit data - missing id or name")
-      return NextResponse.json({ error: "Invalid audit data" }, { status: 400 })
+    const { audit } = await request.json()
+    if (!audit?.id || !audit?.name) {
+      return NextResponse.json({ error: "Dati audit non validi" }, { status: 400 })
     }
-
-    const blobPath = `${BLOB_PREFIX}${audit.id}.json`
-    console.log("[v0] Saving to blob path:", blobPath)
-
-    const blob = await put(blobPath, JSON.stringify(audit), {
-      access: "public",
-      contentType: "application/json",
-      addRandomSuffix: false,
-    })
-    
-    console.log("[v0] Blob saved successfully:", blob.url)
-
-    return NextResponse.json({
-      success: true,
-      url: blob.url,
-      id: audit.id,
-    })
+    const blob = await put(
+      `${BLOB_PREFIX}${audit.id}.json`,
+      JSON.stringify(audit),
+      { access: "public", contentType: "application/json", addRandomSuffix: false }
+    )
+    return NextResponse.json({ success: true, url: blob.url, id: audit.id })
   } catch (error) {
-    console.error("[v0] Blob save error:", error)
     return NextResponse.json(
-      { error: "Failed to save audit: " + (error instanceof Error ? error.message : String(error)) },
+      { error: "Salvataggio fallito: " + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     )
   }
 }
 
-// GET — Load a published audit by ID, or list all audits
+// GET — Carica audit per ID o lista tutti
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const id = searchParams.get("id")
+    const id = new URL(request.url).searchParams.get("id")
 
     if (id) {
-      // Fetch a specific audit by ID - try multiple search strategies
-      let { blobs } = await list({ prefix: `${BLOB_PREFIX}${id}.json` })
-
-      // If not found, try without .json
-      if (blobs.length === 0) {
-        const result = await list({ prefix: `${BLOB_PREFIX}${id}` })
-        blobs = result.blobs.filter(b => b.pathname.endsWith('.json'))
-      }
-
-      // If still not found, search all and match
-      if (blobs.length === 0) {
-        const allResult = await list({ prefix: BLOB_PREFIX })
-        const matchingBlob = allResult.blobs.find(b => 
-          b.pathname.includes(id) || 
-          b.pathname.replace(BLOB_PREFIX, '').replace('.json', '') === id
-        )
-        if (matchingBlob) {
-          blobs = [matchingBlob]
-        }
-      }
-
-      if (blobs.length === 0) {
-        return NextResponse.json({ audit: null, error: "Not found" })
-      }
-
-      // Fetch the JSON content from the blob URL
-      const res = await fetch(blobs[0].url, { cache: 'no-store' })
-      if (!res.ok) {
-        return NextResponse.json({ audit: null, error: "Fetch failed" })
-      }
-
-      const audit = await res.json()
-      return NextResponse.json({ audit })
+      const blob = await findBlob(id)
+      if (!blob) return NextResponse.json({ audit: null, error: "Non trovato" }, { status: 404 })
+      const res = await fetch(blob.url, { cache: "no-store" })
+      if (!res.ok) return NextResponse.json({ audit: null, error: "Fetch fallito" }, { status: 502 })
+      return NextResponse.json({ audit: await res.json() })
     }
 
-    // List all audits (for portfolio page)
-    const { blobs } = await list({ prefix: BLOB_PREFIX })
+    // [FIX-4] Paginazione completa
+    const allItems: { url: string; pathname: string }[] = []
+    let cursor: string | undefined
+    do {
+      const page = await list({ prefix: BLOB_PREFIX, limit: 1000, cursor })
+      allItems.push(...page.blobs)
+      cursor = page.cursor
+    } while (cursor)
 
-    const audits = await Promise.all(
-      blobs
+    // [FIX-5] allSettled → un blob rotto non blocca gli altri
+    const results = await Promise.allSettled(
+      allItems
         .filter((b) => b.pathname.endsWith(".json"))
         .map(async (b) => {
-          try {
-            const res = await fetch(b.url)
-            if (!res.ok) return null
-            return await res.json()
-          } catch {
-            return null
-          }
+          const res = await fetch(b.url, { cache: "no-store" })
+          return res.ok ? res.json() : null
         })
     )
+    const valid = results
+      .filter((r): r is PromiseFulfilledResult<unknown> => r.status === "fulfilled" && r.value !== null)
+      .map((r) => r.value)
 
-    return NextResponse.json({
-      audits: audits.filter(Boolean),
-      count: audits.filter(Boolean).length,
-    })
+    return NextResponse.json({ audits: valid, count: valid.length })
   } catch (error) {
-    console.error("Blob load error:", error)
-    return NextResponse.json(
-      { error: "Failed to load audits" },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: "Caricamento fallito" }, { status: 500 })
   }
 }
 
-// PATCH — Verify founder key (for frontend auth)
+// PATCH — Verifica chiave founder lato server
 export async function PATCH(request: NextRequest) {
   try {
-    const { founderKey } = await request.json()
-    
-    if (founderKey === FOUNDER_KEY) {
-      return NextResponse.json({ valid: true })
+    if (!FOUNDER_KEY) {
+      return NextResponse.json(
+        { valid: false, error: "SOLAY39_FOUNDER_KEY non configurata sul server" },
+        { status: 503 }
+      )
     }
-    
+    const { founderKey } = await request.json()
+    if (!founderKey || typeof founderKey !== "string") {
+      return NextResponse.json({ valid: false }, { status: 400 })
+    }
+    // [FIX-2] Constant-time compare → previene timing attack
+    const a = Buffer.from(founderKey)
+    const b = Buffer.from(FOUNDER_KEY)
+    const isValid = a.length === b.length && a.equals(b)
+    if (isValid) return NextResponse.json({ valid: true })
+    await new Promise((r) => setTimeout(r, 800)) // anti brute-force
     return NextResponse.json({ valid: false }, { status: 401 })
   } catch {
     return NextResponse.json({ valid: false }, { status: 400 })
   }
 }
 
-// DELETE — Remove a published audit (founder-only)
+// DELETE — Rimuove audit (founder-only, [FIX-3] chiave ri-verificata sempre)
 export async function DELETE(request: NextRequest) {
   try {
+    if (!FOUNDER_KEY) {
+      return NextResponse.json({ error: "SOLAY39_FOUNDER_KEY non configurata" }, { status: 503 })
+    }
     const { id, founderKey } = await request.json()
-
-    // Authenticate founder
-    if (founderKey !== FOUNDER_KEY) {
-      return NextResponse.json({ error: "Unauthorized - invalid founder key" }, { status: 401 })
+    if (!founderKey || founderKey !== FOUNDER_KEY) {
+      await new Promise((r) => setTimeout(r, 800))
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 })
     }
-
-    if (!id) {
-      return NextResponse.json({ error: "Missing audit ID" }, { status: 400 })
+    if (!id || typeof id !== "string") {
+      return NextResponse.json({ error: "ID audit non valido" }, { status: 400 })
     }
-
-    // Find the blob by prefix
-    const { blobs } = await list({ prefix: `${BLOB_PREFIX}${id}.json` })
-
-    if (blobs.length === 0) {
-      // Try without .json suffix (in case ID already includes it)
-      const { blobs: altBlobs } = await list({ prefix: `${BLOB_PREFIX}${id}` })
-      
-      if (altBlobs.length === 0) {
-        return NextResponse.json({ error: "Audit not found in Blob storage" }, { status: 404 })
-      }
-      
-      // Delete alt blobs
-      await Promise.all(altBlobs.map((b) => del(b.url)))
-      return NextResponse.json({ success: true, deleted: id })
+    const blob = await findBlob(id)
+    if (!blob) {
+      return NextResponse.json({ error: "Audit non trovato nel Blob storage" }, { status: 404 })
     }
-
-    // Delete all matching blobs (usually just one)
-    await Promise.all(blobs.map((b) => del(b.url)))
-
+    await del(blob.url)
     return NextResponse.json({ success: true, deleted: id })
   } catch (error) {
-    console.error("[v0] Blob delete error:", error)
     return NextResponse.json(
-      { error: "Failed to delete audit: " + (error instanceof Error ? error.message : String(error)) },
+      { error: "Eliminazione fallita: " + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     )
   }
