@@ -65,25 +65,25 @@ export function savePublishedAudit(project: PortfolioProject) {
   saveToBlobAsync(finalProject)
 }
 
-// Async save to Blob - fire and forget, don't block UI
-async function saveToBlobAsync(project: PortfolioProject) {
-  console.log("[v0] saveToBlobAsync called for:", project.id, project.name)
-  try {
-    const res = await fetch("/api/audits", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ audit: project }),
-    })
-    const data = await res.json()
-    console.log("[v0] Blob save response:", res.status, data)
-    if (!res.ok) {
-      console.error("[v0] Failed to save audit to Blob:", res.status, data.error)
-    } else {
-      console.log("[v0] Audit saved to Blob successfully:", data.url)
+// Async save to Blob with retry 3x and backoff
+async function saveToBlobAsync(project: PortfolioProject): Promise<boolean> {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch("/api/audits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audit: project }),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        return true
+      }
+    } catch {
+      // Network error, will retry
     }
-  } catch (err) {
-    console.error("[v0] Blob save error:", err)
+    if (attempt < 3) await new Promise(r => setTimeout(r, 1000 * attempt))
   }
+  return false
 }
 
 // ── Network Icon ─────────────────────────────────────────────────
