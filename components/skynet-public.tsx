@@ -32,6 +32,18 @@ export function getPublishedAudits(): PortfolioProject[] {
   }
 }
 
+// Event emitter for sync status notifications
+type SyncStatus = "saving" | "success" | "error"
+type SyncListener = (status: SyncStatus, auditName: string) => void
+const syncListeners: Set<SyncListener> = new Set()
+export function onSyncStatus(listener: SyncListener) {
+  syncListeners.add(listener)
+  return () => syncListeners.delete(listener)
+}
+function emitSyncStatus(status: SyncStatus, auditName: string) {
+  syncListeners.forEach(fn => fn(status, auditName))
+}
+
 export function savePublishedAudit(project: PortfolioProject): void {
   const existing = getPublishedAudits()
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
@@ -62,15 +74,15 @@ export function savePublishedAudit(project: PortfolioProject): void {
   // Save to localStorage immediately
   localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(existing))
 
-  // Save to Vercel Blob — fire and retry up to 3x in background
+  // Save to Vercel Blob with visual feedback
+  emitSyncStatus("saving", finalProject.name)
   saveToBlobAsync(finalProject).then((ok) => {
-    if (!ok) console.error("[v0] Blob save failed after 3 attempts for:", finalProject.id)
+    emitSyncStatus(ok ? "success" : "error", finalProject.name)
   })
 }
 
 // Async save to Blob with retry 3x and backoff
 async function saveToBlobAsync(project: PortfolioProject): Promise<boolean> {
-  console.log("[v0] saveToBlobAsync called for:", project.id, project.name)
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const res = await fetch("/api/audits", {
@@ -79,14 +91,11 @@ async function saveToBlobAsync(project: PortfolioProject): Promise<boolean> {
         body: JSON.stringify({ audit: project }),
       })
       const data = await res.json()
-      console.log(`[v0] Blob save attempt ${attempt}:`, res.status, data)
       if (res.ok && data.success) {
-        console.log("[v0] Audit saved to Blob:", data.url)
         return true
       }
-      console.error("[v0] Blob save failed:", data.error)
-    } catch (err) {
-      console.error(`[v0] Blob save error (attempt ${attempt}):`, err)
+    } catch {
+      // Network error, will retry
     }
     if (attempt < 3) await new Promise(r => setTimeout(r, 1000 * attempt))
   }
@@ -5258,6 +5267,18 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
   const [deleting, setDeleting] = useState<string | null>(null)
 
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  
+  // Sync status toast
+  const [syncToast, setSyncToast] = useState<{ status: "saving" | "success" | "error"; name: string } | null>(null)
+  
+  useEffect(() => {
+    return onSyncStatus((status, name) => {
+      setSyncToast({ status, name })
+      if (status !== "saving") {
+        setTimeout(() => setSyncToast(null), 3000)
+      }
+    })
+  }, [])
   
   // Verifica la chiave founder — fallback locale se il server non risponde
   const handleFounderAuth = async () => {
