@@ -6,33 +6,42 @@ export async function GET() {
   const hasEnvKey = !!process.env.SOLAY39_FOUNDER_KEY
   const hasBlobToken = !!process.env.BLOB_READ_WRITE_TOKEN
 
-  // Test blob connection
+  // Test blob connection and list all audits
   let blobOk = false
   let blobError = ""
-  let blobCount = 0
+  let auditList: { id: string; pathname: string; size: number; uploadedAt: string }[] = []
+  
   try {
     const { blobs } = await list({ prefix: "audits/" })
     blobOk = true
-    blobCount = blobs.length
+    auditList = blobs
+      .filter(b => b.pathname.endsWith('.json'))
+      .map(b => ({
+        id: b.pathname.replace('audits/', '').replace('.json', ''),
+        pathname: b.pathname,
+        size: b.size,
+        uploadedAt: b.uploadedAt?.toISOString() || "unknown",
+      }))
   } catch (e) {
     blobError = e instanceof Error ? e.message : String(e)
   }
 
   return NextResponse.json({
+    status: blobOk ? "ok" : "error",
     auth: {
-      activeKeyLength: FOUNDER_KEY.length,
       activeKeyPreview: FOUNDER_KEY.slice(0, 4) + "..." + FOUNDER_KEY.slice(-4),
       usingEnvVar: hasEnvKey,
       usingFallback: !hasEnvKey,
-      envKeyMatchesFallback: hasEnvKey
-        ? process.env.SOLAY39_FOUNDER_KEY === "Solay39!Audit#2025"
-        : "n/a (using fallback)",
     },
     blob: {
       tokenConfigured: hasBlobToken,
       connectionOk: blobOk,
-      auditCount: blobCount,
+      auditCount: auditList.length,
       error: blobError || null,
+      audits: auditList,
+    },
+    help: {
+      syncUrl: "Vai su solay39.eu -> ADMIN -> inserisci 'Solay39!Audit#2025' -> clicca 'SYNC ALL TO BLOB'",
     },
   })
 }
