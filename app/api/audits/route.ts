@@ -15,28 +15,20 @@ const FOUNDER_KEY = process.env.SOLAY39_FOUNDER_KEY || "Solay39!Audit#2025"
 
 // POST — Save a published audit report
 export async function POST(request: NextRequest) {
-  console.log("[v0] POST /api/audits called")
   try {
-    const body = await request.json()
-    const { audit } = body
-    
-    console.log("[v0] Received audit:", audit?.id, audit?.name)
+    const { audit } = await request.json()
 
     if (!audit || !audit.id || !audit.name) {
-      console.log("[v0] Invalid audit data - missing id or name")
       return NextResponse.json({ error: "Invalid audit data" }, { status: 400 })
     }
 
     const blobPath = `${BLOB_PREFIX}${audit.id}.json`
-    console.log("[v0] Saving to blob path:", blobPath)
 
     const blob = await put(blobPath, JSON.stringify(audit), {
       access: "public",
       contentType: "application/json",
       addRandomSuffix: false,
     })
-    
-    console.log("[v0] Blob saved successfully:", blob.url)
 
     return NextResponse.json({
       success: true,
@@ -44,9 +36,9 @@ export async function POST(request: NextRequest) {
       id: audit.id,
     })
   } catch (error) {
-    console.error("[v0] Blob save error:", error)
+    console.error("Blob save error:", error)
     return NextResponse.json(
-      { error: "Failed to save audit: " + (error instanceof Error ? error.message : String(error)) },
+      { error: "Failed to save audit" },
       { status: 500 }
     )
   }

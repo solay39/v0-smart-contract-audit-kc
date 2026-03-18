@@ -38,12 +38,10 @@ export function savePublishedAudit(project: PortfolioProject) {
   const idx = existing.findIndex(
     (p) => p.id === project.id || norm(p.name) === norm(project.name)
   )
-  
-  let finalProject = project
   if (idx >= 0) {
     // Merge: keep new data but preserve old fields that are missing in new
     const old = existing[idx]
-    finalProject = {
+    existing[idx] = {
       ...old,
       ...project,
       logoUrl: project.logoUrl || old.logoUrl,
@@ -55,35 +53,10 @@ export function savePublishedAudit(project: PortfolioProject) {
       discord: project.discord || old.discord,
       tags: project.tags?.length ? project.tags : old.tags,
     }
-    existing[idx] = finalProject
   } else {
     existing.unshift(project)
   }
   localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(existing))
-  
-  // Also save to Vercel Blob for persistence across devices/sessions
-  saveToBlobAsync(finalProject)
-}
-
-// Async save to Blob - fire and forget, don't block UI
-async function saveToBlobAsync(project: PortfolioProject) {
-  console.log("[v0] saveToBlobAsync called for:", project.id, project.name)
-  try {
-    const res = await fetch("/api/audits", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ audit: project }),
-    })
-    const data = await res.json()
-    console.log("[v0] Blob save response:", res.status, data)
-    if (!res.ok) {
-      console.error("[v0] Failed to save audit to Blob:", res.status, data.error)
-    } else {
-      console.log("[v0] Audit saved to Blob successfully:", data.url)
-    }
-  } catch (err) {
-    console.error("[v0] Blob save error:", err)
-  }
 }
 
 // ── Network Icon ─────────────────────────────────────────────────
@@ -619,23 +592,12 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                   </div>
                 )}
               </div>
-              {/* Risk Outlook Badge - based on score + findings */}
+              {/* Risk Outlook Badge */}
               {(() => {
   const openCrits = p.findings?.filter(f => f.severity === "CRITICAL" && f.status !== "RESOLVED").length || 0
   const openHighs = p.findings?.filter(f => f.severity === "HIGH" && f.status !== "RESOLVED").length || 0
-  const scoreVal = p.score ?? 0
-  console.log("[v0] Risk calc:", { score: scoreVal, openCrits, openHighs, name: p.name })
-  // Score-based risk: 90+ = LOW, 80-89 = MODERATE, 70-79 = ELEVATED, <70 = HIGH
-  let outlook = "LOW"
-  if (scoreVal >= 90) outlook = "LOW"
-  else if (scoreVal >= 80) outlook = "MODERATE"
-  else if (scoreVal >= 70) outlook = "ELEVATED"
-  else outlook = "HIGH"
-  // Open findings can only make it worse, not better
-  if (openCrits > 0) outlook = "HIGH"
-  else if (openHighs > 0 && (outlook === "LOW" || outlook === "MODERATE")) outlook = "ELEVATED"
-  console.log("[v0] Final outlook:", outlook)
-  const olColor = outlook === "LOW" ? "#00ff88" : outlook === "MODERATE" ? "#ffd600" : outlook === "ELEVATED" ? "#ff6b00" : "#ff2d55"
+  const outlook = openCrits > 0 ? "HIGH" : openHighs > 0 ? "ELEVATED" : (p.centralizationRisk === "High" ? "HIGH" : p.centralizationRisk === "Medium" ? "MODERATE" : "LOW")
+  const olColor = outlook === "LOW" ? "#00ff88" : outlook === "MODERATE" ? "#ffd600" : "#ff2d55"
   return (
   <div className="flex items-center gap-2 mt-1">
   <span className="text-[7px] text-s39-dim tracking-widest">RISK OUTLOOK</span>
@@ -895,19 +857,12 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               </table>
             </div>
 
-            {/* Risk Outlook - score-based */}
+            {/* Risk Outlook */}
             {(() => {
   const openCrits2 = p.findings?.filter(f => f.severity === "CRITICAL" && f.status !== "RESOLVED").length || 0
   const openHighs2 = p.findings?.filter(f => f.severity === "HIGH" && f.status !== "RESOLVED").length || 0
-  const scoreVal2 = p.score ?? 0
-  let outlook = "LOW RISK"
-  if (scoreVal2 >= 90) outlook = "LOW RISK"
-  else if (scoreVal2 >= 80) outlook = "MODERATE RISK"
-  else if (scoreVal2 >= 70) outlook = "ELEVATED RISK"
-  else outlook = "HIGH RISK"
-  if (openCrits2 > 0) outlook = "HIGH RISK"
-  else if (openHighs2 > 0 && (outlook === "LOW RISK" || outlook === "MODERATE RISK")) outlook = "ELEVATED RISK"
-  const olColor = outlook === "LOW RISK" ? "#00ff88" : outlook === "MODERATE RISK" ? "#ffd600" : outlook === "ELEVATED RISK" ? "#ff6b00" : "#ff2d55"
+  const outlook = openCrits2 > 0 ? "HIGH RISK" : openHighs2 > 0 ? "ELEVATED RISK" : (p.centralizationRisk === "High" ? "HIGH RISK" : p.centralizationRisk === "Medium" ? "MODERATE RISK" : "LOW RISK")
+  const olColor = outlook === "LOW RISK" ? "#00ff88" : outlook === "MODERATE RISK" ? "#ffd600" : "#ff2d55"
               return (
                 <div className="flex items-center gap-3 mb-4 bg-s39-bg2 border border-s39-border p-3">
                   <div className="text-[8px] text-s39-dim tracking-widest">RISK OUTLOOK</div>
@@ -5105,7 +5060,7 @@ console.log("Signer:", recovered);
 
 // ════════════════════════════════════════��══════════════════════════
 // METHODOLOGY PAGE
-// ═════════════════════════════════════════════════════════════����═════
+// ═════════════════════════════════════════════════════════════���═════
 function MethodologyPage() {
   const phases: [string, string, string, string][] = [
     ["01", "System Comprehension", "#00e5ff", "Complete architectural analysis: trust boundaries, funds flow, actor model, threat surface and external dependencies."],
@@ -5567,32 +5522,10 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                   EXIT
                 </button>
               </div>
-              {/* Sync and Audit list */}
+              {/* Audit list for deletion */}
               <div className="p-3">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-[7px] text-s39-dim tracking-[0.15em] font-mono">
-                    ALL AUDITS ({allProjects.length}) -- Click DELETE to remove from Blob storage
-                  </div>
-                  <button
-                    onClick={async () => {
-                      const localAudits = getPublishedAudits()
-                      let synced = 0
-                      for (const audit of localAudits) {
-                        try {
-                          const res = await fetch("/api/audits", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ audit }),
-                          })
-                          if (res.ok) synced++
-                        } catch { /* ignore */ }
-                      }
-                      alert(`Synced ${synced}/${localAudits.length} audits to Blob storage`)
-                    }}
-                    className="text-[8px] text-cyan-400 border border-cyan-500/40 px-3 py-1.5 font-mono tracking-wider hover:bg-cyan-500/10 transition-colors cursor-pointer bg-transparent"
-                  >
-                    SYNC ALL TO BLOB
-                  </button>
+                <div className="text-[7px] text-s39-dim tracking-[0.15em] mb-2 font-mono">
+                  ALL AUDITS ({allProjects.length}) -- Click DELETE to remove from Blob storage
                 </div>
                 <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
                   {allProjects.map((audit) => {
