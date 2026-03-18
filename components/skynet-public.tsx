@@ -32,74 +32,58 @@ export function getPublishedAudits(): PortfolioProject[] {
   }
 }
 
-// Event emitter for sync status notifications
-type SyncStatus = "saving" | "success" | "error"
-type SyncListener = (status: SyncStatus, auditName: string) => void
-const syncListeners: Set<SyncListener> = new Set()
-export function onSyncStatus(listener: SyncListener) {
-  syncListeners.add(listener)
-  return () => syncListeners.delete(listener)
-}
-function emitSyncStatus(status: SyncStatus, auditName: string) {
-  syncListeners.forEach(fn => fn(status, auditName))
-}
-
-export function savePublishedAudit(project: PortfolioProject): void {
+export function savePublishedAudit(project: PortfolioProject) {
   const existing = getPublishedAudits()
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
   const idx = existing.findIndex(
     (p) => p.id === project.id || norm(p.name) === norm(project.name)
   )
-
+  
   let finalProject = project
   if (idx >= 0) {
-    const prev = existing[idx]
+    // Merge: keep new data but preserve old fields that are missing in new
+    const old = existing[idx]
     finalProject = {
-      ...prev,
+      ...old,
       ...project,
-      logoUrl: project.logoUrl || prev.logoUrl,
-      description: project.description || prev.description,
-      website: project.website || prev.website,
-      githubUrl: project.githubUrl || prev.githubUrl,
-      telegram: project.telegram || prev.telegram,
-      twitter: project.twitter || prev.twitter,
-      discord: project.discord || prev.discord,
-      tags: project.tags?.length ? project.tags : prev.tags,
+      logoUrl: project.logoUrl || old.logoUrl,
+      description: project.description || old.description,
+      website: project.website || old.website,
+      githubUrl: project.githubUrl || old.githubUrl,
+      telegram: project.telegram || old.telegram,
+      twitter: project.twitter || old.twitter,
+      discord: project.discord || old.discord,
+      tags: project.tags?.length ? project.tags : old.tags,
     }
     existing[idx] = finalProject
   } else {
-    existing.unshift(finalProject)
+    existing.unshift(project)
   }
-
-  // Save to localStorage immediately
   localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(existing))
-
-  // Save to Vercel Blob with visual feedback
-  emitSyncStatus("saving", finalProject.name)
-  saveToBlobAsync(finalProject).then((ok) => {
-    emitSyncStatus(ok ? "success" : "error", finalProject.name)
-  })
+  
+  // Also save to Vercel Blob for persistence across devices/sessions
+  saveToBlobAsync(finalProject)
 }
 
-// Async save to Blob with retry 3x and backoff
-async function saveToBlobAsync(project: PortfolioProject): Promise<boolean> {
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const res = await fetch("/api/audits", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audit: project }),
-      })
-      const data = await res.json()
-      if (res.ok && data.success) {
-        return true
-      }
-    } catch {
-      // Network error, will retry
+// Async save to Blob - fire and forget, don't block UI
+async function saveToBlobAsync(project: PortfolioProject) {
+  console.log("[v0] saveToBlobAsync called for:", project.id, project.name)
+  try {
+    const res = await fetch("/api/audits", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ audit: project }),
+    })
+    const data = await res.json()
+    console.log("[v0] Blob save response:", res.status, data)
+    if (!res.ok) {
+      console.error("[v0] Failed to save audit to Blob:", res.status, data.error)
+    } else {
+      console.log("[v0] Audit saved to Blob successfully:", data.url)
     }
-    if (attempt < 3) await new Promise(r => setTimeout(r, 1000 * attempt))
+  } catch (err) {
+    console.error("[v0] Blob save error:", err)
   }
-  return false
 }
 
 // ── Network Icon ─────────────────────────────────────────────────
@@ -640,7 +624,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
   const openCrits = p.findings?.filter(f => f.severity === "CRITICAL" && f.status !== "RESOLVED").length || 0
   const openHighs = p.findings?.filter(f => f.severity === "HIGH" && f.status !== "RESOLVED").length || 0
   const scoreVal = p.score ?? 0
-
+  console.log("[v0] Risk calc:", { score: scoreVal, openCrits, openHighs, name: p.name })
   // Score-based risk: 90+ = LOW, 80-89 = MODERATE, 70-79 = ELEVATED, <70 = HIGH
   let outlook = "LOW"
   if (scoreVal >= 90) outlook = "LOW"
@@ -650,7 +634,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
   // Open findings can only make it worse, not better
   if (openCrits > 0) outlook = "HIGH"
   else if (openHighs > 0 && (outlook === "LOW" || outlook === "MODERATE")) outlook = "ELEVATED"
-
+  console.log("[v0] Final outlook:", outlook)
   const olColor = outlook === "LOW" ? "#00ff88" : outlook === "MODERATE" ? "#ffd600" : outlook === "ELEVATED" ? "#ff6b00" : "#ff2d55"
   return (
   <div className="flex items-center gap-2 mt-1">
@@ -5268,51 +5252,6 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
 
   const [deleteError, setDeleteError] = useState<string | null>(null)
   
-  // Sync status toast
-  const [syncToast, setSyncToast] = useState<{ status: "saving" | "success" | "error"; name: string } | null>(null)
-  
-  useEffect(() => {
-    return onSyncStatus((status, name) => {
-      setSyncToast({ status, name })
-      if (status !== "saving") {
-        setTimeout(() => setSyncToast(null), 3000)
-      }
-    })
-  }, [])
-  
-  // Verifica la chiave founder — fallback locale se il server non risponde
-  const handleFounderAuth = async () => {
-    if (!founderKey || founderKey.length < 4) return
-    setDeleteError(null)
-
-    // Fallback locale: se il server non risponde o non e' aggiornato,
-    // verifica la chiave direttamente nel client
-    const LOCAL_KEY = "Solay39!Audit#2025"
-    if (founderKey === LOCAL_KEY) {
-      setFounderAuthed(true)
-      return
-    }
-
-    // Verifica anche lato server (per quando il deploy e' aggiornato)
-    try {
-      const res = await fetch("/api/audits", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ founderKey }),
-      })
-      const data = await res.json()
-      if (data.valid) {
-        setFounderAuthed(true)
-        setDeleteError(null)
-      } else {
-        setDeleteError("Chiave non valida")
-        setFounderAuthed(false)
-      }
-    } catch {
-      setDeleteError("Chiave non valida")
-    }
-  }
-
   const handleDeleteAudit = useCallback(async (auditId: string) => {
     if (!founderAuthed || !founderKey) {
       setDeleteError("Not authenticated")
@@ -5322,7 +5261,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
     setDeleteError(null)
     
     try {
-
+      console.log("[v0] Deleting audit:", auditId)
       const res = await fetch("/api/audits", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -5330,7 +5269,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
       })
       
       const data = await res.json()
-
+      console.log("[v0] Delete response:", res.status, data)
       
       if (res.ok && data.success) {
         // Remove from local state
@@ -5339,16 +5278,16 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
         const local = getPublishedAudits().filter(p => p.id !== auditId)
         localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(local))
         setDeleteConfirm(null)
-
+        console.log("[v0] Audit deleted successfully")
       } else {
         // Show error to user
         setDeleteError(data.error || `Delete failed: ${res.status}`)
-
+        console.error("[v0] Delete failed:", data.error)
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Network error"
       setDeleteError(msg)
-
+      console.error("[v0] Delete exception:", err)
     }
     setDeleting(null)
   }, [founderAuthed, founderKey])
@@ -5477,39 +5416,6 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="min-h-dvh bg-s39-bg0">
-      {/* Sync Status Toast */}
-      {syncToast && (
-        <div className={`fixed bottom-4 right-4 z-[100] px-4 py-3 rounded-lg shadow-lg border backdrop-blur-sm transition-all duration-300 ${
-          syncToast.status === "saving" ? "bg-yellow-900/90 border-yellow-500/50 text-yellow-200" :
-          syncToast.status === "success" ? "bg-green-900/90 border-green-500/50 text-green-200" :
-          "bg-red-900/90 border-red-500/50 text-red-200"
-        }`}>
-          <div className="flex items-center gap-3">
-            {syncToast.status === "saving" && (
-              <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-              </svg>
-            )}
-            {syncToast.status === "success" && (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            )}
-            {syncToast.status === "error" && (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            )}
-            <div className="text-xs font-mono">
-              {syncToast.status === "saving" && `Saving "${syncToast.name}" to cloud...`}
-              {syncToast.status === "success" && `"${syncToast.name}" saved to cloud`}
-              {syncToast.status === "error" && `Failed to save "${syncToast.name}"`}
-            </div>
-          </div>
-        </div>
-      )}
-      
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-s39-bg0/95 border-b border-s39-border backdrop-blur-sm">
         <div className="max-w-[1100px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
@@ -5633,21 +5539,17 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                 <input
                   type="password"
                   value={founderKey}
-                  onChange={(e) => { setFounderKey(e.target.value); setDeleteError(null) }}
-                  onKeyDown={async (e) => { if (e.key === "Enter") await handleFounderAuth() }}
+                  onChange={(e) => setFounderKey(e.target.value)}
                   placeholder="Enter founder key..."
                   className="flex-1 bg-s39-bg2 border border-s39-border text-s39-lite p-2 px-3 text-[10px] font-mono outline-none focus:border-red-500"
                 />
                 <button
-                  onClick={handleFounderAuth}
+                  onClick={() => { if (founderKey.length >= 4) setFounderAuthed(true) }}
                   className="text-[9px] text-red-400 border border-red-500/40 px-4 py-2 font-mono tracking-wider hover:bg-red-500/10 transition-colors cursor-pointer bg-transparent"
                 >
                   AUTHENTICATE
                 </button>
               </div>
-              {deleteError && (
-                <div className="mt-2 text-[8px] text-red-500 font-mono">{deleteError}</div>
-              )}
             </div>
           )}
           {founderMode && founderAuthed && (
