@@ -5477,6 +5477,39 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="min-h-dvh bg-s39-bg0">
+      {/* Sync Status Toast */}
+      {syncToast && (
+        <div className={`fixed bottom-4 right-4 z-[100] px-4 py-3 rounded-lg shadow-lg border backdrop-blur-sm transition-all duration-300 ${
+          syncToast.status === "saving" ? "bg-yellow-900/90 border-yellow-500/50 text-yellow-200" :
+          syncToast.status === "success" ? "bg-green-900/90 border-green-500/50 text-green-200" :
+          "bg-red-900/90 border-red-500/50 text-red-200"
+        }`}>
+          <div className="flex items-center gap-3">
+            {syncToast.status === "saving" && (
+              <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+            )}
+            {syncToast.status === "success" && (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+            {syncToast.status === "error" && (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+            <div className="text-xs font-mono">
+              {syncToast.status === "saving" && `Saving "${syncToast.name}" to cloud...`}
+              {syncToast.status === "success" && `"${syncToast.name}" saved to cloud`}
+              {syncToast.status === "error" && `Failed to save "${syncToast.name}"`}
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-s39-bg0/95 border-b border-s39-border backdrop-blur-sm">
         <div className="max-w-[1100px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
