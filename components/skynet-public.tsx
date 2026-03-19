@@ -38,10 +38,12 @@ export function savePublishedAudit(project: PortfolioProject) {
   const idx = existing.findIndex(
     (p) => p.id === project.id || norm(p.name) === norm(project.name)
   )
+  
+  let finalProject = project
   if (idx >= 0) {
     // Merge: keep new data but preserve old fields that are missing in new
     const old = existing[idx]
-    existing[idx] = {
+    finalProject = {
       ...old,
       ...project,
       logoUrl: project.logoUrl || old.logoUrl,
@@ -53,10 +55,45 @@ export function savePublishedAudit(project: PortfolioProject) {
       discord: project.discord || old.discord,
       tags: project.tags?.length ? project.tags : old.tags,
     }
+    existing[idx] = finalProject
   } else {
-    existing.unshift(project)
+    existing.unshift(finalProject)
   }
+  
+  // Save to localStorage
   localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(existing))
+  
+  // CRITICAL: Also save to Vercel Blob for external access (social sharing, other devices)
+  saveToBlobAsync(finalProject)
+}
+
+// Save audit to Vercel Blob with retry logic
+async function saveToBlobAsync(project: PortfolioProject): Promise<boolean> {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch("/api/audits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audit: project }),
+      })
+      
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success) {
+          return true
+        }
+      }
+    } catch {
+      // Network error, retry
+    }
+    
+    // Wait before retry (1s, 2s, 3s)
+    if (attempt < 3) {
+      await new Promise(r => setTimeout(r, 1000 * attempt))
+    }
+  }
+  
+  return false
 }
 
 // ── Network Icon ─────────────────────────────────────────────────
@@ -5060,7 +5097,7 @@ console.log("Signer:", recovered);
 
 // ════════════════════════════════════════��══════════════════════════
 // METHODOLOGY PAGE
-// ═════════════════════════════════════════════════════════════���═════
+// ═════════════════════════════════════════════════════════════����═════
 function MethodologyPage() {
   const phases: [string, string, string, string][] = [
     ["01", "System Comprehension", "#00e5ff", "Complete architectural analysis: trust boundaries, funds flow, actor model, threat surface and external dependencies."],
@@ -5522,10 +5559,36 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
                   EXIT
                 </button>
               </div>
-              {/* Audit list for deletion */}
+              {/* Sync and Audit list */}
               <div className="p-3">
-                <div className="text-[7px] text-s39-dim tracking-[0.15em] mb-2 font-mono">
-                  ALL AUDITS ({allProjects.length}) -- Click DELETE to remove from Blob storage
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-[7px] text-s39-dim tracking-[0.15em] font-mono">
+                    ALL AUDITS ({allProjects.length})
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const localAudits = getPublishedAudits()
+                      let synced = 0
+                      let failed = 0
+                      for (const audit of localAudits) {
+                        try {
+                          const res = await fetch("/api/audits", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ audit }),
+                          })
+                          if (res.ok) synced++
+                          else failed++
+                        } catch {
+                          failed++
+                        }
+                      }
+                      alert(`Synced ${synced}/${localAudits.length} audits to cloud.${failed > 0 ? ` Failed: ${failed}` : ""}`)
+                    }}
+                    className="text-[8px] text-cyan-400 border border-cyan-500/40 px-3 py-1.5 font-mono tracking-wider hover:bg-cyan-500/10 transition-colors cursor-pointer bg-transparent"
+                  >
+                    SYNC ALL TO CLOUD
+                  </button>
                 </div>
                 <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
                   {allProjects.map((audit) => {

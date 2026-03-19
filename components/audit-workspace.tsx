@@ -1242,20 +1242,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     const reportIntegrity = buildReportIntegrity(portfolioEntry.id, sha256)
     const enrichedEntry = { ...portfolioEntry, reportIntegrity }
 
-    // ── Step 3.1: Save to local portfolio store ──
+    // ── Step 3.1: Save to local portfolio store AND Vercel Blob ──
+    // savePublishedAudit now automatically saves to both localStorage and Blob
     savePublishedAudit(enrichedEntry)
-
-    // ── Step 3.5: Save to Vercel Blob for server-side persistence ──
-    try {
-      await fetch("/api/audits", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audit: enrichedEntry }),
-      })
-    } catch {
-      // Non-critical: localStorage is the primary fallback
-      console.warn("Failed to persist audit to server Blob")
-    }
 
     // ── Step 4: Upload to GitHub ──
     try {
