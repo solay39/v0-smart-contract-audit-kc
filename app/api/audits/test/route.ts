@@ -1,54 +1,85 @@
-import { put, list } from "@vercel/blob"
+import { createClient } from "@supabase/supabase-js"
 import { NextResponse } from "next/server"
 
-// Test endpoint to diagnose Blob issues
 export async function GET() {
-  const results: Record<string, unknown> = {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  
+  const result: Record<string, unknown> = {
     timestamp: new Date().toISOString(),
-    blobToken: !!process.env.BLOB_READ_WRITE_TOKEN,
-    tokenPrefix: process.env.BLOB_READ_WRITE_TOKEN?.slice(0, 10) + "...",
+    supabaseUrl: supabaseUrl ? "configured" : "MISSING",
+    serviceKey: supabaseKey ? "configured" : "MISSING",
   }
 
-  // Test 1: Can we list blobs?
+  if (!supabaseUrl || !supabaseKey) {
+    return NextResponse.json({ ...result, error: "Missing Supabase credentials" })
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseKey)
+
+  // Test connection by listing audits
   try {
-    const { blobs } = await list({ prefix: "audits/" })
-    results.listSuccess = true
-    results.existingBlobs = blobs.length
-    results.blobNames = blobs.slice(0, 5).map(b => b.pathname)
+    const { data, error, count } = await supabase
+      .from("audits")
+      .select("id, name", { count: "exact" })
+      .limit(5)
+
+    if (error) {
+      result.connectionError = error.message
+      result.hint = error.hint || null
+      
+      // If table doesn't exist, show how to create it
+      if (error.message.includes("does not exist") || error.code === "42P01") {
+        result.tableExists = false
+        result.createTableSQL = `
+-- Run this in Supabase SQL Editor:
+CREATE TABLE public.audits (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  data JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.audits ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "audits_select" ON public.audits FOR SELECT USING (true);
+CREATE POLICY "audits_insert" ON public.audits FOR INSERT WITH CHECK (true);
+CREATE POLICY "audits_update" ON public.audits FOR UPDATE USING (true);
+CREATE POLICY "audits_delete" ON public.audits FOR DELETE USING (true);
+        `.trim()
+      }
+    } else {
+      result.connectionOk = true
+      result.tableExists = true
+      result.auditCount = count
+      result.sampleAudits = data?.map(a => ({ id: a.id, name: a.name })) || []
+    }
   } catch (e) {
-    results.listSuccess = false
-    results.listError = e instanceof Error ? e.message : String(e)
+    result.unexpectedError = e instanceof Error ? e.message : String(e)
   }
 
-  // Test 2: Can we write a test blob with public access?
-  try {
-    const testData = { test: true, timestamp: Date.now() }
-    const blob = await put("audits/_test_public.json", JSON.stringify(testData), {
-      access: "public",
-      contentType: "application/json",
-      addRandomSuffix: false,
-    })
-    results.publicWriteSuccess = true
-    results.publicBlobUrl = blob.url
-  } catch (e) {
-    results.publicWriteSuccess = false
-    results.publicWriteError = e instanceof Error ? e.message : String(e)
+  // Test write (only if table exists)
+  if (result.tableExists) {
+    try {
+      const testId = `test-${Date.now()}`
+      const { error: writeError } = await supabase
+        .from("audits")
+        .upsert({
+          id: testId,
+          name: "Test Audit",
+          data: { id: testId, name: "Test Audit", test: true }
+        })
+
+      if (writeError) {
+        result.writeError = writeError.message
+      } else {
+        result.writeOk = true
+        // Clean up test
+        await supabase.from("audits").delete().eq("id", testId)
+      }
+    } catch (e) {
+      result.writeException = e instanceof Error ? e.message : String(e)
+    }
   }
 
-  // Test 3: Can we write with private access?
-  try {
-    const testData = { test: true, timestamp: Date.now() }
-    const blob = await put("audits/_test_private.json", JSON.stringify(testData), {
-      access: "private",
-      contentType: "application/json",
-      addRandomSuffix: false,
-    })
-    results.privateWriteSuccess = true
-    results.privateBlobUrl = blob.url
-  } catch (e) {
-    results.privateWriteSuccess = false
-    results.privateWriteError = e instanceof Error ? e.message : String(e)
-  }
-
-  return NextResponse.json(results, { status: 200 })
+  return NextResponse.json(result)
 }

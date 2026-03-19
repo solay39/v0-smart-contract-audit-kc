@@ -1,16 +1,18 @@
 // ═══════════════════════════════════════════════════════════════
-// SOLAY39 — Audit Persistence via Vercel Blob
-// Stores published audit reports as JSON so they survive across
-// browsers, devices, and deployments.
+// SOLAY39 — Audit Persistence via Supabase (FREE)
+// Migrated from Vercel Blob to Supabase to avoid $20/month cost
 // ═══════════════════════════════════════════════════════════════
 
-import { put, list, del, get } from "@vercel/blob"
+import { createClient } from "@supabase/supabase-js"
 import { type NextRequest, NextResponse } from "next/server"
 
-const BLOB_PREFIX = "audits/"
+// Initialize Supabase client with service role for server-side operations
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 // Founder password for protected operations (delete)
-// Primary: env var, Fallback: hardcoded founder password
 const FOUNDER_KEY = process.env.SOLAY39_FOUNDER_KEY || "Solay39!Audit#2025"
 
 // POST — Save a published audit report
@@ -20,40 +22,31 @@ export async function POST(request: NextRequest) {
     const { audit } = body
 
     if (!audit || !audit.id || !audit.name) {
-      console.error("[Audits API] Invalid audit data:", { hasAudit: !!audit, id: audit?.id, name: audit?.name })
       return NextResponse.json({ error: "Invalid audit data - missing id or name" }, { status: 400 })
     }
 
-    const blobPath = `${BLOB_PREFIX}${audit.id}.json`
-    console.log("[Audits API] Saving audit to Blob:", blobPath)
+    // Upsert: insert or update if exists
+    const { data, error } = await supabase
+      .from("audits")
+      .upsert({
+        id: audit.id,
+        name: audit.name,
+        data: audit,
+      }, { onConflict: "id" })
+      .select()
+      .single()
 
-    // Try public first, fall back to private if store type mismatches
-    let blob
-    try {
-      blob = await put(blobPath, JSON.stringify(audit), {
-        access: "public",
-        contentType: "application/json",
-        addRandomSuffix: false,
-      })
-    } catch (publicError) {
-      // If public fails, try private access
-      console.log("[Audits API] Public access failed, trying private:", publicError)
-      blob = await put(blobPath, JSON.stringify(audit), {
-        access: "private",
-        contentType: "application/json",
-        addRandomSuffix: false,
-      })
+    if (error) {
+      console.error("[Audits API] Supabase error:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
-
-    console.log("[Audits API] Audit saved successfully:", blob.url)
 
     return NextResponse.json({
       success: true,
-      url: blob.url,
       id: audit.id,
     })
   } catch (error) {
-    console.error("[Audits API] Blob save error:", error)
+    console.error("[Audits API] Save error:", error)
     return NextResponse.json(
       { error: "Failed to save audit: " + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
@@ -68,92 +61,39 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get("id")
 
     if (id) {
-      // Fetch a specific audit by ID - try multiple search strategies
-      let { blobs } = await list({ prefix: `${BLOB_PREFIX}${id}.json` })
+      // Fetch a specific audit by ID
+      const { data, error } = await supabase
+        .from("audits")
+        .select("data")
+        .eq("id", id)
+        .single()
 
-      // If not found, try without .json
-      if (blobs.length === 0) {
-        const result = await list({ prefix: `${BLOB_PREFIX}${id}` })
-        blobs = result.blobs.filter(b => b.pathname.endsWith('.json'))
-      }
-
-      // If still not found, search all and match
-      if (blobs.length === 0) {
-        const allResult = await list({ prefix: BLOB_PREFIX })
-        const matchingBlob = allResult.blobs.find(b => 
-          b.pathname.includes(id) || 
-          b.pathname.replace(BLOB_PREFIX, '').replace('.json', '') === id
-        )
-        if (matchingBlob) {
-          blobs = [matchingBlob]
-        }
-      }
-
-      if (blobs.length === 0) {
+      if (error || !data) {
         return NextResponse.json({ audit: null, error: "Not found" })
       }
 
-      // Fetch the JSON content - try public URL first, then private get()
-      let audit
-      try {
-        const res = await fetch(blobs[0].url, { cache: 'no-store' })
-        if (res.ok) {
-          audit = await res.json()
-        } else {
-          throw new Error("Public fetch failed")
-        }
-      } catch {
-        // Try private access
-        try {
-          const result = await get(blobs[0].pathname, { access: 'private' })
-          if (result && result.stream) {
-            const text = await new Response(result.stream).text()
-            audit = JSON.parse(text)
-          }
-        } catch {
-          return NextResponse.json({ audit: null, error: "Fetch failed" })
-        }
-      }
-      
-      if (!audit) {
-        return NextResponse.json({ audit: null, error: "Parse failed" })
-      }
-      
-      return NextResponse.json({ audit })
+      return NextResponse.json({ audit: data.data })
     }
 
     // List all audits (for portfolio page)
-    const { blobs } = await list({ prefix: BLOB_PREFIX })
+    const { data, error } = await supabase
+      .from("audits")
+      .select("data")
+      .order("created_at", { ascending: false })
 
-    const audits = await Promise.all(
-      blobs
-        .filter((b) => b.pathname.endsWith(".json"))
-        .map(async (b) => {
-          try {
-            // Try public URL first
-            const res = await fetch(b.url, { cache: 'no-store' })
-            if (res.ok) {
-              return await res.json()
-            }
-            // Fall back to private get()
-            const result = await get(b.pathname, { access: 'private' })
-            if (result && result.stream) {
-              const text = await new Response(result.stream).text()
-              return JSON.parse(text)
-            }
-            return null
-          } catch {
-            return null
-          }
-        })
-    )
+    if (error) {
+      console.error("[Audits API] List error:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    const audits = data?.map(row => row.data) || []
 
     return NextResponse.json({
-      audits: audits.filter(Boolean),
-      count: audits.filter(Boolean).length,
+      audits,
+      count: audits.length,
     })
   } catch (error) {
-    console.error("Blob load error:", error)
+    console.error("[Audits API] Load error:", error)
     return NextResponse.json(
       { error: "Failed to load audits" },
       { status: 500 }
@@ -190,30 +130,20 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Missing audit ID" }, { status: 400 })
     }
 
-    // Find the blob by prefix
-    const { blobs } = await list({ prefix: `${BLOB_PREFIX}${id}.json` })
+    const { error } = await supabase
+      .from("audits")
+      .delete()
+      .eq("id", id)
 
-    if (blobs.length === 0) {
-      // Try without .json suffix (in case ID already includes it)
-      const { blobs: altBlobs } = await list({ prefix: `${BLOB_PREFIX}${id}` })
-      
-      if (altBlobs.length === 0) {
-        return NextResponse.json({ error: "Audit not found in Blob storage" }, { status: 404 })
-      }
-      
-      // Delete alt blobs
-      await Promise.all(altBlobs.map((b) => del(b.url)))
-      return NextResponse.json({ success: true, deleted: id })
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
-
-    // Delete all matching blobs (usually just one)
-    await Promise.all(blobs.map((b) => del(b.url)))
 
     return NextResponse.json({ success: true, deleted: id })
   } catch (error) {
-    console.error("[v0] Blob delete error:", error)
+    console.error("[Audits API] Delete error:", error)
     return NextResponse.json(
-      { error: "Failed to delete audit: " + (error instanceof Error ? error.message : String(error)) },
+      { error: "Failed to delete audit" },
       { status: 500 }
     )
   }
