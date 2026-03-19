@@ -4,7 +4,7 @@
 // browsers, devices, and deployments.
 // ═══════════════════════════════════════════════════════════════
 
-import { put, list, del } from "@vercel/blob"
+import { put, list, del, get } from "@vercel/blob"
 import { type NextRequest, NextResponse } from "next/server"
 
 const BLOB_PREFIX = "audits/"
@@ -27,11 +27,23 @@ export async function POST(request: NextRequest) {
     const blobPath = `${BLOB_PREFIX}${audit.id}.json`
     console.log("[Audits API] Saving audit to Blob:", blobPath)
 
-    const blob = await put(blobPath, JSON.stringify(audit), {
-      access: "public",
-      contentType: "application/json",
-      addRandomSuffix: false,
-    })
+    // Try public first, fall back to private if store type mismatches
+    let blob
+    try {
+      blob = await put(blobPath, JSON.stringify(audit), {
+        access: "public",
+        contentType: "application/json",
+        addRandomSuffix: false,
+      })
+    } catch (publicError) {
+      // If public fails, try private access
+      console.log("[Audits API] Public access failed, trying private:", publicError)
+      blob = await put(blobPath, JSON.stringify(audit), {
+        access: "private",
+        contentType: "application/json",
+        addRandomSuffix: false,
+      })
+    }
 
     console.log("[Audits API] Audit saved successfully:", blob.url)
 
@@ -81,13 +93,32 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ audit: null, error: "Not found" })
       }
 
-      // Fetch the JSON content from the blob URL
-      const res = await fetch(blobs[0].url, { cache: 'no-store' })
-      if (!res.ok) {
-        return NextResponse.json({ audit: null, error: "Fetch failed" })
+      // Fetch the JSON content - try public URL first, then private get()
+      let audit
+      try {
+        const res = await fetch(blobs[0].url, { cache: 'no-store' })
+        if (res.ok) {
+          audit = await res.json()
+        } else {
+          throw new Error("Public fetch failed")
+        }
+      } catch {
+        // Try private access
+        try {
+          const result = await get(blobs[0].pathname, { access: 'private' })
+          if (result && result.stream) {
+            const text = await new Response(result.stream).text()
+            audit = JSON.parse(text)
+          }
+        } catch {
+          return NextResponse.json({ audit: null, error: "Fetch failed" })
+        }
       }
-
-      const audit = await res.json()
+      
+      if (!audit) {
+        return NextResponse.json({ audit: null, error: "Parse failed" })
+      }
+      
       return NextResponse.json({ audit })
     }
 
@@ -99,9 +130,18 @@ export async function GET(request: NextRequest) {
         .filter((b) => b.pathname.endsWith(".json"))
         .map(async (b) => {
           try {
-            const res = await fetch(b.url)
-            if (!res.ok) return null
-            return await res.json()
+            // Try public URL first
+            const res = await fetch(b.url, { cache: 'no-store' })
+            if (res.ok) {
+              return await res.json()
+            }
+            // Fall back to private get()
+            const result = await get(b.pathname, { access: 'private' })
+            if (result && result.stream) {
+              const text = await new Response(result.stream).text()
+              return JSON.parse(text)
+            }
+            return null
           } catch {
             return null
           }
