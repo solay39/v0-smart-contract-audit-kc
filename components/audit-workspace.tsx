@@ -1251,9 +1251,50 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     try {
       const fileName = `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${project.date || new Date().toISOString().slice(0, 10)}.pdf`
       
-      // Generate real PDF using jsPDF library
+      // Generate real PDF using jsPDF library with full tier1 data
       console.log("[v0] Generating PDF for GitHub upload...")
-      const pdfBase64 = generatePDFBase64(project, score, findings)
+      const tier1ForPDF = {
+        privilegedRoles: privilegedRoles.length > 0 ? privilegedRoles.map(r => ({
+          role: r.role,
+          permissions: [r.capabilities],
+          riskIfCompromised: r.riskIfCompromised,
+        })) : undefined,
+        trustAssumptions: trustAssumptions?.length > 0 ? trustAssumptions.map(t => ({
+          title: t.statement || "Trust Assumption",
+          description: t.statement,
+        })) : undefined,
+        architectureOverview: architectureOverview || undefined,
+        attackSurface: attackSurface?.length > 0 ? attackSurface : undefined,
+        toolingUsed: toolingUsed?.length > 0 ? toolingUsed : undefined,
+        scopeTable: project.scope ? project.scope.split("\n").filter(Boolean).map(f => ({ file: f.trim() })) : undefined,
+        securityChecklist: manualReviewSession?.checks?.map(c => ({
+          id: c.id,
+          category: c.category,
+          question: c.question,
+          severity: c.severity,
+          status: c.status,
+          note: c.note,
+        })),
+        manualReview: manualReviewSession ? {
+          completedAt: manualReviewSession.completedAt,
+          auditorWalletEth: manualReviewSession.auditorWalletEth,
+          checksCompleted: `${manualReviewSession.checks?.filter(c => c.status !== "pending").length || 0}/${manualReviewSession.checks?.length || 0}`,
+          findingsConfirmed: manualReviewSession.findingsConfirmed,
+          findingsRejected: manualReviewSession.findingsRejected,
+          manualFindingsAdded: manualReviewSession.manualFindingsAdded,
+          signatureEth: manualReviewSession.signatureEth,
+          reviewNotes: manualReviewSession.reviewNotes,
+        } : undefined,
+        onChainAnalysis: (onChainAnalysisData || manualReviewSession?.onChainAnalysis) ? {
+          executiveSummary: onChainAnalysisData?.executiveSummary || manualReviewSession?.onChainAnalysis?.executiveSummary,
+          tokenEconomics: onChainAnalysisData?.tokenEconomics || manualReviewSession?.onChainAnalysis?.tokenEconomics,
+          whaleDistribution: onChainAnalysisData?.whaleDistribution || manualReviewSession?.onChainAnalysis?.whaleDistribution,
+          rugPullRisk: onChainAnalysisData?.rugPullRisk || manualReviewSession?.onChainAnalysis?.rugPullRisk,
+          recommendation: onChainAnalysisData?.recommendation || manualReviewSession?.onChainAnalysis?.recommendation,
+          overallRiskScore: onChainAnalysisData?.overallRiskScore || manualReviewSession?.onChainAnalysis?.overallRiskScore,
+        } : undefined,
+      }
+      const pdfBase64 = generatePDFBase64(project, score, findings, tier1ForPDF)
       console.log("[v0] PDF base64 length:", pdfBase64?.length || 0)
       
       if (!pdfBase64 || pdfBase64.length < 1000) {
