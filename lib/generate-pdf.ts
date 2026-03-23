@@ -186,7 +186,7 @@ export function generatePDFBase64(
     doc.text(execLines.slice(0, 6), margin, y)
     y += Math.min(execLines.length, 6) * 4 + 5
     
-    // ═══════════════════════════════════════════════════════════════
+    // ═══════════��═══════════════════════════════════════════════════
     // FINDINGS SUMMARY
     // ═══════════════════════════════════════════════════════════════
     addSection("2. FINDINGS SUMMARY")
@@ -373,33 +373,101 @@ export function generatePDFBase64(
     // ON-CHAIN ANALYSIS
     // ═══════════════════════════════════════════════════════════════
     if (tier1?.onChainAnalysis) {
-      checkPage(60)
+      checkPage(80)
       addSection("8. ON-CHAIN AI ANALYSIS")
       
       if (tier1.onChainAnalysis.overallRiskScore !== undefined) {
-        addText(`Risk Score: ${tier1.onChainAnalysis.overallRiskScore}/100`, margin, y, { size: 10, bold: true, color: scoreColor })
+        const riskColor: [number, number, number] = tier1.onChainAnalysis.overallRiskScore <= 30 ? [0, 255, 136] : tier1.onChainAnalysis.overallRiskScore <= 60 ? [255, 214, 0] : [255, 45, 85]
+        addText(`Risk Score: ${tier1.onChainAnalysis.overallRiskScore}/100`, margin, y, { size: 10, bold: true, color: riskColor })
         y += 8
       }
       
+      if (tier1.onChainAnalysis.executiveSummary) {
+        addText("Executive Summary:", margin, y, { size: 8, bold: true, color: [68, 85, 102] })
+        y += 4
+        const esl = doc.splitTextToSize(tier1.onChainAnalysis.executiveSummary, pageWidth - margin * 2)
+        doc.setFontSize(7)
+        setColor(136, 153, 170)
+        doc.text(esl.slice(0, 5), margin + 2, y)
+        y += Math.min(esl.length, 5) * 3 + 4
+      }
+      
       if (tier1.onChainAnalysis.tokenEconomics) {
+        checkPage(40)
         addText("Token Economics:", margin, y, { size: 8, bold: true, color: [68, 85, 102] })
         y += 4
         const tel = doc.splitTextToSize(tier1.onChainAnalysis.tokenEconomics, pageWidth - margin * 2)
         doc.setFontSize(7)
         setColor(136, 153, 170)
-        doc.text(tel.slice(0, 4), margin + 2, y)
-        y += Math.min(tel.length, 4) * 3 + 4
+        doc.text(tel.slice(0, 6), margin + 2, y)
+        y += Math.min(tel.length, 6) * 3 + 4
+      }
+      
+      if (tier1.onChainAnalysis.whaleDistribution) {
+        checkPage(40)
+        addText("Whale Distribution:", margin, y, { size: 8, bold: true, color: [68, 85, 102] })
+        y += 4
+        const wdl = doc.splitTextToSize(tier1.onChainAnalysis.whaleDistribution, pageWidth - margin * 2)
+        doc.setFontSize(7)
+        setColor(136, 153, 170)
+        doc.text(wdl.slice(0, 5), margin + 2, y)
+        y += Math.min(wdl.length, 5) * 3 + 4
+      }
+      
+      if (tier1.onChainAnalysis.rugPullRisk) {
+        checkPage(40)
+        addText("Rug Pull Risk Assessment:", margin, y, { size: 8, bold: true, color: [255, 107, 0] })
+        y += 4
+        const rpl = doc.splitTextToSize(tier1.onChainAnalysis.rugPullRisk, pageWidth - margin * 2)
+        doc.setFontSize(7)
+        setColor(136, 153, 170)
+        doc.text(rpl.slice(0, 6), margin + 2, y)
+        y += Math.min(rpl.length, 6) * 3 + 4
       }
       
       if (tier1.onChainAnalysis.recommendation) {
-        addText("Recommendation:", margin, y, { size: 8, bold: true, color: [68, 85, 102] })
+        checkPage(40)
+        addText("Recommendation:", margin, y, { size: 8, bold: true, color: [0, 255, 136] })
         y += 4
         const rcl = doc.splitTextToSize(tier1.onChainAnalysis.recommendation, pageWidth - margin * 2)
         doc.setFontSize(7)
         setColor(136, 153, 170)
-        doc.text(rcl.slice(0, 4), margin + 2, y)
-        y += Math.min(rcl.length, 4) * 3 + 4
+        doc.text(rcl.slice(0, 5), margin + 2, y)
+        y += Math.min(rcl.length, 5) * 3 + 4
       }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // ARCHITECTURE OVERVIEW
+    // ═══════════════════════════════════════════════════════════════
+    if (tier1?.architectureOverview) {
+      checkPage(50)
+      addSection("10. SYSTEM ARCHITECTURE")
+      const aol = doc.splitTextToSize(tier1.architectureOverview, pageWidth - margin * 2)
+      doc.setFontSize(8)
+      setColor(136, 153, 170)
+      doc.text(aol.slice(0, 10), margin, y)
+      y += Math.min(aol.length, 10) * 4 + 5
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // ATTACK SURFACE
+    // ═══════════════════════════════════════════════════════════════
+    if (tier1?.attackSurface && tier1.attackSurface.length > 0) {
+      checkPage(50)
+      addSection("11. ATTACK SURFACE ANALYSIS")
+      tier1.attackSurface.slice(0, 5).forEach(a => {
+        const sevC = SEV_COLORS[a.severity as keyof typeof SEV_COLORS] || [136, 153, 170]
+        addText(`• ${a.title || a.name}`, margin + 2, y, { size: 8, bold: true, color: sevC })
+        y += 4
+        if (a.description) {
+          const adl = doc.splitTextToSize(a.description, pageWidth - margin * 2 - 5)
+          doc.setFontSize(7)
+          setColor(136, 153, 170)
+          doc.text(adl.slice(0, 2), margin + 5, y)
+          y += Math.min(adl.length, 2) * 3 + 3
+        }
+      })
     }
     
     // ═══════════════════════════════════════════════════════════════

@@ -1304,6 +1304,11 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
           recommendation: onChainAnalysisData?.recommendation || manualReviewSession?.onChainAnalysis?.recommendation,
           overallRiskScore: onChainAnalysisData?.overallRiskScore || manualReviewSession?.onChainAnalysis?.overallRiskScore,
         } : undefined,
+        // Include tier1Results analysis data
+        staticAnalysis: tier1Results?.staticAnalysis,
+        fuzzingResults: tier1Results?.fuzzingResults,
+        formalVerificationResults: tier1Results?.formalVerificationResults,
+        crossContractAnalysis: tier1Results?.crossContractAnalysis,
       }
       const pdfBase64 = generatePDFBase64(project, score, findings, tier1ForPDF)
       console.log("[v0] PDF base64 length:", pdfBase64?.length || 0)
