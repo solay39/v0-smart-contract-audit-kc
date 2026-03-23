@@ -1253,6 +1253,17 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       
       // Generate real PDF using jsPDF library with full tier1 data
       console.log("[v0] Generating PDF for GitHub upload...")
+      console.log("[v0] tier1 data available:", {
+        privilegedRoles: privilegedRoles?.length || 0,
+        trustAssumptions: trustAssumptions?.length || 0,
+        architectureOverview: !!architectureOverview,
+        attackSurface: attackSurface?.length || 0,
+        toolingUsed: toolingUsed?.length || 0,
+        scope: project.scope?.split("\n").length || 0,
+        manualReviewSession: !!manualReviewSession,
+        securityChecklist: manualReviewSession?.checks?.length || 0,
+        onChainAnalysisData: !!onChainAnalysisData,
+      })
       const tier1ForPDF = {
         privilegedRoles: privilegedRoles.length > 0 ? privilegedRoles.map(r => ({
           role: r.role,
