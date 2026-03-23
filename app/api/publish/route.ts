@@ -46,6 +46,19 @@ export async function POST(req: Request) {
         }
         if (sha) body.sha = sha
 
+        // First verify the repo exists and is accessible
+        const repoCheck = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github.v3+json",
+          },
+        })
+        
+        if (!repoCheck.ok) {
+          const repoErr = await repoCheck.json().catch(() => ({}))
+          throw new Error(`Repository not accessible: ${repoErr.message || repoCheck.status}`)
+        }
+
         const uploadRes = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${path}`, {
           method: "PUT",
           headers: {
