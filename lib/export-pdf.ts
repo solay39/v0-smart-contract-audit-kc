@@ -1156,3 +1156,133 @@ ${page(
     setTimeout(() => w.print(), 800)
   }
 }
+
+/**
+ * Returns the full HTML report as a string (for GitHub upload)
+ * The HTML is self-contained and can be opened in any browser and printed to PDF
+ */
+export function getAuditReportHTML(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data): string {
+  const score = Math.min(rawScore, 98)
+  const rat = ratingOf(score)
+  const sc = score >= 90 ? "#00ff88" : score >= 70 ? "#ffd600" : "#ff6b00"
+  const today = new Date().toISOString().slice(0, 10)
+  const hC = SEV_RAW_COLORS
+  const cnt = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 } as Record<string, number>
+  findings.forEach((f) => {
+    if (cnt[f.severity] !== undefined) cnt[f.severity]++
+  })
+  const open_c = findings.filter((f) => f.status === "OPEN").length
+  const fix_c = findings.filter((f) => f.status === "RESOLVED").length
+  const scopeDisplay = (() => {
+    const s = project.scope || ""
+    if (!s) return "—"
+    const first = s.split("\n")[0].trim()
+    return first.length > 60 ? first.slice(0, 57) + "..." : first
+  })()
+  const sevPfx: Record<string, string> = { CRITICAL: "C", HIGH: "H", MEDIUM: "M", LOW: "L", INFO: "I" }
+  const sevCounts: Record<string, number> = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 }
+
+  const findingsHtml =
+    findings.length === 0
+      ? `<div style="display:flex;gap:14px;align-items:flex-start;background:#001a0d;border:1px solid #00ff8833;border-left:3px solid #00ff88;padding:18px;margin:10px 0">
+          <span style="color:#00ff88;font-size:22px;flex-shrink:0">&#10003;</span>
+          <div><strong style="color:#eef4fa;font-size:12px">No Issues Found</strong>
+          <p style="color:#7a8c9e;font-size:9.5px;margin-top:6px">The contracts passed all checks of the Solay39 Manual-First Audit Framework without any identifiable security issues.</p></div>
+        </div>`
+      : (() => {
+          let html = `<h2 style="font-size:12px;color:#00ff88;margin:0 0 10px">3.1 Summary</h2>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:18px;font-size:10px">
+              <thead><tr>${["SEVERITY", "COUNT", "OPEN", "RESOLVED", "ACKNOWLEDGED"]
+                .map(
+                  (h) =>
+                    `<th style="background:#0d1117;color:#445566;font-size:7.5px;letter-spacing:.15em;padding:8px 10px;text-align:left;border-bottom:1px solid #161e2a">${h}</th>`
+                )
+                .join("")}</tr></thead>
+              <tbody>`
+          ;(["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"] as const).forEach((s) => {
+            const c = cnt[s]
+            const op = findings.filter((f) => f.severity === s && f.status === "OPEN").length
+            const rs = findings.filter((f) => f.severity === s && f.status === "RESOLVED").length
+            const ak = findings.filter((f) => f.severity === s && f.status === "ACKNOWLEDGED").length
+            html += `<tr><td style="padding:8px 10px;border-bottom:1px solid #111820;color:${hC[s]};font-weight:700">${s}</td>
+              <td style="padding:8px 10px;border-bottom:1px solid #111820">${c}</td>
+              <td style="padding:8px 10px;border-bottom:1px solid #111820">${op}</td>
+              <td style="padding:8px 10px;border-bottom:1px solid #111820">${rs}</td>
+              <td style="padding:8px 10px;border-bottom:1px solid #111820">${ak}</td></tr>`
+          })
+          html += `</tbody></table><h2 style="font-size:12px;color:#00ff88;margin:0 0 10px">3.2 Finding Details</h2>`
+          findings.forEach((f) => {
+            sevCounts[f.severity] = (sevCounts[f.severity] || 0) + 1
+            const num = `${sevPfx[f.severity] || "F"}-${String(sevCounts[f.severity]).padStart(2, "0")}`
+            const sc2 = hC[f.severity] || "#fff"
+            const stC = f.status === "RESOLVED" ? "#00ff88" : f.status === "ACKNOWLEDGED" ? "#ffd600" : "#ff2d55"
+            html += `<div style="border-left:3px solid ${sc2};margin-bottom:14px;background:#07090d">
+              <div style="padding:9px 12px;background:#0d1117;display:flex;justify-content:space-between;align-items:center">
+                <span><span style="color:${sc2};font-weight:700;font-size:10px">${num} [${f.severity}]</span>
+                <strong style="color:#eef4fa;font-size:11px;margin-left:8px">${f.title || ""}</strong></span>
+                <span style="color:${stC};font-size:9px;font-weight:700;letter-spacing:.06em">${f.status}</span>
+              </div>
+              ${f.description ? `<div style="display:flex;border-top:1px solid #111820">
+                <span style="min-width:120px;padding:7px 10px;background:#0d1117;color:#445566;font-size:8.5px;flex-shrink:0;border-right:1px solid #161e2a">Description</span>
+                <span style="padding:7px 10px;color:#8899aa;font-size:10px">${f.description}</span></div>` : ""}
+              ${f.impact ? `<div style="display:flex;border-top:1px solid #111820">
+                <span style="min-width:120px;padding:7px 10px;background:#0d1117;color:#445566;font-size:8.5px;flex-shrink:0;border-right:1px solid #161e2a">Impact</span>
+                <span style="padding:7px 10px;color:#8899aa;font-size:10px">${f.impact}</span></div>` : ""}
+              ${f.recommendation ? `<div style="display:flex;border-top:1px solid #111820">
+                <span style="min-width:120px;padding:7px 10px;background:#0d1117;color:#445566;font-size:8.5px;flex-shrink:0;border-right:1px solid #161e2a">Recommendation</span>
+                <span style="padding:7px 10px;color:#8899aa;font-size:10px">${f.recommendation}</span></div>` : ""}
+            </div>`
+          })
+          return html
+        })()
+
+  // Generate simplified but complete HTML report
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>SOLAY39 Audit Report - ${project.name}</title>
+<style>
+@page{size:A4;margin:0}
+body{margin:0;padding:0;background:#050810;color:#d0d8e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:11px;line-height:1.5}
+</style></head><body>
+<div style="padding:40px 56px;background:#050810;min-height:100vh">
+  <div style="display:flex;justify-content:space-between;margin-bottom:30px">
+    <div><span style="color:#00ff88;font-weight:700;font-size:16px;letter-spacing:.06em">SOLAY39</span><span style="color:#445566;font-size:12px;margin-left:8px">SKYNET</span></div>
+    <div style="text-align:right;color:#445566;font-size:9px">${today}<br>SMART CONTRACT SECURITY AUDIT</div>
+  </div>
+  
+  <h1 style="font-size:28px;font-weight:300;color:#eef4fa;margin:0 0 8px">${project.name}</h1>
+  <p style="color:#00ff88;font-size:10px;letter-spacing:.15em;margin:0 0 30px">SECURITY AUDIT REPORT</p>
+  
+  <div style="display:flex;gap:20px;margin-bottom:30px">
+    <div style="text-align:center;padding:20px 30px;background:#0d1117;border:1px solid #161e2a">
+      <div style="font-size:36px;font-weight:700;color:${sc}">${score}</div>
+      <div style="font-size:10px;color:#445566;margin-top:4px">SOLAY39 SCORE</div>
+      <div style="font-size:12px;color:${sc};font-weight:700;margin-top:4px">${rat}</div>
+    </div>
+    <div style="flex:1;padding:20px;background:#0d1117;border:1px solid #161e2a">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:10px">
+        <div><span style="color:#445566">Network:</span> <span style="color:#d0d8e0">${project.network || "—"}</span></div>
+        <div><span style="color:#445566">Date:</span> <span style="color:#d0d8e0">${project.date || today}</span></div>
+        <div><span style="color:#445566">Commit:</span> <span style="color:#d0d8e0;font-family:monospace">${project.commit?.slice(0, 8) || "—"}</span></div>
+        <div><span style="color:#445566">Scope:</span> <span style="color:#d0d8e0">${scopeDisplay}</span></div>
+      </div>
+    </div>
+  </div>
+  
+  <div style="display:flex;gap:10px;margin-bottom:30px">
+    ${(["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"] as const).map(s => 
+      `<div style="flex:1;padding:12px;background:#0d1117;border:1px solid #161e2a;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:${hC[s]}">${cnt[s]}</div>
+        <div style="font-size:8px;color:#445566;letter-spacing:.1em">${s}</div>
+      </div>`
+    ).join("")}
+  </div>
+  
+  <h2 style="font-size:12px;color:#00ff88;margin:30px 0 15px">FINDINGS</h2>
+  ${findingsHtml}
+  
+  <div style="margin-top:40px;padding-top:20px;border-top:1px solid #161e2a;text-align:center;color:#445566;font-size:9px">
+    <p>This report was generated by SOLAY39 SKYNET - Smart Contract Security Audit Platform</p>
+    <p style="color:#00ff88">https://www.solay39.eu</p>
+  </div>
+</div>
+</body></html>`
+}
