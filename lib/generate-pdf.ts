@@ -67,6 +67,16 @@ export function generatePDFBase64(
 ): string {
   try {
     console.log("[v0] generatePDFBase64 called for:", project.name)
+    console.log("[v0] tier1 data received:", {
+      hasPrivilegedRoles: tier1?.privilegedRoles?.length || 0,
+      hasTrustAssumptions: tier1?.trustAssumptions?.length || 0,
+      hasArchitecture: !!tier1?.architectureOverview,
+      hasAttackSurface: tier1?.attackSurface?.length || 0,
+      hasTooling: tier1?.toolingUsed?.length || 0,
+      hasSecurityChecklist: tier1?.securityChecklist?.length || 0,
+      hasOnChainAnalysis: !!tier1?.onChainAnalysis,
+      hasManualReview: !!tier1?.manualReview,
+    })
     const score = Math.min(rawScore, 98)
     const rating = ratingOf(score)
     const today = new Date().toISOString().slice(0, 10)
@@ -295,10 +305,16 @@ export function generatePDFBase64(
     }
     
     if (tier1?.toolingUsed && tier1.toolingUsed.length > 0) {
-      addText("TOOLS USED", margin, y, { size: 8, bold: true, color: [68, 85, 102] })
+      checkPage(50)
+      addText("TOOLS APPLIED", margin, y, { size: 8, bold: true, color: [68, 85, 102] })
       y += 5
-      addText(tier1.toolingUsed.join(", "), margin + 2, y, { size: 7 })
-      y += 6
+      tier1.toolingUsed.forEach(tool => {
+        checkPage(8)
+        addText("[APPLIED]", margin + 2, y, { size: 7, bold: true, color: [0, 255, 136] })
+        addText(tool, margin + 22, y, { size: 7 })
+        y += 4
+      })
+      y += 3
     }
     
     // ═══════════════════════════════════════════════════════════════
@@ -306,8 +322,9 @@ export function generatePDFBase64(
     // ═══════════════════════════════════════════════════════════════
     if (tier1?.privilegedRoles && tier1.privilegedRoles.length > 0) {
       checkPage(50)
-      addSection("5. PRIVILEGED ROLES")
-      tier1.privilegedRoles.slice(0, 5).forEach(r => {
+      addSection("5. PRIVILEGED ROLES & ACCESS CONTROL")
+      tier1.privilegedRoles.forEach(r => {
+        checkPage(20)
         addText(`• ${r.role}`, margin + 2, y, { size: 8, bold: true, color: [238, 244, 250] })
         y += 4
         if (r.permissions) {
@@ -326,7 +343,8 @@ export function generatePDFBase64(
     if (tier1?.trustAssumptions && tier1.trustAssumptions.length > 0) {
       checkPage(50)
       addSection("6. TRUST ASSUMPTIONS")
-      tier1.trustAssumptions.slice(0, 5).forEach(t => {
+      tier1.trustAssumptions.forEach(t => {
+        checkPage(15)
         addText(`• ${t.title}`, margin + 2, y, { size: 8, bold: true, color: [238, 244, 250] })
         y += 4
         if (t.description) {
@@ -353,16 +371,17 @@ export function generatePDFBase64(
       if (failed > 0) addText(`${failed} failed`, margin + 50, y, { size: 9, color: [255, 45, 85] })
       y += 8
       
-      // Group by category
+      // Group by category - show ALL categories and ALL checks
       const cats = [...new Set(tier1.securityChecklist.map(c => c.category))]
-      cats.slice(0, 4).forEach(cat => {
+      cats.forEach(cat => {
         checkPage(30)
-        addText(cat, margin, y, { size: 8, bold: true, color: [68, 85, 102] })
+        addText(cat.toUpperCase(), margin, y, { size: 8, bold: true, color: [68, 85, 102] })
         y += 5
-        tier1.securityChecklist?.filter(c => c.category === cat).slice(0, 5).forEach(c => {
+        tier1.securityChecklist?.filter(c => c.category === cat).forEach(c => {
+          checkPage(10)
           const stColor: [number, number, number] = c.status === "pass" ? [0, 255, 136] : c.status === "fail" ? [255, 45, 85] : [255, 214, 0]
-          addText(c.status === "pass" ? "✓" : c.status === "fail" ? "✗" : "○", margin + 2, y, { size: 8, color: stColor })
-          addText(c.question.slice(0, 70), margin + 8, y, { size: 7 })
+          addText(c.status === "pass" ? "[PASS]" : c.status === "fail" ? "[FAIL]" : "[N/A]", margin + 2, y, { size: 7, bold: true, color: stColor })
+          addText(c.question.slice(0, 80), margin + 18, y, { size: 7 })
           y += 4
         })
         y += 3
