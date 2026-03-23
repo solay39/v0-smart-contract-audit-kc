@@ -1248,16 +1248,58 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
 
     // ── Step 4: Upload to GitHub ──
     try {
-      const fileName = `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${project.date || new Date().toISOString().slice(0, 10)}.pdf`
+      const fileName = `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${project.date || new Date().toISOString().slice(0, 10)}.json`
+      
+      // Create comprehensive audit report JSON for GitHub
+      const auditReport = {
+        metadata: {
+          platform: "SOLAY39",
+          version: "1.0",
+          generatedAt: new Date().toISOString(),
+          auditId: portfolioEntry.id,
+        },
+        project: {
+          name: project.name,
+          network: project.network,
+          date: project.date,
+          commit: project.commit,
+          scope: project.scope,
+        },
+        score: {
+          value: score,
+          grade: ratingOf(score),
+          maxScore: 100,
+        },
+        findings: findings.map(f => ({
+          id: f.id,
+          title: f.title,
+          severity: f.severity,
+          status: f.status,
+          description: f.description,
+          impact: f.impact,
+          recommendation: f.recommendation,
+          location: f.location,
+          likelihood: f.likelihood,
+        })),
+        summary: {
+          totalFindings: findings.length,
+          critical: findings.filter(f => f.severity === "CRITICAL").length,
+          high: findings.filter(f => f.severity === "HIGH").length,
+          medium: findings.filter(f => f.severity === "MEDIUM").length,
+          low: findings.filter(f => f.severity === "LOW").length,
+          info: findings.filter(f => f.severity === "INFO").length,
+          resolved: findings.filter(f => f.status === "RESOLVED").length,
+          open: findings.filter(f => f.status === "OPEN").length,
+        },
+        integrity: enrichedEntry.reportIntegrity,
+      }
 
       const res = await fetch("/api/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           project: portfolioEntry,
-          pdfBase64: btoa(
-            `SOLAY39 Audit Report - ${project.name} - Score: ${score} - ${project.date}`
-          ),
+          pdfBase64: btoa(unescape(encodeURIComponent(JSON.stringify(auditReport, null, 2)))),
           fileName,
           portfolioData: portfolioEntry,
         }),
