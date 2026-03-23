@@ -2,7 +2,7 @@
 // SOLAY39 — Publish Audit API (GitHub Upload + Portfolio Store)
 // ════════════════════════════════════════════════════════════════
 
-const GITHUB_REPO = "sanettanammurata-max/Solay39-"
+const GITHUB_REPO = "gustavogondek/Solay39-audit"
 const GITHUB_API = "https://api.github.com"
 
 export async function POST(req: Request) {
