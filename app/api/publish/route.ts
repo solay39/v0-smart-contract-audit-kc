@@ -47,6 +47,7 @@ export async function POST(req: Request) {
         if (sha) body.sha = sha
 
         // First verify the repo exists and is accessible
+        console.log("[v0] GitHub: Checking repo access for", GITHUB_REPO)
         const repoCheck = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -54,11 +55,15 @@ export async function POST(req: Request) {
           },
         })
         
+        console.log("[v0] GitHub: Repo check status:", repoCheck.status)
+        
         if (!repoCheck.ok) {
           const repoErr = await repoCheck.json().catch(() => ({}))
+          console.error("[v0] GitHub: Repo not accessible:", repoErr)
           throw new Error(`Repository not accessible: ${repoErr.message || repoCheck.status}`)
         }
 
+        console.log("[v0] GitHub: Uploading to", path)
         const uploadRes = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${path}`, {
           method: "PUT",
           headers: {
@@ -69,13 +74,16 @@ export async function POST(req: Request) {
           body: JSON.stringify(body),
         })
 
+        console.log("[v0] GitHub: Upload response status:", uploadRes.status)
+
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json()
           githubUrl = uploadData.content?.html_url || `https://github.com/${GITHUB_REPO}/blob/main/${path}`
+          console.log("[v0] GitHub: Upload successful:", githubUrl)
         } else {
           const errData = await uploadRes.json().catch(() => null)
+          console.error("[v0] GitHub: Upload failed:", uploadRes.status, errData)
           githubError = `GitHub upload failed (${uploadRes.status}): ${errData?.message || "Unknown error"}`
-          console.error("[v0] GitHub upload error:", githubError)
         }
       } catch (err) {
         githubError = `GitHub upload error: ${err instanceof Error ? err.message : String(err)}`
