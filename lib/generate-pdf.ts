@@ -45,7 +45,9 @@ export function generatePDFBase64(
   rawScore: number,
   findings: Finding[]
 ): string {
-  const score = Math.min(rawScore, 98)
+  try {
+    console.log("[v0] generatePDFBase64 called for:", project.name)
+    const score = Math.min(rawScore, 98)
   const rating = ratingOf(score)
   const today = new Date().toISOString().slice(0, 10)
   
@@ -265,5 +267,12 @@ export function generatePDFBase64(
   addText("https://www.solay39.eu", pageWidth / 2 - 18, y, { fontSize: 8, color: [0, 255, 136] })
   
   // Return as base64
-  return doc.output("datauristring").split(",")[1]
+    const base64 = doc.output("datauristring").split(",")[1]
+    console.log("[v0] PDF generated, base64 length:", base64?.length || 0)
+    return base64
+  } catch (error) {
+    console.error("[v0] PDF generation error:", error)
+    // Return a minimal valid PDF if generation fails
+    return ""
+  }
 }

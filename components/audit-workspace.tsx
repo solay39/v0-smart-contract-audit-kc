@@ -1252,7 +1252,14 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       const fileName = `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${project.date || new Date().toISOString().slice(0, 10)}.pdf`
       
       // Generate real PDF using jsPDF library
+      console.log("[v0] Generating PDF for GitHub upload...")
       const pdfBase64 = generatePDFBase64(project, score, findings)
+      console.log("[v0] PDF base64 length:", pdfBase64?.length || 0)
+      
+      if (!pdfBase64 || pdfBase64.length < 1000) {
+        console.error("[v0] PDF generation failed or returned invalid data")
+        throw new Error("PDF generation failed")
+      }
 
       const res = await fetch("/api/publish", {
         method: "POST",
