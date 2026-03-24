@@ -1,92 +1,81 @@
 // ════════════════════════════════════════════════════════════════
-// SOLAY39 — Publish Audit API
-// 1. HTML → PDF via Railway backend (WeasyPrint)
-// 2. PDF → GitHub (binary upload)
-// 3. Audit data → Supabase (persistence)
+// SOLAY39 — Publish Audit API (Simplified)
+// 1. HTML report → Supabase Storage (download link)
+// 2. HTML report → GitHub (public verification)
+// 3. Audit metadata → Supabase DB
 // ════════════════════════════════════════════════════════════════
 
 import { createClient } from "@supabase/supabase-js"
 
-const GITHUB_REPO = "gustavogondek/Solay39-audit"
+const GITHUB_REPO = process.env.GITHUB_REPO || "solay39/Solay39-audit"
 const GITHUB_API = "https://api.github.com"
 
 export async function POST(req: Request) {
   try {
-    const { project, pdfBase64: clientPdfBase64, htmlReport, fileName, portfolioData } = await req.json()
+    const { project, htmlReport, fileName, portfolioData } = await req.json()
 
-    if (!project?.name || !fileName) {
-      return Response.json({ error: "Missing required fields" }, { status: 400 })
+    if (!project?.name || !htmlReport) {
+      return Response.json({ error: "Missing required fields (project name or htmlReport)" }, { status: 400 })
     }
 
-    // Ensure .pdf extension
-    const pdfFileName = fileName.endsWith(".pdf") ? fileName : fileName.replace(/\.(html|json)$/, ".pdf")
+    // Use .html extension - clients can print to PDF from browser
+    const htmlFileName = fileName?.replace(/\.(pdf|json)$/, ".html") || 
+      `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${new Date().toISOString().slice(0, 10)}.html`
 
-    // ── Step 1: Convert HTML to PDF ──────
-    // Priority: 1) Railway backend (WeasyPrint) 2) Client jsPDF 3) HTML fallback
-    let pdfBase64 = ""
-    let pdfError = ""
-    let usedMethod = ""
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-    // Method 1: Railway backend (produces best quality multi-page PDFs)
-    if (htmlReport) {
-      const backendUrl = process.env.STATIC_ANALYSIS_API_URL
-      const backendKey = process.env.STATIC_ANALYSIS_API_KEY || process.env.SECURITY_API_KEY || "solay39-analysis-key"
+    if (!supabaseUrl || !supabaseKey) {
+      return Response.json({ error: "Supabase not configured" }, { status: 500 })
+    }
 
-      if (backendUrl) {
-        try {
-          console.log("[publish] Requesting PDF from Railway backend:", backendUrl)
-          const pdfRes = await fetch(`${backendUrl}/api/generate-pdf`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-api-key": backendKey,
-            },
-            body: JSON.stringify({ html: htmlReport }),
-            signal: AbortSignal.timeout(30000), // 30s timeout
-          })
+    const supabase = createClient(supabaseUrl, supabaseKey)
 
-          if (pdfRes.ok) {
-            const pdfData = await pdfRes.json() as { pdfBase64?: string; sizeBytes?: number }
-            if (pdfData.pdfBase64 && pdfData.pdfBase64.length > 10000) {
-              pdfBase64 = pdfData.pdfBase64
-              usedMethod = "railway"
-              console.log(`[publish] PDF generated via Railway, size: ${pdfData.sizeBytes} bytes`)
-            }
-          } else {
-            const errText = await pdfRes.text()
-            pdfError = `Railway: ${pdfRes.status}`
-            console.warn("[publish] Railway PDF failed:", errText)
+    // ── Step 1: Save HTML to Supabase Storage ─────────────────────
+    let storageUrl = ""
+    let storageError = ""
+
+    try {
+      const htmlBuffer = Buffer.from(htmlReport, "utf-8")
+      const storagePath = `audits/${htmlFileName}`
+
+      // Upload to Supabase Storage (bucket: audit-reports)
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("audit-reports")
+        .upload(storagePath, htmlBuffer, {
+          contentType: "text/html",
+          upsert: true,
+        })
+
+      if (uploadError) {
+        // Try to create bucket if it doesn't exist
+        if (uploadError.message?.includes("not found") || uploadError.message?.includes("Bucket")) {
+          await supabase.storage.createBucket("audit-reports", { public: true })
+          // Retry upload
+          const { data: retryData, error: retryError } = await supabase.storage
+            .from("audit-reports")
+            .upload(storagePath, htmlBuffer, {
+              contentType: "text/html",
+              upsert: true,
+            })
+          if (retryError) throw retryError
+          if (retryData) {
+            const { data: urlData } = supabase.storage.from("audit-reports").getPublicUrl(storagePath)
+            storageUrl = urlData.publicUrl
           }
-        } catch (err) {
-          pdfError = `Railway unreachable`
-          console.warn("[publish] Railway backend error:", err instanceof Error ? err.message : String(err))
+        } else {
+          throw uploadError
         }
+      } else if (uploadData) {
+        const { data: urlData } = supabase.storage.from("audit-reports").getPublicUrl(storagePath)
+        storageUrl = urlData.publicUrl
       }
-    }
 
-    // Method 2: Use client-generated PDF (jsPDF) - only if Railway failed and PDF is substantial
-    if (!pdfBase64 && clientPdfBase64 && clientPdfBase64.length > 50000) {
-      pdfBase64 = clientPdfBase64
-      usedMethod = "jspdf"
-      console.log(`[publish] Using client jsPDF (${Math.round(clientPdfBase64.length / 1024)}KB)`)
+      console.log("[publish] Supabase Storage upload:", storageUrl)
+    } catch (err) {
+      storageError = err instanceof Error ? err.message : String(err)
+      console.error("[publish] Supabase Storage error:", storageError)
     }
-
-    // Method 3: HTML fallback (last resort - readable but not PDF)
-    let isFallback = false
-    if (!pdfBase64 && htmlReport) {
-      pdfBase64 = Buffer.from(htmlReport, "utf-8").toString("base64")
-      usedMethod = "html"
-      isFallback = true
-      console.warn("[publish] Using HTML fallback - no PDF backend available")
-    }
-
-    if (!pdfBase64) {
-      return Response.json({ error: "No PDF or HTML content provided" }, { status: 400 })
-    }
-
-    const uploadFileName = isFallback ? pdfFileName.replace(/\.pdf$/, ".html") : pdfFileName
-    const uploadContent = pdfBase64
-    console.log(`[publish] Upload: ${uploadFileName} (${usedMethod}, ${Math.round(pdfBase64.length / 1024)}KB)`)
 
     // ── Step 2: Upload to GitHub ──────────────────────────────────
     let githubUrl = ""
@@ -95,9 +84,10 @@ export async function POST(req: Request) {
     const token = process.env.GITHUB_TOKEN
     if (token) {
       try {
-        const path = `audits/${uploadFileName}`
+        const path = `audits/${htmlFileName}`
+        const contentBase64 = Buffer.from(htmlReport, "utf-8").toString("base64")
 
-        // Get existing file sha if it exists (needed for updates)
+        // Check if file exists (get sha for update)
         let sha: string | undefined
         try {
           const checkRes = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${path}`, {
@@ -110,11 +100,11 @@ export async function POST(req: Request) {
             const existing = await checkRes.json() as { sha?: string }
             sha = existing.sha
           }
-        } catch { /* file doesn't exist yet */ }
+        } catch { /* file doesn't exist */ }
 
         const body: Record<string, string> = {
           message: `[Solay39 Audit] ${project.name} - ${new Date().toISOString().slice(0, 10)}`,
-          content: uploadContent,
+          content: contentBase64,
           branch: "main",
         }
         if (sha) body.sha = sha
@@ -130,45 +120,52 @@ export async function POST(req: Request) {
         })
 
         if (uploadRes.ok) {
-          const uploadData = await uploadRes.json() as { content?: { html_url?: string } }
-          githubUrl = uploadData.content?.html_url ||
-            `https://github.com/${GITHUB_REPO}/blob/main/${path}`
+          // Use htmlpreview for direct viewing
+          githubUrl = `https://htmlpreview.github.io/?https://github.com/${GITHUB_REPO}/blob/main/${path}`
           console.log("[publish] GitHub upload successful:", githubUrl)
         } else {
-          const errData = await uploadRes.json().catch(() => null) as { message?: string } | null
-          githubError = `GitHub upload failed (${uploadRes.status}): ${errData?.message || "Unknown error"}`
+          const errData = await uploadRes.json().catch(() => ({})) as { message?: string }
+          githubError = `GitHub (${uploadRes.status}): ${errData?.message || "Upload failed"}`
           console.error("[publish]", githubError)
         }
       } catch (err) {
-        githubError = `GitHub upload error: ${err instanceof Error ? err.message : String(err)}`
-        console.error("[publish]", githubError)
+        githubError = err instanceof Error ? err.message : String(err)
+        console.error("[publish] GitHub error:", githubError)
       }
     } else {
       githubError = "GITHUB_TOKEN not configured"
     }
 
-    // ── Step 3: Save audit data to Supabase ───────────────────────
-    if (portfolioData && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    // ── Step 3: Save audit metadata to Supabase DB ────────────────
+    if (portfolioData) {
       try {
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL,
-          process.env.SUPABASE_SERVICE_ROLE_KEY
-        )
-        await supabase.from("audits").upsert(
-          { id: portfolioData.id, name: portfolioData.name, data: { ...portfolioData, githubUrl } },
-          { onConflict: "id" }
-        )
-        console.log("[publish] Supabase audit saved:", portfolioData.id)
+        const { error: dbError } = await supabase.from("audits").upsert({
+          id: portfolioData.id,
+          name: portfolioData.name,
+          data: {
+            ...portfolioData,
+            storageUrl,
+            githubUrl,
+            publishedAt: new Date().toISOString(),
+          },
+        }, { onConflict: "id" })
+
+        if (dbError) console.error("[publish] Supabase DB error:", dbError)
+        else console.log("[publish] Audit metadata saved:", portfolioData.id)
       } catch (err) {
-        console.error("[publish] Supabase save error:", err)
+        console.error("[publish] DB save error:", err)
       }
     }
 
     return Response.json({
       success: true,
-      githubUrl,
-      githubError: githubError || (isFallback ? `PDF engine unavailable — uploaded as HTML. To enable PDF: deploy Railway backend with WeasyPrint. Error: ${pdfError}` : undefined),
-      portfolioData,
+      storageUrl,     // Supabase Storage URL for download
+      githubUrl,      // GitHub URL for public verification
+      githubError: githubError || undefined,
+      storageError: storageError || undefined,
+      message: storageUrl 
+        ? "Report published! Open in browser and use Ctrl+P to save as PDF."
+        : "Published to GitHub only.",
     })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)

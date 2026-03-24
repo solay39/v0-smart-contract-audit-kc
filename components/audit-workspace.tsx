@@ -526,7 +526,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
 
   // ── Publish to Portfolio + GitHub ──
   const [publishing, setPublishing] = useState(false)
-  const [publishResult, setPublishResult] = useState<{ success?: boolean; githubUrl?: string; githubError?: string; error?: string } | null>(null)
+  const [publishResult, setPublishResult] = useState<{ success?: boolean; githubUrl?: string; githubError?: string; storageUrl?: string; message?: string; error?: string } | null>(null)
 
   const handleValidateAndPublish = async () => {
     const currentNetwork = project.network || "Ethereum"
@@ -1386,17 +1386,12 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
           topHolders: onChainAnalysisData?.topHolders || manualReviewSession?.onChainAnalysis?.topHolders,
         } : undefined,
       }
-  // Generate REAL PDF using jsPDF (client-side)
-  // This produces a valid PDF binary that GitHub can display
-  console.log("[v0] Generating PDF with jsPDF...")
-  const pdfBase64 = generatePDFBase64(project, score, findings, tier1ForPDF)
-  console.log("[v0] PDF base64 length:", pdfBase64?.length || 0)
-  
-  // Also generate HTML as fallback
+  // Generate the FULL HTML report (same as Export PDF - 38 pages)
+  // This HTML is saved to Supabase Storage and GitHub
+  // Users can open it in browser and Ctrl+P to save as PDF
   const htmlReport = getAuditReportHTML(project, score, findings, tier1ForPDF)
   
-  if ((!pdfBase64 || pdfBase64.length < 1000) && (!htmlReport || htmlReport.length < 1000)) {
-    console.error("[v0] Both PDF and HTML generation failed")
+  if (!htmlReport || htmlReport.length < 1000) {
     throw new Error("Report generation failed")
   }
   
@@ -1405,22 +1400,23 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       project: portfolioEntry,
-      pdfBase64,  // Real PDF from jsPDF
-      htmlReport, // Fallback HTML
-      fileName: fileName.replace(/\.(html|json)$/, ".pdf"),
+      htmlReport,
+      fileName,
       portfolioData: portfolioEntry,
     }),
   })
       const data = await res.json()
       setPublishResult({
-        success: true,
+        success: data.success,
         githubUrl: data.githubUrl || undefined,
         githubError: data.githubError || undefined,
+        storageUrl: data.storageUrl || undefined,
+        message: data.message || undefined,
       })
     } catch (err) {
       setPublishResult({
-        success: true,
-        githubError: `GitHub upload failed: ${err instanceof Error ? err.message : String(err)}`,
+        success: false,
+        githubError: `Publish failed: ${err instanceof Error ? err.message : String(err)}`,
       })
     }
 
@@ -1873,22 +1869,32 @@ const TABS: [TabId, string][] = [
                       ? "bg-[#160005] text-s39-red border border-s39-red/20"
                       : "bg-[#001608] text-s39-green border border-s39-green/20"
                   }`}>
-                    {publishResult.error
-                      ? publishResult.error
-                      : "Published to portfolio!"}
-                    {publishResult.githubUrl && (
-                      <a
-                        href={publishResult.githubUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block mt-1 text-s39-cyan underline"
-                      >
-                        View on GitHub
-                      </a>
-                    )}
-                    {publishResult.githubError && (
-                      <div className="mt-1 text-s39-orange text-[8px]">
-                        {publishResult.githubError}
+  {publishResult.error
+    ? publishResult.error
+    : publishResult.message || "Published to portfolio!"}
+  {publishResult.storageUrl && (
+    <a
+      href={publishResult.storageUrl}
+      target="_blank"
+      rel="noreferrer"
+      className="block mt-1 text-s39-green underline"
+    >
+      Download Report (open in browser, Ctrl+P to save as PDF)
+    </a>
+  )}
+  {publishResult.githubUrl && (
+    <a
+      href={publishResult.githubUrl}
+      target="_blank"
+      rel="noreferrer"
+      className="block mt-1 text-s39-cyan underline"
+    >
+      View on GitHub
+    </a>
+  )}
+  {publishResult.githubError && (
+    <div className="mt-1 text-s39-orange text-[8px]">
+      {publishResult.githubError}
                       </div>
                     )}
                   </div>
