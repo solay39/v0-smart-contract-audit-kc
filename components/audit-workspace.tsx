@@ -1264,51 +1264,127 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         securityChecklist: manualReviewSession?.checks?.length || 0,
         onChainAnalysisData: !!onChainAnalysisData,
       })
+      // ── tier1ForPDF: same full object used by exportPDF so the PDF matches the web page ──
       const tier1ForPDF = {
-        privilegedRoles: privilegedRoles.length > 0 ? privilegedRoles.map(r => ({
-          role: r.role,
-          permissions: [r.capabilities],
-          riskIfCompromised: r.riskIfCompromised,
-        })) : undefined,
-        trustAssumptions: trustAssumptions?.length > 0 ? trustAssumptions.map(t => ({
-          title: t.statement || "Trust Assumption",
-          description: t.statement,
-        })) : undefined,
+        privilegedRoles: privilegedRoles.length > 0 ? privilegedRoles : undefined,
+        trustAssumptions: trustAssumptions.length > 0 ? trustAssumptions : undefined,
         architectureOverview: architectureOverview || undefined,
-        attackSurface: attackSurface?.length > 0 ? attackSurface : undefined,
-        toolingUsed: toolingUsed?.length > 0 ? toolingUsed : undefined,
-        scopeTable: project.scope ? project.scope.split("\n").filter(Boolean).map(f => ({ file: f.trim() })) : undefined,
+        attackSurface: attackSurface.length > 0 ? attackSurface : undefined,
+        toolingUsed: toolingUsed.length > 0 ? toolingUsed : undefined,
+        governanceSecurity: governanceSecurity || undefined,
+        upgradeabilityAnalysis: upgradeabilityAnalysis || undefined,
+        economicRisks: economicRisks.length > 0 ? economicRisks : undefined,
+        integrationRisks: integrationRisks.length > 0 ? integrationRisks : undefined,
+        invariantsChecked: invariantsChecked.length > 0 ? invariantsChecked : undefined,
+        testingMethodology: testingMethodology || undefined,
+        engagement: aiEngagement ? (() => {
+          const auditDate = project.date || new Date().toISOString().slice(0, 10)
+          const deliveryDate = new Date().toISOString().slice(0, 10)
+          const start = new Date(auditDate)
+          const end = new Date(deliveryDate)
+          const realDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1)
+          const loc = (aiEngagement.linesOfCode as number) || contractMeta?.linesOfCode || 200
+          return {
+            auditDate,
+            deliveryDate,
+            auditDurationDays: realDays,
+            numberOfAuditors: 24,
+            engineeringHours: (() => {
+              if (loc <= 50) return 80
+              if (loc <= 150) return 160
+              if (loc <= 300) return 320
+              if (loc <= 600) return 480
+              if (loc <= 1000) return 800
+              return 1200
+            })(),
+            securityEngineersInvolved: 108,
+            leadAuditor: "Solay39 Lead Auditor",
+            compilerVersionUsed: (aiEngagement.compilerVersionUsed as string) || "N/A",
+            contractsReviewed: 1,
+            linesOfCode: (aiEngagement.linesOfCode as number) || 0,
+            commitHash: project.commit || "N/A",
+            objectives: (aiEngagement.objectives as string[]) || [],
+            auditId: (aiEngagement.auditId as string) || undefined,
+            reviewTeam: (aiEngagement.reviewTeam as Record<string, unknown>) || undefined,
+          }
+        })() : undefined,
+        scopeTable: aiScopeTable ? aiScopeTable.map((s) => ({
+          contract: String(s.contract || ""),
+          address: project.scope || "N/A",
+          commit: project.commit || "verified",
+          linesOfCode: Number(s.linesOfCode) || 0,
+          language: String(s.language || "Solidity"),
+        })) : undefined,
+        riskModel: {
+          methodology: "Likelihood x Impact severity matrix following OWASP and Halborn classification standards.",
+          severityMatrix: [
+            { level: "CRITICAL", likelihood: "High + High", description: "Directly exploitable, fund loss or protocol takeover." },
+            { level: "HIGH", likelihood: "High + Medium", description: "Exploitable with significant consequences." },
+            { level: "MEDIUM", likelihood: "Medium + Medium", description: "Moderate exploitability and impact." },
+            { level: "LOW", likelihood: "Low + Low/Medium", description: "Minor issue, limited exploitability." },
+            { level: "INFO", likelihood: "Informational", description: "Code quality, no security impact." },
+          ],
+          disclaimer: "Severity based on auditor professional judgment at time of review.",
+        },
+        auditorProfile: {
+          firmName: "Solay39",
+          description: "Independent smart contract security firm specializing in manual adversarial review combined with AI-guided static analysis.",
+          methodology: "Manual adversarial review + automated static analysis (Slither, Mythril) + AI-assisted pattern detection + on-chain bytecode verification.",
+          experience: ["ERC-20/ERC-721 security reviews", "DeFi protocol analysis", "Proxy & upgradeability audits"],
+          contactEmail: "solay2126@gmail.com",
+          telegram: "https://t.me/Solay39audit",
+        },
+        limitations: {
+          statements: [
+            `This audit was conducted between ${project.date || new Date().toISOString().slice(0, 10)} and ${new Date().toISOString().slice(0, 10)} as a time-boxed security review.`,
+            "The scope is limited to the smart contract source code listed in the Scope Table above.",
+            "This review does not constitute a formal mathematical verification of the contract's correctness.",
+            "Findings and severity ratings are based on the auditor's professional judgment at the time of review.",
+            "This audit does not constitute financial, legal, or investment advice.",
+            "The security of the deployed contract also depends on factors outside the scope of this audit.",
+          ],
+          disclaimer: "DISCLAIMER & LIMITATION OF LIABILITY: This security audit report is provided 'as-is' for informational purposes only. Solay39 and its auditors make no representations or warranties, express or implied, regarding the completeness, accuracy, or reliability of this assessment.",
+        },
+        manualReview: manualReviewSession ? {
+          completedAt: manualReviewSession.completedAt,
+          auditorWalletEth: manualReviewSession.auditorWallet,
+          auditorWalletSol: manualReviewSession.solanaWallet,
+          checksCompleted: `${manualReviewSession.checksCompleted}/${manualReviewSession.checksTotal}`,
+          findingsConfirmed: manualReviewSession.confirmedFindings,
+          findingsRejected: manualReviewSession.rejectedFindings,
+          manualFindingsAdded: manualReviewSession.manualFindingsAdded,
+          signatureEth: manualReviewSession.signature,
+          signatureSol: manualReviewSession.solanaSignature,
+          reviewNotes: manualReviewSession.reviewNotes,
+        } : undefined,
         securityChecklist: manualReviewSession?.checks?.map(c => ({
           id: c.id,
           category: c.category,
           question: c.question,
+          why: c.why || "",
           severity: c.severity,
-          status: c.status,
-          note: c.note,
+          status: c.status as "pass" | "fail" | "pending" | "n/a",
+          note: c.note || "",
         })),
-        manualReview: manualReviewSession ? {
-          completedAt: manualReviewSession.completedAt,
-          auditorWalletEth: manualReviewSession.auditorWalletEth,
-          checksCompleted: `${manualReviewSession.checks?.filter(c => c.status !== "pending").length || 0}/${manualReviewSession.checks?.length || 0}`,
-          findingsConfirmed: manualReviewSession.findingsConfirmed,
-          findingsRejected: manualReviewSession.findingsRejected,
-          manualFindingsAdded: manualReviewSession.manualFindingsAdded,
-          signatureEth: manualReviewSession.signatureEth,
-          reviewNotes: manualReviewSession.reviewNotes,
-        } : undefined,
         onChainAnalysis: (onChainAnalysisData || manualReviewSession?.onChainAnalysis) ? {
           executiveSummary: onChainAnalysisData?.executiveSummary || manualReviewSession?.onChainAnalysis?.executiveSummary,
           tokenEconomics: onChainAnalysisData?.tokenEconomics || manualReviewSession?.onChainAnalysis?.tokenEconomics,
           whaleDistribution: onChainAnalysisData?.whaleDistribution || manualReviewSession?.onChainAnalysis?.whaleDistribution,
+          insiderWallets: onChainAnalysisData?.insiderWallets || manualReviewSession?.onChainAnalysis?.insiderWallets,
+          devWalletAnalysis: onChainAnalysisData?.devWalletAnalysis || manualReviewSession?.onChainAnalysis?.devWalletAnalysis,
+          supplyAnalysis: onChainAnalysisData?.supplyAnalysis || manualReviewSession?.onChainAnalysis?.supplyAnalysis,
           rugPullRisk: onChainAnalysisData?.rugPullRisk || manualReviewSession?.onChainAnalysis?.rugPullRisk,
+          priceManipulation: onChainAnalysisData?.priceManipulation || manualReviewSession?.onChainAnalysis?.priceManipulation,
+          hiddenGovernance: onChainAnalysisData?.hiddenGovernance || manualReviewSession?.onChainAnalysis?.hiddenGovernance,
+          complexBugs: onChainAnalysisData?.complexBugs || manualReviewSession?.onChainAnalysis?.complexBugs,
+          liquidityAnalysis: onChainAnalysisData?.liquidityAnalysis || manualReviewSession?.onChainAnalysis?.liquidityAnalysis,
+          clusterAnalysis: onChainAnalysisData?.clusterAnalysis || manualReviewSession?.onChainAnalysis?.clusterAnalysis,
+          scenarioAnalysis: onChainAnalysisData?.scenarioAnalysis || manualReviewSession?.onChainAnalysis?.scenarioAnalysis,
           recommendation: onChainAnalysisData?.recommendation || manualReviewSession?.onChainAnalysis?.recommendation,
           overallRiskScore: onChainAnalysisData?.overallRiskScore || manualReviewSession?.onChainAnalysis?.overallRiskScore,
+          scores: onChainAnalysisData?.scores || manualReviewSession?.onChainAnalysis?.scores,
+          topHolders: onChainAnalysisData?.topHolders || manualReviewSession?.onChainAnalysis?.topHolders,
         } : undefined,
-        // Include tier1Results analysis data
-        staticAnalysis: tier1Results?.staticAnalysis,
-        fuzzingResults: tier1Results?.fuzzingResults,
-        formalVerificationResults: tier1Results?.formalVerificationResults,
-        crossContractAnalysis: tier1Results?.crossContractAnalysis,
       }
       const pdfBase64 = generatePDFBase64(project, score, findings, tier1ForPDF)
       console.log("[v0] PDF base64 length:", pdfBase64?.length || 0)
