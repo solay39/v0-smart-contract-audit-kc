@@ -1401,10 +1401,17 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   })
   
   const htmlReport = getAuditReportHTML(project, score, findings, tier1ForPDF)
-  console.log("[v0] HTML report generated, length:", htmlReport?.length, "KB:", Math.round((htmlReport?.length || 0) / 1024))
+  const htmlSizeKB = Math.round((htmlReport?.length || 0) / 1024)
+  console.log("[v0] HTML report generated:", htmlSizeKB, "KB")
   
+  // Full report should be ~150-300KB for 38 pages
+  // If less than 50KB, something is missing
   if (!htmlReport || htmlReport.length < 1000) {
     throw new Error("Report generation failed")
+  }
+  
+  if (htmlSizeKB < 50) {
+    console.warn("[v0] WARNING: HTML report seems small (", htmlSizeKB, "KB). Expected ~150-300KB for full report.")
   }
   
   const res = await fetch("/api/publish", {
