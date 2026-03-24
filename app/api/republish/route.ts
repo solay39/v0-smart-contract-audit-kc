@@ -1,11 +1,12 @@
 // ════════════════════════════════════════════════════════════════
 // SOLAY39 — Republish Audit API
-// Reads audit from Supabase → Uploads HTML to GitHub
+// Reads audit from Supabase → Regenerates HTML if missing → Uploads to GitHub
 // Use this to sync an existing audit to GitHub with updated data
 // ════════════════════════════════════════════════════════════════
 
 import { createClient } from "@supabase/supabase-js"
 import { createHash } from "crypto"
+import { getAuditReportHTML } from "@/lib/export-pdf"
 
 const GITHUB_REPO = process.env.GITHUB_REPO || "solay39/Solay39-audit"
 // Hardcoded founder key - same as all other APIs
@@ -47,14 +48,62 @@ export async function POST(req: Request) {
       return Response.json({ error: `Audit not found: ${fetchError?.message}` }, { status: 404 })
     }
 
-    // Get HTML report from audit data
+    // Get HTML report from audit data, or regenerate if missing
     const portfolioData = audit.data
     let htmlReport = portfolioData?.htmlReport
+    let regenerated = false
 
     if (!htmlReport || htmlReport.length < 1000) {
-      return Response.json({ 
-        error: "No HTML report found in audit data. Re-publish from workspace first." 
-      }, { status: 400 })
+      console.log("[republish] HTML report missing, regenerating from audit data...")
+      
+      // Build project object for getAuditReportHTML
+      const project = {
+        name: portfolioData?.name || audit.name,
+        chain: portfolioData?.chain || "BSC",
+        contractAddress: portfolioData?.contractAddress || portfolioData?.address || "",
+        files: portfolioData?.files || [],
+        ...portfolioData,
+      }
+      
+      // Get score and findings
+      const score = portfolioData?.score || portfolioData?.securityScore || 50
+      const findings = portfolioData?.findings || []
+      
+      // Build tier1 data from portfolioData
+      const tier1 = {
+        privilegedRoles: portfolioData?.privilegedRoles || [],
+        trustAssumptions: portfolioData?.trustAssumptions || [],
+        architectureOverview: portfolioData?.architectureOverview || "",
+        attackSurface: portfolioData?.attackSurface || [],
+        toolingUsed: portfolioData?.toolingUsed || [],
+        securityChecklist: portfolioData?.securityChecklist || [],
+        onChainAnalysis: portfolioData?.onChainAnalysis || null,
+        manualReview: portfolioData?.manualReview || null,
+        onChainValidation: portfolioData?.onChainValidation || null,
+        governanceSecurity: portfolioData?.governanceSecurity || null,
+        upgradeabilityAnalysis: portfolioData?.upgradeabilityAnalysis || null,
+        economicRisks: portfolioData?.economicRisks || null,
+        integrationRisks: portfolioData?.integrationRisks || null,
+        invariantsChecked: portfolioData?.invariantsChecked || [],
+        engagement: portfolioData?.engagement || null,
+      }
+      
+      try {
+        htmlReport = getAuditReportHTML(project, score, findings, tier1)
+        regenerated = true
+        console.log("[republish] HTML regenerated, length:", htmlReport?.length || 0)
+      } catch (err) {
+        console.error("[republish] Failed to regenerate HTML:", err)
+        return Response.json({ 
+          error: "Failed to regenerate HTML report. Audit data may be incomplete." 
+        }, { status: 400 })
+      }
+      
+      if (!htmlReport || htmlReport.length < 1000) {
+        return Response.json({ 
+          error: "Generated HTML report is too small. Audit data may be incomplete." 
+        }, { status: 400 })
+      }
     }
 
     // Generate new hash
@@ -157,8 +206,9 @@ export async function POST(req: Request) {
       githubError: githubError || undefined,
       auditHash,
       htmlSizeKB,
+      regenerated,
       message: githubUrl 
-        ? `Synced to GitHub (${htmlSizeKB}KB)`
+        ? `Synced to GitHub (${htmlSizeKB}KB)${regenerated ? " - HTML regenerated" : ""}`
         : `GitHub sync failed: ${githubError}`,
     })
 
