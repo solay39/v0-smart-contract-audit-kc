@@ -78,7 +78,8 @@ export async function POST(req: Request) {
 
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json()
-          githubUrl = uploadData.content?.html_url || `https://github.com/${GITHUB_REPO}/blob/main/${path}`
+          const rawUrl = `https://github.com/${GITHUB_REPO}/blob/main/${path}`
+          githubUrl = `https://htmlpreview.github.io/?${rawUrl}`
           console.log("[v0] GitHub: Upload successful:", githubUrl)
         } else {
           const errData = await uploadRes.json().catch(() => null)
