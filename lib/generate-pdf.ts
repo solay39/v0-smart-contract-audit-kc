@@ -193,8 +193,8 @@ export function generatePDFBase64(
     const execLines = doc.splitTextToSize(execSum, pageWidth - margin * 2)
     doc.setFontSize(9)
     setColor(136, 153, 170)
-    doc.text(execLines.slice(0, 6), margin, y)
-    y += Math.min(execLines.length, 6) * 4 + 5
+    doc.text(execLines, margin, y)
+    y += execLines.length * 4 + 5
     
     // ═══════════��═══════════════════════════════════════════════════
     // FINDINGS SUMMARY
@@ -252,35 +252,38 @@ export function generatePDFBase64(
         doc.line(margin, y, margin, y + 8)
         
         addText(`${num} [${f.severity}]`, margin + 2, y + 5, { size: 8, bold: true, color: sc })
-        addText((f.title || "").slice(0, 50), margin + 30, y + 5, { size: 8, bold: true, color: [238, 244, 250] })
+        addText((f.title || ""), margin + 30, y + 5, { size: 8, bold: true, color: [238, 244, 250] })
         addText(f.status, pageWidth - margin - 18, y + 5, { size: 7, bold: true, color: stC })
         y += 10
         
         if (f.description) {
           const dl = doc.splitTextToSize(f.description, pageWidth - margin * 2 - 25)
+          checkPage(dl.length * 3 + 6)
           addText("Description:", margin + 2, y, { size: 7, color: [68, 85, 102] })
           doc.setFontSize(7)
           setColor(136, 153, 170)
-          doc.text(dl.slice(0, 3), margin + 25, y)
-          y += Math.min(dl.length, 3) * 3 + 2
+          doc.text(dl, margin + 25, y)
+          y += dl.length * 3 + 2
         }
         
         if (f.impact) {
           const il = doc.splitTextToSize(f.impact, pageWidth - margin * 2 - 25)
+          checkPage(il.length * 3 + 6)
           addText("Impact:", margin + 2, y, { size: 7, color: [68, 85, 102] })
           doc.setFontSize(7)
           setColor(136, 153, 170)
-          doc.text(il.slice(0, 2), margin + 25, y)
-          y += Math.min(il.length, 2) * 3 + 2
+          doc.text(il, margin + 25, y)
+          y += il.length * 3 + 2
         }
         
         if (f.recommendation) {
           const rl = doc.splitTextToSize(f.recommendation, pageWidth - margin * 2 - 30)
+          checkPage(rl.length * 3 + 6)
           addText("Recommendation:", margin + 2, y, { size: 7, color: [68, 85, 102] })
           doc.setFontSize(7)
           setColor(136, 153, 170)
-          doc.text(rl.slice(0, 2), margin + 30, y)
-          y += Math.min(rl.length, 2) * 3 + 2
+          doc.text(rl, margin + 30, y)
+          y += rl.length * 3 + 2
         }
         
         y += 5
@@ -296,7 +299,7 @@ export function generatePDFBase64(
     if (tier1?.scopeTable && tier1.scopeTable.length > 0) {
       addText("FILES IN SCOPE", margin, y, { size: 8, bold: true, color: [68, 85, 102] })
       y += 5
-      tier1.scopeTable.slice(0, 8).forEach(s => {
+      tier1.scopeTable.forEach(s => {
         addText(`• ${s.file}`, margin + 2, y, { size: 7 })
         if (s.sloc) addText(`${s.sloc} SLOC`, margin + 100, y, { size: 7, color: [68, 85, 102] })
         y += 4
@@ -331,8 +334,8 @@ export function generatePDFBase64(
           const pl = doc.splitTextToSize(r.permissions.join(", "), pageWidth - margin * 2 - 10)
           doc.setFontSize(7)
           setColor(136, 153, 170)
-          doc.text(pl.slice(0, 2), margin + 5, y)
-          y += Math.min(pl.length, 2) * 3 + 2
+          doc.text(pl, margin + 5, y)
+          y += pl.length * 3 + 2
         }
       })
     }
@@ -351,8 +354,8 @@ export function generatePDFBase64(
           const tl = doc.splitTextToSize(t.description, pageWidth - margin * 2 - 10)
           doc.setFontSize(7)
           setColor(136, 153, 170)
-          doc.text(tl.slice(0, 2), margin + 5, y)
-          y += Math.min(tl.length, 2) * 3 + 2
+          doc.text(tl, margin + 5, y)
+          y += tl.length * 3 + 2
         }
       })
     }
@@ -381,7 +384,7 @@ export function generatePDFBase64(
           checkPage(10)
           const stColor: [number, number, number] = c.status === "pass" ? [0, 255, 136] : c.status === "fail" ? [255, 45, 85] : [255, 214, 0]
           addText(c.status === "pass" ? "[PASS]" : c.status === "fail" ? "[FAIL]" : "[N/A]", margin + 2, y, { size: 7, bold: true, color: stColor })
-          addText(c.question.slice(0, 80), margin + 18, y, { size: 7 })
+          addText(c.question, margin + 18, y, { size: 7 })
           y += 4
         })
         y += 3
@@ -407,8 +410,8 @@ export function generatePDFBase64(
         const esl = doc.splitTextToSize(tier1.onChainAnalysis.executiveSummary, pageWidth - margin * 2)
         doc.setFontSize(7)
         setColor(136, 153, 170)
-        doc.text(esl.slice(0, 5), margin + 2, y)
-        y += Math.min(esl.length, 5) * 3 + 4
+        doc.text(esl, margin + 2, y)
+        y += esl.length * 3 + 4
       }
       
       if (tier1.onChainAnalysis.tokenEconomics) {
@@ -416,10 +419,11 @@ export function generatePDFBase64(
         addText("Token Economics:", margin, y, { size: 8, bold: true, color: [68, 85, 102] })
         y += 4
         const tel = doc.splitTextToSize(tier1.onChainAnalysis.tokenEconomics, pageWidth - margin * 2)
+        checkPage(tel.length * 3 + 6)
         doc.setFontSize(7)
         setColor(136, 153, 170)
-        doc.text(tel.slice(0, 6), margin + 2, y)
-        y += Math.min(tel.length, 6) * 3 + 4
+        doc.text(tel, margin + 2, y)
+        y += tel.length * 3 + 4
       }
       
       if (tier1.onChainAnalysis.whaleDistribution) {
@@ -427,10 +431,11 @@ export function generatePDFBase64(
         addText("Whale Distribution:", margin, y, { size: 8, bold: true, color: [68, 85, 102] })
         y += 4
         const wdl = doc.splitTextToSize(tier1.onChainAnalysis.whaleDistribution, pageWidth - margin * 2)
+        checkPage(wdl.length * 3 + 6)
         doc.setFontSize(7)
         setColor(136, 153, 170)
-        doc.text(wdl.slice(0, 5), margin + 2, y)
-        y += Math.min(wdl.length, 5) * 3 + 4
+        doc.text(wdl, margin + 2, y)
+        y += wdl.length * 3 + 4
       }
       
       if (tier1.onChainAnalysis.rugPullRisk) {
@@ -438,10 +443,11 @@ export function generatePDFBase64(
         addText("Rug Pull Risk Assessment:", margin, y, { size: 8, bold: true, color: [255, 107, 0] })
         y += 4
         const rpl = doc.splitTextToSize(tier1.onChainAnalysis.rugPullRisk, pageWidth - margin * 2)
+        checkPage(rpl.length * 3 + 6)
         doc.setFontSize(7)
         setColor(136, 153, 170)
-        doc.text(rpl.slice(0, 6), margin + 2, y)
-        y += Math.min(rpl.length, 6) * 3 + 4
+        doc.text(rpl, margin + 2, y)
+        y += rpl.length * 3 + 4
       }
       
       if (tier1.onChainAnalysis.recommendation) {
@@ -449,10 +455,11 @@ export function generatePDFBase64(
         addText("Recommendation:", margin, y, { size: 8, bold: true, color: [0, 255, 136] })
         y += 4
         const rcl = doc.splitTextToSize(tier1.onChainAnalysis.recommendation, pageWidth - margin * 2)
+        checkPage(rcl.length * 3 + 6)
         doc.setFontSize(7)
         setColor(136, 153, 170)
-        doc.text(rcl.slice(0, 5), margin + 2, y)
-        y += Math.min(rcl.length, 5) * 3 + 4
+        doc.text(rcl, margin + 2, y)
+        y += rcl.length * 3 + 4
       }
     }
     
@@ -463,10 +470,11 @@ export function generatePDFBase64(
       checkPage(50)
       addSection("10. SYSTEM ARCHITECTURE")
       const aol = doc.splitTextToSize(tier1.architectureOverview, pageWidth - margin * 2)
+      checkPage(aol.length * 4 + 6)
       doc.setFontSize(8)
       setColor(136, 153, 170)
-      doc.text(aol.slice(0, 10), margin, y)
-      y += Math.min(aol.length, 10) * 4 + 5
+      doc.text(aol, margin, y)
+      y += aol.length * 4 + 5
     }
     
     // ═══════════════════════════════════════════════════════════════
@@ -475,16 +483,17 @@ export function generatePDFBase64(
     if (tier1?.attackSurface && tier1.attackSurface.length > 0) {
       checkPage(50)
       addSection("11. ATTACK SURFACE ANALYSIS")
-      tier1.attackSurface.slice(0, 5).forEach(a => {
+      tier1.attackSurface.forEach(a => {
         const sevC = SEV_COLORS[a.severity as keyof typeof SEV_COLORS] || [136, 153, 170]
         addText(`• ${a.title || a.name}`, margin + 2, y, { size: 8, bold: true, color: sevC })
         y += 4
         if (a.description) {
           const adl = doc.splitTextToSize(a.description, pageWidth - margin * 2 - 5)
+          checkPage(adl.length * 3 + 4)
           doc.setFontSize(7)
           setColor(136, 153, 170)
-          doc.text(adl.slice(0, 2), margin + 5, y)
-          y += Math.min(adl.length, 2) * 3 + 3
+          doc.text(adl, margin + 5, y)
+          y += adl.length * 3 + 3
         }
       })
     }
