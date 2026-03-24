@@ -410,7 +410,7 @@ function ShareButton({ auditId, name }: { auditId: string; name: string }) {
 }
 
 export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: PortfolioProject; onBack?: () => void; isLive?: boolean; backHref?: string }) {
-  // ── DEFENSIVE NORMALIZATION: ensure all nested properties are safe for rendering ──
+  // ── DEFENSIVE NORMALIZATION: ensure all nested properties are safe for rendering ─��
   const p = useMemo<PortfolioProject>(() => {
     const findings = _raw.findings || []
     return {
@@ -6012,7 +6012,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
           <a href={TG_URL} target="_blank" rel="noreferrer" className="text-[9px] text-s39-mid hover:text-s39-lite transition-colors">
             t.me/Solay39audit
           </a>
-          <a href="https://github.com/sanettanammurata-max/Solay39-" target="_blank" rel="noreferrer" className="text-[9px] text-s39-mid hover:text-s39-lite transition-colors">
+          <a href="https://github.com/solay39/Solay39-audit" target="_blank" rel="noreferrer" className="text-[9px] text-s39-mid hover:text-s39-lite transition-colors">
             GitHub
           </a>
         </div>

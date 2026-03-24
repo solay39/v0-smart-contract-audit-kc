@@ -1,5 +1,5 @@
 // Test endpoint to verify GitHub configuration
-const GITHUB_REPO = "gustavogondek/Solay39-audit"
+const GITHUB_REPO = "solay39/Solay39-audit"
 const GITHUB_API = "https://api.github.com"
 
 export async function GET() {
