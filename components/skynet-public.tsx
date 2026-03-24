@@ -5090,7 +5090,92 @@ console.log("Signer:", recovered);
             </a>
           </div>
         )}
+
+        {/* GitHub Sync Panel (Founder Only) */}
+        <SyncToGitHubPanel auditId={p.id} projectName={p.name} />
       </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SYNC TO GITHUB PANEL (Founder Only)
+// ═══════════════════════════════════════════════════════════════════
+function SyncToGitHubPanel({ auditId, projectName }: { auditId: string; projectName: string }) {
+  const [founderKey, setFounderKey] = useState("")
+  const [syncing, setSyncing] = useState(false)
+  const [result, setResult] = useState<{ success?: boolean; githubUrl?: string; error?: string; message?: string } | null>(null)
+
+  const handleSync = async () => {
+    if (!founderKey.trim()) return
+    setSyncing(true)
+    setResult(null)
+    
+    try {
+      const res = await fetch("/api/republish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auditId, founderKey }),
+      })
+      const data = await res.json()
+      setResult(data)
+    } catch (err) {
+      setResult({ error: err instanceof Error ? err.message : "Sync failed" })
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  return (
+    <div className="bg-s39-bg1 border border-s39-border p-5 mt-4">
+      <div className="flex items-center gap-2 mb-3">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" fill="#aaa"/>
+        </svg>
+        <span className="text-[9px] text-s39-mid tracking-[0.15em]">GITHUB SYNC</span>
+        <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">FOUNDER ONLY</span>
+      </div>
+      
+      <p className="text-[9px] text-s39-dim mb-3">
+        Re-sync the HTML report from Supabase to GitHub. Use this if the GitHub version is outdated or incomplete.
+      </p>
+      
+      <div className="flex gap-2 items-center">
+        <input
+          type="password"
+          placeholder="Founder key"
+          value={founderKey}
+          onChange={(e) => setFounderKey(e.target.value)}
+          className="flex-1 bg-s39-bg2 border border-s39-border text-s39-lite text-[10px] px-3 py-2 focus:border-s39-cyan/50 outline-none"
+        />
+        <button
+          onClick={handleSync}
+          disabled={syncing || !founderKey.trim()}
+          className="px-4 py-2 bg-s39-cyan/10 border border-s39-cyan/30 text-s39-cyan text-[9px] font-bold tracking-widest hover:bg-s39-cyan/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          {syncing ? "SYNCING..." : "SYNC"}
+        </button>
+      </div>
+
+      {result && (
+        <div className={`mt-3 p-3 border text-[9px] ${
+          result.success 
+            ? "bg-s39-green/10 border-s39-green/30 text-s39-green" 
+            : "bg-s39-red/10 border-s39-red/30 text-s39-red"
+        }`}>
+          {result.message || result.error}
+          {result.githubUrl && (
+            <a
+              href={result.githubUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="block mt-2 text-s39-cyan underline"
+            >
+              View on GitHub
+            </a>
+          )}
+        </div>
+      )}
     </div>
   )
 }
