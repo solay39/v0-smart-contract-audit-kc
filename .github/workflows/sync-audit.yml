@@ -1,17 +1,18 @@
 name: Sync Audit from Supabase
 
 on:
-  # Run every 15 minutes
-  schedule:
-    - cron: "*/15 * * * *"
-  
   # Manual trigger with audit ID input
   workflow_dispatch:
     inputs:
       audit_id:
-        description: 'Audit ID to sync (e.g., opinion-1774351378790)'
+        description: 'Audit ID to sync (e.g., alaya-governance-token-1774362339775)'
         required: true
         type: string
+
+  # Optionally keep the schedule — but only runs if audit_id is provided manually
+  # Remove the schedule block if you only want manual triggers
+  # schedule:
+  #   - cron: "*/15 * * * *"
 
 jobs:
   sync:
@@ -28,20 +29,24 @@ jobs:
 
       - name: Run sync script
         env:
-          AUDIT_ID: ${{ github.event.inputs.audit_id || '' }}
+          AUDIT_ID: ${{ github.event.inputs.audit_id }}
           SUPABASE_API_URL: https://www.solay39.eu/api/audit
         run: |
-          if [ -n "$AUDIT_ID" ]; then
-            node scripts/sync-audit.mjs "$AUDIT_ID"
-          else
-            echo "No audit ID provided - skipping sync"
+          if [ -z "$AUDIT_ID" ]; then
+            echo "ERROR: No audit_id provided. Please trigger manually with an audit ID."
+            exit 1
           fi
+          echo "Syncing audit: $AUDIT_ID"
+          node scripts/sync-audit.mjs "$AUDIT_ID"
 
-      - name: Commit changes
+      - name: Commit and push
         run: |
           git config user.name "solay39-bot"
           git config user.email "bot@solay39.eu"
 
-          git add .
-          git diff --staged --quiet || git commit -m "Sync audit: ${{ github.event.inputs.audit_id || 'auto' }}"
-          git push || echo "Nothing to push"
+          git add audits/
+          git diff --staged --quiet && echo "Nothing to commit" && exit 0
+
+          COMMIT_MSG="Sync audit: ${{ github.event.inputs.audit_id }} ($(date -u +%Y-%m-%d))"
+          git commit -m "$COMMIT_MSG"
+          git push

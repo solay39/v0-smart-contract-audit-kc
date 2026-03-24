@@ -1,8 +1,8 @@
-// ════════════════════════════════════════════════════════════════
-// SOLAY39 — Sync Audit from Supabase to GitHub
-// Fetches audit from Supabase API and saves to local ./audits folder
-// Generates SHA256 hash for integrity verification
-// ════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// SOLAY39 â€” Sync Audit from Supabase to GitHub (FIXED)
+// Fetches the stored HTML report (full 38 pages) from the API
+// and saves it to ./audits/ with the correct SOLAY39 naming convention
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 import fs from "fs";
 import crypto from "crypto";
@@ -19,24 +19,17 @@ if (!AUDIT_ID) {
   process.exit(1);
 }
 
-// Fetch audit report from Supabase
-async function fetchReport() {
+// Fetch the full audit JSON from the platform API
+async function fetchAuditData() {
   const url = `${SUPABASE_API}/${AUDIT_ID}`;
   console.log(`Fetching: ${url}`);
-  
+
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Fetch failed (${res.status}): ${res.statusText}`);
   }
 
-  const data = await res.json();
-  
-  // Return HTML report if available, otherwise stringify the data
-  if (data.data?.htmlReport) {
-    return data.data.htmlReport;
-  }
-  
-  throw new Error("No HTML report found in audit data");
+  return await res.json();
 }
 
 // Generate SHA256 hash for integrity verification
@@ -51,7 +44,6 @@ function verifyHash(html, expectedHash) {
     console.warn("Warning: No audit-hash meta tag found in HTML");
     return false;
   }
-  
   const embeddedHash = match[1];
   if (embeddedHash !== expectedHash) {
     console.warn(`Warning: Hash mismatch!`);
@@ -59,25 +51,70 @@ function verifyHash(html, expectedHash) {
     console.warn(`  Computed: ${expectedHash}`);
     return false;
   }
-  
   return true;
+}
+
+// Build the SOLAY39 filename from audit metadata
+// Matches the naming convention used by publish/republish APIs:
+// SOLAY39-{ProjectName}-Audit-{date}.html
+function buildFileName(auditData) {
+  // The API returns the full portfolioData object directly
+  const name =
+    auditData?.name ||
+    auditData?.data?.name ||
+    "Unknown";
+
+  const date =
+    auditData?.date ||
+    auditData?.data?.date ||
+    auditData?.data?.engagement?.auditDate ||
+    new Date().toISOString().slice(0, 10);
+
+  const safeName = name.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9\-]/g, "");
+  return `SOLAY39-${safeName}-Audit-${date}.html`;
 }
 
 async function main() {
   try {
     console.log(`\n=== SOLAY39 Audit Sync ===`);
     console.log(`Audit ID: ${AUDIT_ID}`);
-    
-    const html = await fetchReport();
+
+    const auditData = await fetchAuditData();
+
+    // The platform API returns different shapes depending on whether
+    // the audit is a static project or a Supabase/Blob audit.
+    // The htmlReport lives at:
+    //   auditData.htmlReport           (direct field â€” PortfolioProject)
+    //   auditData.data.htmlReport      (nested â€” Supabase audits table row)
+
+    let html =
+      auditData?.htmlReport ||
+      auditData?.data?.htmlReport ||
+      null;
+
+    if (!html || html.length < 1000) {
+      throw new Error(
+        `No valid HTML report found in API response for audit "${AUDIT_ID}". ` +
+        `Got ${html?.length || 0} bytes. ` +
+        `Make sure the audit has been published first via the platform.`
+      );
+    }
+
+    const htmlSizeKB = Math.round(html.length / 1024);
+    console.log(`HTML report found: ${htmlSizeKB}KB`);
+
     const hash = generateHash(html);
+
+    // Build filename using SOLAY39 naming convention
+    const fileName = buildFileName(auditData?.data || auditData);
+    const hashFile = fileName.replace(".html", ".sha256");
+
+    console.log(`File name: ${fileName}`);
 
     // Create output directory if needed
     if (!fs.existsSync(OUTPUT_PATH)) {
       fs.mkdirSync(OUTPUT_PATH, { recursive: true });
     }
-
-    const fileName = `${AUDIT_ID}.html`;
-    const hashFile = `${AUDIT_ID}.sha256`;
 
     // Save files
     fs.writeFileSync(`${OUTPUT_PATH}/${fileName}`, html, "utf8");
@@ -86,13 +123,12 @@ async function main() {
     console.log(`\nReport saved: ${OUTPUT_PATH}/${fileName}`);
     console.log(`Hash saved:   ${OUTPUT_PATH}/${hashFile}`);
     console.log(`SHA256: ${hash}`);
-    
+
     // Verify integrity
     const isValid = verifyHash(html, hash);
-    console.log(`Integrity: ${isValid ? "VERIFIED" : "WARNING - hash mismatch"}`);
-    
+    console.log(`Integrity: ${isValid ? "VERIFIED âœ“" : "WARNING â€” hash mismatch"}`);
+
     console.log(`\n=== Sync Complete ===\n`);
-    
   } catch (error) {
     console.error(`\nError: ${error.message}`);
     process.exit(1);
