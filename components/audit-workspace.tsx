@@ -1248,7 +1248,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
 
     // ── Step 4: Upload to GitHub ──
     try {
-      const fileName = `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${project.date || new Date().toISOString().slice(0, 10)}.html`
+      const fileName = `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${project.date || new Date().toISOString().slice(0, 10)}.pdf`
       
       // Generate real PDF using jsPDF library with full tier1 data
       console.log("[v0] Generating PDF for GitHub upload...")
@@ -1385,15 +1385,14 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
           topHolders: onChainAnalysisData?.topHolders || manualReviewSession?.onChainAnalysis?.topHolders,
         } : undefined,
       }
-      // Generate the FULL HTML report (same as "Export PDF" button) and encode as base64
-      // This ensures the GitHub PDF contains ALL sections, not just the jsPDF simplified version
+      // Generate the FULL HTML report (same as "Export PDF" button)
+      // The backend (Puppeteer) will convert it to a real PDF
       const htmlReport = getAuditReportHTML(project, score, findings, tier1ForPDF)
-      const pdfBase64 = btoa(unescape(encodeURIComponent(htmlReport)))
-      console.log("[v0] HTML report base64 length:", pdfBase64?.length || 0)
-      
-      if (!pdfBase64 || pdfBase64.length < 1000) {
+      console.log("[v0] HTML report length:", htmlReport?.length || 0)
+
+      if (!htmlReport || htmlReport.length < 1000) {
         console.error("[v0] HTML report generation failed or returned invalid data")
-        throw new Error("PDF generation failed")
+        throw new Error("HTML report generation failed")
       }
 
       const res = await fetch("/api/publish", {
@@ -1401,7 +1400,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           project: portfolioEntry,
-          pdfBase64,
+          htmlReport,
           fileName,
           portfolioData: portfolioEntry,
         }),

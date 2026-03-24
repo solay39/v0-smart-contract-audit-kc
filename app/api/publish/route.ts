@@ -7,20 +7,66 @@ const GITHUB_API = "https://api.github.com"
 
 export async function POST(req: Request) {
   try {
-    const { project, pdfBase64, fileName, portfolioData } = await req.json()
+    const { project, htmlReport, fileName, portfolioData } = await req.json()
 
-    if (!project?.name || !pdfBase64 || !fileName) {
+    if (!project?.name || !htmlReport || !fileName) {
       return Response.json({ error: "Missing required fields" }, { status: 400 })
     }
+
+    // ── Step 1: Convert HTML → real PDF via Puppeteer backend ──
+    let pdfBase64 = ""
+    let pdfError = ""
+
+    const backendUrl = process.env.STATIC_ANALYSIS_API_URL
+    const backendKey = process.env.SECURITY_API_KEY || "solay39-security-key"
+
+    if (backendUrl) {
+      try {
+        console.log("[v0] Requesting PDF from backend:", backendUrl)
+        const pdfRes = await fetch(`${backendUrl}/api/generate-pdf`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": backendKey,
+          },
+          body: JSON.stringify({ html: htmlReport }),
+        })
+
+        if (pdfRes.ok) {
+          const pdfData = await pdfRes.json()
+          pdfBase64 = pdfData.pdfBase64 || ""
+          console.log("[v0] PDF generated, base64 length:", pdfBase64.length)
+        } else {
+          const errText = await pdfRes.text()
+          pdfError = `PDF backend error (${pdfRes.status}): ${errText}`
+          console.error("[v0]", pdfError)
+        }
+      } catch (err) {
+        pdfError = `PDF backend unreachable: ${err instanceof Error ? err.message : String(err)}`
+        console.error("[v0]", pdfError)
+      }
+    } else {
+      // Fallback: encode HTML as base64 if no backend (will upload as .html)
+      pdfError = "STATIC_ANALYSIS_API_URL not configured — uploading HTML fallback"
+      console.warn("[v0]", pdfError)
+      pdfBase64 = Buffer.from(htmlReport).toString("base64")
+    }
+
+    if (!pdfBase64) {
+      return Response.json({ error: `PDF generation failed: ${pdfError}` }, { status: 500 })
+    }
+
+    // ── Step 2: Upload real PDF to GitHub ──
+    // Always use .pdf extension — the content is now a real PDF binary
+    const pdfFileName = fileName.replace(/\.html$/, ".pdf")
 
     let githubUrl = ""
     let githubError = ""
 
-    // Try to upload to GitHub if token is available
     const token = process.env.GITHUB_TOKEN
     if (token) {
       try {
-        const path = `audits/${fileName}`
+        const path = `audits/${pdfFileName}`
 
         // Check if file already exists (to get sha for update)
         let sha: string | undefined
@@ -33,7 +79,7 @@ export async function POST(req: Request) {
           })
           if (checkRes.ok) {
             const existing = await checkRes.json()
-            sha = existing.sha
+            sha = (existing as { sha?: string }).sha
           }
         } catch {
           // File doesn't exist, that's fine
@@ -46,24 +92,20 @@ export async function POST(req: Request) {
         }
         if (sha) body.sha = sha
 
-        // First verify the repo exists and is accessible
-        console.log("[v0] GitHub: Checking repo access for", GITHUB_REPO)
+        // Verify repo access
         const repoCheck = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}`, {
           headers: {
             Authorization: `Bearer ${token}`,
             Accept: "application/vnd.github.v3+json",
           },
         })
-        
-        console.log("[v0] GitHub: Repo check status:", repoCheck.status)
-        
+
         if (!repoCheck.ok) {
           const repoErr = await repoCheck.json().catch(() => ({}))
-          console.error("[v0] GitHub: Repo not accessible:", repoErr)
-          throw new Error(`Repository not accessible: ${repoErr.message || repoCheck.status}`)
+          throw new Error(`Repository not accessible: ${(repoErr as { message?: string }).message || repoCheck.status}`)
         }
 
-        console.log("[v0] GitHub: Uploading to", path)
+        console.log("[v0] GitHub: Uploading PDF to", path)
         const uploadRes = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${path}`, {
           method: "PUT",
           headers: {
@@ -74,30 +116,28 @@ export async function POST(req: Request) {
           body: JSON.stringify(body),
         })
 
-        console.log("[v0] GitHub: Upload response status:", uploadRes.status)
-
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json()
-          const rawUrl = `https://github.com/${GITHUB_REPO}/blob/main/${path}`
-          githubUrl = `https://htmlpreview.github.io/?${rawUrl}`
+          githubUrl = (uploadData as { content?: { html_url?: string } }).content?.html_url ||
+            `https://github.com/${GITHUB_REPO}/blob/main/${path}`
           console.log("[v0] GitHub: Upload successful:", githubUrl)
         } else {
           const errData = await uploadRes.json().catch(() => null)
-          console.error("[v0] GitHub: Upload failed:", uploadRes.status, errData)
-          githubError = `GitHub upload failed (${uploadRes.status}): ${errData?.message || "Unknown error"}`
+          githubError = `GitHub upload failed (${uploadRes.status}): ${(errData as { message?: string })?.message || "Unknown error"}`
+          console.error("[v0]", githubError)
         }
       } catch (err) {
         githubError = `GitHub upload error: ${err instanceof Error ? err.message : String(err)}`
         console.error("[v0]", githubError)
       }
     } else {
-      githubError = "GITHUB_TOKEN not configured. PDF was not uploaded to GitHub."
+      githubError = "GITHUB_TOKEN not configured."
     }
 
     return Response.json({
       success: true,
       githubUrl,
-      githubError: githubError || undefined,
+      githubError: githubError || pdfError || undefined,
       portfolioData,
     })
   } catch (error) {
