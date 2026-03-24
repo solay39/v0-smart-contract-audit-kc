@@ -15,8 +15,7 @@ import {
 } from "@/lib/solay39-constants"
 import { isValidAddress, getExplorer, chainLanguage } from "@/lib/explorers"
 import { ScoreRing, S39Input, S39Btn, SevBadge } from "@/components/solay39-ui"
-import { exportPDF } from "@/lib/export-pdf"
-import { generatePDFBase64 } from "@/lib/generate-pdf"
+import { exportPDF, getAuditReportHTML } from "@/lib/export-pdf"
 import { savePublishedAudit } from "@/components/skynet-public"
 import { computeReportHash, buildReportIntegrity } from "@/lib/enterprise-standards"
 import Solay39Validator from "@/components/solay39-validator"
@@ -1249,7 +1248,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
 
     // ── Step 4: Upload to GitHub ──
     try {
-      const fileName = `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${project.date || new Date().toISOString().slice(0, 10)}.pdf`
+      const fileName = `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${project.date || new Date().toISOString().slice(0, 10)}.html`
       
       // Generate real PDF using jsPDF library with full tier1 data
       console.log("[v0] Generating PDF for GitHub upload...")
@@ -1386,11 +1385,14 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
           topHolders: onChainAnalysisData?.topHolders || manualReviewSession?.onChainAnalysis?.topHolders,
         } : undefined,
       }
-      const pdfBase64 = generatePDFBase64(project, score, findings, tier1ForPDF)
-      console.log("[v0] PDF base64 length:", pdfBase64?.length || 0)
+      // Generate the FULL HTML report (same as "Export PDF" button) and encode as base64
+      // This ensures the GitHub PDF contains ALL sections, not just the jsPDF simplified version
+      const htmlReport = getAuditReportHTML(project, score, findings, tier1ForPDF)
+      const pdfBase64 = btoa(unescape(encodeURIComponent(htmlReport)))
+      console.log("[v0] HTML report base64 length:", pdfBase64?.length || 0)
       
       if (!pdfBase64 || pdfBase64.length < 1000) {
-        console.error("[v0] PDF generation failed or returned invalid data")
+        console.error("[v0] HTML report generation failed or returned invalid data")
         throw new Error("PDF generation failed")
       }
 
