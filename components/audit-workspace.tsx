@@ -526,7 +526,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
 
   // ── Publish to Portfolio + GitHub ──
   const [publishing, setPublishing] = useState(false)
-  const [publishResult, setPublishResult] = useState<{ success?: boolean; githubUrl?: string; githubError?: string; storageUrl?: string; message?: string; error?: string } | null>(null)
+  const [publishResult, setPublishResult] = useState<{ success?: boolean; githubUrl?: string; githubError?: string; storageUrl?: string; auditHash?: string; message?: string; error?: string } | null>(null)
 
   const handleValidateAndPublish = async () => {
     const currentNetwork = project.network || "Ethereum"
@@ -1901,6 +1901,11 @@ const TABS: [TabId, string][] = [
       Download Report (open in browser, Ctrl+P to save as PDF)
     </a>
   )}
+  {publishResult.auditHash && (
+    <div className="mt-1 text-s39-muted text-[8px] font-mono">
+      SHA256: {publishResult.auditHash.slice(0, 32)}...
+    </div>
+  )}
   {publishResult.githubUrl && (
     <a
       href={publishResult.githubUrl}
@@ -1914,8 +1919,8 @@ const TABS: [TabId, string][] = [
   {publishResult.githubError && (
     <div className="mt-1 text-s39-orange text-[8px]">
       {publishResult.githubError}
-                      </div>
-                    )}
+    </div>
+  )}
                   </div>
                 )}
                 <S39Btn

@@ -1,0 +1,47 @@
+name: Sync Audit from Supabase
+
+on:
+  # Run every 15 minutes
+  schedule:
+    - cron: "*/15 * * * *"
+  
+  # Manual trigger with audit ID input
+  workflow_dispatch:
+    inputs:
+      audit_id:
+        description: 'Audit ID to sync (e.g., opinion-1774351378790)'
+        required: true
+        type: string
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run sync script
+        env:
+          AUDIT_ID: ${{ github.event.inputs.audit_id || '' }}
+          SUPABASE_API_URL: https://www.solay39.eu/api/audit
+        run: |
+          if [ -n "$AUDIT_ID" ]; then
+            node scripts/sync-audit.mjs "$AUDIT_ID"
+          else
+            echo "No audit ID provided - skipping sync"
+          fi
+
+      - name: Commit changes
+        run: |
+          git config user.name "solay39-bot"
+          git config user.email "bot@solay39.eu"
+
+          git add .
+          git diff --staged --quiet || git commit -m "Sync audit: ${{ github.event.inputs.audit_id || 'auto' }}"
+          git push || echo "Nothing to push"

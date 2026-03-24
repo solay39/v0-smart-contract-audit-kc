@@ -1,12 +1,19 @@
 // ════════════════════════════════════════════════════════════════
-// SOLAY39 — Publish Audit API (Simplified - GitHub Only)
-// 1. HTML report → GitHub (public verification + download)
-// 2. Audit metadata → Supabase DB
+// SOLAY39 — Publish Audit API with SHA256 Hash (Anti-Tampering)
+// 1. Generate SHA256 hash → embedded in HTML meta tag
+// 2. HTML report → GitHub (public verification + download)
+// 3. Audit metadata + hash → Supabase DB (source of truth)
 // ════════════════════════════════════════════════════════════════
 
 import { createClient } from "@supabase/supabase-js"
+import { createHash } from "crypto"
 
 const GITHUB_REPO = process.env.GITHUB_REPO || "solay39/Solay39-audit"
+
+// Generate SHA256 hash for audit integrity verification
+function generateAuditHash(content: string): string {
+  return createHash("sha256").update(content, "utf8").digest("hex")
+}
 
 export async function POST(req: Request) {
   try {
@@ -20,18 +27,29 @@ export async function POST(req: Request) {
     const htmlFileName = fileName?.replace(/\.(pdf|json)$/, ".html") || 
       `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${new Date().toISOString().slice(0, 10)}.html`
 
-    const htmlSizeKB = Math.round(htmlReport.length / 1024)
-    console.log("[publish] Starting publish:", project.name, "- HTML size:", htmlSizeKB, "KB")
+    // Generate SHA256 hash BEFORE adding it to HTML (hash of content without the hash meta tag)
+    const auditHash = generateAuditHash(htmlReport)
+    
+    // Inject hash into HTML meta tag for verification
+    const htmlWithHash = htmlReport.replace(
+      /<head>/i,
+      `<head>\n    <meta name="audit-hash" content="${auditHash}">\n    <meta name="audit-timestamp" content="${new Date().toISOString()}">\n    <meta name="audit-version" content="1.0.0">`
+    )
+
+    const htmlSizeKB = Math.round(htmlWithHash.length / 1024)
+    console.log("[publish] Starting publish:", project.name)
+    console.log("[publish] SHA256 hash:", auditHash)
+    console.log("[publish] HTML size:", htmlSizeKB, "KB")
 
     let githubUrl = ""
     let githubError = ""
 
-    // ── Step 1: Upload HTML to GitHub ──────────────────────────────
+    // ── Step 1: Upload HTML (with hash) to GitHub ──────────────────
     const token = process.env.GITHUB_TOKEN
     if (token) {
       try {
         const path = `audits/${htmlFileName}`
-        const contentBase64 = Buffer.from(htmlReport, "utf-8").toString("base64")
+        const contentBase64 = Buffer.from(htmlWithHash, "utf-8").toString("base64")
 
         // Check if file exists (get sha for update)
         let sha: string | undefined
@@ -93,7 +111,10 @@ export async function POST(req: Request) {
           data: {
             ...portfolioData,
             // Include the full HTML report for persistence
-            htmlReport,
+            htmlReport: htmlWithHash,
+            // SHA256 hash for integrity verification
+            auditHash,
+            auditVersion: "1.0.0",
             githubUrl,
             publishedAt: new Date().toISOString(),
             htmlSizeKB,
@@ -116,11 +137,12 @@ export async function POST(req: Request) {
       githubUrl: githubUrl || undefined,
       githubError: githubError || undefined,
       supabaseSaved,
+      auditHash,
       htmlSizeKB,
       message: githubUrl 
-        ? `Report published (${htmlSizeKB}KB). Saved to Supabase${supabaseSaved ? " ✓" : " (failed)"}. Open GitHub link and use Ctrl+P to save as PDF.`
+        ? `Published (${htmlSizeKB}KB) with SHA256: ${auditHash.slice(0, 16)}...`
         : supabaseSaved 
-          ? `Report saved to Supabase (${htmlSizeKB}KB). GitHub upload failed.`
+          ? `Saved to Supabase (${htmlSizeKB}KB). GitHub failed.`
           : "Publish failed",
     })
   } catch (error) {
