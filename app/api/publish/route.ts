@@ -79,9 +79,10 @@ export async function POST(req: Request) {
       githubError = "GITHUB_TOKEN not configured"
     }
 
-    // ── Step 2: Save audit metadata to Supabase DB ────────────────
+    // ── Step 2: Save FULL audit to Supabase DB (including HTML report) ────
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    let supabaseSaved = false
     
     if (supabaseUrl && supabaseKey && portfolioData) {
       try {
@@ -91,27 +92,36 @@ export async function POST(req: Request) {
           name: portfolioData.name,
           data: {
             ...portfolioData,
+            // Include the full HTML report for persistence
+            htmlReport,
             githubUrl,
             publishedAt: new Date().toISOString(),
             htmlSizeKB,
           },
         }, { onConflict: "id" })
 
-        if (dbError) console.error("[publish] DB error:", dbError.message)
-        else console.log("[publish] Saved to DB:", portfolioData.id)
+        if (dbError) {
+          console.error("[publish] Supabase DB error:", dbError.message)
+        } else {
+          supabaseSaved = true
+          console.log("[publish] Saved to Supabase:", portfolioData.id, "with HTML report")
+        }
       } catch (err) {
-        console.error("[publish] DB save error:", err)
+        console.error("[publish] Supabase save error:", err)
       }
     }
 
     return Response.json({
-      success: !!githubUrl,
+      success: !!githubUrl || supabaseSaved,
       githubUrl: githubUrl || undefined,
       githubError: githubError || undefined,
+      supabaseSaved,
       htmlSizeKB,
       message: githubUrl 
-        ? `Report published (${htmlSizeKB}KB). Open link and use Ctrl+P to save as PDF.`
-        : "GitHub upload failed",
+        ? `Report published (${htmlSizeKB}KB). Saved to Supabase${supabaseSaved ? " ✓" : " (failed)"}. Open GitHub link and use Ctrl+P to save as PDF.`
+        : supabaseSaved 
+          ? `Report saved to Supabase (${htmlSizeKB}KB). GitHub upload failed.`
+          : "Publish failed",
     })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
