@@ -1,6 +1,11 @@
 // ════════════════════════════════════════════════════════════════
-// SOLAY39 — Publish Audit API (GitHub Upload + Portfolio Store)
+// SOLAY39 — Publish Audit API
+// 1. HTML → PDF via Railway backend (WeasyPrint)
+// 2. PDF → GitHub (binary upload)
+// 3. Audit data → Supabase (persistence)
 // ════════════════════════════════════════════════════════════════
+
+import { createClient } from "@supabase/supabase-js"
 
 const GITHUB_REPO = "gustavogondek/Solay39-audit"
 const GITHUB_API = "https://api.github.com"
@@ -13,16 +18,18 @@ export async function POST(req: Request) {
       return Response.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // ── Step 1: Convert HTML → real PDF via Puppeteer backend ──
+    const pdfFileName = fileName.replace(/\.html$/, ".pdf")
+
+    // ── Step 1: HTML → PDF via Railway backend (WeasyPrint) ──────
     let pdfBase64 = ""
     let pdfError = ""
 
     const backendUrl = process.env.STATIC_ANALYSIS_API_URL
-    const backendKey = process.env.SECURITY_API_KEY || "solay39-security-key"
+    const backendKey = process.env.STATIC_ANALYSIS_API_KEY || process.env.SECURITY_API_KEY || "solay39-analysis-key"
 
     if (backendUrl) {
       try {
-        console.log("[v0] Requesting PDF from backend:", backendUrl)
+        console.log("[publish] Requesting PDF from Railway backend:", backendUrl)
         const pdfRes = await fetch(`${backendUrl}/api/generate-pdf`, {
           method: "POST",
           headers: {
@@ -33,42 +40,44 @@ export async function POST(req: Request) {
         })
 
         if (pdfRes.ok) {
-          const pdfData = await pdfRes.json()
+          const pdfData = await pdfRes.json() as { pdfBase64?: string; sizeBytes?: number }
           pdfBase64 = pdfData.pdfBase64 || ""
-          console.log("[v0] PDF generated, base64 length:", pdfBase64.length)
+          console.log(`[publish] PDF generated, size: ${pdfData.sizeBytes} bytes`)
         } else {
           const errText = await pdfRes.text()
-          pdfError = `PDF backend error (${pdfRes.status}): ${errText}`
-          console.error("[v0]", pdfError)
+          pdfError = `Railway PDF error (${pdfRes.status}): ${errText}`
+          console.error("[publish]", pdfError)
         }
       } catch (err) {
-        pdfError = `PDF backend unreachable: ${err instanceof Error ? err.message : String(err)}`
-        console.error("[v0]", pdfError)
+        pdfError = `Railway backend unreachable: ${err instanceof Error ? err.message : String(err)}`
+        console.error("[publish]", pdfError)
       }
     } else {
-      // Fallback: encode HTML as base64 if no backend (will upload as .html)
-      pdfError = "STATIC_ANALYSIS_API_URL not configured — uploading HTML fallback"
-      console.warn("[v0]", pdfError)
-      pdfBase64 = Buffer.from(htmlReport).toString("base64")
+      pdfError = "STATIC_ANALYSIS_API_URL not configured"
+      console.warn("[publish]", pdfError)
     }
 
-    if (!pdfBase64) {
-      return Response.json({ error: `PDF generation failed: ${pdfError}` }, { status: 500 })
+    // Fallback: if PDF fails, upload HTML with .html extension
+    const isFallback = !pdfBase64
+    const uploadFileName = isFallback ? pdfFileName.replace(/\.pdf$/, ".html") : pdfFileName
+    const uploadContent = isFallback
+      ? Buffer.from(htmlReport, "utf-8").toString("base64")
+      : pdfBase64
+
+    if (isFallback) {
+      console.warn("[publish] PDF generation failed — uploading HTML fallback:", pdfError)
     }
 
-    // ── Step 2: Upload real PDF to GitHub ──
-    // Always use .pdf extension — the content is now a real PDF binary
-    const pdfFileName = fileName.replace(/\.html$/, ".pdf")
-
+    // ── Step 2: Upload to GitHub ──────────────────────────────────
     let githubUrl = ""
     let githubError = ""
 
     const token = process.env.GITHUB_TOKEN
     if (token) {
       try {
-        const path = `audits/${pdfFileName}`
+        const path = `audits/${uploadFileName}`
 
-        // Check if file already exists (to get sha for update)
+        // Get existing file sha if it exists (needed for updates)
         let sha: string | undefined
         try {
           const checkRes = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${path}`, {
@@ -78,34 +87,18 @@ export async function POST(req: Request) {
             },
           })
           if (checkRes.ok) {
-            const existing = await checkRes.json()
-            sha = (existing as { sha?: string }).sha
+            const existing = await checkRes.json() as { sha?: string }
+            sha = existing.sha
           }
-        } catch {
-          // File doesn't exist, that's fine
-        }
+        } catch { /* file doesn't exist yet */ }
 
         const body: Record<string, string> = {
           message: `[Solay39 Audit] ${project.name} - ${new Date().toISOString().slice(0, 10)}`,
-          content: pdfBase64,
+          content: uploadContent,
           branch: "main",
         }
         if (sha) body.sha = sha
 
-        // Verify repo access
-        const repoCheck = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/vnd.github.v3+json",
-          },
-        })
-
-        if (!repoCheck.ok) {
-          const repoErr = await repoCheck.json().catch(() => ({}))
-          throw new Error(`Repository not accessible: ${(repoErr as { message?: string }).message || repoCheck.status}`)
-        }
-
-        console.log("[v0] GitHub: Uploading PDF to", path)
         const uploadRes = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${path}`, {
           method: "PUT",
           headers: {
@@ -117,32 +110,49 @@ export async function POST(req: Request) {
         })
 
         if (uploadRes.ok) {
-          const uploadData = await uploadRes.json()
-          githubUrl = (uploadData as { content?: { html_url?: string } }).content?.html_url ||
+          const uploadData = await uploadRes.json() as { content?: { html_url?: string } }
+          githubUrl = uploadData.content?.html_url ||
             `https://github.com/${GITHUB_REPO}/blob/main/${path}`
-          console.log("[v0] GitHub: Upload successful:", githubUrl)
+          console.log("[publish] GitHub upload successful:", githubUrl)
         } else {
-          const errData = await uploadRes.json().catch(() => null)
-          githubError = `GitHub upload failed (${uploadRes.status}): ${(errData as { message?: string })?.message || "Unknown error"}`
-          console.error("[v0]", githubError)
+          const errData = await uploadRes.json().catch(() => null) as { message?: string } | null
+          githubError = `GitHub upload failed (${uploadRes.status}): ${errData?.message || "Unknown error"}`
+          console.error("[publish]", githubError)
         }
       } catch (err) {
         githubError = `GitHub upload error: ${err instanceof Error ? err.message : String(err)}`
-        console.error("[v0]", githubError)
+        console.error("[publish]", githubError)
       }
     } else {
-      githubError = "GITHUB_TOKEN not configured."
+      githubError = "GITHUB_TOKEN not configured"
+    }
+
+    // ── Step 3: Save audit data to Supabase ───────────────────────
+    if (portfolioData && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_ROLE_KEY
+        )
+        await supabase.from("audits").upsert(
+          { id: portfolioData.id, name: portfolioData.name, data: { ...portfolioData, githubUrl } },
+          { onConflict: "id" }
+        )
+        console.log("[publish] Supabase audit saved:", portfolioData.id)
+      } catch (err) {
+        console.error("[publish] Supabase save error:", err)
+      }
     }
 
     return Response.json({
       success: true,
       githubUrl,
-      githubError: githubError || pdfError || undefined,
+      githubError: githubError || (isFallback ? `PDF engine unavailable — uploaded as HTML. To enable PDF: deploy Railway backend with WeasyPrint. Error: ${pdfError}` : undefined),
       portfolioData,
     })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
-    console.error("[v0] Publish error:", msg)
+    console.error("[publish] Fatal error:", msg)
     return Response.json({ error: `Publish failed: ${msg}` }, { status: 500 })
   }
 }

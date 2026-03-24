@@ -1,43 +1,37 @@
-# Solay39 Security Backend
-# Foundry + Slither + Mythril + solc
-FROM ubuntu:22.04
+# SOLAY39 Security Analysis Backend
+# FastAPI + Slither + Mythril + Foundry + WeasyPrint
+# Deploy on Railway with: railway up
+
+FROM python:3.11-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PATH="/root/.foundry/bin:/root/.local/bin:${PATH}"
 
-# System dependencies + Chromium for PDF generation
-RUN apt-get update && apt-get install -y \
+# System dependencies + WeasyPrint dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
-    python3 \
-    python3-pip \
-    python3-venv \
-    nodejs \
-    npm \
     build-essential \
     software-properties-common \
-    chromium-browser \
+    # WeasyPrint dependencies
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf2.0-0 \
+    libffi-dev \
+    libcairo2 \
+    libglib2.0-0 \
+    fonts-dejavu-core \
     fonts-liberation \
     fonts-noto-color-emoji \
-    libatk-bridge2.0-0 \
-    libdrm2 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
+    # Solidity compiler
     && rm -rf /var/lib/apt/lists/*
 
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+# Install Rust (needed for some Python packages)
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Install solc (multiple versions)
-RUN add-apt-repository ppa:ethereum/ethereum -y && \
-    apt-get update && \
-    apt-get install -y solc && \
-    pip3 install solc-select && \
+# Install solc-select and multiple solc versions
+RUN pip install solc-select && \
     solc-select install 0.8.20 0.8.19 0.8.17 0.7.6 0.6.12 && \
     solc-select use 0.8.20
 
@@ -45,34 +39,28 @@ RUN add-apt-repository ppa:ethereum/ethereum -y && \
 RUN curl -L https://foundry.paradigm.xyz | bash && \
     /root/.foundry/bin/foundryup
 
-# Install Slither
-RUN pip3 install slither-analyzer
-
-# Install Mythril
-RUN pip3 install mythril
-
-# Install Echidna (optional - for property-based fuzzing)
-RUN curl -L https://github.com/crytic/echidna/releases/download/v2.2.3/echidna-2.2.3-x86_64-linux.tar.gz | tar xz -C /usr/local/bin
+# Install Halmos (a16z formal verification)
+RUN pip install halmos
 
 # Create app directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-RUN npm install
+# Copy requirements and install Python deps
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source
-COPY . .
+# Copy application code
+COPY main.py .
 
 # Create temp directories for analysis
 RUN mkdir -p /tmp/contracts /tmp/reports
 
 # Expose port
-EXPOSE 3001
+EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3001/health || exit 1
+    CMD curl -f http://localhost:8000/health || exit 1
 
 # Start server
-CMD ["node", "server.js"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
