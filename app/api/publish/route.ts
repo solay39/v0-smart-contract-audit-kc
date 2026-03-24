@@ -21,12 +21,14 @@ export async function POST(req: Request) {
     // Ensure .pdf extension
     const pdfFileName = fileName.endsWith(".pdf") ? fileName : fileName.replace(/\.(html|json)$/, ".pdf")
 
-    // ── Step 1: Use client-generated PDF (jsPDF) or Railway backend ──────
-    let pdfBase64 = clientPdfBase64 || ""
+    // ── Step 1: Convert HTML to PDF ──────
+    // Priority: 1) Railway backend (WeasyPrint) 2) Client jsPDF 3) HTML fallback
+    let pdfBase64 = ""
     let pdfError = ""
+    let usedMethod = ""
 
-    // If no client PDF provided, try Railway backend with HTML
-    if (!pdfBase64 && htmlReport) {
+    // Method 1: Railway backend (produces best quality multi-page PDFs)
+    if (htmlReport) {
       const backendUrl = process.env.STATIC_ANALYSIS_API_URL
       const backendKey = process.env.STATIC_ANALYSIS_API_KEY || process.env.SECURITY_API_KEY || "solay39-analysis-key"
 
@@ -40,40 +42,51 @@ export async function POST(req: Request) {
               "x-api-key": backendKey,
             },
             body: JSON.stringify({ html: htmlReport }),
+            signal: AbortSignal.timeout(30000), // 30s timeout
           })
 
           if (pdfRes.ok) {
             const pdfData = await pdfRes.json() as { pdfBase64?: string; sizeBytes?: number }
-            pdfBase64 = pdfData.pdfBase64 || ""
-            console.log(`[publish] PDF generated via Railway, size: ${pdfData.sizeBytes} bytes`)
+            if (pdfData.pdfBase64 && pdfData.pdfBase64.length > 10000) {
+              pdfBase64 = pdfData.pdfBase64
+              usedMethod = "railway"
+              console.log(`[publish] PDF generated via Railway, size: ${pdfData.sizeBytes} bytes`)
+            }
           } else {
             const errText = await pdfRes.text()
-            pdfError = `Railway PDF error (${pdfRes.status}): ${errText}`
-            console.error("[publish]", pdfError)
+            pdfError = `Railway: ${pdfRes.status}`
+            console.warn("[publish] Railway PDF failed:", errText)
           }
         } catch (err) {
-          pdfError = `Railway backend unreachable: ${err instanceof Error ? err.message : String(err)}`
-          console.error("[publish]", pdfError)
+          pdfError = `Railway unreachable`
+          console.warn("[publish] Railway backend error:", err instanceof Error ? err.message : String(err))
         }
       }
     }
 
-    // Check if we have valid PDF (jsPDF produces ~50KB+ PDFs)
-    const hasValidPdf = pdfBase64 && pdfBase64.length > 1000
-    
-    if (hasValidPdf) {
-      console.log(`[publish] Using PDF (${Math.round(pdfBase64.length / 1024)}KB)`)
-    } else if (htmlReport) {
-      // Fallback to HTML
+    // Method 2: Use client-generated PDF (jsPDF) - only if Railway failed and PDF is substantial
+    if (!pdfBase64 && clientPdfBase64 && clientPdfBase64.length > 50000) {
+      pdfBase64 = clientPdfBase64
+      usedMethod = "jspdf"
+      console.log(`[publish] Using client jsPDF (${Math.round(clientPdfBase64.length / 1024)}KB)`)
+    }
+
+    // Method 3: HTML fallback (last resort - readable but not PDF)
+    let isFallback = false
+    if (!pdfBase64 && htmlReport) {
       pdfBase64 = Buffer.from(htmlReport, "utf-8").toString("base64")
-      pdfError = pdfError || "PDF generation failed, using HTML fallback"
-      console.warn("[publish]", pdfError)
-    } else {
+      usedMethod = "html"
+      isFallback = true
+      console.warn("[publish] Using HTML fallback - no PDF backend available")
+    }
+
+    if (!pdfBase64) {
       return Response.json({ error: "No PDF or HTML content provided" }, { status: 400 })
     }
 
-    const uploadFileName = hasValidPdf ? pdfFileName : pdfFileName.replace(/\.pdf$/, ".html")
+    const uploadFileName = isFallback ? pdfFileName.replace(/\.pdf$/, ".html") : pdfFileName
     const uploadContent = pdfBase64
+    console.log(`[publish] Upload: ${uploadFileName} (${usedMethod}, ${Math.round(pdfBase64.length / 1024)}KB)`)
 
     // ── Step 2: Upload to GitHub ──────────────────────────────────
     let githubUrl = ""
