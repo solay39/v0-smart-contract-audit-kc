@@ -8,7 +8,7 @@ import { createClient } from "@supabase/supabase-js"
 import { createHash } from "crypto"
 
 const GITHUB_REPO = process.env.GITHUB_REPO || "solay39/Solay39-audit"
-const FOUNDER_KEY = process.env.FOUNDER_KEY || "solay39-founder-key"
+const FOUNDER_KEY = process.env.SOLAY39_FOUNDER_KEY || "Solay39!Audit#2025"
 
 function generateAuditHash(content: string): string {
   return createHash("sha256").update(content, "utf8").digest("hex")
