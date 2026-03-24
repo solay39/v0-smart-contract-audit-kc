@@ -1389,7 +1389,19 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   // Generate the FULL HTML report (same as Export PDF - 38 pages)
   // This HTML is saved to Supabase Storage and GitHub
   // Users can open it in browser and Ctrl+P to save as PDF
+  console.log("[v0] Generating HTML report with tier1:", {
+    score,
+    findingsCount: findings.length,
+    hasPrivilegedRoles: tier1ForPDF.privilegedRoles?.length || 0,
+    hasTrustAssumptions: tier1ForPDF.trustAssumptions?.length || 0,
+    hasSecurityChecklist: tier1ForPDF.securityChecklist?.length || 0,
+    hasOnChainAnalysis: !!tier1ForPDF.onChainAnalysis,
+    hasManualReview: !!tier1ForPDF.manualReview,
+    hasEngagement: !!tier1ForPDF.engagement,
+  })
+  
   const htmlReport = getAuditReportHTML(project, score, findings, tier1ForPDF)
+  console.log("[v0] HTML report generated, length:", htmlReport?.length, "KB:", Math.round((htmlReport?.length || 0) / 1024))
   
   if (!htmlReport || htmlReport.length < 1000) {
     throw new Error("Report generation failed")
