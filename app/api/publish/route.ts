@@ -12,61 +12,68 @@ const GITHUB_API = "https://api.github.com"
 
 export async function POST(req: Request) {
   try {
-    const { project, htmlReport, fileName, portfolioData } = await req.json()
+    const { project, pdfBase64: clientPdfBase64, htmlReport, fileName, portfolioData } = await req.json()
 
-    if (!project?.name || !htmlReport || !fileName) {
+    if (!project?.name || !fileName) {
       return Response.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const pdfFileName = fileName.replace(/\.html$/, ".pdf")
+    // Ensure .pdf extension
+    const pdfFileName = fileName.endsWith(".pdf") ? fileName : fileName.replace(/\.(html|json)$/, ".pdf")
 
-    // ── Step 1: HTML → PDF via Railway backend (WeasyPrint) ──────
-    let pdfBase64 = ""
+    // ── Step 1: Use client-generated PDF (jsPDF) or Railway backend ──────
+    let pdfBase64 = clientPdfBase64 || ""
     let pdfError = ""
 
-    const backendUrl = process.env.STATIC_ANALYSIS_API_URL
-    const backendKey = process.env.STATIC_ANALYSIS_API_KEY || process.env.SECURITY_API_KEY || "solay39-analysis-key"
+    // If no client PDF provided, try Railway backend with HTML
+    if (!pdfBase64 && htmlReport) {
+      const backendUrl = process.env.STATIC_ANALYSIS_API_URL
+      const backendKey = process.env.STATIC_ANALYSIS_API_KEY || process.env.SECURITY_API_KEY || "solay39-analysis-key"
 
-    if (backendUrl) {
-      try {
-        console.log("[publish] Requesting PDF from Railway backend:", backendUrl)
-        const pdfRes = await fetch(`${backendUrl}/api/generate-pdf`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": backendKey,
-          },
-          body: JSON.stringify({ html: htmlReport }),
-        })
+      if (backendUrl) {
+        try {
+          console.log("[publish] Requesting PDF from Railway backend:", backendUrl)
+          const pdfRes = await fetch(`${backendUrl}/api/generate-pdf`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": backendKey,
+            },
+            body: JSON.stringify({ html: htmlReport }),
+          })
 
-        if (pdfRes.ok) {
-          const pdfData = await pdfRes.json() as { pdfBase64?: string; sizeBytes?: number }
-          pdfBase64 = pdfData.pdfBase64 || ""
-          console.log(`[publish] PDF generated, size: ${pdfData.sizeBytes} bytes`)
-        } else {
-          const errText = await pdfRes.text()
-          pdfError = `Railway PDF error (${pdfRes.status}): ${errText}`
+          if (pdfRes.ok) {
+            const pdfData = await pdfRes.json() as { pdfBase64?: string; sizeBytes?: number }
+            pdfBase64 = pdfData.pdfBase64 || ""
+            console.log(`[publish] PDF generated via Railway, size: ${pdfData.sizeBytes} bytes`)
+          } else {
+            const errText = await pdfRes.text()
+            pdfError = `Railway PDF error (${pdfRes.status}): ${errText}`
+            console.error("[publish]", pdfError)
+          }
+        } catch (err) {
+          pdfError = `Railway backend unreachable: ${err instanceof Error ? err.message : String(err)}`
           console.error("[publish]", pdfError)
         }
-      } catch (err) {
-        pdfError = `Railway backend unreachable: ${err instanceof Error ? err.message : String(err)}`
-        console.error("[publish]", pdfError)
       }
-    } else {
-      pdfError = "STATIC_ANALYSIS_API_URL not configured"
+    }
+
+    // Check if we have valid PDF (jsPDF produces ~50KB+ PDFs)
+    const hasValidPdf = pdfBase64 && pdfBase64.length > 1000
+    
+    if (hasValidPdf) {
+      console.log(`[publish] Using PDF (${Math.round(pdfBase64.length / 1024)}KB)`)
+    } else if (htmlReport) {
+      // Fallback to HTML
+      pdfBase64 = Buffer.from(htmlReport, "utf-8").toString("base64")
+      pdfError = pdfError || "PDF generation failed, using HTML fallback"
       console.warn("[publish]", pdfError)
+    } else {
+      return Response.json({ error: "No PDF or HTML content provided" }, { status: 400 })
     }
 
-    // Fallback: if PDF fails, upload HTML with .html extension
-    const isFallback = !pdfBase64
-    const uploadFileName = isFallback ? pdfFileName.replace(/\.pdf$/, ".html") : pdfFileName
-    const uploadContent = isFallback
-      ? Buffer.from(htmlReport, "utf-8").toString("base64")
-      : pdfBase64
-
-    if (isFallback) {
-      console.warn("[publish] PDF generation failed — uploading HTML fallback:", pdfError)
-    }
+    const uploadFileName = hasValidPdf ? pdfFileName : pdfFileName.replace(/\.pdf$/, ".html")
+    const uploadContent = pdfBase64
 
     // ── Step 2: Upload to GitHub ──────────────────────────────────
     let githubUrl = ""

@@ -16,6 +16,7 @@ import {
 import { isValidAddress, getExplorer, chainLanguage } from "@/lib/explorers"
 import { ScoreRing, S39Input, S39Btn, SevBadge } from "@/components/solay39-ui"
 import { exportPDF, getAuditReportHTML } from "@/lib/export-pdf"
+import { generatePDFBase64 } from "@/lib/generate-pdf"
 import { savePublishedAudit } from "@/components/skynet-public"
 import { computeReportHash, buildReportIntegrity } from "@/lib/enterprise-standards"
 import Solay39Validator from "@/components/solay39-validator"
@@ -1385,26 +1386,31 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
           topHolders: onChainAnalysisData?.topHolders || manualReviewSession?.onChainAnalysis?.topHolders,
         } : undefined,
       }
-      // Generate the FULL HTML report (same as "Export PDF" button)
-      // The backend (Puppeteer) will convert it to a real PDF
-      const htmlReport = getAuditReportHTML(project, score, findings, tier1ForPDF)
-      console.log("[v0] HTML report length:", htmlReport?.length || 0)
-
-      if (!htmlReport || htmlReport.length < 1000) {
-        console.error("[v0] HTML report generation failed or returned invalid data")
-        throw new Error("HTML report generation failed")
-      }
-
-      const res = await fetch("/api/publish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          project: portfolioEntry,
-          htmlReport,
-          fileName,
-          portfolioData: portfolioEntry,
-        }),
-      })
+  // Generate REAL PDF using jsPDF (client-side)
+  // This produces a valid PDF binary that GitHub can display
+  console.log("[v0] Generating PDF with jsPDF...")
+  const pdfBase64 = generatePDFBase64(project, score, findings, tier1ForPDF)
+  console.log("[v0] PDF base64 length:", pdfBase64?.length || 0)
+  
+  // Also generate HTML as fallback
+  const htmlReport = getAuditReportHTML(project, score, findings, tier1ForPDF)
+  
+  if ((!pdfBase64 || pdfBase64.length < 1000) && (!htmlReport || htmlReport.length < 1000)) {
+    console.error("[v0] Both PDF and HTML generation failed")
+    throw new Error("Report generation failed")
+  }
+  
+  const res = await fetch("/api/publish", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      project: portfolioEntry,
+      pdfBase64,  // Real PDF from jsPDF
+      htmlReport, // Fallback HTML
+      fileName: fileName.replace(/\.(html|json)$/, ".pdf"),
+      portfolioData: portfolioEntry,
+    }),
+  })
       const data = await res.json()
       setPublishResult({
         success: true,
