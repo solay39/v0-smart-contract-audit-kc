@@ -410,7 +410,7 @@ function ShareButton({ auditId, name }: { auditId: string; name: string }) {
 }
 
 export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: PortfolioProject; onBack?: () => void; isLive?: boolean; backHref?: string }) {
-  // ── DEFENSIVE NORMALIZATION: ensure all nested properties are safe for rendering ─���
+  // ── DEFENSIVE NORMALIZATION: ensure all nested properties are safe for rendering ─����
   const p = useMemo<PortfolioProject>(() => {
     const findings = _raw.findings || []
     return {
@@ -5093,6 +5093,9 @@ console.log("Signer:", recovered);
 
         {/* GitHub Sync Panel (Founder Only) */}
         <SyncToGitHubPanel auditId={p.id} projectName={p.name} />
+
+        {/* Bulk Fix GitHub Panel (Founder Only - fix all audits at once) */}
+        <BulkFixGitHubPanel />
       </div>
     </div>
   )
@@ -5204,9 +5207,167 @@ function SyncToGitHubPanel({ auditId, projectName }: { auditId: string; projectN
   )
 }
 
-// ════════════════════════════════════════��══════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+// BULK FIX GITHUB PANEL (Founder Only - fix all audits at once)
+// ═══════════════════════════════════════════════════════════════════
+function BulkFixGitHubPanel() {
+  const [founderKey, setFounderKey] = useState("")
+  const [running, setRunning] = useState(false)
+  const [dryRun, setDryRun] = useState(true)
+  const [results, setResults] = useState<{
+    total?: number
+    succeeded?: number
+    failed?: number
+    dryRun?: boolean
+    message?: string
+    error?: string
+    results?: {
+      id: string
+      name: string
+      score: number
+      htmlSizeKB: number
+      githubUrl?: string
+      error?: string
+      skipped?: boolean
+    }[]
+  } | null>(null)
+
+  const handleRun = async () => {
+    if (!founderKey.trim()) return
+    setRunning(true)
+    setResults(null)
+
+    try {
+      const res = await fetch("/api/bulk-fix-github", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ founderKey, dryRun }),
+      })
+      const data = await res.json()
+      setResults(data)
+    } catch (err) {
+      setResults({ message: err instanceof Error ? err.message : "Request failed" })
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  return (
+    <div className="bg-s39-bg1 border border-s39-border p-5 mt-4">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-[9px] text-s39-mid tracking-[0.15em]">BULK FIX GITHUB</span>
+        <span className="text-[7px] text-s39-dim bg-s39-bg2 border border-s39-border px-1.5 py-0.5 tracking-wider ml-auto">
+          FOUNDER ONLY
+        </span>
+      </div>
+
+      <p className="text-[9px] text-s39-dim mb-4">
+        Rigenera e sincronizza TUTTI gli audit su GitHub con lo score corretto e le 38 pagine complete.
+        Usa prima <strong className="text-s39-lite">Dry Run</strong> per vedere cosa verrebbe modificato.
+      </p>
+
+      <div className="flex gap-2 items-center mb-3">
+        <input
+          type="password"
+          placeholder="Founder key"
+          value={founderKey}
+          onChange={(e) => setFounderKey(e.target.value)}
+          className="flex-1 bg-s39-bg2 border border-s39-border text-s39-lite text-[10px] px-3 py-2 focus:border-s39-cyan/50 outline-none"
+        />
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={dryRun}
+            onChange={(e) => setDryRun(e.target.checked)}
+            className="accent-cyan-400"
+          />
+          <span className="text-[9px] text-s39-mid whitespace-nowrap">Dry Run</span>
+        </label>
+        <button
+          onClick={handleRun}
+          disabled={running || !founderKey.trim()}
+          className={`px-4 py-2 border text-[9px] font-bold tracking-widest transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+            dryRun
+              ? "bg-s39-cyan/10 border-s39-cyan/30 text-s39-cyan hover:bg-s39-cyan/20"
+              : "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20"
+          }`}
+        >
+          {running ? "RUNNING..." : dryRun ? "DRY RUN" : "FIX ALL"}
+        </button>
+      </div>
+
+      {results && (
+        <div className="mt-3 space-y-2">
+          {/* Summary */}
+          <div className={`p-3 border text-[9px] ${
+            results.error || results.failed
+              ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-400"
+              : "bg-s39-green/10 border-s39-green/30 text-s39-green"
+          }`}>
+            {results.message || results.error}
+          </div>
+
+          {/* Stats bar */}
+          {results.total && (
+            <div className="flex gap-3 text-[8px] p-2 bg-s39-bg2 border border-s39-border">
+              <span className="text-s39-mid">TOTALE: <strong className="text-s39-lite">{results.total}</strong></span>
+              {!results.dryRun && (
+                <>
+                  <span className="text-s39-green">OK: <strong>{results.succeeded}</strong></span>
+                  {(results.failed ?? 0) > 0 && (
+                    <span className="text-red-400">ERRORI: <strong>{results.failed}</strong></span>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Per-audit results */}
+          {results.results && (
+            <div className="max-h-64 overflow-y-auto space-y-1">
+              {results.results.map((r) => (
+                <div
+                  key={r.id}
+                  className={`flex items-center gap-2 px-2 py-1.5 text-[8px] border ${
+                    r.error
+                      ? "bg-red-500/5 border-red-500/20 text-red-400"
+                      : r.skipped
+                      ? "bg-s39-bg2 border-s39-border text-s39-dim"
+                      : "bg-s39-green/5 border-s39-green/20 text-s39-green"
+                  }`}
+                >
+                  <span className="font-mono w-4">
+                    {r.error ? "X" : r.skipped ? "O" : "V"}
+                  </span>
+                  <span className="flex-1 truncate text-s39-lite">{r.name}</span>
+                  <span className="font-bold text-s39-cyan">{r.score}</span>
+                  <span className="text-s39-dim">{r.htmlSizeKB}KB</span>
+                  {r.githubUrl && (
+                    <a
+                      href={r.githubUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-s39-cyan underline ml-1"
+                    >
+                      -&gt;
+                    </a>
+                  )}
+                  {r.error && (
+                    <span className="text-red-400 text-[7px] truncate max-w-32">{r.error}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // METHODOLOGY PAGE
-// ═════════════════════════════════════════════════════════════����═════
+// ═══════════════════════════════════════════════════════════════════
 function MethodologyPage() {
   const phases: [string, string, string, string][] = [
     ["01", "System Comprehension", "#00e5ff", "Complete architectural analysis: trust boundaries, funds flow, actor model, threat surface and external dependencies."],
