@@ -5,6 +5,7 @@ import {
   CHECKLIST,
   computeScoreV2,
   ratingOf,
+  getWeightedScore,
   type Finding,
   type AuditProject,
   type SeverityLevel,
@@ -1237,22 +1238,12 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       } : undefined,
     }
 
-    // ── Step 3: Genera l'HTML PRIMA di salvare ────────────────────
-    // Score definitivo: usa apiScoreBreakdown se disponibile (score reale
-    // dall'analisi Skynet), altrimenti v2Result.final (score locale)
-    const reportScore: number = apiScoreBreakdown
-      ? Math.round(
-          (apiScoreBreakdown.codeSecurity ?? score) * 0.35 +
-          (apiScoreBreakdown.architectureRisk ?? score) * 0.25 +
-          (apiScoreBreakdown.governanceRisk ?? score) * 0.20 +
-          (apiScoreBreakdown.centralization ?? score) * 0.10 +
-          (apiScoreBreakdown.testingCoverage ?? score) * 0.10
-        )
-      : score
-
-    // Aggiorna portfolioEntry con lo score corretto
-    portfolioEntry.score = Math.min(98, Math.max(0, reportScore))
-    portfolioEntry.rating = ratingOf(portfolioEntry.score)
+    // ── Step 3: Score corretto — identico a getWeightedScore della piattaforma ──
+    // portfolioEntry.score è il valore raw (v2Result.final) ma la piattaforma
+    // mostra getWeightedScore(p) che usa scoreBreakdown. Usiamo lo stesso.
+    const displayScore = getWeightedScore(portfolioEntry)
+    portfolioEntry.score = displayScore
+    portfolioEntry.rating = ratingOf(displayScore)
 
     const fileName = `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${project.date || new Date().toISOString().slice(0, 10)}.pdf`
 
