@@ -360,8 +360,8 @@ export async function POST(req: Request) {
       auditHash,
       htmlSizeKB,
       message: githubUrl
-        ? `Force-published to GitHub (${htmlSizeKB}KB)`
-        : `GitHub upload failed: ${githubError}`,
+        ? `✓ Force-published to GitHub (${htmlSizeKB}KB)`
+        : `✗ GitHub upload failed: ${githubError}`,
     })
   } catch (err) {
     console.error("[force-publish] Fatal error:", err)

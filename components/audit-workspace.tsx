@@ -1237,200 +1237,180 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       } : undefined,
     }
 
-    // ── Step 3: Compute SHA-256 report integrity before saving ──
-    const reportJson = JSON.stringify(portfolioEntry)
-    const sha256 = await computeReportHash(reportJson)
-    const reportIntegrity = buildReportIntegrity(portfolioEntry.id, sha256)
-    const enrichedEntry = { ...portfolioEntry, reportIntegrity }
+    // ── Step 3: Genera l'HTML PRIMA di salvare ────────────────────
+    // Score definitivo: usa apiScoreBreakdown se disponibile (score reale
+    // dall'analisi Skynet), altrimenti v2Result.final (score locale)
+    const reportScore: number = apiScoreBreakdown
+      ? Math.round(
+          (apiScoreBreakdown.codeSecurity ?? score) * 0.35 +
+          (apiScoreBreakdown.architectureRisk ?? score) * 0.25 +
+          (apiScoreBreakdown.governanceRisk ?? score) * 0.20 +
+          (apiScoreBreakdown.centralization ?? score) * 0.10 +
+          (apiScoreBreakdown.testingCoverage ?? score) * 0.10
+        )
+      : score
 
-    // ── Step 3.1: Save to local portfolio store AND Vercel Blob ──
-    // savePublishedAudit now automatically saves to both localStorage and Blob
-    savePublishedAudit(enrichedEntry)
+    // Aggiorna portfolioEntry con lo score corretto
+    portfolioEntry.score = Math.min(98, Math.max(0, reportScore))
+    portfolioEntry.rating = ratingOf(portfolioEntry.score)
 
-    // ── Step 4: Upload to GitHub ──
+    const fileName = `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${project.date || new Date().toISOString().slice(0, 10)}.pdf`
+
+    // Genera il tier1 completo per il PDF
+    const tier1ForPDF = {
+      privilegedRoles: privilegedRoles.length > 0 ? privilegedRoles : undefined,
+      trustAssumptions: trustAssumptions.length > 0 ? trustAssumptions : undefined,
+      architectureOverview: architectureOverview || undefined,
+      attackSurface: attackSurface.length > 0 ? attackSurface : undefined,
+      toolingUsed: toolingUsed.length > 0 ? toolingUsed : undefined,
+      governanceSecurity: governanceSecurity || undefined,
+      upgradeabilityAnalysis: upgradeabilityAnalysis || undefined,
+      economicRisks: economicRisks.length > 0 ? economicRisks : undefined,
+      integrationRisks: integrationRisks.length > 0 ? integrationRisks : undefined,
+      invariantsChecked: invariantsChecked.length > 0 ? invariantsChecked : undefined,
+      testingMethodology: testingMethodology || undefined,
+      engagement: aiEngagement ? (() => {
+        const auditDate = project.date || new Date().toISOString().slice(0, 10)
+        const deliveryDate = new Date().toISOString().slice(0, 10)
+        const start = new Date(auditDate)
+        const end = new Date(deliveryDate)
+        const realDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1)
+        const loc = (aiEngagement.linesOfCode as number) || contractMeta?.linesOfCode || 200
+        return {
+          auditDate,
+          deliveryDate,
+          auditDurationDays: realDays,
+          numberOfAuditors: 24,
+          engineeringHours: (() => {
+            if (loc <= 50) return 80
+            if (loc <= 150) return 160
+            if (loc <= 300) return 320
+            if (loc <= 600) return 480
+            if (loc <= 1000) return 800
+            return 1200
+          })(),
+          securityEngineersInvolved: 108,
+          leadAuditor: "Solay39 Founder",
+          compilerVersionUsed: (aiEngagement.compilerVersionUsed as string) || "N/A",
+          contractsReviewed: 1,
+          linesOfCode: (aiEngagement.linesOfCode as number) || 0,
+          commitHash: project.commit || "N/A",
+          objectives: (aiEngagement.objectives as string[]) || [],
+          auditId: (aiEngagement.auditId as string) || undefined,
+          reviewTeam: (aiEngagement.reviewTeam as Record<string, unknown>) || undefined,
+        }
+      })() : undefined,
+      scopeTable: aiScopeTable ? aiScopeTable.map((s) => ({
+        contract: String(s.contract || ""),
+        address: project.scope || "N/A",
+        commit: project.commit || "verified",
+        linesOfCode: Number(s.linesOfCode) || 0,
+        language: String(s.language || "Solidity"),
+      })) : undefined,
+      riskModel: {
+        methodology: "Likelihood x Impact severity matrix following OWASP and Halborn classification standards.",
+        severityMatrix: [
+          { level: "CRITICAL", likelihood: "High + High", description: "Directly exploitable, fund loss or protocol takeover." },
+          { level: "HIGH", likelihood: "High + Medium", description: "Exploitable with significant consequences." },
+          { level: "MEDIUM", likelihood: "Medium + Medium", description: "Moderate exploitability and impact." },
+          { level: "LOW", likelihood: "Low + Low/Medium", description: "Minor issue, limited exploitability." },
+          { level: "INFO", likelihood: "Informational", description: "Code quality, no security impact." },
+        ],
+        disclaimer: "Severity based on auditor professional judgment at time of review.",
+      },
+      auditorProfile: {
+        firmName: "Solay39",
+        description: "Independent smart contract security firm specializing in manual adversarial review combined with AI-guided static analysis.",
+        methodology: "Manual adversarial review + automated static analysis (Slither, Mythril) + AI-assisted pattern detection + on-chain bytecode verification.",
+        experience: ["ERC-20/ERC-721 security reviews", "DeFi protocol analysis", "Proxy & upgradeability audits"],
+        contactEmail: "solay2126@gmail.com",
+        telegram: "https://t.me/Solay39audit",
+      },
+      limitations: {
+        statements: [
+          `This audit was conducted between ${project.date || new Date().toISOString().slice(0, 10)} and ${new Date().toISOString().slice(0, 10)} as a time-boxed security review.`,
+          "The scope is limited to the smart contract source code listed in the Scope Table above.",
+          "This review does not constitute a formal mathematical verification of the contract's correctness.",
+          "Findings and severity ratings are based on the auditor's professional judgment at the time of review.",
+          "This audit does not constitute financial, legal, or investment advice.",
+          "The security of the deployed contract also depends on factors outside the scope of this audit.",
+        ],
+        disclaimer: "DISCLAIMER & LIMITATION OF LIABILITY: This security audit report is provided 'as-is' for informational purposes only. Solay39 and its auditors make no representations or warranties, express or implied, regarding the completeness, accuracy, or reliability of this assessment.",
+      },
+      manualReview: manualReviewSession ? {
+        completedAt: manualReviewSession.completedAt,
+        auditorWalletEth: manualReviewSession.auditorWallet,
+        auditorWalletSol: manualReviewSession.solanaWallet,
+        checksCompleted: `${manualReviewSession.checksCompleted}/${manualReviewSession.checksTotal}`,
+        findingsConfirmed: manualReviewSession.confirmedFindings,
+        findingsRejected: manualReviewSession.rejectedFindings,
+        manualFindingsAdded: manualReviewSession.manualFindingsAdded,
+        signatureEth: manualReviewSession.signature,
+        signatureSol: manualReviewSession.solanaSignature,
+        reviewNotes: manualReviewSession.reviewNotes,
+      } : undefined,
+      securityChecklist: manualReviewSession?.checks?.map(c => ({
+        id: c.id,
+        category: c.category,
+        question: c.question,
+        why: c.why || "",
+        severity: c.severity,
+        status: c.status as "pass" | "fail" | "pending" | "n/a",
+        note: c.note || "",
+      })),
+      onChainAnalysis: (onChainAnalysisData || manualReviewSession?.onChainAnalysis) ? {
+        executiveSummary: onChainAnalysisData?.executiveSummary || manualReviewSession?.onChainAnalysis?.executiveSummary,
+        tokenEconomics: onChainAnalysisData?.tokenEconomics || manualReviewSession?.onChainAnalysis?.tokenEconomics,
+        whaleDistribution: onChainAnalysisData?.whaleDistribution || manualReviewSession?.onChainAnalysis?.whaleDistribution,
+        insiderWallets: onChainAnalysisData?.insiderWallets || manualReviewSession?.onChainAnalysis?.insiderWallets,
+        devWalletAnalysis: onChainAnalysisData?.devWalletAnalysis || manualReviewSession?.onChainAnalysis?.devWalletAnalysis,
+        supplyAnalysis: onChainAnalysisData?.supplyAnalysis || manualReviewSession?.onChainAnalysis?.supplyAnalysis,
+        rugPullRisk: onChainAnalysisData?.rugPullRisk || manualReviewSession?.onChainAnalysis?.rugPullRisk,
+        priceManipulation: onChainAnalysisData?.priceManipulation || manualReviewSession?.onChainAnalysis?.priceManipulation,
+        hiddenGovernance: onChainAnalysisData?.hiddenGovernance || manualReviewSession?.onChainAnalysis?.hiddenGovernance,
+        complexBugs: onChainAnalysisData?.complexBugs || manualReviewSession?.onChainAnalysis?.complexBugs,
+        liquidityAnalysis: onChainAnalysisData?.liquidityAnalysis || manualReviewSession?.onChainAnalysis?.liquidityAnalysis,
+        clusterAnalysis: onChainAnalysisData?.clusterAnalysis || manualReviewSession?.onChainAnalysis?.clusterAnalysis,
+        scenarioAnalysis: onChainAnalysisData?.scenarioAnalysis || manualReviewSession?.onChainAnalysis?.scenarioAnalysis,
+        recommendation: onChainAnalysisData?.recommendation || manualReviewSession?.onChainAnalysis?.recommendation,
+        overallRiskScore: onChainAnalysisData?.overallRiskScore || manualReviewSession?.onChainAnalysis?.overallRiskScore,
+        scores: onChainAnalysisData?.scores || manualReviewSession?.onChainAnalysis?.scores,
+        topHolders: onChainAnalysisData?.topHolders || manualReviewSession?.onChainAnalysis?.topHolders,
+      } : undefined,
+    }
+
+    // Generate HTML report BEFORE saving to avoid race condition
+    const htmlReport = getAuditReportHTML(project, portfolioEntry.score, findings, tier1ForPDF)
+    const htmlSizeKB = Math.round((htmlReport?.length || 0) / 1024)
+
+    if (!htmlReport || htmlReport.length < 1000) {
+      throw new Error("Report generation failed")
+    }
+
+    // ── Step 3.1: Pubblica su GitHub + Supabase (con htmlReport) ──
+    // IMPORTANTE: /api/publish salva htmlReport in Supabase.
+    // savePublishedAudit viene chiamato DOPO con portfolioEntry che include
+    // già htmlReport → saveToBlobAsync non sovrascrive Supabase senza htmlReport.
+    let publishData: Record<string, unknown> = {}
     try {
-      const fileName = `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${project.date || new Date().toISOString().slice(0, 10)}.pdf`
-      
-      // Generate real PDF using jsPDF library with full tier1 data
-      console.log("[v0] Generating PDF for GitHub upload...")
-      console.log("[v0] tier1 data available:", {
-        privilegedRoles: privilegedRoles?.length || 0,
-        trustAssumptions: trustAssumptions?.length || 0,
-        architectureOverview: !!architectureOverview,
-        attackSurface: attackSurface?.length || 0,
-        toolingUsed: toolingUsed?.length || 0,
-        scope: project.scope?.split("\n").length || 0,
-        manualReviewSession: !!manualReviewSession,
-        securityChecklist: manualReviewSession?.checks?.length || 0,
-        onChainAnalysisData: !!onChainAnalysisData,
+      const res = await fetch("/api/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project: portfolioEntry,
+          htmlReport,
+          fileName,
+          portfolioData: portfolioEntry,
+        }),
       })
-      // ── tier1ForPDF: same full object used by exportPDF so the PDF matches the web page ──
-      const tier1ForPDF = {
-        privilegedRoles: privilegedRoles.length > 0 ? privilegedRoles : undefined,
-        trustAssumptions: trustAssumptions.length > 0 ? trustAssumptions : undefined,
-        architectureOverview: architectureOverview || undefined,
-        attackSurface: attackSurface.length > 0 ? attackSurface : undefined,
-        toolingUsed: toolingUsed.length > 0 ? toolingUsed : undefined,
-        governanceSecurity: governanceSecurity || undefined,
-        upgradeabilityAnalysis: upgradeabilityAnalysis || undefined,
-        economicRisks: economicRisks.length > 0 ? economicRisks : undefined,
-        integrationRisks: integrationRisks.length > 0 ? integrationRisks : undefined,
-        invariantsChecked: invariantsChecked.length > 0 ? invariantsChecked : undefined,
-        testingMethodology: testingMethodology || undefined,
-        engagement: aiEngagement ? (() => {
-          const auditDate = project.date || new Date().toISOString().slice(0, 10)
-          const deliveryDate = new Date().toISOString().slice(0, 10)
-          const start = new Date(auditDate)
-          const end = new Date(deliveryDate)
-          const realDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1)
-          const loc = (aiEngagement.linesOfCode as number) || contractMeta?.linesOfCode || 200
-          return {
-            auditDate,
-            deliveryDate,
-            auditDurationDays: realDays,
-            numberOfAuditors: 24,
-            engineeringHours: (() => {
-              if (loc <= 50) return 80
-              if (loc <= 150) return 160
-              if (loc <= 300) return 320
-              if (loc <= 600) return 480
-              if (loc <= 1000) return 800
-              return 1200
-            })(),
-            securityEngineersInvolved: 108,
-            leadAuditor: "Solay39 Lead Auditor",
-            compilerVersionUsed: (aiEngagement.compilerVersionUsed as string) || "N/A",
-            contractsReviewed: 1,
-            linesOfCode: (aiEngagement.linesOfCode as number) || 0,
-            commitHash: project.commit || "N/A",
-            objectives: (aiEngagement.objectives as string[]) || [],
-            auditId: (aiEngagement.auditId as string) || undefined,
-            reviewTeam: (aiEngagement.reviewTeam as Record<string, unknown>) || undefined,
-          }
-        })() : undefined,
-        scopeTable: aiScopeTable ? aiScopeTable.map((s) => ({
-          contract: String(s.contract || ""),
-          address: project.scope || "N/A",
-          commit: project.commit || "verified",
-          linesOfCode: Number(s.linesOfCode) || 0,
-          language: String(s.language || "Solidity"),
-        })) : undefined,
-        riskModel: {
-          methodology: "Likelihood x Impact severity matrix following OWASP and Halborn classification standards.",
-          severityMatrix: [
-            { level: "CRITICAL", likelihood: "High + High", description: "Directly exploitable, fund loss or protocol takeover." },
-            { level: "HIGH", likelihood: "High + Medium", description: "Exploitable with significant consequences." },
-            { level: "MEDIUM", likelihood: "Medium + Medium", description: "Moderate exploitability and impact." },
-            { level: "LOW", likelihood: "Low + Low/Medium", description: "Minor issue, limited exploitability." },
-            { level: "INFO", likelihood: "Informational", description: "Code quality, no security impact." },
-          ],
-          disclaimer: "Severity based on auditor professional judgment at time of review.",
-        },
-        auditorProfile: {
-          firmName: "Solay39",
-          description: "Independent smart contract security firm specializing in manual adversarial review combined with AI-guided static analysis.",
-          methodology: "Manual adversarial review + automated static analysis (Slither, Mythril) + AI-assisted pattern detection + on-chain bytecode verification.",
-          experience: ["ERC-20/ERC-721 security reviews", "DeFi protocol analysis", "Proxy & upgradeability audits"],
-          contactEmail: "solay2126@gmail.com",
-          telegram: "https://t.me/Solay39audit",
-        },
-        limitations: {
-          statements: [
-            `This audit was conducted between ${project.date || new Date().toISOString().slice(0, 10)} and ${new Date().toISOString().slice(0, 10)} as a time-boxed security review.`,
-            "The scope is limited to the smart contract source code listed in the Scope Table above.",
-            "This review does not constitute a formal mathematical verification of the contract's correctness.",
-            "Findings and severity ratings are based on the auditor's professional judgment at the time of review.",
-            "This audit does not constitute financial, legal, or investment advice.",
-            "The security of the deployed contract also depends on factors outside the scope of this audit.",
-          ],
-          disclaimer: "DISCLAIMER & LIMITATION OF LIABILITY: This security audit report is provided 'as-is' for informational purposes only. Solay39 and its auditors make no representations or warranties, express or implied, regarding the completeness, accuracy, or reliability of this assessment.",
-        },
-        manualReview: manualReviewSession ? {
-          completedAt: manualReviewSession.completedAt,
-          auditorWalletEth: manualReviewSession.auditorWallet,
-          auditorWalletSol: manualReviewSession.solanaWallet,
-          checksCompleted: `${manualReviewSession.checksCompleted}/${manualReviewSession.checksTotal}`,
-          findingsConfirmed: manualReviewSession.confirmedFindings,
-          findingsRejected: manualReviewSession.rejectedFindings,
-          manualFindingsAdded: manualReviewSession.manualFindingsAdded,
-          signatureEth: manualReviewSession.signature,
-          signatureSol: manualReviewSession.solanaSignature,
-          reviewNotes: manualReviewSession.reviewNotes,
-        } : undefined,
-        securityChecklist: manualReviewSession?.checks?.map(c => ({
-          id: c.id,
-          category: c.category,
-          question: c.question,
-          why: c.why || "",
-          severity: c.severity,
-          status: c.status as "pass" | "fail" | "pending" | "n/a",
-          note: c.note || "",
-        })),
-        onChainAnalysis: (onChainAnalysisData || manualReviewSession?.onChainAnalysis) ? {
-          executiveSummary: onChainAnalysisData?.executiveSummary || manualReviewSession?.onChainAnalysis?.executiveSummary,
-          tokenEconomics: onChainAnalysisData?.tokenEconomics || manualReviewSession?.onChainAnalysis?.tokenEconomics,
-          whaleDistribution: onChainAnalysisData?.whaleDistribution || manualReviewSession?.onChainAnalysis?.whaleDistribution,
-          insiderWallets: onChainAnalysisData?.insiderWallets || manualReviewSession?.onChainAnalysis?.insiderWallets,
-          devWalletAnalysis: onChainAnalysisData?.devWalletAnalysis || manualReviewSession?.onChainAnalysis?.devWalletAnalysis,
-          supplyAnalysis: onChainAnalysisData?.supplyAnalysis || manualReviewSession?.onChainAnalysis?.supplyAnalysis,
-          rugPullRisk: onChainAnalysisData?.rugPullRisk || manualReviewSession?.onChainAnalysis?.rugPullRisk,
-          priceManipulation: onChainAnalysisData?.priceManipulation || manualReviewSession?.onChainAnalysis?.priceManipulation,
-          hiddenGovernance: onChainAnalysisData?.hiddenGovernance || manualReviewSession?.onChainAnalysis?.hiddenGovernance,
-          complexBugs: onChainAnalysisData?.complexBugs || manualReviewSession?.onChainAnalysis?.complexBugs,
-          liquidityAnalysis: onChainAnalysisData?.liquidityAnalysis || manualReviewSession?.onChainAnalysis?.liquidityAnalysis,
-          clusterAnalysis: onChainAnalysisData?.clusterAnalysis || manualReviewSession?.onChainAnalysis?.clusterAnalysis,
-          scenarioAnalysis: onChainAnalysisData?.scenarioAnalysis || manualReviewSession?.onChainAnalysis?.scenarioAnalysis,
-          recommendation: onChainAnalysisData?.recommendation || manualReviewSession?.onChainAnalysis?.recommendation,
-          overallRiskScore: onChainAnalysisData?.overallRiskScore || manualReviewSession?.onChainAnalysis?.overallRiskScore,
-          scores: onChainAnalysisData?.scores || manualReviewSession?.onChainAnalysis?.scores,
-          topHolders: onChainAnalysisData?.topHolders || manualReviewSession?.onChainAnalysis?.topHolders,
-        } : undefined,
-      }
-  // Generate the FULL HTML report (same as Export PDF - 38 pages)
-  // This HTML is saved to Supabase Storage and GitHub
-  // Users can open it in browser and Ctrl+P to save as PDF
-  console.log("[v0] Generating HTML report with tier1:", {
-    score,
-    findingsCount: findings.length,
-    hasPrivilegedRoles: tier1ForPDF.privilegedRoles?.length || 0,
-    hasTrustAssumptions: tier1ForPDF.trustAssumptions?.length || 0,
-    hasSecurityChecklist: tier1ForPDF.securityChecklist?.length || 0,
-    hasOnChainAnalysis: !!tier1ForPDF.onChainAnalysis,
-    hasManualReview: !!tier1ForPDF.manualReview,
-    hasEngagement: !!tier1ForPDF.engagement,
-  })
-  
-  const htmlReport = getAuditReportHTML(project, score, findings, tier1ForPDF)
-  const htmlSizeKB = Math.round((htmlReport?.length || 0) / 1024)
-  console.log("[v0] HTML report generated:", htmlSizeKB, "KB")
-  
-  // Full report should be ~150-300KB for 38 pages
-  // If less than 50KB, something is missing
-  if (!htmlReport || htmlReport.length < 1000) {
-    throw new Error("Report generation failed")
-  }
-  
-  if (htmlSizeKB < 50) {
-    console.warn("[v0] WARNING: HTML report seems small (", htmlSizeKB, "KB). Expected ~150-300KB for full report.")
-  }
-  
-  const res = await fetch("/api/publish", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      project: portfolioEntry,
-      htmlReport,
-      fileName,
-      portfolioData: portfolioEntry,
-    }),
-  })
-      const data = await res.json()
+      publishData = await res.json()
       setPublishResult({
-        success: data.success,
-        githubUrl: data.githubUrl || undefined,
-        githubError: data.githubError || undefined,
-        storageUrl: data.storageUrl || undefined,
-        message: data.message || undefined,
+        success: publishData.success as boolean,
+        githubUrl: publishData.githubUrl as string | undefined,
+        githubError: publishData.githubError as string | undefined,
+        storageUrl: publishData.storageUrl as string | undefined,
+        auditHash: publishData.auditHash as string | undefined,
+        message: publishData.message as string | undefined,
       })
     } catch (err) {
       setPublishResult({
@@ -1438,6 +1418,24 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         githubError: `Publish failed: ${err instanceof Error ? err.message : String(err)}`,
       })
     }
+
+    // ── Step 3.2: Salva in localStorage + Supabase ────────────────
+    // Includi htmlReport nel portfolioEntry salvato in Supabase così
+    // future republish non devono rigenerare da zero (evita score sbagliato)
+    const reportJson = JSON.stringify(portfolioEntry)
+    const sha256 = await computeReportHash(reportJson)
+    const reportIntegrity = buildReportIntegrity(portfolioEntry.id, sha256)
+    const enrichedEntry = {
+      ...portfolioEntry,
+      reportIntegrity,
+      // Includi htmlReport + githubUrl nel dato salvato in Supabase
+      htmlReport,
+      githubUrl: (publishData.githubUrl as string) || portfolioEntry.githubUrl,
+    }
+
+    // savePublishedAudit ora salva con htmlReport incluso →
+    // saveToBlobAsync non può più sovrascrivere Supabase con dati incompleti
+    savePublishedAudit(enrichedEntry)
 
     setPublishing(false)
   }
