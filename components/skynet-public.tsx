@@ -5710,6 +5710,12 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
               className="hidden sm:block w-36 bg-s39-bg2 border border-s39-border text-s39-lite p-1 px-2.5 text-[9px] font-mono outline-none focus:border-s39-green transition-colors"
             />
             <a
+              href="/skynet-pro"
+              className="text-[9px] text-s39-cyan border border-s39-cyan/30 px-3 py-1 tracking-widest hover:border-s39-cyan/60 transition-colors"
+            >
+              PRO
+            </a>
+            <a
               href={TG_URL}
               target="_blank"
               rel="noreferrer"

@@ -54,12 +54,13 @@ interface Props {
   contractAddress: string
   network: string
   onAnalysisComplete?: (result: AnalysisResult) => void
+  initialResult?: AnalysisResult | null
 }
 
-export function OnChainAnalysisPanel({ contractAddress, network, onAnalysisComplete }: Props) {
+export function OnChainAnalysisPanel({ contractAddress, network, onAnalysisComplete, initialResult }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<AnalysisResult | null>(null)
+  const [result, setResult] = useState<AnalysisResult | null>(initialResult || null)
   const [expandedSection, setExpandedSection] = useState<string | null>("summary")
   const [savedToAudit, setSavedToAudit] = useState(false)
 
