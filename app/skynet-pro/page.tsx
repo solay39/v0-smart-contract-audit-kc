@@ -114,7 +114,7 @@ export default function SkynetProPage() {
         const res = await fetch("/api/audits")
         const data = await res.json()
         if (data.audits && Array.isArray(data.audits)) {
-          setDbProjects(data.audits.slice(0, 20)) // Max 20 projects
+          setDbProjects(data.audits) // All projects from database
         }
       } catch (e) {
         console.error("Failed to load projects:", e)
@@ -130,7 +130,7 @@ export default function SkynetProPage() {
     if (dbProjects.length === 0) return
     
     const monitorProjects = async () => {
-      for (const p of dbProjects.slice(0, 5)) {
+      for (const p of dbProjects) {
         if (!p.contractAddress) continue
         try {
           const chainMap: Record<string, string> = {
@@ -173,7 +173,7 @@ export default function SkynetProPage() {
         merged.push(p as DbProject)
       }
     }
-    return merged.slice(0, 10)
+    return merged
   }, [dbProjects])
 
   useEffect(() => {
