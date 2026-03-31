@@ -59,11 +59,45 @@ function MarketTicker() {
   )
 }
 
+interface DbProject {
+  id: string
+  name: string
+  ticker?: string
+  network: string
+  score: number
+  contractAddress?: string
+  date: string
+  criticals: number
+  highs: number
+  mediums: number
+  scoreBreakdown?: {
+    codeSecurity: number
+    architectureRisk: number
+    governanceRisk: number
+    centralization: number
+    testingCoverage: number
+  }
+}
+
+interface MonitorAlert {
+  type: string
+  severity: string
+  details: string
+  timestamp: string
+}
+
 export default function SkynetProPage() {
   const [address, setAddress] = useState("")
   const [network, setNetwork] = useState("BSC")
   const [analyzing, setAnalyzing] = useState(false)
   const [result, setResult] = useState<any>(null)
+  
+  // Database projects (real audits from Supabase)
+  const [dbProjects, setDbProjects] = useState<DbProject[]>([])
+  const [loadingDb, setLoadingDb] = useState(true)
+  
+  // Real-time monitoring alerts
+  const [monitorAlerts, setMonitorAlerts] = useState<Record<string, MonitorAlert[]>>({})
 
   // Simulated live threats for the "Command Center" feel
   const [liveThreats, setLiveThreats] = useState<{id: number, msg: string, time: string, type: 'info' | 'warn' | 'error'}[]>([
@@ -72,6 +106,75 @@ export default function SkynetProPage() {
   ])
 
   const [firewallMode, setFirewallMode] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC')
+  
+  // Load projects from database
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const res = await fetch("/api/audits")
+        const data = await res.json()
+        if (data.audits && Array.isArray(data.audits)) {
+          setDbProjects(data.audits.slice(0, 20)) // Max 20 projects
+        }
+      } catch (e) {
+        console.error("Failed to load projects:", e)
+      } finally {
+        setLoadingDb(false)
+      }
+    }
+    loadProjects()
+  }, [])
+  
+  // Monitor contracts in real-time
+  useEffect(() => {
+    if (dbProjects.length === 0) return
+    
+    const monitorProjects = async () => {
+      for (const p of dbProjects.slice(0, 5)) {
+        if (!p.contractAddress) continue
+        try {
+          const chainMap: Record<string, string> = {
+            BSC: "bsc", "BNB Chain": "bsc", Ethereum: "ethereum", 
+            Solana: "solana", Arbitrum: "arbitrum", Base: "base"
+          }
+          const chain = chainMap[p.network] || "bsc"
+          const res = await fetch(`/api/skynet-monitor?address=${p.contractAddress}&chain=${chain}`)
+          const data = await res.json()
+          if (data.alerts && data.alerts.length > 0) {
+            setMonitorAlerts(prev => ({ ...prev, [p.id]: data.alerts }))
+            // Add to live threats
+            const criticalAlert = data.alerts.find((a: MonitorAlert) => a.severity === "CRITICAL" || a.severity === "HIGH")
+            if (criticalAlert) {
+              setLiveThreats(prev => [{
+                id: Date.now(),
+                msg: `${p.name}: ${criticalAlert.details}`,
+                time: new Date().toLocaleTimeString(),
+                type: criticalAlert.severity === "CRITICAL" ? 'error' : 'warn'
+              }, ...prev.slice(0, 5)])
+            }
+          }
+        } catch { /* silent */ }
+        // Rate limit
+        await new Promise(r => setTimeout(r, 2000))
+      }
+    }
+    
+    monitorProjects()
+    const interval = setInterval(monitorProjects, 60000) // Every 60s
+    return () => clearInterval(interval)
+  }, [dbProjects])
+  
+  // Merge DEFAULT_PROJECTS with dbProjects (db takes priority)
+  const allProjects = useMemo(() => {
+    const merged = [...dbProjects]
+    const dbIds = new Set(dbProjects.map(p => p.id))
+    for (const p of DEFAULT_PROJECTS) {
+      if (!dbIds.has(p.id)) {
+        merged.push(p as DbProject)
+      }
+    }
+    return merged.slice(0, 10)
+  }, [dbProjects])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -264,7 +367,12 @@ export default function SkynetProPage() {
           <section className="bg-[#0a0e14] border border-[#1e2a3a] p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-[10px] text-[#00e5ff] tracking-[0.2em] uppercase font-bold">Global Market Monitoring</h2>
-              <div className="text-[9px] text-[#445566]">Scanning {DEFAULT_PROJECTS.length} Security Verified Assets</div>
+              <div className="flex items-center gap-3">
+                {loadingDb && <div className="w-2 h-2 rounded-full bg-[#ffd600] animate-pulse" />}
+                <div className="text-[9px] text-[#445566]">
+                  {loadingDb ? "Loading from database..." : `Scanning ${allProjects.length} Security Verified Assets`}
+                </div>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -273,57 +381,75 @@ export default function SkynetProPage() {
                     <th className="py-3 px-2">Project</th>
                     <th className="py-3 px-2">Network</th>
                     <th className="py-3 px-2">Security Score</th>
-                    <th className="py-3 px-2">Risk Status</th>
-                    <th className="py-3 px-2">Market Action</th>
+                    <th className="py-3 px-2">Threats</th>
+                    <th className="py-3 px-2">Status</th>
                   </tr>
                 </thead>
                 <tbody className="text-[10px]">
-                  {DEFAULT_PROJECTS.slice(0, 5).map((p) => (
-                    <tr key={p.id} className="border-b border-[#1e2a3a]/50 hover:bg-[#00ff8805] transition-colors group">
-                      <td className="py-4 px-2">
-                        <div className="flex items-center gap-3">
-                          <div className="w-6 h-6 bg-[#00ff8811] flex items-center justify-center border border-[#00ff8822] text-[#00ff88] text-[8px] font-bold">
-                            {p.name.charAt(0)}
+                  {allProjects.map((p) => {
+                    const alerts = monitorAlerts[p.id] || []
+                    const hasCritical = alerts.some(a => a.severity === "CRITICAL")
+                    const hasHigh = alerts.some(a => a.severity === "HIGH")
+                    
+                    return (
+                      <tr key={p.id} className="border-b border-[#1e2a3a]/50 hover:bg-[#00ff8805] transition-colors group">
+                        <td className="py-4 px-2">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-6 h-6 flex items-center justify-center border text-[8px] font-bold ${
+                              hasCritical ? 'bg-[#ff2d5511] border-[#ff2d5522] text-[#ff2d55]' :
+                              hasHigh ? 'bg-[#ffd60011] border-[#ffd60022] text-[#ffd600]' :
+                              'bg-[#00ff8811] border-[#00ff8822] text-[#00ff88]'
+                            }`}>
+                              {p.name.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="font-bold text-[#c8d8e8]">{p.name}</div>
+                              <div className="text-[8px] text-[#445566] uppercase">{p.ticker || "TOKEN"}</div>
+                            </div>
                           </div>
-                          <div>
-                            <div className="font-bold text-[#c8d8e8]">{p.name}</div>
-                            <div className="text-[8px] text-[#445566] uppercase">{p.ticker || "TOKEN"}</div>
+                        </td>
+                        <td className="py-4 px-2 text-[#7a8c9e]">{p.network}</td>
+                        <td className="py-4 px-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-24 h-1 bg-[#1e2a3a] rounded-full overflow-hidden">
+                              <div className="h-full" style={{ width: `${p.score}%`, backgroundColor: scoreColor(p.score) }} />
+                            </div>
+                            <span className="font-bold font-mono" style={{ color: scoreColor(p.score) }}>{p.score}</span>
                           </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-2 text-[#7a8c9e]">{p.network}</td>
-                      <td className="py-4 px-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-24 h-1 bg-[#1e2a3a] rounded-full overflow-hidden">
-                            <div className="h-full" style={{ width: `${p.score}%`, backgroundColor: scoreColor(p.score) }} />
+                        </td>
+                        <td className="py-4 px-2">
+                          {alerts.length > 0 ? (
+                            <div className="flex items-center gap-1">
+                              {hasCritical && <span className="px-1.5 py-0.5 text-[7px] bg-[#ff2d5522] text-[#ff2d55] border border-[#ff2d5533]">CRIT</span>}
+                              {hasHigh && !hasCritical && <span className="px-1.5 py-0.5 text-[7px] bg-[#ffd60022] text-[#ffd600] border border-[#ffd60033]">HIGH</span>}
+                              <span className="text-[8px] text-[#7a8c9e]">{alerts.length} alert{alerts.length > 1 ? 's' : ''}</span>
+                            </div>
+                          ) : (
+                            <span className="text-[8px] text-[#445566]">No threats</span>
+                          )}
+                        </td>
+                        <td className="py-4 px-2">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                              hasCritical ? 'bg-[#ff2d55]' : hasHigh ? 'bg-[#ffd600]' : 'bg-[#00ff88]'
+                            }`} />
+                            <span className={`text-[8px] uppercase ${
+                              hasCritical ? 'text-[#ff2d55]' : hasHigh ? 'text-[#ffd600]' : 'text-[#7a8c9e]'
+                            }`}>
+                              {hasCritical ? 'ALERT' : hasHigh ? 'WARNING' : 'MONITORING'}
+                            </span>
                           </div>
-                          <span className="font-bold font-mono" style={{ color: scoreColor(p.score) }}>{p.score}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-2">
-                        <span className={`px-2 py-0.5 text-[8px] font-bold tracking-widest uppercase border ${
-                          p.score >= 90 ? 'bg-[#00ff8811] text-[#00ff88] border-[#00ff8833]' : 
-                          p.score >= 70 ? 'bg-[#ffd60011] text-[#ffd600] border-[#ffd60033]' : 
-                          'bg-[#ff2d5511] text-[#ff2d55] border-[#ff2d5533]'
-                        }`}>
-                          {p.score >= 90 ? 'SECURE' : p.score >= 70 ? 'WARNING' : 'CRITICAL'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-[#00ff88] animate-pulse" />
-                          <span className="text-[8px] text-[#7a8c9e] uppercase">Monitoring Live</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
             <div className="mt-6 flex justify-center">
-              <button className="text-[9px] text-[#445566] hover:text-[#00e5ff] uppercase tracking-widest transition-colors">
+              <a href="/" className="text-[9px] text-[#445566] hover:text-[#00e5ff] uppercase tracking-widest transition-colors">
                 View All Security Verified Assets (Full List)
-              </button>
+              </a>
             </div>
           </section>
 
