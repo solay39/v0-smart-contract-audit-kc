@@ -70,6 +70,7 @@ interface DbProject {
   criticals: number
   highs: number
   mediums: number
+  logoUrl?: string
   scoreBreakdown?: {
     codeSecurity: number
     architectureRisk: number
@@ -395,11 +396,27 @@ export default function SkynetProPage() {
                       <tr key={p.id} className="border-b border-[#1e2a3a]/50 hover:bg-[#00ff8805] transition-colors group">
                         <td className="py-4 px-2">
                           <div className="flex items-center gap-3">
-                            <div className={`w-6 h-6 flex items-center justify-center border text-[8px] font-bold ${
+                            {p.logoUrl ? (
+                              <img 
+                                src={p.logoUrl} 
+                                alt={p.name}
+                                className={`w-7 h-7 rounded-full object-cover border ${
+                                  hasCritical ? 'border-[#ff2d5544]' :
+                                  hasHigh ? 'border-[#ffd60044]' :
+                                  'border-[#00ff8844]'
+                                }`}
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none'
+                                  const fallback = (e.target as HTMLImageElement).nextElementSibling as HTMLElement
+                                  if (fallback) fallback.style.display = 'flex'
+                                }}
+                              />
+                            ) : null}
+                            <div className={`w-7 h-7 flex items-center justify-center border text-[9px] font-bold rounded-full ${
                               hasCritical ? 'bg-[#ff2d5511] border-[#ff2d5522] text-[#ff2d55]' :
                               hasHigh ? 'bg-[#ffd60011] border-[#ffd60022] text-[#ffd600]' :
                               'bg-[#00ff8811] border-[#00ff8822] text-[#00ff88]'
-                            }`}>
+                            }`} style={{ display: p.logoUrl ? 'none' : 'flex' }}>
                               {p.name.charAt(0)}
                             </div>
                             <div>
