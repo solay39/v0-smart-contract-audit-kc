@@ -5,7 +5,6 @@ import {
   CHECKLIST,
   computeScoreV2,
   ratingOf,
-  getWeightedScore,
   type Finding,
   type AuditProject,
   type SeverityLevel,
@@ -16,8 +15,7 @@ import {
 } from "@/lib/solay39-constants"
 import { isValidAddress, getExplorer, chainLanguage } from "@/lib/explorers"
 import { ScoreRing, S39Input, S39Btn, SevBadge } from "@/components/solay39-ui"
-import { exportPDF, getAuditReportHTML } from "@/lib/export-pdf"
-import { generatePDFBase64 } from "@/lib/generate-pdf"
+import { exportPDF } from "@/lib/export-pdf"
 import { savePublishedAudit } from "@/components/skynet-public"
 import { computeReportHash, buildReportIntegrity } from "@/lib/enterprise-standards"
 import Solay39Validator from "@/components/solay39-validator"
@@ -527,7 +525,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
 
   // ── Publish to Portfolio + GitHub ──
   const [publishing, setPublishing] = useState(false)
-  const [publishResult, setPublishResult] = useState<{ success?: boolean; githubUrl?: string; githubError?: string; storageUrl?: string; auditHash?: string; message?: string; error?: string } | null>(null)
+  const [publishResult, setPublishResult] = useState<{ success?: boolean; githubUrl?: string; githubError?: string; error?: string } | null>(null)
 
   const handleValidateAndPublish = async () => {
     const currentNetwork = project.network || "Ethereum"
@@ -1238,195 +1236,95 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       } : undefined,
     }
 
-    // ── Step 3: Score corretto — identico a getWeightedScore della piattaforma ──
-    // portfolioEntry.score è il valore raw (v2Result.final) ma la piattaforma
-    // mostra getWeightedScore(p) che usa scoreBreakdown. Usiamo lo stesso.
-    const displayScore = getWeightedScore(portfolioEntry)
-    portfolioEntry.score = displayScore
-    portfolioEntry.rating = ratingOf(displayScore)
+    // ── Step 3: Compute SHA-256 report integrity before saving ──
+    const reportJson = JSON.stringify(portfolioEntry)
+    const sha256 = await computeReportHash(reportJson)
+    const reportIntegrity = buildReportIntegrity(portfolioEntry.id, sha256)
+    const enrichedEntry = { ...portfolioEntry, reportIntegrity }
 
-    const fileName = `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${project.date || new Date().toISOString().slice(0, 10)}.pdf`
+    // ── Step 3.1: Save to local portfolio store ──
+    savePublishedAudit(enrichedEntry)
 
-    // Genera il tier1 completo per il PDF
-    const tier1ForPDF = {
-      privilegedRoles: privilegedRoles.length > 0 ? privilegedRoles : undefined,
-      trustAssumptions: trustAssumptions.length > 0 ? trustAssumptions : undefined,
-      architectureOverview: architectureOverview || undefined,
-      attackSurface: attackSurface.length > 0 ? attackSurface : undefined,
-      toolingUsed: toolingUsed.length > 0 ? toolingUsed : undefined,
-      governanceSecurity: governanceSecurity || undefined,
-      upgradeabilityAnalysis: upgradeabilityAnalysis || undefined,
-      economicRisks: economicRisks.length > 0 ? economicRisks : undefined,
-      integrationRisks: integrationRisks.length > 0 ? integrationRisks : undefined,
-      invariantsChecked: invariantsChecked.length > 0 ? invariantsChecked : undefined,
-      testingMethodology: testingMethodology || undefined,
-      engagement: aiEngagement ? (() => {
-        const auditDate = project.date || new Date().toISOString().slice(0, 10)
-        const deliveryDate = new Date().toISOString().slice(0, 10)
-        const start = new Date(auditDate)
-        const end = new Date(deliveryDate)
-        const realDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1)
-        const loc = (aiEngagement.linesOfCode as number) || contractMeta?.linesOfCode || 200
-        return {
-          auditDate,
-          deliveryDate,
-          auditDurationDays: realDays,
-          numberOfAuditors: 24,
-          engineeringHours: (() => {
-            if (loc <= 50) return 80
-            if (loc <= 150) return 160
-            if (loc <= 300) return 320
-            if (loc <= 600) return 480
-            if (loc <= 1000) return 800
-            return 1200
-          })(),
-          securityEngineersInvolved: 108,
-          leadAuditor: "Solay39 Founder",
-          compilerVersionUsed: (aiEngagement.compilerVersionUsed as string) || "N/A",
-          contractsReviewed: 1,
-          linesOfCode: (aiEngagement.linesOfCode as number) || 0,
-          commitHash: project.commit || "N/A",
-          objectives: (aiEngagement.objectives as string[]) || [],
-          auditId: (aiEngagement.auditId as string) || undefined,
-          reviewTeam: (aiEngagement.reviewTeam as Record<string, unknown>) || undefined,
-        }
-      })() : undefined,
-      scopeTable: aiScopeTable ? aiScopeTable.map((s) => ({
-        contract: String(s.contract || ""),
-        address: project.scope || "N/A",
-        commit: project.commit || "verified",
-        linesOfCode: Number(s.linesOfCode) || 0,
-        language: String(s.language || "Solidity"),
-      })) : undefined,
-      riskModel: {
-        methodology: "Likelihood x Impact severity matrix following OWASP and Halborn classification standards.",
-        severityMatrix: [
-          { level: "CRITICAL", likelihood: "High + High", description: "Directly exploitable, fund loss or protocol takeover." },
-          { level: "HIGH", likelihood: "High + Medium", description: "Exploitable with significant consequences." },
-          { level: "MEDIUM", likelihood: "Medium + Medium", description: "Moderate exploitability and impact." },
-          { level: "LOW", likelihood: "Low + Low/Medium", description: "Minor issue, limited exploitability." },
-          { level: "INFO", likelihood: "Informational", description: "Code quality, no security impact." },
-        ],
-        disclaimer: "Severity based on auditor professional judgment at time of review.",
-      },
-      auditorProfile: {
-        firmName: "Solay39",
-        description: "Independent smart contract security firm specializing in manual adversarial review combined with AI-guided static analysis.",
-        methodology: "Manual adversarial review + automated static analysis (Slither, Mythril) + AI-assisted pattern detection + on-chain bytecode verification.",
-        experience: ["ERC-20/ERC-721 security reviews", "DeFi protocol analysis", "Proxy & upgradeability audits"],
-        contactEmail: "solay2126@gmail.com",
-        telegram: "https://t.me/Solay39audit",
-      },
-      limitations: {
-        statements: [
-          `This audit was conducted between ${project.date || new Date().toISOString().slice(0, 10)} and ${new Date().toISOString().slice(0, 10)} as a time-boxed security review.`,
-          "The scope is limited to the smart contract source code listed in the Scope Table above.",
-          "This review does not constitute a formal mathematical verification of the contract's correctness.",
-          "Findings and severity ratings are based on the auditor's professional judgment at the time of review.",
-          "This audit does not constitute financial, legal, or investment advice.",
-          "The security of the deployed contract also depends on factors outside the scope of this audit.",
-        ],
-        disclaimer: "DISCLAIMER & LIMITATION OF LIABILITY: This security audit report is provided 'as-is' for informational purposes only. Solay39 and its auditors make no representations or warranties, express or implied, regarding the completeness, accuracy, or reliability of this assessment.",
-      },
-      manualReview: manualReviewSession ? {
-        completedAt: manualReviewSession.completedAt,
-        auditorWalletEth: manualReviewSession.auditorWallet,
-        auditorWalletSol: manualReviewSession.solanaWallet,
-        checksCompleted: `${manualReviewSession.checksCompleted}/${manualReviewSession.checksTotal}`,
-        findingsConfirmed: manualReviewSession.confirmedFindings,
-        findingsRejected: manualReviewSession.rejectedFindings,
-        manualFindingsAdded: manualReviewSession.manualFindingsAdded,
-        signatureEth: manualReviewSession.signature,
-        signatureSol: manualReviewSession.solanaSignature,
-        reviewNotes: manualReviewSession.reviewNotes,
-      } : undefined,
-      securityChecklist: manualReviewSession?.checks?.map(c => ({
-        id: c.id,
-        category: c.category,
-        question: c.question,
-        why: c.why || "",
-        severity: c.severity,
-        status: c.status as "pass" | "fail" | "pending" | "n/a",
-        note: c.note || "",
-      })),
-      onChainAnalysis: (onChainAnalysisData || manualReviewSession?.onChainAnalysis) ? {
-        executiveSummary: onChainAnalysisData?.executiveSummary || manualReviewSession?.onChainAnalysis?.executiveSummary,
-        tokenEconomics: onChainAnalysisData?.tokenEconomics || manualReviewSession?.onChainAnalysis?.tokenEconomics,
-        whaleDistribution: onChainAnalysisData?.whaleDistribution || manualReviewSession?.onChainAnalysis?.whaleDistribution,
-        insiderWallets: onChainAnalysisData?.insiderWallets || manualReviewSession?.onChainAnalysis?.insiderWallets,
-        devWalletAnalysis: onChainAnalysisData?.devWalletAnalysis || manualReviewSession?.onChainAnalysis?.devWalletAnalysis,
-        supplyAnalysis: onChainAnalysisData?.supplyAnalysis || manualReviewSession?.onChainAnalysis?.supplyAnalysis,
-        rugPullRisk: onChainAnalysisData?.rugPullRisk || manualReviewSession?.onChainAnalysis?.rugPullRisk,
-        priceManipulation: onChainAnalysisData?.priceManipulation || manualReviewSession?.onChainAnalysis?.priceManipulation,
-        hiddenGovernance: onChainAnalysisData?.hiddenGovernance || manualReviewSession?.onChainAnalysis?.hiddenGovernance,
-        complexBugs: onChainAnalysisData?.complexBugs || manualReviewSession?.onChainAnalysis?.complexBugs,
-        liquidityAnalysis: onChainAnalysisData?.liquidityAnalysis || manualReviewSession?.onChainAnalysis?.liquidityAnalysis,
-        clusterAnalysis: onChainAnalysisData?.clusterAnalysis || manualReviewSession?.onChainAnalysis?.clusterAnalysis,
-        scenarioAnalysis: onChainAnalysisData?.scenarioAnalysis || manualReviewSession?.onChainAnalysis?.scenarioAnalysis,
-        recommendation: onChainAnalysisData?.recommendation || manualReviewSession?.onChainAnalysis?.recommendation,
-        overallRiskScore: onChainAnalysisData?.overallRiskScore || manualReviewSession?.onChainAnalysis?.overallRiskScore,
-        scores: onChainAnalysisData?.scores || manualReviewSession?.onChainAnalysis?.scores,
-        topHolders: onChainAnalysisData?.topHolders || manualReviewSession?.onChainAnalysis?.topHolders,
-      } : undefined,
-    }
-
-    // Generate HTML report BEFORE saving to avoid race condition
-    const htmlReport = getAuditReportHTML(project, portfolioEntry.score, findings, tier1ForPDF)
-    const htmlSizeKB = Math.round((htmlReport?.length || 0) / 1024)
-
-    if (!htmlReport || htmlReport.length < 1000) {
-      throw new Error("Report generation failed")
-    }
-
-    // ── Step 3.1: Pubblica su GitHub + Supabase (con htmlReport) ──
-    // IMPORTANTE: /api/publish salva htmlReport in Supabase.
-    // savePublishedAudit viene chiamato DOPO con portfolioEntry che include
-    // già htmlReport → saveToBlobAsync non sovrascrive Supabase senza htmlReport.
-    let publishData: Record<string, unknown> = {}
+    // ── Step 3.5: Save to Vercel Blob for server-side persistence ──
     try {
+      await fetch("/api/audits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audit: enrichedEntry }),
+      })
+    } catch {
+      // Non-critical: localStorage is the primary fallback
+      console.warn("Failed to persist audit to server Blob")
+    }
+
+    // ── Step 4: Upload to GitHub ──
+    try {
+      const baseName = `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${project.date || new Date().toISOString().slice(0, 10)}`
+      
+      // Generate full HTML report using the exportPDF helper
+      const reportHtml = exportPDF(project, score, findings, {
+        privilegedRoles: portfolioEntry.privilegedRoles,
+        trustAssumptions: portfolioEntry.trustAssumptions,
+        architectureOverview: portfolioEntry.architectureOverview,
+        attackSurface: portfolioEntry.attackSurface,
+        toolingUsed: portfolioEntry.toolingUsed,
+        onChainValidation: portfolioEntry.onChainValidation,
+        governanceSecurity: portfolioEntry.governanceSecurity,
+        upgradeabilityAnalysis: portfolioEntry.upgradeabilityAnalysis,
+        economicRisks: portfolioEntry.economicRisks,
+        integrationRisks: portfolioEntry.integrationRisks,
+        invariantsChecked: portfolioEntry.invariantsChecked,
+        testingMethodology: portfolioEntry.testingMethodology,
+        engagement: portfolioEntry.engagement,
+        scopeTable: portfolioEntry.scopeTable,
+        riskModel: portfolioEntry.riskModel,
+        auditorProfile: portfolioEntry.auditorProfile,
+        limitations: portfolioEntry.limitations,
+        manualReview: portfolioEntry.manualReview,
+        securityChecklist: portfolioEntry.securityChecklist,
+        onChainAnalysis: portfolioEntry.onChainAnalysis,
+      })
+
+      // Prepare files for GitHub upload (JSON for data, HTML for viewing, Markdown summary)
+      const files = [
+        {
+          path: `audits/${baseName}.json`,
+          content: btoa(unescape(encodeURIComponent(JSON.stringify(enrichedEntry, null, 2)))),
+          message: `[Solay39 Audit] ${project.name} - Full JSON Data`,
+        },
+        {
+          path: `audits/${baseName}.html`,
+          content: btoa(unescape(encodeURIComponent(reportHtml))),
+          message: `[Solay39 Audit] ${project.name} - Full HTML Report`,
+        },
+        {
+          path: `audits/${baseName}.md`,
+          content: btoa(unescape(encodeURIComponent(`# SOLAY39 Audit: ${project.name}\n\n## Summary\n- **Score:** ${score}/100\n- **Rating:** ${ratingOf(score)}\n- **Date:** ${project.date || new Date().toISOString().slice(0, 10)}\n\n## Findings Summary\n${findings.length > 0 ? findings.map(f => `- [${f.severity}] ${f.title} (${f.status})`).join("\n") : "No findings identified."}\n\n---\n*Report generated by Solay39 Security Engine*`))),
+          message: `[Solay39 Audit] ${project.name} - Markdown Summary`,
+        }
+      ]
+
       const res = await fetch("/api/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           project: portfolioEntry,
-          htmlReport,
-          fileName,
+          files,
           portfolioData: portfolioEntry,
         }),
       })
-      publishData = await res.json()
+      const data = await res.json()
       setPublishResult({
-        success: publishData.success as boolean,
-        githubUrl: publishData.githubUrl as string | undefined,
-        githubError: publishData.githubError as string | undefined,
-        storageUrl: publishData.storageUrl as string | undefined,
-        auditHash: publishData.auditHash as string | undefined,
-        message: publishData.message as string | undefined,
+        success: true,
+        githubUrl: data.githubUrl || undefined,
+        githubError: data.githubError || undefined,
       })
     } catch (err) {
       setPublishResult({
-        success: false,
-        githubError: `Publish failed: ${err instanceof Error ? err.message : String(err)}`,
+        success: true,
+        githubError: `GitHub upload failed: ${err instanceof Error ? err.message : String(err)}`,
       })
     }
-
-    // ── Step 3.2: Salva in localStorage + Supabase ────────────────
-    // Includi htmlReport nel portfolioEntry salvato in Supabase così
-    // future republish non devono rigenerare da zero (evita score sbagliato)
-    const reportJson = JSON.stringify(portfolioEntry)
-    const sha256 = await computeReportHash(reportJson)
-    const reportIntegrity = buildReportIntegrity(portfolioEntry.id, sha256)
-    const enrichedEntry = {
-      ...portfolioEntry,
-      reportIntegrity,
-      // Includi htmlReport + githubUrl nel dato salvato in Supabase
-      htmlReport,
-      githubUrl: (publishData.githubUrl as string) || portfolioEntry.githubUrl,
-    }
-
-    // savePublishedAudit ora salva con htmlReport incluso →
-    // saveToBlobAsync non può più sovrascrivere Supabase con dati incompleti
-    savePublishedAudit(enrichedEntry)
 
     setPublishing(false)
   }
@@ -1877,39 +1775,24 @@ const TABS: [TabId, string][] = [
                       ? "bg-[#160005] text-s39-red border border-s39-red/20"
                       : "bg-[#001608] text-s39-green border border-s39-green/20"
                   }`}>
-  {publishResult.error
-    ? publishResult.error
-    : publishResult.message || "Published to portfolio!"}
-  {publishResult.storageUrl && (
-    <a
-      href={publishResult.storageUrl}
-      target="_blank"
-      rel="noreferrer"
-      className="block mt-1 text-s39-green underline"
-    >
-      Download Report (open in browser, Ctrl+P to save as PDF)
-    </a>
-  )}
-  {publishResult.auditHash && (
-    <div className="mt-1 text-s39-muted text-[8px] font-mono">
-      SHA256: {publishResult.auditHash.slice(0, 32)}...
-    </div>
-  )}
-  {publishResult.githubUrl && (
-    <a
-      href={publishResult.githubUrl}
-      target="_blank"
-      rel="noreferrer"
-      className="block mt-1 text-s39-cyan underline"
-    >
-      View on GitHub
-    </a>
-  )}
-  {publishResult.githubError && (
-    <div className="mt-1 text-s39-orange text-[8px]">
-      {publishResult.githubError}
-    </div>
-  )}
+                    {publishResult.error
+                      ? publishResult.error
+                      : "Published to portfolio!"}
+                    {publishResult.githubUrl && (
+                      <a
+                        href={publishResult.githubUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block mt-1 text-s39-cyan underline"
+                      >
+                        View on GitHub
+                      </a>
+                    )}
+                    {publishResult.githubError && (
+                      <div className="mt-1 text-s39-orange text-[8px]">
+                        {publishResult.githubError}
+                      </div>
+                    )}
                   </div>
                 )}
                 <S39Btn
