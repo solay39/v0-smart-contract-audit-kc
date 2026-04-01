@@ -168,9 +168,8 @@ export function exportMarkdown(project: AuditProject, rawScore: number, findings
 }
 
 /**
- * getAuditReportHTML — generates the full 38-page HTML report as a string.
- * Used by server-side APIs (force-publish, bulk-fix-github, republish)
- * to generate the report without needing `window`.
+ * getAuditReportHTML — generates the full HTML report as a string.
+ * Used by server-side APIs (force-publish, bulk-fix-github, republish).
  */
 export function getAuditReportHTML(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data): string {
   return _buildReportHTML(project, rawScore, findings, tier1)
