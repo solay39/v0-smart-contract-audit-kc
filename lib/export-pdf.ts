@@ -71,18 +71,103 @@ interface Tier1Data {
   }
 }
 
-export function exportPDF(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data) {
-  const html = _buildFullHTML(project, rawScore, findings, tier1)
-  const w = window.open("", "_blank")
-  if (w) {
-    w.document.write(html)
-    w.document.close()
-    setTimeout(() => w.print(), 800)
+export function exportMarkdown(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data, repoPath?: string) {
+  const score = Math.min(rawScore, 98)
+  const rat = ratingOf(score)
+  const today = project.date || new Date().toISOString().slice(0, 10)
+  const scoreColor = score >= 90 ? "brightgreen" : score >= 70 ? "yellow" : "orange"
+  
+  // Use a GitHub HTML previewer link if repoPath is provided
+  const htmlPreviewUrl = repoPath ? `https://htmlpreview.github.io/?https://github.com/${repoPath}/blob/main/audits/SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${today}.html` : null
+
+  let md = `# SOLAY39 Security Audit: ${project.name}\n\n`
+  
+  // Header with Logo if available
+  if (tier1?.onChainAnalysis?.tokenSymbol) {
+    const symbol = tier1.onChainAnalysis.tokenSymbol
+    md += `![${symbol} Logo](https://img.shields.io/badge/Token-${symbol}-00ff88?style=for-the-badge) `
   }
+  md += `![Security Score](https://img.shields.io/badge/Security_Score-${score}%2F100-${scoreColor}?style=for-the-badge) `
+  md += `![Rating](https://img.shields.io/badge/Rating-${rat.replace(/\s+/g, "_")}-blue?style=for-the-badge)\n\n`
+
+  if (htmlPreviewUrl) {
+    md += `> [!TIP]\n> **[View Interactive HTML Report](${htmlPreviewUrl})** for full graphics, charts, and detailed analysis.\n\n`
+  }
+
+  md += `## 1. Executive Summary\n\n`
+  md += `| Category | Details |\n`
+  md += `| :--- | :--- |\n`
+  md += `| **Project Name** | ${project.name} |\n`
+  md += `| **Network** | ${project.network} |\n`
+  md += `| **Audit Date** | ${today} |\n`
+  md += `| **Commit Hash** | \`${project.commit || "N/A"}\` |\n`
+  md += `| **Final Score** | **${score}/100** |\n`
+  md += `| **Overall Rating** | **${rat}** |\n\n`
+
+  if (tier1?.onChainAnalysis?.executiveSummary) {
+    md += `### AI Executive Insights\n${tier1.onChainAnalysis.executiveSummary}\n\n`
+  }
+
+  md += `## 2. Findings Summary\n\n`
+  const counts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 } as Record<string, number>
+  findings.forEach(f => { if (counts[f.severity] !== undefined) counts[f.severity]++ })
+
+  md += `| Severity | Count | Status |\n`
+  md += `| :--- | :--- | :--- |\n`
+  md += `| ![Critical](https://img.shields.io/badge/CRITICAL-${counts.CRITICAL}-red) | ${counts.CRITICAL} | ${findings.filter(f => f.severity === 'CRITICAL' && f.status === 'RESOLVED').length} Fixed |\n`
+  md += `| ![High](https://img.shields.io/badge/HIGH-${counts.HIGH}-orange) | ${counts.HIGH} | ${findings.filter(f => f.severity === 'HIGH' && f.status === 'RESOLVED').length} Fixed |\n`
+  md += `| ![Medium](https://img.shields.io/badge/MEDIUM-${counts.MEDIUM}-yellow) | ${counts.MEDIUM} | ${findings.filter(f => f.severity === 'MEDIUM' && f.status === 'RESOLVED').length} Fixed |\n`
+  md += `| ![Low](https://img.shields.io/badge/LOW-${counts.LOW}-blue) | ${counts.LOW} | ${findings.filter(f => f.severity === 'LOW' && f.status === 'RESOLVED').length} Fixed |\n`
+  md += `| ![Info](https://img.shields.io/badge/INFO-${counts.INFO}-lightgrey) | ${counts.INFO} | ${findings.filter(f => f.severity === 'INFO' && f.status === 'RESOLVED').length} Fixed |\n\n`
+
+  md += `## 3. Detailed Findings\n\n`
+  if (findings.length === 0) {
+    md += `*No security issues were identified during this audit.*\n\n`
+  } else {
+    findings.forEach((f, i) => {
+      md += `### [${f.severity}] ${f.title} (${f.status})\n`
+      md += `**Location:** \`${f.location}\`  \n`
+      md += `**Impact:** ${f.impact}  \n\n`
+      md += `#### Description\n${f.description}\n\n`
+      md += `#### Recommendation\n${f.recommendation}\n\n`
+      if (f.proofOfConcept) {
+        md += `#### Proof of Concept\n\`\`\`solidity\n${f.proofOfConcept}\n\`\`\`\n\n`
+      }
+      md += `---\n\n`
+    })
+  }
+
+  if (tier1?.privilegedRoles && tier1.privilegedRoles.length > 0) {
+    md += `## 4. Privileged Roles\n\n`
+    md += `| Role | Description |\n`
+    md += `| :--- | :--- |\n`
+    tier1.privilegedRoles.forEach(r => {
+      md += `| **${r.name}** | ${r.description} |\n`
+    })
+    md += `\n`
+  }
+
+  if (tier1?.onChainAnalysis) {
+    md += `## 5. On-Chain & Economic Analysis\n\n`
+    if (tier1.onChainAnalysis.tokenEconomics) md += `### Token Economics\n${tier1.onChainAnalysis.tokenEconomics}\n\n`
+    if (tier1.onChainAnalysis.whaleDistribution) md += `### Whale Distribution\n${tier1.onChainAnalysis.whaleDistribution}\n\n`
+    if (tier1.onChainAnalysis.liquidityAnalysis) md += `### Liquidity Analysis\n${tier1.onChainAnalysis.liquidityAnalysis}\n\n`
+  }
+
+  md += `## 6. Audit Methodology\n\n`
+  md += `This audit was performed using the **Solay39 Manual-First Framework**, which combines automated static analysis, symbolic execution, and expert manual review.\n\n`
+  if (tier1?.toolingUsed && tier1.toolingUsed.length > 0) {
+    md += `**Tools Used:** ${tier1.toolingUsed.join(", ")}\n\n`
+  }
+
+  md += `---\n`
+  md += `*Report generated by **Solay39 Security Engine** on ${today}.*\n`
+  md += `*For more information, visit [solay39.eu](https://solay39.eu)*\n`
+
+  return md
 }
 
-/** @internal — builds the complete audit HTML used by exportPDF and getAuditReportHTML */
-function _buildFullHTML(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data): string {
+export function exportPDF(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data) {
   const score = Math.min(rawScore, 98) // Never 100 — security is risk reduction, not perfection
   const rat = ratingOf(score)
   const sc = score >= 90 ? "#00ff88" : score >= 70 ? "#ffd600" : "#ff6b00"
@@ -804,7 +889,7 @@ ${(() => {
     { role: "Protocol Specialists", count: 28, focus: "DeFi mechanics, economic attacks, cross-chain security" },
     { role: "Static Analysis Engineers", count: 18, focus: "Slither, Mythril, Semgrep, custom detectors" },
     { role: "Fuzzing & Testing Team", count: 22, focus: "Foundry, Echidna, invariant testing, coverage analysis" },
-    { role: "Formal Verification Team", count: 8, focus: "Halmos, symbolic execution, mathematical proofs" },
+    { role: "Formal Verification Team", count: 8, focus: "Certora, symbolic execution, mathematical proofs" },
     { role: "AI/ML Security Team", count: 8, focus: "AI-assisted analysis, pattern recognition, anomaly detection" },
   ]
   
@@ -1160,13 +1245,10 @@ ${page(
 
 </body></html>`
 
-  return html
-}
-
-/**
- * Returns the FULL HTML report as a string — identical to what exportPDF renders.
- * Used for GitHub upload so the PDF on GitHub matches the web page exactly.
- */
-export function getAuditReportHTML(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data): string {
-  return _buildFullHTML(project, rawScore, findings, tier1)
+  const w = window.open("", "_blank")
+  if (w) {
+    w.document.write(html)
+    w.document.close()
+    setTimeout(() => w.print(), 800)
+  }
 }
