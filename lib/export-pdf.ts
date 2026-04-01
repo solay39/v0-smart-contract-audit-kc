@@ -167,7 +167,33 @@ export function exportMarkdown(project: AuditProject, rawScore: number, findings
   return md
 }
 
+/**
+ * getAuditReportHTML — generates the full 38-page HTML report as a string.
+ * Used by server-side APIs (force-publish, bulk-fix-github, republish)
+ * to generate the report without needing `window`.
+ */
+export function getAuditReportHTML(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data): string {
+  return _buildReportHTML(project, rawScore, findings, tier1)
+}
+
+/**
+ * exportPDF — opens the HTML report in a new browser window for printing.
+ * Client-side only (uses window.open).
+ */
 export function exportPDF(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data) {
+  const html = _buildReportHTML(project, rawScore, findings, tier1)
+  const w = window.open("", "_blank")
+  if (w) {
+    w.document.write(html)
+    w.document.close()
+    setTimeout(() => w.print(), 800)
+  }
+}
+
+/**
+ * Internal: builds the full HTML report string.
+ */
+function _buildReportHTML(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data): string {
   const score = Math.min(rawScore, 98) // Never 100 — security is risk reduction, not perfection
   const rat = ratingOf(score)
   const sc = score >= 90 ? "#00ff88" : score >= 70 ? "#ffd600" : "#ff6b00"
@@ -1245,10 +1271,5 @@ ${page(
 
 </body></html>`
 
-  const w = window.open("", "_blank")
-  if (w) {
-    w.document.write(html)
-    w.document.close()
-    setTimeout(() => w.print(), 800)
-  }
+  return html
 }
