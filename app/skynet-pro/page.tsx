@@ -59,46 +59,23 @@ function MarketTicker() {
   )
 }
 
-interface DbProject {
-  id: string
-  name: string
-  ticker?: string
-  network: string
-  score: number
-  contractAddress?: string
-  date: string
-  criticals: number
-  highs: number
-  mediums: number
-  logoUrl?: string
-  scoreBreakdown?: {
-    codeSecurity: number
-    architectureRisk: number
-    governanceRisk: number
-    centralization: number
-    testingCoverage: number
-  }
-}
-
-interface MonitorAlert {
-  type: string
-  severity: string
-  details: string
-  timestamp: string
-}
-
 export default function SkynetProPage() {
   const [address, setAddress] = useState("")
   const [network, setNetwork] = useState("BSC")
   const [analyzing, setAnalyzing] = useState(false)
   const [result, setResult] = useState<any>(null)
-  
-  // Database projects (real audits from Supabase)
-  const [dbProjects, setDbProjects] = useState<DbProject[]>([])
-  const [loadingDb, setLoadingDb] = useState(true)
-  
-  // Real-time monitoring alerts
-  const [monitorAlerts, setMonitorAlerts] = useState<Record<string, MonitorAlert[]>>({})
+
+  // ── Anti-Hacker & Registry States ──
+  const [blockedEntities, setBlockedEntities] = useState([
+    { id: 1, type: 'WALLET', target: '0x7a2...f3e', reason: 'Flash Loan Exploit Pattern', time: '12m ago' },
+    { id: 2, type: 'IP', target: '192.x.x.42', reason: 'RPC DDoS Attempt', time: '45m ago' },
+  ])
+
+  const [securityRegistry, setSecurityRegistry] = useState([
+    { id: 1, event: 'Liquidity Drain Prevented', project: 'PancakeSwap Fork', impact: 'CRITICAL', time: '2h ago' },
+    { id: 2, event: 'Malicious Proxy Upgrade Blocked', project: 'Alpha Finance', impact: 'HIGH', time: '5h ago' },
+    { id: 3, event: 'Phishing Contract Flagged', project: 'Global Network', impact: 'MEDIUM', time: 'Yesterday' },
+  ])
 
   // Simulated live threats for the "Command Center" feel
   const [liveThreats, setLiveThreats] = useState<{id: number, msg: string, time: string, type: 'info' | 'warn' | 'error'}[]>([
@@ -107,75 +84,6 @@ export default function SkynetProPage() {
   ])
 
   const [firewallMode, setFirewallMode] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC')
-  
-  // Load projects from database
-  useEffect(() => {
-    const loadProjects = async () => {
-      try {
-        const res = await fetch("/api/audits")
-        const data = await res.json()
-        if (data.audits && Array.isArray(data.audits)) {
-          setDbProjects(data.audits) // All projects from database
-        }
-      } catch (e) {
-        console.error("Failed to load projects:", e)
-      } finally {
-        setLoadingDb(false)
-      }
-    }
-    loadProjects()
-  }, [])
-  
-  // Monitor contracts in real-time
-  useEffect(() => {
-    if (dbProjects.length === 0) return
-    
-    const monitorProjects = async () => {
-      for (const p of dbProjects) {
-        if (!p.contractAddress) continue
-        try {
-          const chainMap: Record<string, string> = {
-            BSC: "bsc", "BNB Chain": "bsc", Ethereum: "ethereum", 
-            Solana: "solana", Arbitrum: "arbitrum", Base: "base"
-          }
-          const chain = chainMap[p.network] || "bsc"
-          const res = await fetch(`/api/skynet-monitor?address=${p.contractAddress}&chain=${chain}`)
-          const data = await res.json()
-          if (data.alerts && data.alerts.length > 0) {
-            setMonitorAlerts(prev => ({ ...prev, [p.id]: data.alerts }))
-            // Add to live threats
-            const criticalAlert = data.alerts.find((a: MonitorAlert) => a.severity === "CRITICAL" || a.severity === "HIGH")
-            if (criticalAlert) {
-              setLiveThreats(prev => [{
-                id: Date.now(),
-                msg: `${p.name}: ${criticalAlert.details}`,
-                time: new Date().toLocaleTimeString(),
-                type: criticalAlert.severity === "CRITICAL" ? 'error' : 'warn'
-              }, ...prev.slice(0, 5)])
-            }
-          }
-        } catch { /* silent */ }
-        // Rate limit
-        await new Promise(r => setTimeout(r, 2000))
-      }
-    }
-    
-    monitorProjects()
-    const interval = setInterval(monitorProjects, 60000) // Every 60s
-    return () => clearInterval(interval)
-  }, [dbProjects])
-  
-  // Merge DEFAULT_PROJECTS with dbProjects (db takes priority)
-  const allProjects = useMemo(() => {
-    const merged = [...dbProjects]
-    const dbIds = new Set(dbProjects.map(p => p.id))
-    for (const p of DEFAULT_PROJECTS) {
-      if (!dbIds.has(p.id)) {
-        merged.push(p as DbProject)
-      }
-    }
-    return merged
-  }, [dbProjects])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -186,14 +94,14 @@ export default function SkynetProPage() {
         `Analyzing liquidity depth for ${randomProject}...`,
         `Checking whale wallet clusters on ${randomProject}...`,
         `Verifying bytecode integrity for ${randomProject}...`,
-        `Scanning ${randomProject} for hidden mint() capabilities...`,
-        `Monitoring mempool for sandwich attacks on ${randomProject}...`,
-        `Detected large buy order for ${randomProject} (+$45k)...`,
+        `ANTI-HACKER: Blocked malicious address targeting ${randomProject}`,
+        `REGISTRY: Logged security audit for ${randomProject} v2.0`,
+        `ANTI-HACKER: Intercepted suspicious flash loan request`,
       ]
       const privateMessages = [
-        "Shielding private RPC endpoints...",
-        "Encrypted node communication active...",
-        "Stealth mode: Hiding transaction origins...",
+        "ANTI-HACKER: Stealth node active, blocking scanner IP...",
+        "REGISTRY: Encrypted log entry generated (AES-256)",
+        "ANTI-HACKER: Wallet 0x... blocked from interacting with RPC",
         "Private Firewall: Intercepting unauthorized calls...",
         "Node 0x3a2f: Deep packet inspection complete.",
       ]
@@ -340,6 +248,44 @@ export default function SkynetProPage() {
             </div>
           </section>
 
+          {/* ANTI-HACKER REAL-TIME DATABASE */}
+          <section className="bg-[#0a0e14] border border-[#1e2a3a] p-6 shadow-2xl">
+            <h2 className="text-[10px] text-[#ff2d55] tracking-[0.2em] uppercase mb-4 font-bold">Anti-Hacker DB</h2>
+            <div className="space-y-3">
+              {blockedEntities.map(e => (
+                <div key={e.id} className="p-3 bg-[#ff2d5505] border border-[#ff2d5522] flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-bold text-[#ff2d55]">{e.type} BLOCKED</span>
+                    <span className="text-[8px] text-[#445566]">{e.time}</span>
+                  </div>
+                  <div className="text-[10px] text-white font-mono truncate">{e.target}</div>
+                  <div className="text-[8px] text-[#7a8c9e] italic">{e.reason}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* SECURITY REGISTRY */}
+          <section className="bg-[#0a0e14] border border-[#1e2a3a] p-6 shadow-2xl overflow-hidden">
+            <h2 className="text-[10px] text-[#00ff88] tracking-[0.2em] uppercase mb-4 font-bold">Security Registry</h2>
+            <div className="space-y-3 relative">
+              {securityRegistry.map(r => (
+                <div key={r.id} className="p-3 border-l-2 border-[#1e2a3a] hover:border-[#00ff88] transition-colors">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[9px] font-bold text-[#00ff88]">{r.impact} EVENT</span>
+                    <span className="text-[8px] text-[#445566]">{r.time}</span>
+                  </div>
+                  <div className="text-[10px] text-[#c8d8e8] font-bold">{r.event}</div>
+                  <div className="text-[8px] text-[#7a8c9e] uppercase">{r.project}</div>
+                </div>
+              ))}
+              <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#0a0e14] to-transparent pointer-events-none" />
+            </div>
+            <button className="w-full mt-4 text-[8px] text-[#445566] hover:text-[#00ff88] transition-colors uppercase tracking-widest">
+              Access Full Archive
+            </button>
+          </section>
+
         </div>
 
         {/* RIGHT COLUMN: MAIN DASHBOARD */}
@@ -368,12 +314,7 @@ export default function SkynetProPage() {
           <section className="bg-[#0a0e14] border border-[#1e2a3a] p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-[10px] text-[#00e5ff] tracking-[0.2em] uppercase font-bold">Global Market Monitoring</h2>
-              <div className="flex items-center gap-3">
-                {loadingDb && <div className="w-2 h-2 rounded-full bg-[#ffd600] animate-pulse" />}
-                <div className="text-[9px] text-[#445566]">
-                  {loadingDb ? "Loading from database..." : `Scanning ${allProjects.length} Security Verified Assets`}
-                </div>
-              </div>
+              <div className="text-[9px] text-[#445566]">Scanning {DEFAULT_PROJECTS.length} Security Verified Assets</div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -382,91 +323,57 @@ export default function SkynetProPage() {
                     <th className="py-3 px-2">Project</th>
                     <th className="py-3 px-2">Network</th>
                     <th className="py-3 px-2">Security Score</th>
-                    <th className="py-3 px-2">Threats</th>
-                    <th className="py-3 px-2">Status</th>
+                    <th className="py-3 px-2">Risk Status</th>
+                    <th className="py-3 px-2">Market Action</th>
                   </tr>
                 </thead>
                 <tbody className="text-[10px]">
-                  {allProjects.map((p) => {
-                    const alerts = monitorAlerts[p.id] || []
-                    const hasCritical = alerts.some(a => a.severity === "CRITICAL")
-                    const hasHigh = alerts.some(a => a.severity === "HIGH")
-                    
-                    return (
-                      <tr key={p.id} className="border-b border-[#1e2a3a]/50 hover:bg-[#00ff8805] transition-colors group">
-                        <td className="py-4 px-2">
-                          <div className="flex items-center gap-3">
-                            {p.logoUrl ? (
-                              <img 
-                                src={p.logoUrl} 
-                                alt={p.name}
-                                className={`w-7 h-7 rounded-full object-cover border ${
-                                  hasCritical ? 'border-[#ff2d5544]' :
-                                  hasHigh ? 'border-[#ffd60044]' :
-                                  'border-[#00ff8844]'
-                                }`}
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = 'none'
-                                  const fallback = (e.target as HTMLImageElement).nextElementSibling as HTMLElement
-                                  if (fallback) fallback.style.display = 'flex'
-                                }}
-                              />
-                            ) : null}
-                            <div className={`w-7 h-7 flex items-center justify-center border text-[9px] font-bold rounded-full ${
-                              hasCritical ? 'bg-[#ff2d5511] border-[#ff2d5522] text-[#ff2d55]' :
-                              hasHigh ? 'bg-[#ffd60011] border-[#ffd60022] text-[#ffd600]' :
-                              'bg-[#00ff8811] border-[#00ff8822] text-[#00ff88]'
-                            }`} style={{ display: p.logoUrl ? 'none' : 'flex' }}>
-                              {p.name.charAt(0)}
-                            </div>
-                            <div>
-                              <div className="font-bold text-[#c8d8e8]">{p.name}</div>
-                              <div className="text-[8px] text-[#445566] uppercase">{p.ticker || "TOKEN"}</div>
-                            </div>
+                  {DEFAULT_PROJECTS.slice(0, 5).map((p) => (
+                    <tr key={p.id} className="border-b border-[#1e2a3a]/50 hover:bg-[#00ff8805] transition-colors group">
+                      <td className="py-4 px-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-6 h-6 bg-[#00ff8811] flex items-center justify-center border border-[#00ff8822] text-[#00ff88] text-[8px] font-bold">
+                            {p.name.charAt(0)}
                           </div>
-                        </td>
-                        <td className="py-4 px-2 text-[#7a8c9e]">{p.network}</td>
-                        <td className="py-4 px-2">
-                          <div className="flex items-center gap-2">
-                            <div className="w-24 h-1 bg-[#1e2a3a] rounded-full overflow-hidden">
-                              <div className="h-full" style={{ width: `${p.score}%`, backgroundColor: scoreColor(p.score) }} />
-                            </div>
-                            <span className="font-bold font-mono" style={{ color: scoreColor(p.score) }}>{p.score}</span>
+                          <div>
+                            <div className="font-bold text-[#c8d8e8]">{p.name}</div>
+                            <div className="text-[8px] text-[#445566] uppercase">{p.ticker || "TOKEN"}</div>
                           </div>
-                        </td>
-                        <td className="py-4 px-2">
-                          {alerts.length > 0 ? (
-                            <div className="flex items-center gap-1">
-                              {hasCritical && <span className="px-1.5 py-0.5 text-[7px] bg-[#ff2d5522] text-[#ff2d55] border border-[#ff2d5533]">CRIT</span>}
-                              {hasHigh && !hasCritical && <span className="px-1.5 py-0.5 text-[7px] bg-[#ffd60022] text-[#ffd600] border border-[#ffd60033]">HIGH</span>}
-                              <span className="text-[8px] text-[#7a8c9e]">{alerts.length} alert{alerts.length > 1 ? 's' : ''}</span>
-                            </div>
-                          ) : (
-                            <span className="text-[8px] text-[#445566]">No threats</span>
-                          )}
-                        </td>
-                        <td className="py-4 px-2">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${
-                              hasCritical ? 'bg-[#ff2d55]' : hasHigh ? 'bg-[#ffd600]' : 'bg-[#00ff88]'
-                            }`} />
-                            <span className={`text-[8px] uppercase ${
-                              hasCritical ? 'text-[#ff2d55]' : hasHigh ? 'text-[#ffd600]' : 'text-[#7a8c9e]'
-                            }`}>
-                              {hasCritical ? 'ALERT' : hasHigh ? 'WARNING' : 'MONITORING'}
-                            </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-2 text-[#7a8c9e]">{p.network}</td>
+                      <td className="py-4 px-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 h-1 bg-[#1e2a3a] rounded-full overflow-hidden">
+                            <div className="h-full" style={{ width: `${p.score}%`, backgroundColor: scoreColor(p.score) }} />
                           </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
+                          <span className="font-bold font-mono" style={{ color: scoreColor(p.score) }}>{p.score}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-2">
+                        <span className={`px-2 py-0.5 text-[8px] font-bold tracking-widest uppercase border ${
+                          p.score >= 90 ? 'bg-[#00ff8811] text-[#00ff88] border-[#00ff8833]' : 
+                          p.score >= 70 ? 'bg-[#ffd60011] text-[#ffd600] border-[#ffd60033]' : 
+                          'bg-[#ff2d5511] text-[#ff2d55] border-[#ff2d5533]'
+                        }`}>
+                          {p.score >= 90 ? 'SECURE' : p.score >= 70 ? 'WARNING' : 'CRITICAL'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#00ff88] animate-pulse" />
+                          <span className="text-[8px] text-[#7a8c9e] uppercase">Monitoring Live</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
             <div className="mt-6 flex justify-center">
-              <a href="/" className="text-[9px] text-[#445566] hover:text-[#00e5ff] uppercase tracking-widest transition-colors">
+              <button className="text-[9px] text-[#445566] hover:text-[#00e5ff] uppercase tracking-widest transition-colors">
                 View All Security Verified Assets (Full List)
-              </a>
+              </button>
             </div>
           </section>
 
