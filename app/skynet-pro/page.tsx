@@ -59,11 +59,59 @@ function MarketTicker() {
   )
 }
 
+interface DbProject {
+  id: string
+  name: string
+  ticker?: string
+  network: string
+  score: number
+  contractAddress?: string
+  logoUrl?: string
+  date: string
+  criticals: number
+  highs: number
+  mediums: number
+}
+
 export default function SkynetProPage() {
   const [address, setAddress] = useState("")
   const [network, setNetwork] = useState("BSC")
   const [analyzing, setAnalyzing] = useState(false)
   const [result, setResult] = useState<any>(null)
+  
+  // ── Database Projects (all audited tokens) ──
+  const [dbProjects, setDbProjects] = useState<DbProject[]>([])
+  const [loadingDb, setLoadingDb] = useState(true)
+  
+  // Load ALL projects from database
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const res = await fetch("/api/audits")
+        const data = await res.json()
+        if (data.audits && Array.isArray(data.audits)) {
+          setDbProjects(data.audits) // ALL projects, no limit
+        }
+      } catch (e) {
+        console.error("Failed to load projects:", e)
+      } finally {
+        setLoadingDb(false)
+      }
+    }
+    loadProjects()
+  }, [])
+  
+  // Merge database projects with DEFAULT_PROJECTS (db takes priority)
+  const allProjects = useMemo(() => {
+    const merged = [...dbProjects]
+    const dbIds = new Set(dbProjects.map(p => p.id))
+    for (const p of DEFAULT_PROJECTS) {
+      if (!dbIds.has(p.id)) {
+        merged.push(p as DbProject)
+      }
+    }
+    return merged
+  }, [dbProjects])
 
   // ── Anti-Hacker & Registry States ──
   const [blockedEntities, setBlockedEntities] = useState([
@@ -87,7 +135,7 @@ export default function SkynetProPage() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const projects = DEFAULT_PROJECTS.map(p => p.name)
+      const projects = allProjects.length > 0 ? allProjects.map(p => p.name) : DEFAULT_PROJECTS.map(p => p.name)
       const randomProject = projects[Math.floor(Math.random() * projects.length)]
 
       const publicMessages = [
@@ -314,7 +362,12 @@ export default function SkynetProPage() {
           <section className="bg-[#0a0e14] border border-[#1e2a3a] p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-[10px] text-[#00e5ff] tracking-[0.2em] uppercase font-bold">Global Market Monitoring</h2>
-              <div className="text-[9px] text-[#445566]">Scanning {DEFAULT_PROJECTS.length} Security Verified Assets</div>
+              <div className="flex items-center gap-3">
+                {loadingDb && <div className="w-2 h-2 rounded-full bg-[#ffd600] animate-pulse" />}
+                <div className="text-[9px] text-[#445566]">
+                  {loadingDb ? "Loading from database..." : `Scanning ${allProjects.length} Security Verified Assets`}
+                </div>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -328,11 +381,23 @@ export default function SkynetProPage() {
                   </tr>
                 </thead>
                 <tbody className="text-[10px]">
-                  {DEFAULT_PROJECTS.slice(0, 5).map((p) => (
+                  {allProjects.map((p) => (
                     <tr key={p.id} className="border-b border-[#1e2a3a]/50 hover:bg-[#00ff8805] transition-colors group">
                       <td className="py-4 px-2">
                         <div className="flex items-center gap-3">
-                          <div className="w-6 h-6 bg-[#00ff8811] flex items-center justify-center border border-[#00ff8822] text-[#00ff88] text-[8px] font-bold">
+                          {p.logoUrl ? (
+                            <img 
+                              src={p.logoUrl} 
+                              alt={p.name}
+                              className="w-7 h-7 rounded-full object-cover border border-[#00ff8844]"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none'
+                                const fallback = (e.target as HTMLImageElement).nextElementSibling as HTMLElement
+                                if (fallback) fallback.style.display = 'flex'
+                              }}
+                            />
+                          ) : null}
+                          <div className="w-7 h-7 bg-[#00ff8811] flex items-center justify-center border border-[#00ff8822] text-[#00ff88] text-[9px] font-bold rounded-full" style={{ display: p.logoUrl ? 'none' : 'flex' }}>
                             {p.name.charAt(0)}
                           </div>
                           <div>
