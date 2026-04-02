@@ -82,7 +82,12 @@ export function exportMarkdown(project: AuditProject, rawScore: number, findings
 
   let md = `# SOLAY39 Security Audit: ${project.name}\n\n`
   
-  // Header with Logo if available
+  // Token logo image (from API)
+  if ((project as any).logoUrl) {
+    md += `<p align="center"><img src="${(project as any).logoUrl}" alt="${project.name}" width="80" height="80" style="border-radius:50%"></p>\n\n`
+  }
+  
+  // Header with Logo badge if available
   if (tier1?.onChainAnalysis?.tokenSymbol) {
     const symbol = tier1.onChainAnalysis.tokenSymbol
     md += `![${symbol} Logo](https://img.shields.io/badge/Token-${symbol}-00ff88?style=for-the-badge) `
@@ -314,16 +319,26 @@ export function exportPDF(project: AuditProject, rawScore: number, findings: Fin
 </style></head><body>
 
 <!-- COVER -->
-<div style="min-height:100vh;display:flex;flex-direction:column;background:#050810;page-break-after:always">
-  <div style="height:5px;background:#00ff88"></div>
-  <div style="flex:1;padding:60px 56px;position:relative;display:flex;flex-direction:column;justify-content:center">
-    <div style="font-size:42px;font-weight:700;letter-spacing:.04em;color:#00ff88;text-shadow:0 0 40px #00ff8844">SOLAY39</div>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#050810;page-break-after:always;position:relative;overflow:hidden">
+  <!-- Background grid pattern -->
+  <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(0,255,136,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,136,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none"></div>
+  <!-- Radial glow -->
+  <div style="position:absolute;top:-120px;right:-120px;width:500px;height:500px;background:radial-gradient(circle,rgba(0,255,136,0.06) 0%,transparent 70%);pointer-events:none"></div>
+  <div style="height:5px;background:linear-gradient(90deg,#00ff88,#00e5ff,#00ff88);position:relative;z-index:1"></div>
+  <div style="flex:1;padding:60px 56px;position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:6px">
+      ${(project as any).logoUrl ? `<img src="${(project as any).logoUrl}" alt="${project.name}" style="width:52px;height:52px;border-radius:50%;border:2px solid #00ff8844;object-fit:cover" crossorigin="anonymous" onerror="this.style.display='none'">` : ""}
+      <div style="font-size:42px;font-weight:700;letter-spacing:.04em;color:#00ff88;text-shadow:0 0 40px #00ff8844">SOLAY39</div>
+    </div>
     <div style="font-size:9px;color:#445566;letter-spacing:.16em;margin-top:6px;margin-bottom:28px">// SECURING PROTOCOLS THROUGH DEEP HUMAN REVIEW</div>
-    <div style="height:1px;background:linear-gradient(90deg,#00ff88,transparent);width:160px;margin-bottom:28px"></div>
-    <div style="font-size:28px;font-weight:700;color:#eef4fa;margin-bottom:6px">${project.name || "Protocol"}</div>
-    <div style="font-size:13px;color:#7a8c9e;margin-bottom:4px">Smart Contracts</div>
+    <div style="height:1px;background:linear-gradient(90deg,#00ff88,#00e5ff,transparent);width:200px;margin-bottom:28px"></div>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:6px">
+      ${(project as any).logoUrl ? `<img src="${(project as any).logoUrl}" alt="${project.name}" style="width:36px;height:36px;border-radius:8px;border:1px solid #1e2a3a;object-fit:cover" crossorigin="anonymous" onerror="this.style.display='none'">` : ""}
+      <div style="font-size:28px;font-weight:700;color:#eef4fa">${project.name || "Protocol"}</div>
+    </div>
+    <div style="font-size:13px;color:#7a8c9e;margin-bottom:4px">${(project as any).ticker ? `$${(project as any).ticker} | ` : ""}Smart Contracts</div>
     <div style="font-size:13px;color:#7a8c9e;margin-bottom:0">Final Audit Report</div>
-    <div style="position:absolute;right:56px;top:50%;transform:translateY(-50%);background:#0d1117;border:1px solid #00ff8866;padding:28px 36px;text-align:center;min-width:155px">
+    <div style="position:absolute;right:56px;top:50%;transform:translateY(-50%);background:#0d1117;border:1px solid #00ff8866;padding:28px 36px;text-align:center;min-width:155px;box-shadow:0 0 60px rgba(0,255,136,0.08)">
       <div style="font-size:46px;font-weight:700;color:${sc};line-height:1">${score}</div>
       <div style="font-size:18px;font-weight:700;color:${sc};margin-top:5px">${rat}</div>
       <div style="font-size:7.5px;color:#445566;letter-spacing:.1em;margin-top:8px">SOLAY39 SECURITY SCORE</div>
