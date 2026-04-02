@@ -1282,7 +1282,13 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         limitations: portfolioEntry.limitations,
         manualReview: portfolioEntry.manualReview,
         securityChecklist: portfolioEntry.securityChecklist,
-        onChainAnalysis: portfolioEntry.onChainAnalysis,
+        onChainAnalysis: portfolioEntry.onChainAnalysis || {
+          tokenSymbol: onChainAnalysisData?.tokenSymbol || manualReviewSession?.onChainAnalysis?.tokenSymbol,
+          executiveSummary: onChainAnalysisData?.executiveSummary || manualReviewSession?.onChainAnalysis?.executiveSummary,
+          tokenEconomics: onChainAnalysisData?.tokenEconomics || manualReviewSession?.onChainAnalysis?.tokenEconomics,
+          whaleDistribution: onChainAnalysisData?.whaleDistribution || manualReviewSession?.onChainAnalysis?.whaleDistribution,
+          liquidityAnalysis: onChainAnalysisData?.liquidityAnalysis || manualReviewSession?.onChainAnalysis?.liquidityAnalysis,
+        },
       }
       
       const reportHtml = exportPDF(project, score, findings, tier1Data)
