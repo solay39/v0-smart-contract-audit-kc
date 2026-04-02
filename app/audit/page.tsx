@@ -24,14 +24,7 @@ export const metadata: Metadata = {
   },
 }
 
-// Google Ads conversion tracking helper
-function trackConversion() {
-  if (typeof window !== 'undefined' && (window as any).gtag) {
-    (window as any).gtag('event', 'conversion', {
-      'send_to': 'AW-XXXXXXXXX/YYYYYY' // Replace with your conversion ID
-    })
-  }
-}
+
 
 export default function AuditLandingPage() {
   return (
@@ -71,7 +64,6 @@ export default function AuditLandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
               href="mailto:solay2126@gmail.com?subject=Audit%20Request"
-              onClick={() => trackConversion()}
               className="px-8 py-4 bg-[#00ff88] text-[#030608] font-bold text-sm tracking-wider hover:bg-[#00ff88dd] transition-colors"
             >
               REQUEST AN AUDIT
@@ -80,7 +72,6 @@ export default function AuditLandingPage() {
               href="https://t.me/Solay39audit"
               target="_blank"
               rel="noreferrer"
-              onClick={() => trackConversion()}
               className="px-8 py-4 border border-[#00e5ff] text-[#00e5ff] font-bold text-sm tracking-wider hover:bg-[#00e5ff11] transition-colors"
             >
               CONTACT ON TELEGRAM
@@ -179,7 +170,6 @@ export default function AuditLandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
               href="mailto:solay2126@gmail.com?subject=Audit%20Request"
-              onClick={() => trackConversion()}
               className="px-8 py-4 bg-[#00ff88] text-[#030608] font-bold text-sm tracking-wider hover:bg-[#00ff88dd] transition-colors"
             >
               GET YOUR FREE AUDIT QUOTE
@@ -188,7 +178,6 @@ export default function AuditLandingPage() {
               href="https://t.me/Solay39audit"
               target="_blank"
               rel="noreferrer"
-              onClick={() => trackConversion()}
               className="px-8 py-4 border border-[#1e2a3a] text-[#c8d8e8] font-bold text-sm tracking-wider hover:border-[#00ff88] hover:text-[#00ff88] transition-colors"
             >
               TELEGRAM: @Solay39audit
