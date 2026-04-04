@@ -113,15 +113,15 @@ export default function RootLayout({
   return (
     <html lang="en" className={jetbrainsMono.variable}>
       <head>
-        {/* Google Tag (gtag.js) - Replace AW-XXXXXXXXX with your Google Ads ID */}
-        <script async src="https://www.googletagmanager.com/gtag/js?id=AW-XXXXXXXXX" />
+        {/* Google tag (gtag.js) */}
+        <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18059133257" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
-              gtag('config', 'AW-XXXXXXXXX');
+              gtag('config', 'AW-18059133257');
             `,
           }}
         />
