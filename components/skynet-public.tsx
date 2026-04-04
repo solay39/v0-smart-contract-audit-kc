@@ -410,7 +410,7 @@ function ShareButton({ auditId, name }: { auditId: string; name: string }) {
 }
 
 export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: PortfolioProject; onBack?: () => void; isLive?: boolean; backHref?: string }) {
-  // ── DEFENSIVE NORMALIZATION: ensure all nested properties are safe for rendering ─����
+  // ── DEFENSIVE NORMALIZATION: ensure all nested properties are safe for rendering ─�����
   const p = useMemo<PortfolioProject>(() => {
     const findings = _raw.findings || []
     return {
@@ -5716,6 +5716,22 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
               PRO
             </a>
             <a
+              href="https://github.com/solay39/Solay39-audit/tree/main/audits"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[9px] text-s39-lite border border-s39-border px-3 py-1 tracking-widest hover:border-s39-lite/60 transition-colors"
+            >
+              Audits
+            </a>
+            <a
+              href="https://x.com/solay39official"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[9px] text-s39-lite border border-s39-border px-3 py-1 tracking-widest hover:border-s39-lite/60 transition-colors"
+            >
+              X
+            </a>
+            <a
               href={TG_URL}
               target="_blank"
               rel="noreferrer"
@@ -6201,10 +6217,13 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
             {PUB_EMAIL}
           </a>
           <a href={TG_URL} target="_blank" rel="noreferrer" className="text-[9px] text-s39-mid hover:text-s39-lite transition-colors">
-            t.me/Solay39audit
+            Telegram
           </a>
-          <a href="https://github.com/solay39/Solay39-audit" target="_blank" rel="noreferrer" className="text-[9px] text-s39-mid hover:text-s39-lite transition-colors">
-            GitHub
+          <a href="https://x.com/solay39official" target="_blank" rel="noreferrer" className="text-[9px] text-s39-mid hover:text-s39-lite transition-colors">
+            X / Twitter
+          </a>
+          <a href="https://github.com/solay39/Solay39-audit/tree/main/audits" target="_blank" rel="noreferrer" className="text-[9px] text-s39-mid hover:text-s39-lite transition-colors">
+            GitHub Audits
           </a>
         </div>
       </footer>
