@@ -436,6 +436,19 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     timestamp: string
   } | null>(null)
   
+  // ── Manual Token Data (for presale tokens not yet on blockchain) ──
+  const [manualTokenData, setManualTokenData] = useState<{
+    enabled: boolean
+    ticker?: string
+    logoUrl?: string
+    description?: string
+    website?: string
+    telegram?: string
+    twitter?: string
+    totalSupply?: string
+    marketCap?: string
+  }>({ enabled: false })
+  
   // ── Dedicated state for on-chain analysis data (independent of manualReviewSession) ──
   // This is populated immediately when the user clicks "SAVE TO AUDIT REPORT" in the on-chain panel
   // so that it survives even if the user doesn't complete the full manual review flow
@@ -523,7 +536,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   // ── Validation ──
   const { validate, result: validationResult, isValidating, reset: resetValidation } = useAuditValidator()
 
-  // ── Publish to Portfolio + GitHub ──
+  // ── Publish to Portfolio + GitHub ─��
   const [publishing, setPublishing] = useState(false)
   const [publishResult, setPublishResult] = useState<{ success?: boolean; githubUrl?: string; githubError?: string; error?: string } | null>(null)
 
@@ -693,6 +706,21 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         }
       } catch {
         // Token info fetch is non-critical — continue with manual data
+      }
+    }
+    
+    // ── Step 1b: Override with MANUAL token data if enabled (for presale tokens) ──
+    if (manualTokenData.enabled) {
+      tokenMeta = {
+        ...tokenMeta, // Keep any auto-fetched data as fallback
+        ticker: manualTokenData.ticker || tokenMeta.ticker,
+        logoUrl: manualTokenData.logoUrl || tokenMeta.logoUrl,
+        description: manualTokenData.description || tokenMeta.description,
+        website: manualTokenData.website || tokenMeta.website,
+        telegram: manualTokenData.telegram || tokenMeta.telegram,
+        twitter: manualTokenData.twitter || tokenMeta.twitter,
+        totalSupply: manualTokenData.totalSupply || tokenMeta.totalSupply,
+        marketCap: manualTokenData.marketCap || tokenMeta.marketCap,
       }
     }
 
@@ -1865,6 +1893,80 @@ const TABS: [TabId, string][] = [
                     onChange={(e) => setProject((p) => ({ ...p, date: e.target.value }))}
                     type="date"
                   />
+                </div>
+                
+                {/* PRESALE / MANUAL TOKEN DATA */}
+                <div className="bg-s39-bg2 border border-s39-border p-4 mt-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <input
+                      type="checkbox"
+                      id="manual-token-toggle"
+                      checked={manualTokenData.enabled}
+                      onChange={(e) => setManualTokenData(prev => ({ ...prev, enabled: e.target.checked }))}
+                      className="w-4 h-4 accent-s39-cyan"
+                    />
+                    <label htmlFor="manual-token-toggle" className="text-[10px] text-s39-cyan tracking-[0.15em] cursor-pointer">
+                      PRESALE / MANUAL TOKEN DATA
+                    </label>
+                    <span className="text-[8px] text-s39-dim ml-auto">
+                      (Use when token is not yet on blockchain)
+                    </span>
+                  </div>
+                  
+                  {manualTokenData.enabled && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 animate-[fadeUp_0.2s_ease]">
+                      <S39Input
+                        label="Token Ticker"
+                        value={manualTokenData.ticker || ""}
+                        onChange={(e) => setManualTokenData(prev => ({ ...prev, ticker: e.target.value }))}
+                        placeholder="$TOKEN"
+                      />
+                      <S39Input
+                        label="Logo URL"
+                        value={manualTokenData.logoUrl || ""}
+                        onChange={(e) => setManualTokenData(prev => ({ ...prev, logoUrl: e.target.value }))}
+                        placeholder="https://example.com/logo.png"
+                      />
+                      <S39Input
+                        label="Total Supply"
+                        value={manualTokenData.totalSupply || ""}
+                        onChange={(e) => setManualTokenData(prev => ({ ...prev, totalSupply: e.target.value }))}
+                        placeholder="1,000,000,000"
+                      />
+                      <S39Input
+                        label="Expected Market Cap"
+                        value={manualTokenData.marketCap || ""}
+                        onChange={(e) => setManualTokenData(prev => ({ ...prev, marketCap: e.target.value }))}
+                        placeholder="$10,000,000"
+                      />
+                      <S39Input
+                        label="Website"
+                        value={manualTokenData.website || ""}
+                        onChange={(e) => setManualTokenData(prev => ({ ...prev, website: e.target.value }))}
+                        placeholder="https://example.com"
+                      />
+                      <S39Input
+                        label="Telegram"
+                        value={manualTokenData.telegram || ""}
+                        onChange={(e) => setManualTokenData(prev => ({ ...prev, telegram: e.target.value }))}
+                        placeholder="https://t.me/tokengroup"
+                      />
+                      <S39Input
+                        label="Twitter / X"
+                        value={manualTokenData.twitter || ""}
+                        onChange={(e) => setManualTokenData(prev => ({ ...prev, twitter: e.target.value }))}
+                        placeholder="https://x.com/token"
+                      />
+                      <div className="sm:col-span-2 lg:col-span-3">
+                        <S39Input
+                          label="Description"
+                          value={manualTokenData.description || ""}
+                          onChange={(e) => setManualTokenData(prev => ({ ...prev, description: e.target.value }))}
+                          placeholder="Brief description of the token/project..."
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-2 items-end">
                   <div className="flex-1">
