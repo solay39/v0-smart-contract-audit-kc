@@ -410,7 +410,7 @@ function ShareButton({ auditId, name }: { auditId: string; name: string }) {
 }
 
 export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: PortfolioProject; onBack?: () => void; isLive?: boolean; backHref?: string }) {
-  // ── DEFENSIVE NORMALIZATION: ensure all nested properties are safe for rendering ─�����
+  // ── DEFENSIVE NORMALIZATION: ensure all nested properties are safe for rendering ─������
   const p = useMemo<PortfolioProject>(() => {
     const findings = _raw.findings || []
     return {
@@ -5732,6 +5732,14 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
               X
             </a>
             <a
+              href="https://www.linkedin.com/in/solay39"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[9px] text-[#0A66C2] border border-[#0A66C2]/30 px-3 py-1 tracking-widest hover:border-[#0A66C2]/60 transition-colors"
+            >
+              LinkedIn
+            </a>
+            <a
               href={TG_URL}
               target="_blank"
               rel="noreferrer"
@@ -6221,6 +6229,9 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
           </a>
           <a href="https://x.com/solay39official" target="_blank" rel="noreferrer" className="text-[9px] text-s39-mid hover:text-s39-lite transition-colors">
             X / Twitter
+          </a>
+          <a href="https://www.linkedin.com/in/solay39" target="_blank" rel="noreferrer" className="text-[9px] text-s39-mid hover:text-s39-lite transition-colors">
+            LinkedIn
           </a>
           <a href="https://github.com/solay39/Solay39-audit/tree/main/audits" target="_blank" rel="noreferrer" className="text-[9px] text-s39-mid hover:text-s39-lite transition-colors">
             GitHub Audits
