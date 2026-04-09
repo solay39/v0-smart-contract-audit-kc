@@ -285,6 +285,40 @@ export function generatePDFBase64(
           doc.text(rl, margin + 30, y)
           y += rl.length * 3 + 2
         }
+
+        // Remediation Example
+        if ((f as any).remediationExample) {
+          checkPage(40)
+          addText("Remediation Example:", margin + 2, y, { size: 7, bold: true, color: [0, 255, 136] })
+          y += 4
+          doc.setFillColor(13, 17, 23)
+          const codeLines = doc.splitTextToSize((f as any).remediationExample, pageWidth - margin * 2 - 10)
+          const codeHeight = codeLines.length * 3.5 + 4
+          doc.rect(margin + 2, y, pageWidth - margin * 2 - 4, codeHeight, "F")
+          doc.setFontSize(7)
+          doc.setFont("courier", "normal")
+          setColor(200, 200, 200)
+          doc.text(codeLines, margin + 5, y + 4)
+          y += codeHeight + 5
+          doc.setFont("helvetica", "normal")
+        }
+
+        // Exploit PoC
+        if ((f as any).foundryPoC && (f.severity === "CRITICAL" || f.severity === "HIGH")) {
+          checkPage(40)
+          addText("Exploit Proof of Concept (Foundry):", margin + 2, y, { size: 7, bold: true, color: [255, 45, 85] })
+          y += 4
+          doc.setFillColor(13, 17, 23)
+          const pocLines = doc.splitTextToSize((f as any).foundryPoC, pageWidth - margin * 2 - 10)
+          const pocHeight = pocLines.length * 3.5 + 4
+          doc.rect(margin + 2, y, pageWidth - margin * 2 - 4, pocHeight, "F")
+          doc.setFontSize(7)
+          doc.setFont("courier", "normal")
+          setColor(200, 200, 200)
+          doc.text(pocLines, margin + 5, y + 4)
+          y += pocHeight + 5
+          doc.setFont("helvetica", "normal")
+        }
         
         y += 5
       })
@@ -520,6 +554,43 @@ export function generatePDFBase64(
       }
     }
     
+    // ═══════════════════════════════════════════════════════════════
+    // SKYNET REAL-TIME PROTECTION
+    // ═══════════════════════════════════════════════════════════════
+    checkPage(60)
+    addSection("12. SKYNET REAL-TIME PROTECTION")
+    addText("The following monitoring rules are active for this token via Solay39 Skynet:", margin, y, { size: 8, color: [136, 153, 170] })
+    y += 8
+
+    const skynetRules = [
+      { name: "Flash Loan Detection", desc: "Detects and alerts on flash loan-funded transactions interacting with the contract." },
+      { name: "Reentrancy Monitor", desc: "Monitors for multiple events and calls within a single transaction indicating potential reentrancy." },
+      { name: "Price Manipulation", desc: "Identifies large price deviations and sandwich attack patterns in real-time." },
+      { name: "Mempool Exploit Filter", desc: "Scans pending transactions for known exploit signatures before they are confirmed." },
+      { name: "Hacker Profiling", desc: "Matches attacker addresses against a global database of known exploiters." }
+    ]
+
+    skynetRules.forEach(rule => {
+      checkPage(15)
+      doc.setFillColor(13, 17, 23)
+      doc.rect(margin, y, pageWidth - margin * 2, 10, "F")
+      addText(rule.name, margin + 5, y + 6, { size: 8, bold: true, color: [0, 255, 136] })
+      addText(rule.desc, margin + 50, y + 6, { size: 7, color: [136, 153, 170] })
+      y += 12
+    })
+    y += 5
+
+    // ═══════════════════════════════════════════════════════════════
+    // DISCLAIMER
+    // ═══════════════════════════════════════════════════════════════
+    checkPage(40)
+    addSection("13. DISCLAIMER")
+    const disclaimer = "This report is provided for informational purposes only. It does not constitute investment advice or a guarantee of security. Smart contracts are inherently risky, and while Solay39 Skynet uses state-of-the-art tools and AI, no audit can uncover all potential vulnerabilities. Users should perform their own due diligence before interacting with any smart contract."
+    const disLines = doc.splitTextToSize(disclaimer, pageWidth - margin * 2)
+    doc.setFontSize(8)
+    setColor(68, 85, 102)
+    doc.text(disLines, margin, y)
+
     // ═══════════════════════════════════════════════════════════════
     // FOOTER
     // ═══════════════════════════════════════════════════════════════
