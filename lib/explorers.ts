@@ -76,9 +76,13 @@ export function isValidAddress(address: string, network: string): boolean {
   if (network === "Ton") {
     return trimmed.length >= 10
   }
-  // Casper: account-hash- or contract- prefix, or hex
+  // Casper: account-hash- or contract- prefix, or hex (min 16 chars)
   if (network === "Casper") {
-    return /^(account-hash-|contract-|hash-)[a-fA-F0-9]{64}$/.test(trimmed) || /^[a-fA-F0-9]{64}$/.test(trimmed)
+    // Full format: hash-xxx, contract-xxx, account-hash-xxx (64 hex after prefix)
+    if (/^(account-hash-|contract-|hash-)[a-fA-F0-9]{64}$/.test(trimmed)) return true
+    // Raw hex hash (64 chars) or partial hash (min 16 chars for lookups)
+    if (/^[a-fA-F0-9]{16,64}$/.test(trimmed)) return true
+    return false
   }
   // Aptos/Sui: 0x + 64 hex chars
   if (["Aptos", "Sui"].includes(network)) {
@@ -101,5 +105,6 @@ export function chainLanguage(network: string): string {
   if (network === "Ton") return "FunC / Tact"
   if (network === "Starknet") return "Cairo"
   if (network === "Tron") return "Solidity"
+  if (network === "Casper") return "Rust (WASM)"
   return "Solidity"
 }
