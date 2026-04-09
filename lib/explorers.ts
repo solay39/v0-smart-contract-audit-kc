@@ -37,6 +37,7 @@ const EXPLORERS: Record<string, ExplorerInfo> = {
   Sei:         { name: "SeiScan",     url: "https://www.seiscan.app",              addressUrl: (a) => `https://www.seiscan.app/pacific-1/contracts/${a}`,   txUrl: (t) => `https://www.seiscan.app/pacific-1/txs/${t}` },
   Ton:         { name: "TonViewer",   url: "https://tonviewer.com",                addressUrl: (a) => `https://tonviewer.com/${a}`,                         txUrl: (t) => `https://tonviewer.com/transaction/${t}` },
   Starknet:    { name: "Starkscan",   url: "https://starkscan.co",                 addressUrl: (a) => `https://starkscan.co/contract/${a}`,                 txUrl: (t) => `https://starkscan.co/tx/${t}` },
+  Casper:      { name: "CSPR Live",  url: "https://cspr.live",                    addressUrl: (a) => `https://cspr.live/contract/${a}`,                    txUrl: (t) => `https://cspr.live/deploy/${t}` },
 }
 
 const DEFAULT_EXPLORER: ExplorerInfo = {
@@ -74,6 +75,10 @@ export function isValidAddress(address: string, network: string): boolean {
   // Ton: raw or user-friendly
   if (network === "Ton") {
     return trimmed.length >= 10
+  }
+  // Casper: account-hash- or contract- prefix, or hex
+  if (network === "Casper") {
+    return /^(account-hash-|contract-|hash-)[a-fA-F0-9]{64}$/.test(trimmed) || /^[a-fA-F0-9]{64}$/.test(trimmed)
   }
   // Aptos/Sui: 0x + 64 hex chars
   if (["Aptos", "Sui"].includes(network)) {

@@ -802,6 +802,80 @@ const NON_EVM_CHAINS: ChainConfig[] = [
     ],
     docsUrl: 'https://developers.cardano.org',
     securityGuideUrl: 'https://developers.cardano.org/docs/smart-contracts/plutus/#security'
+  },
+  {
+    id: 'casper',
+    name: 'Casper',
+    symbol: 'CSPR',
+    category: 'OTHER',
+    language: 'Rust (WASM)',
+    compilerVersions: ['rustc 1.65+', 'casper-contract 3.0+'],
+    frameworks: ['casper-client', 'casper-js-sdk', 'odra'],
+    mainnetRPC: 'https://rpc.mainnet.casperlabs.io/rpc',
+    testnetRPC: 'https://rpc.testnet.casperlabs.io/rpc',
+    explorerUrl: 'https://cspr.live',
+    explorerApiUrl: 'https://event-store-api-clarity-mainnet.make.services',
+    specificPatterns: [
+      {
+        id: 'CSPR-001',
+        name: 'Unsafe unwrap() in Entry Points',
+        pattern: '\\.unwrap\\(\\)|expect\\(.*\\)',
+        severity: 'HIGH',
+        description: 'Using unwrap() in Casper entry points can panic and fail the deploy',
+        remediation: 'Use proper error handling with Result types and custom ApiError',
+        chainSpecific: true
+      },
+      {
+        id: 'CSPR-002',
+        name: 'Missing Access Control on Entry Points',
+        pattern: '#\\[no_mangle\\]|pub extern.*fn',
+        severity: 'CRITICAL',
+        description: 'Entry points without caller validation can be called by anyone',
+        remediation: 'Validate runtime::get_caller() against authorized accounts/contracts',
+        chainSpecific: true
+      },
+      {
+        id: 'CSPR-003',
+        name: 'Unbounded Dictionary Growth',
+        pattern: 'storage::dictionary_put|new_dictionary',
+        severity: 'MEDIUM',
+        description: 'Casper dictionaries without size limits can become expensive to maintain',
+        remediation: 'Implement pagination or size limits for dictionary entries',
+        chainSpecific: true
+      },
+      {
+        id: 'CSPR-004',
+        name: 'Insufficient Gas for Nested Calls',
+        pattern: 'runtime::call_contract|call_versioned_contract',
+        severity: 'HIGH',
+        description: 'Cross-contract calls need sufficient gas forwarding',
+        remediation: 'Calculate and forward appropriate gas using RuntimeArgs',
+        chainSpecific: true
+      },
+      {
+        id: 'CSPR-005',
+        name: 'Mutable Global State Misuse',
+        pattern: 'storage::new_uref|CLValue::from_t',
+        severity: 'MEDIUM',
+        description: 'Improper URef access rights can expose sensitive data',
+        remediation: 'Use appropriate AccessRights (READ, WRITE, ADD, READ_ADD_WRITE)',
+        chainSpecific: true
+      },
+      {
+        id: 'CSPR-006',
+        name: 'Missing Named Key Validation',
+        pattern: 'runtime::get_key|get_named_arg',
+        severity: 'HIGH',
+        description: 'Getting keys without validation can return None and cause failures',
+        remediation: 'Always validate named keys exist before accessing them',
+        chainSpecific: true
+      }
+    ],
+    totalAudited: 50,
+    totalTVL: '$30M+',
+    majorExploits: [],
+    docsUrl: 'https://docs.casper.network',
+    securityGuideUrl: 'https://docs.casper.network/developers/writing-onchain-code/best-practices/'
   }
 ]
 

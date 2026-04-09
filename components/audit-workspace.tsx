@@ -1870,7 +1870,7 @@ const TABS: [TabId, string][] = [
                         ))}
                       </optgroup>
                       <optgroup label="Non-EVM">
-                        {["Solana", "Sui", "Aptos", "Tron", "Near", "Cosmos", "Injective", "Sei", "Ton", "Starknet"].map((n) => (
+                        {["Solana", "Sui", "Aptos", "Tron", "Near", "Cosmos", "Injective", "Sei", "Ton", "Starknet", "Casper"].map((n) => (
                           <option key={n} value={n}>{n}</option>
                         ))}
                       </optgroup>
@@ -1884,6 +1884,7 @@ const TABS: [TabId, string][] = [
                       project.network === "Solana" ? "JUPyiwrYJFskUPiHa7hkeR8..."
                       : project.network === "Tron" ? "T9yD14Nj9j7xAB4..."
                       : project.network === "Near" ? "contract.near"
+                      : project.network === "Casper" ? "hash-a1b2c3d4e5... or contract-..."
                       : "0x3506424F91fD33..."
                     }
                   />
