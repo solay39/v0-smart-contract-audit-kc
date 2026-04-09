@@ -125,6 +125,30 @@ export default function SkynetProPage() {
     { id: 3, event: 'Phishing Contract Flagged', project: 'Global Network', impact: 'MEDIUM', time: 'Yesterday' },
   ])
 
+  // Exploit Analysis State
+  const [exploitTx, setExploitTx] = useState("")
+  const [analyzingExploit, setAnalyzingExploit] = useState(false)
+  const [exploitAnalysis, setExploitAnalysis] = useState<any>(null)
+
+  const handleExploitAnalysis = async () => {
+    if (!exploitTx) return
+    setAnalyzingExploit(true)
+    setExploitAnalysis(null)
+    try {
+      const res = await fetch("/api/exploit-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ txHash: exploitTx, network })
+      })
+      const data = await res.json()
+      setExploitAnalysis(data)
+    } catch (e) {
+      console.error("Exploit analysis failed:", e)
+    } finally {
+      setAnalyzingExploit(false)
+    }
+  }
+
   // Simulated live threats for the "Command Center" feel
   const [liveThreats, setLiveThreats] = useState<{id: number, msg: string, time: string, type: 'info' | 'warn' | 'error'}[]>([
     { id: 1, msg: "Monitoring mempool for sandwich attacks...", time: "LIVE", type: 'info' },
@@ -192,8 +216,8 @@ export default function SkynetProPage() {
 
       <main className="relative z-10 max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* LEFT COLUMN: SEARCH & LIVE FEED */}
-        <div className="lg:col-span-4 space-y-6">
+        {/* LEFT COLUMN: SYSTEM STATUS */}
+        <div className="lg:col-span-3 space-y-6">
           
           {/* NODE FIREWALL CONTROLS */}
           <section className="bg-[#0a0e14] border border-[#1e2a3a] p-6 shadow-2xl">
@@ -230,7 +254,7 @@ export default function SkynetProPage() {
               </div>
               <div className="h-1 bg-[#1e2a3a] w-full overflow-hidden">
                 <div 
-                  className={`h-full transition-all duration-500 ${firewallMode === 'PRIVATE' ? 'bg-[#ff2d55] w-full' : 'bg-[#00ff88] w-1/3'}`} 
+                  className={`h-full transition-all duration-500 ${firewallMode === 'PRIVATE' ? 'bg-[#ff2d55] w-full' : 'bg="#00ff88" w-1/3'}`} 
                 />
               </div>
             </div>
@@ -268,31 +292,6 @@ export default function SkynetProPage() {
               >
                 Engage Deep Scan
               </button>
-            </div>
-          </section>
-
-          {/* LIVE THREAT FEED */}
-          <section className="bg-[#0a0e14] border border-[#1e2a3a] p-6 h-[400px] flex flex-col">
-            <h2 className={`text-[10px] tracking-[0.2em] uppercase mb-4 font-bold ${firewallMode === 'PRIVATE' ? 'text-[#ff2d55]' : 'text-[#00e5ff]'}`}>
-              {firewallMode === 'PRIVATE' ? 'Private Shield Logs' : 'Public Threat Feed'}
-            </h2>
-            <div className="flex-1 overflow-hidden space-y-3 font-mono text-[9px]">
-              {liveThreats.map(threat => (
-                <div key={threat.id} className="flex gap-3 animate-[fadeLeft_0.3s_ease]">
-                  <span className="text-[#445566] shrink-0">[{threat.time}]</span>
-                  <span className={
-                    threat.type === 'error' ? 'text-[#ff2d55]' : 
-                    threat.type === 'warn' ? 'text-[#ffd600]' : 
-                    'text-[#00e5ff]'
-                  }>
-                    {threat.type === 'error' ? '>> CRITICAL:' : threat.type === 'warn' ? '>> WARNING:' : '>> INFO:'} {threat.msg}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 pt-4 border-t border-[#1e2a3a] flex items-center justify-between">
-              <span className="text-[8px] text-[#445566]">Scanning 4.2M blocks...</span>
-              <span className="text-[8px] text-[#00ff88] animate-pulse">SYSTEM NOMINAL</span>
             </div>
           </section>
 
@@ -336,8 +335,85 @@ export default function SkynetProPage() {
 
         </div>
 
-        {/* RIGHT COLUMN: MAIN DASHBOARD */}
-        <div className="lg:col-span-8 space-y-6">
+        {/* MIDDLE COLUMN: COMMAND CENTER */}
+        <div className="lg:col-span-5 space-y-6">
+          
+          {/* EXPLOIT ANALYSIS ENGINE */}
+          <section className="bg-[#0a0e14] border border-[#ff2d5544] p-6 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-2 opacity-10">
+              <div className="w-16 h-16 border-t-2 border-r-2 border-[#ff2d55]" />
+            </div>
+            <h2 className="text-[10px] text-[#ff2d55] tracking-[0.2em] uppercase mb-4 font-bold flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#ff2d55] animate-pulse" />
+              Exploit Analysis Engine
+            </h2>
+            <p className="text-[9px] text-[#7a8c9e] mb-4">Paste a transaction hash to analyze the attack vector and root cause.</p>
+            
+            <div className="flex gap-2 mb-4">
+              <input 
+                type="text" 
+                placeholder="0x..." 
+                value={exploitTx}
+                onChange={(e) => setExploitTx(e.target.value)}
+                className="flex-1 bg-[#05080a] border border-[#1e2a3a] text-[11px] p-2 outline-none focus:border-[#ff2d5544] text-white font-mono"
+              />
+              <button 
+                onClick={handleExploitAnalysis}
+                disabled={analyzingExploit || !exploitTx}
+                className="bg-[#ff2d5522] border border-[#ff2d5544] text-[#ff2d55] px-4 py-2 text-[10px] uppercase tracking-widest hover:bg-[#ff2d5544] transition-all disabled:opacity-50"
+              >
+                {analyzingExploit ? "Analyzing..." : "Analyze"}
+              </button>
+            </div>
+
+            {exploitAnalysis && (
+              <div className="mt-4 p-4 border border-[#ff2d5522] bg-[#05080a] max-h-[400px] overflow-y-auto custom-scrollbar">
+                <div className="text-[10px] text-[#ff2d55] font-bold mb-2 uppercase tracking-widest">Analysis Report</div>
+                <div className="text-[11px] leading-relaxed text-[#c8d8e8] whitespace-pre-wrap font-sans">
+                  {exploitAnalysis.analysis}
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* MAIN COMMAND CONSOLE */}
+          <section className="bg-[#0a0e14] border border-[#1e2a3a] p-6 shadow-2xl">
+            <h2 className="text-[10px] text-[#00ff88] tracking-[0.2em] uppercase mb-4 font-bold">Skynet Command Console</h2>
+            <div className="bg-[#05080a] border border-[#1e2a3a] p-4 h-64 overflow-y-auto font-mono text-[11px] custom-scrollbar">
+              {liveThreats.map((t) => (
+                <div key={t.id} className="mb-2 flex gap-4">
+                  <span className="text-[#445566] shrink-0">[{t.time}]</span>
+                  <span className={t.type === 'error' ? 'text-[#ff2d55]' : t.type === 'warn' ? 'text-[#ffb800]' : 'text-[#00ff88]'}>
+                    {t.msg}
+                  </span>
+                </div>
+              ))}
+              <div className="animate-pulse inline-block w-2 h-4 bg-[#00ff88] ml-1" />
+            </div>
+          </section>
+
+          {/* SKYNET PROTECTION RULES */}
+          <section className="bg-[#0a0e14] border border-[#1e2a3a] p-6 shadow-2xl">
+            <h2 className="text-[10px] text-[#00e5ff] tracking-[0.2em] uppercase mb-4 font-bold">Real-time Protection Rules</h2>
+            <div className="grid grid-cols-1 gap-3">
+              {[
+                { name: "Flash Loan Detection", status: "ACTIVE", color: "text-[#00ff88]" },
+                { name: "Reentrancy Monitor", status: "ACTIVE", color: "text-[#00ff88]" },
+                { name: "Oracle Deviation", status: "MONITORING", color: "text-[#00e5ff]" },
+                { name: "Mempool Signature Filter", status: "ACTIVE", color: "text-[#00ff88]" },
+                { name: "Hacker Profiling", status: "ENABLED", color: "text-[#ffb800]" },
+              ].map(rule => (
+                <div key={rule.name} className="flex items-center justify-between p-2 border border-[#1e2a3a] bg-[#05080a]">
+                  <span className="text-[10px] text-[#7a8c9e]">{rule.name}</span>
+                  <span className={`text-[9px] font-bold ${rule.color}`}>{rule.status}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        {/* RIGHT COLUMN: ANALYSIS & METRICS */}
+        <div className="lg:col-span-4 space-y-6">
           
           {/* TOP METRICS GRID */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
