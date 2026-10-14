@@ -1,0 +1,36 @@
+name: CI - Foundry tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+jobs:
+  foundry:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Verify Foundry tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          forge --version
+          cast --version
+          chisel --version
+
+      - name: Run Forge tests
+        shell: bash
+        run: forge test -vvvv
+
+      - name: Run Forge coverage
+        shell: bash
+        run: forge coverage --report summary --report lcov

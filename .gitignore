@@ -9,3 +9,8 @@ node_modules/
 .env*.local
 .DS_Store
 .vercel
+
+# Foundry
+out/
+cache/
+security-artifacts*/

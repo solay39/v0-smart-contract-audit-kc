@@ -116,6 +116,18 @@ const CVSS_PRESETS: Record<string, CVSSVector> = {
   ZERO_ADDRESS:    { AV: "N", AC: "H", PR: "L", UI: "N", S: "U", C: "N", I: "H", A: "H" },
   FLOATING_PRAGMA: { AV: "N", AC: "H", PR: "N", UI: "N", S: "U", C: "N", I: "L", A: "N" },
   MISSING_EVENT:   { AV: "N", AC: "L", PR: "N", UI: "N", S: "U", C: "N", I: "L", A: "N" },
+  // Nuovi preset v3
+  SIG_REPLAY:         { AV: "N", AC: "L", PR: "N", UI: "N", S: "U", C: "N", I: "H", A: "N" },
+  WEAK_RANDOM:        { AV: "N", AC: "L", PR: "N", UI: "N", S: "U", C: "L", I: "H", A: "N" },
+  UNPROTECTED_INIT:   { AV: "N", AC: "L", PR: "N", UI: "N", S: "C", C: "H", I: "H", A: "H" },
+  UNBOUNDED_LOOP:     { AV: "N", AC: "L", PR: "N", UI: "N", S: "U", C: "N", I: "N", A: "H" },
+  ECRECOVER_ZERO:     { AV: "N", AC: "L", PR: "N", UI: "N", S: "U", C: "N", I: "H", A: "N" },
+  FRONT_RUN:          { AV: "N", AC: "L", PR: "N", UI: "N", S: "U", C: "N", I: "H", A: "N" },
+  CENTRALIZATION:     { AV: "N", AC: "L", PR: "H", UI: "N", S: "C", C: "H", I: "H", A: "H" },
+  LOCKED_ETHER:       { AV: "N", AC: "L", PR: "N", UI: "N", S: "U", C: "N", I: "H", A: "N" },
+  DOS_LOOP:           { AV: "N", AC: "L", PR: "N", UI: "N", S: "U", C: "N", I: "N", A: "H" },
+  MISSING_EXIST:      { AV: "N", AC: "H", PR: "N", UI: "N", S: "U", C: "N", I: "H", A: "N" },
+  ARBI_TRANSFER:      { AV: "N", AC: "L", PR: "N", UI: "N", S: "U", C: "N", I: "H", A: "N" },
 }
 
 function cvss(preset: CVSSVector) {
@@ -162,6 +174,37 @@ contract ${contractName}ReentrancyTest is Test {
     }
 }
 // forge test --match-test test_reentrancy -vvvv`
+}
+
+function signatureReplayPoC(contractName: string, loc: string): string {
+  return `// SOLAY39 Foundry PoC — Signature Replay (${loc})
+// forge test --match-test test_signatureReplay -vvvv
+pragma solidity ^0.8.20;
+import "forge-std/Test.sol";
+
+contract SignatureReplayTest is Test {
+    ${contractName} target;
+    uint256 signerPk = 0xA11CE;
+    address signer;
+
+    function setUp() public {
+        signer = vm.addr(signerPk);
+        target = new ${contractName}();
+    }
+
+    function test_signatureReplay() public {
+        bytes32 hash = keccak256(abi.encodePacked(signer, uint256(100)));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPk, hash);
+        bytes memory sig = abi.encodePacked(r, s, v);
+
+        // First call — should succeed
+        target.execute(signer, 100, sig);
+
+        // Replay same signature — should REVERT but DOESN'T (bug)
+        target.execute(signer, 100, sig);
+        // If we reach here, replay attack succeeded
+    }
+}`
 }
 
 // Initialize CertiK-level systems
@@ -561,6 +604,377 @@ function transferOwnership(address newOwner) external onlyOwner {
           codeEvidence: `function ${func.name}(...) public`,
           remediationExample: `function ${func.name}(...) external { ... }`,
         })
+      }
+    }
+  }
+
+
+  // ── NUOVI CHECK v3 ─────────────────────────────────────────────
+
+  // [NEW-01] Signature Replay Attack
+  if (/ecrecover\s*\(/.test(code)) {
+    const hasNonce = /nonce|nonces|_nonce/.test(code)
+    const hasChainId = /block\.chainid|chainId|DOMAIN_SEPARATOR|EIP712/.test(code)
+    if (!hasNonce || !hasChainId) {
+      const ln = lines.findIndex((l) => /ecrecover/.test(l)) + 1
+      findings.push({
+        id: "SIG-REPLAY-001",
+        title: `Signature Replay Attack — Missing ${!hasNonce ? "Nonce" : ""}${!hasNonce && !hasChainId ? " + " : ""}${!hasChainId ? "ChainId" : ""}`,
+        severity: "CRITICAL",
+        category: "Signature Security",
+        description: `ecrecover() found at line ${ln} without ${!hasNonce ? "nonce tracking" : ""}${!hasNonce && !hasChainId ? " and " : ""}${!hasChainId ? "chain ID binding" : ""}. A valid signature can be replayed by anyone.`,
+        location: `Line ${ln}`,
+        lineNumber: ln,
+        impact: "Attacker can replay any previously signed transaction to re-execute privileged operations.",
+        recommendation: "Implement EIP-712 structured signing with nonce per address and chainId binding. Invalidate nonces after use.",
+        swcId: "SWC-121", cweId: "CWE-294",
+        cvss: cvss(CVSS_PRESETS.SIG_REPLAY),
+        likelihood: "High",
+        codeEvidence: lines[ln - 1]?.trim(),
+        remediationExample: `// EIP-712 domain separator with chainId\nbytes32 public DOMAIN_SEPARATOR;\nmapping(address => uint256) public nonces;\n\nfunction _verify(address signer, bytes32 hash, bytes memory sig) internal {\n    bytes32 digest = keccak256(abi.encodePacked("\\x19\\x01", DOMAIN_SEPARATOR, hash));\n    require(ecrecover(digest, v, r, s) == signer, "Invalid sig");\n    nonces[signer]++;\n}`,
+        foundryPoC: signatureReplayPoC(cname, `Line ${ln}`),
+      })
+    }
+  }
+
+  // [NEW-02] Weak Randomness
+  for (let i = 0; i < lines.length; i++) {
+    if (/block\.(timestamp|difficulty|prevrandao|number|blockhash)/.test(lines[i])) {
+      if (/\%|random|rand|shuffle|lottery|winner|select/.test(lines[i].toLowerCase()) ||
+          /keccak256.*block\.(timestamp|number)|block\.(timestamp|number).*keccak256/.test(code.substring(Math.max(0, code.indexOf(lines[i]) - 100), code.indexOf(lines[i]) + 200))) {
+        findings.push({
+          id: "WEAK-RANDOM-001",
+          title: "Weak Randomness from Block Variables",
+          severity: "HIGH",
+          category: "Randomness",
+          description: `Line ${i + 1} uses block.${lines[i].match(/block\.(\w+)/)?.[1]} as a randomness source. Miners and validators can manipulate these values.`,
+          location: `Line ${i + 1}`,
+          lineNumber: i + 1,
+          impact: "Predictable outcomes in lotteries, games, or selection logic. Validators can bias results in their favor.",
+          recommendation: "Use Chainlink VRF v2 for verifiable on-chain randomness. Never use block variables for security-sensitive randomness.",
+          swcId: "SWC-120", cweId: "CWE-330",
+          cvss: cvss(CVSS_PRESETS.WEAK_RANDOM),
+          likelihood: "High",
+          codeEvidence: lines[i].trim(),
+          remediationExample: `// Chainlink VRF v2\nimport "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";\ncontract MyContract is VRFConsumerBaseV2 {\n    function requestRandom() external returns (uint256 requestId) {\n        return COORDINATOR.requestRandomWords(keyHash, subId, 3, 100000, 1);\n    }\n    function fulfillRandomWords(uint256 reqId, uint256[] memory words) internal override {\n        // words[0] is your verifiable random number\n    }\n}`,
+        })
+        break
+      }
+    }
+  }
+
+  // [NEW-03] Unprotected Initializer (proxy pattern)
+  if (/function\s+initialize\s*\(/.test(code) && !/initializer\s+modifier|modifier\s+initializer|_disableInitializers/.test(code)) {
+    const ln = lines.findIndex((l) => /function\s+initialize\s*\(/.test(l)) + 1
+    findings.push({
+      id: "INIT-001",
+      title: "Unprotected Initializer — Anyone Can Take Ownership",
+      severity: "CRITICAL",
+      category: "Access Control",
+      description: `initialize() at line ${ln} lacks the initializer modifier or _disableInitializers() call. Anyone can call it on the implementation contract and take ownership.`,
+      location: `Line ${ln}`,
+      lineNumber: ln,
+      impact: "An attacker can initialize the implementation contract, set themselves as owner, and call privileged functions or selfdestruct it — bricking all proxies.",
+      recommendation: "Add OpenZeppelin's initializer modifier. Call _disableInitializers() in the constructor of the implementation.",
+      cweId: "CWE-665",
+      cvss: cvss(CVSS_PRESETS.UNPROTECTED_INIT),
+      likelihood: "High",
+      codeEvidence: lines[ln - 1]?.trim(),
+      remediationExample: `import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";\n\ncontract MyContract is Initializable {\n    /// @custom:oz-upgrades-unsafe-allow constructor\n    constructor() {\n        _disableInitializers(); // prevents init on implementation\n    }\n\n    function initialize(address owner) external initializer {\n        __Ownable_init(owner);\n    }\n}`,
+    })
+  }
+
+  // [NEW-04] Incorrect Modifier — missing underscore
+  const modRx = /modifier\s+(\w+)\s*\([^)]*\)\s*\{([^}]*)\}/g
+  let modMatch: RegExpExecArray | null
+  while ((modMatch = modRx.exec(code)) !== null) {
+    if (!modMatch[2].includes("_")) {
+      const ln = code.substring(0, modMatch.index).split("\n").length
+      findings.push({
+        id: `MODIFIER-${modMatch[1].toUpperCase()}-001`,
+        title: `Modifier ${modMatch[1]} Missing Underscore (_) — Function Body Never Executes`,
+        severity: "HIGH",
+        category: "Logic Error",
+        description: `Modifier ${modMatch[1]} at line ${ln} has no underscore (_). The function body of any function using this modifier will NEVER execute.`,
+        location: `Line ${ln}`,
+        lineNumber: ln,
+        impact: "Functions decorated with this modifier are silently no-ops. Business logic is completely bypassed.",
+        recommendation: "Add the _ placeholder where function body should execute: require(condition, msg); _;",
+        cweId: "CWE-670",
+        cvss: { score: 7.5, severity: "HIGH", vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N", vectorString: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N" },
+        likelihood: "High",
+        codeEvidence: modMatch[0].trim().slice(0, 200),
+        remediationExample: `modifier ${modMatch[1]}() {\n    require(msg.sender == owner, "not owner");\n    _;  // <-- this line is mandatory\n}`,
+      })
+    }
+  }
+
+  // [NEW-05] ERC-20 Approval Race Condition
+  if (/function\s+approve\s*\(.*address.*uint/.test(code) && !/increaseAllowance|decreaseAllowance/.test(code)) {
+    const ln = lines.findIndex((l) => /function\s+approve/.test(l)) + 1
+    findings.push({
+      id: "ERC20-APPROVE-001",
+      title: "ERC-20 Approval Race Condition (Front-Running)",
+      severity: "MEDIUM",
+      category: "Token Security",
+      description: `approve() at line ${ln} does not implement increaseAllowance/decreaseAllowance. A spender can front-run an allowance change to spend both the old and new amounts.`,
+      location: `Line ${ln}`,
+      lineNumber: ln,
+      impact: "Spender can extract double the intended allowance via front-running.",
+      recommendation: "Implement increaseAllowance() and decreaseAllowance() as alternatives to approve(). Or require approve(0) before approve(n).",
+      swcId: "SWC-114", cweId: "CWE-362",
+      cvss: cvss(CVSS_PRESETS.FRONT_RUN),
+      likelihood: "Low",
+      codeEvidence: lines[ln - 1]?.trim(),
+      remediationExample: `// Use OpenZeppelin ERC20 which includes:\nfunction increaseAllowance(address spender, uint256 addedValue) public returns (bool)\nfunction decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool)`,
+    })
+  }
+
+  // [NEW-06] Unbounded Loop / Gas DoS
+  for (let i = 0; i < lines.length; i++) {
+    if (/for\s*\(|while\s*\(/.test(lines[i])) {
+      const block = lines.slice(i, Math.min(i + 20, lines.length)).join("\n")
+      if (/\.length/.test(block) && !/break|continue/.test(block)) {
+        const loopVar = lines[i].match(/\.(\w+)\.length/)?.[1] || "array"
+        findings.push({
+          id: `LOOP-DOS-${i + 1}`,
+          title: `Unbounded Loop Over ${loopVar} — Gas Limit DoS`,
+          severity: "HIGH",
+          category: "Denial of Service",
+          description: `Loop at line ${i + 1} iterates over a dynamic array with no bound. If the array grows large enough, gas cost exceeds the block gas limit and the function becomes permanently uncallable.`,
+          location: `Line ${i + 1}`,
+          lineNumber: i + 1,
+          impact: "Function permanently DoS'd once array exceeds ~2000-5000 elements (depending on loop body).",
+          recommendation: "Add pagination (startIdx, count params), or restructure to O(1) per-element operations using mappings.",
+          swcId: "SWC-128", cweId: "CWE-400",
+          cvss: cvss(CVSS_PRESETS.UNBOUNDED_LOOP),
+          likelihood: likelihood("HIGH"),
+          codeEvidence: lines[i].trim(),
+          remediationExample: `// Paginated version\nfunction processAll(uint256 startIdx, uint256 count) external {\n    uint256 end = Math.min(startIdx + count, items.length);\n    for (uint256 i = startIdx; i < end; i++) {\n        _process(items[i]);\n    }\n}`,
+        })
+        break // one finding per loop location is enough
+      }
+    }
+  }
+
+  // [NEW-07] Missing Access Control on mint/burn
+  const mintBurnRx = /function\s+(mint|_mint|burn|_burn)\s*\([^)]*\)\s*(public|external)/g
+  while ((m = mintBurnRx.exec(code)) !== null) {
+    const ln = code.substring(0, m.index).split("\n").length
+    const funcBody = code.substring(m.index, code.indexOf("}", m.index) + 1)
+    if (!/onlyOwner|onlyMinter|onlyRole|hasRole|require.*msg\.sender/.test(funcBody)) {
+      findings.push({
+        id: `MINT-ACCESS-${m[1].toUpperCase()}-001`,
+        title: `Unprotected ${m[1]}() — Anyone Can Mint/Burn`,
+        severity: "CRITICAL",
+        category: "Access Control",
+        description: `${m[1]}() at line ${ln} is publicly callable with no access control. Anyone can inflate supply or burn others' tokens.`,
+        location: `Line ${ln}`,
+        lineNumber: ln,
+        impact: "Unlimited token minting destroys economic value. Unrestricted burn enables targeted fund destruction.",
+        recommendation: `Restrict with onlyOwner or a dedicated MINTER_ROLE. Use OpenZeppelin AccessControl.`,
+        cweId: "CWE-284",
+        cvss: { score: 9.8, severity: "CRITICAL", vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H", vectorString: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H" },
+        likelihood: "High",
+        codeEvidence: lines[ln - 1]?.trim(),
+        remediationExample: `bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");\n\nfunction mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {\n    _mint(to, amount);\n}`,
+      })
+    }
+  }
+
+  // [NEW-08] ecrecover returning address(0)
+  if (/ecrecover\s*\(/.test(code)) {
+    const hasZeroCheck = /ecrecover[\s\S]{0,100}!=\s*address\(0\)|address\(0\)[\s\S]{0,20}!=[\s\S]{0,20}ecrecover/.test(code)
+    if (!hasZeroCheck) {
+      const ln = lines.findIndex((l) => /ecrecover/.test(l)) + 1
+      findings.push({
+        id: "ECRECOVER-ZERO-001",
+        title: "ecrecover Return Value Not Checked for address(0)",
+        severity: "HIGH",
+        category: "Signature Security",
+        description: `ecrecover() at line ${ln} does not check for a zero-address return. An invalid signature returns address(0); if that's treated as a valid signer the check is bypassed.`,
+        location: `Line ${ln}`,
+        lineNumber: ln,
+        impact: "Signature verification bypass — attacker submits malformed signature that ecrecover maps to address(0).",
+        recommendation: "Always require: address signer = ecrecover(...); require(signer != address(0), 'invalid sig');",
+        cweId: "CWE-252",
+        cvss: cvss(CVSS_PRESETS.ECRECOVER_ZERO),
+        likelihood: likelihood("HIGH"),
+        codeEvidence: lines[ln - 1]?.trim(),
+        remediationExample: `address signer = ecrecover(digest, v, r, s);\nrequire(signer != address(0) && signer == expectedSigner, "Invalid signature");`,
+      })
+    }
+  }
+
+  // [NEW-09] Block timestamp in financial logic
+  for (let i = 0; i < lines.length; i++) {
+    if (/block\.timestamp/.test(lines[i])) {
+      if (/\+|\-|\*|<=|>=|<|>/.test(lines[i]) && !/comment|\/\//.test(lines[i])) {
+        findings.push({
+          id: `TIMESTAMP-${i + 1}`,
+          title: "Block Timestamp Used in Financial Arithmetic",
+          severity: "MEDIUM",
+          category: "Time Manipulation",
+          description: `block.timestamp at line ${i + 1} is used in financial arithmetic. Validators can skew timestamps by up to ~15 seconds.`,
+          location: `Line ${i + 1}`,
+          lineNumber: i + 1,
+          impact: "Slightly favorable conditions for MEV bots. If deadlines are short (< 1 min), manipulation is practical.",
+          recommendation: "For time-sensitive DeFi logic, use block numbers instead of timestamps. Add reasonable buffer (>= 1 minute) to deadlines.",
+          swcId: "SWC-116", cweId: "CWE-330",
+          cvss: { score: 4.3, severity: "MEDIUM", vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:M/A:N", vectorString: "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:M/A:N" },
+          likelihood: "Low",
+          codeEvidence: lines[i].trim(),
+          break: true,
+        } as StaticFinding)
+        break
+      }
+    }
+  }
+
+  // [NEW-10] Front-Running — missing deadline / slippage
+  if (/(swap|addLiquidity|removeLiquidity|deposit|withdraw)\s*\(/.test(code)) {
+    const hasDeadline = /deadline|expiry|expiration/.test(code)
+    const hasSlippage = /minAmount|minOut|amountOutMin|slippage/.test(code)
+    if (!hasDeadline || !hasSlippage) {
+      const ln = lines.findIndex((l) => /(swap|addLiquidity|deposit)/.test(l)) + 1
+      findings.push({
+        id: "FRONTRUN-001",
+        title: `DeFi Operation Missing ${!hasDeadline ? "Deadline" : ""}${!hasDeadline && !hasSlippage ? " + " : ""}${!hasSlippage ? "Slippage Protection" : ""}`,
+        severity: "HIGH",
+        category: "MEV / Front-Running",
+        description: `DeFi function at line ${ln} lacks ${!hasDeadline ? "transaction deadline" : ""}${!hasDeadline && !hasSlippage ? " and " : ""}${!hasSlippage ? "minimum output amount (slippage)" : ""}. Users are exposed to sandwich attacks.`,
+        location: `Line ${ln}`,
+        lineNumber: ln,
+        impact: "MEV bots can sandwich user transactions. Users receive significantly less than expected. In extreme cases, up to 100% value extracted.",
+        recommendation: "Add deadline parameter (block.timestamp + N). Add amountOutMin parameter checked against actual output.",
+        cweId: "CWE-362",
+        cvss: cvss(CVSS_PRESETS.FRONT_RUN),
+        likelihood: likelihood("HIGH"),
+        codeEvidence: lines[ln - 1]?.trim(),
+        remediationExample: `function swap(\n    uint256 amountIn,\n    uint256 amountOutMin,  // slippage protection\n    address[] calldata path,\n    uint256 deadline       // expiry protection\n) external {\n    require(block.timestamp <= deadline, "Expired");\n    uint256 out = _swap(amountIn, path);\n    require(out >= amountOutMin, "Too much slippage");\n}`,
+      })
+    }
+  }
+
+  // [NEW-11] Centralization Risk
+  if (/onlyOwner/.test(code) && !/TimelockController|Timelock|multisig|MultiSig|2-of-3|3-of-5/.test(code)) {
+    const sensitiveOps = lines.filter((l) =>
+      /onlyOwner/.test(l) && /(pause|upgrade|setFee|setPrice|mint|burn|emergencyWithdraw|drain)/.test(l.toLowerCase())
+    )
+    if (sensitiveOps.length > 0) {
+      findings.push({
+        id: "CENTRALIZATION-001",
+        title: "High Centralization Risk — Single EOA Controls Critical Functions",
+        severity: "HIGH",
+        category: "Centralization",
+        description: `${sensitiveOps.length} sensitive function(s) (pause/upgrade/setFee/mint/emergencyWithdraw) are controlled by a single onlyOwner address with no timelock or multisig. A compromised or malicious owner can rug instantly.`,
+        location: "Contract-wide",
+        impact: "Single point of failure. Key compromise or insider threat can drain all funds instantly.",
+        recommendation: "Replace single owner with Gnosis Safe multisig (3-of-5). Add 48h TimelockController for sensitive operations. Consider renouncing upgrade ability post-audit.",
+        cweId: "CWE-269",
+        cvss: cvss(CVSS_PRESETS.CENTRALIZATION),
+        likelihood: likelihood("HIGH"),
+        codeEvidence: sensitiveOps.slice(0, 2).map((l) => l.trim()).join("\n"),
+        remediationExample: `import "@openzeppelin/contracts/governance/TimelockController.sol";\n// Deploy: TimelockController(48 hours, [multisig], [multisig])\n// Set as owner of this contract`,
+      })
+    }
+  }
+
+  // [NEW-12] Locked Ether
+  if (/payable/.test(code) && !/function\s+withdraw|function\s+rescue|function\s+emergencyWithdraw|\.transfer\(|\.send\(|\.call\{value:/.test(code)) {
+    findings.push({
+      id: "LOCKED-ETHER-001",
+      title: "Locked Ether — Contract Accepts ETH But Has No Withdrawal",
+      severity: "MEDIUM",
+      category: "Fund Management",
+      description: "Contract has payable functions but no withdrawal mechanism. Any ETH sent will be permanently locked.",
+      location: "Contract-wide",
+      impact: "All ETH received is permanently inaccessible. User funds lost.",
+      recommendation: "Add a withdraw() function restricted to owner, or refund ETH in the same transaction.",
+      swcId: "SWC-132", cweId: "CWE-400",
+      cvss: cvss(CVSS_PRESETS.LOCKED_ETHER),
+      likelihood: likelihood("MEDIUM"),
+      remediationExample: `function withdraw() external onlyOwner {\n    (bool ok,) = owner().call{value: address(this).balance}("");\n    require(ok, "Withdraw failed");\n}`,
+    })
+  }
+
+  // [NEW-13] DoS via External Call in Loop
+  for (let i = 0; i < lines.length; i++) {
+    if (/for\s*\(|while\s*\(/.test(lines[i])) {
+      const block = lines.slice(i, Math.min(i + 15, lines.length)).join("\n")
+      if (/\.call\{|\.transfer\(|\.send\(/.test(block)) {
+        findings.push({
+          id: `DOS-LOOP-${i + 1}`,
+          title: "DoS via Revert in External Call Loop",
+          severity: "HIGH",
+          category: "Denial of Service",
+          description: `Loop at line ${i + 1} makes external calls (transfer/call/send) to addresses in an array. One reverting recipient permanently blocks all subsequent recipients.`,
+          location: `Line ${i + 1}`,
+          lineNumber: i + 1,
+          impact: "Grief attack: one malicious address in the list can block distribution to all other recipients.",
+          recommendation: "Use pull-payment pattern: track owed balances in a mapping, let each user claim independently.",
+          swcId: "SWC-128", cweId: "CWE-400",
+          cvss: cvss(CVSS_PRESETS.DOS_LOOP),
+          likelihood: likelihood("HIGH"),
+          codeEvidence: lines[i].trim(),
+          remediationExample: `// Pull payment pattern\nmapping(address => uint256) public pendingWithdrawals;\n\nfunction claimReward() external {\n    uint256 amount = pendingWithdrawals[msg.sender];\n    pendingWithdrawals[msg.sender] = 0;\n    (bool ok,) = msg.sender.call{value: amount}("");\n    require(ok, "Claim failed");\n}`,
+        })
+        break
+      }
+    }
+  }
+
+  // [NEW-14] Missing Contract Existence Check Before Low-Level Call
+  for (let i = 0; i < lines.length; i++) {
+    if (/\.call\{|\.call\(/.test(lines[i])) {
+      const hasExistCheck = lines.slice(Math.max(0, i - 5), i).some((l) =>
+        /\.code\.length|extcodesize|isContract/.test(l)
+      )
+      if (!hasExistCheck) {
+        findings.push({
+          id: `NO-EXIST-CHECK-${i + 1}`,
+          title: "Missing Contract Existence Check Before Low-Level Call",
+          severity: "MEDIUM",
+          category: "Input Validation",
+          description: `Low-level call at line ${i + 1} is made without checking if the target address contains code. Calls to EOAs or self-destructed contracts succeed silently with return true.`,
+          location: `Line ${i + 1}`,
+          lineNumber: i + 1,
+          impact: "Silent success of calls to non-existent contracts. Critical integrations can break without notice.",
+          recommendation: "Check address(target).code.length > 0 before low-level calls to expected contracts.",
+          cweId: "CWE-252",
+          cvss: cvss(CVSS_PRESETS.MISSING_EXIST),
+          likelihood: likelihood("MEDIUM"),
+          codeEvidence: lines[i].trim(),
+          remediationExample: `require(address(target).code.length > 0, "Target not a contract");\n(bool ok,) = target.call(data);`,
+        })
+        break
+      }
+    }
+  }
+
+  // [NEW-15] Arbitrary ETH Transfer (user-controlled recipient)
+  for (let i = 0; i < lines.length; i++) {
+    if (/\.call\{value:|\.transfer\(|\.send\(/.test(lines[i])) {
+      const nearbyLines = lines.slice(Math.max(0, i - 3), i + 1).join("\n")
+      if (/\b(to|recipient|receiver|addr|target|destination)\b/.test(nearbyLines) &&
+          !/msg\.sender|owner\(\)|admin/.test(nearbyLines)) {
+        findings.push({
+          id: `ARBI-TRANSFER-${i + 1}`,
+          title: "ETH Transferred to Externally-Controlled Address",
+          severity: "HIGH",
+          category: "Fund Management",
+          description: `ETH transfer at line ${i + 1} uses an address parameter (to/recipient/receiver). If not properly validated this can be used to drain funds to an attacker-chosen address.`,
+          location: `Line ${i + 1}`,
+          lineNumber: i + 1,
+          impact: "Attacker can redirect ETH payments to arbitrary addresses if recipient validation is weak.",
+          recommendation: "Validate recipient against a whitelist or ensure it matches msg.sender / registered beneficiary.",
+          cweId: "CWE-601",
+          cvss: cvss(CVSS_PRESETS.ARBI_TRANSFER),
+          likelihood: likelihood("HIGH"),
+          codeEvidence: lines[i].trim(),
+          remediationExample: `require(recipient != address(0) && isWhitelisted[recipient], "Invalid recipient");\n(bool ok,) = recipient.call{value: amount}("");\nrequire(ok, "Transfer failed");`,
+        })
+        break
       }
     }
   }

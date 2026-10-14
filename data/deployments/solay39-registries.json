@@ -1,0 +1,44 @@
+{
+  "network": "ethereum-mainnet",
+  "chainId": 1,
+  "contracts": [
+    {
+      "name": "AuditRegistry",
+      "address": "",
+      "owner": "",
+      "owner_type": "unknown",
+      "timelock": "",
+      "etherscan": "",
+      "bytecode_verified": false,
+      "status": "pending_verification",
+      "notes": "Populate from the production deployment before relying on this proof."
+    },
+    {
+      "name": "Solay39AuditRegistry",
+      "address": "",
+      "owner": "",
+      "owner_type": "unknown",
+      "timelock": "",
+      "etherscan": "",
+      "bytecode_verified": false,
+      "status": "pending_verification",
+      "notes": "Populate from the production deployment before relying on this proof."
+    },
+    {
+      "name": "Solay39EnterpriseRegistry",
+      "address": "",
+      "owner": "",
+      "owner_type": "unknown",
+      "timelock": "",
+      "etherscan": "",
+      "bytecode_verified": false,
+      "status": "pending_verification",
+      "notes": "Populate from the production deployment before relying on this proof."
+    }
+  ],
+  "sources": {
+    "commit": "pending",
+    "rpc_verified_at": null,
+    "notes": "This file intentionally contains no invented deployment addresses or governance claims."
+  }
+}

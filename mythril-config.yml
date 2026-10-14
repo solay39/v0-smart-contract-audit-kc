@@ -1,0 +1,9 @@
+execution_timeout: 120
+max_depth: 32
+solc_version: "0.8.20"
+modules:
+  - detection
+  - summary
+  - solver
+output_format: json
+disabled_modules: []

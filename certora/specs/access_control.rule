@@ -1,0 +1,14 @@
+// Boilerplate property map for Certora review.
+// Convert to the exact Certora Prover syntax used by the project.
+//
+// Properties:
+// - setAuditorVerification and transferOwnership are callable only by owner.
+// - registerAuditAuto is callable only by owner or a verified auditor.
+// - invalidateAudit is callable only by the audit auditor or owner.
+// - transferOwnership never accepts the zero address.
+//
+// Concrete selectors:
+// AuditRegistry.setAuditorVerification(address,bool)
+// AuditRegistry.transferOwnership(address)
+// AuditRegistry.registerAuditAuto(bytes32,bytes32,address,uint8,string)
+// AuditRegistry.invalidateAudit(string,string)

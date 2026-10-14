@@ -1,0 +1,12 @@
+// Boilerplate property map for Certora review.
+// Convert to the exact Certora Prover syntax used by the project.
+//
+// After successful registration:
+// - totalAudits increases by exactly one.
+// - hashToAuditId(reportHash) remains non-empty.
+// - audits[auditId].reportHash remains equal to reportHash.
+// - audits[auditId].timestamp remains non-zero.
+// - a second registration with the same reportHash reverts.
+//
+// These properties complement uniqueness.spec and require concrete ghost
+// variables/selectors when translated into a runnable Certora specification.

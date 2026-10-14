@@ -1,0 +1,1 @@
+{"exclude":["informational"],"solc_remaps":[],"detectors":{"reentrancy":true,"unchecked-send":true,"visibility":true,"uninitialized-storage":true,"tx-origin":true},"filter_paths":["contracts/"],"show_paths":true,"json":{"file":"slither-report.json"}}

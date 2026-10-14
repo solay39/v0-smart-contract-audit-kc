@@ -1,0 +1,3 @@
+testMode: assertion
+seqLen: 50
+testLimit: 20000
