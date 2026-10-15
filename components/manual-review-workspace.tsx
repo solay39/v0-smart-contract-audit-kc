@@ -18,6 +18,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { OnChainAnalysisPanel } from "./onchain-analysis-panel"
+import type { TokenData } from "@/lib/types/onchain"
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -152,6 +153,14 @@ interface ManualReviewWorkspaceProps {
 }
 
 // ─── Severity config ──────────────────────────────────────────────
+
+const REVIEW_GUIDE = [
+  { id: "onchain" as const, number: "01", title: "Deployment & config", instruction: "Confronta address, chain, bytecode verificato, compiler, constructor args, proxy implementation e admin con il deployment reale." },
+  { id: "checklist" as const, number: "02", title: "Roles & governance", instruction: "Identifica owner, minter, pauser, upgrader e guardian. Verifica multisig, quorum, timelock, renounce/transfer e ogni funzione privilegiata." },
+  { id: "findings" as const, number: "03", title: "Threat model", instruction: "Per ogni rischio prova il percorso d'attacco: attore, precondizioni, asset a rischio, impatto, mitigazione e test o evidenza che lo chiude." },
+  { id: "manual" as const, number: "04", title: "Coverage & warnings", instruction: "Controlla coverage line/branch/function, fuzz/invariant tests, warning Solidity e dipendenze. Ogni eccezione deve avere una motivazione scritta." },
+  { id: "summary" as const, number: "05", title: "Evidence & sign-off", instruction: "Non firmare con check pending, finding non deciso o evidenza mancante. Salva note, link explorer, commit e limiti residui della review." },
+]
 
 const SEV: Record<Severity, { color: string; bg: string; label: string }> = {
   CRITICAL: { color: "#ff4444", bg: "#ff444418", label: "CRITICAL" },
@@ -292,6 +301,7 @@ export default function ManualReviewWorkspace({
 
   function updateCheck(id: string, status: CheckStatus, note?: string) {
     setSession(s => ({
+
       ...s,
       checks: s.checks.map(c =>
         c.id === id ? { ...c, status, note: note ?? c.note } : c
@@ -457,8 +467,33 @@ export default function ManualReviewWorkspace({
         </div>
       </div>
 
+      {/* Guided manual-review rail */}
+      <div style={{ borderBottom: "1px solid #1a1a1a", background: "#0c1013", padding: "10px 20px 12px", overflowX: "auto" }}>
+        <div style={{ display: "flex", gap: 8, minWidth: 760 }}>
+          {REVIEW_GUIDE.map((step, index) => (
+            <button
+              key={step.id}
+              onClick={() => setActiveSection(step.id)}
+              aria-label={`Open review step ${step.number}: ${step.title}`}
+              style={{
+                flex: 1, minWidth: 140, textAlign: "left", cursor: "pointer", padding: "9px 10px",
+                background: activeSection === step.id ? "#122028" : "#101417",
+                border: `1px solid ${activeSection === step.id ? "#00e5ff" : "#20282d"}`,
+                color: "#c8d2d8", fontFamily: "inherit",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", color: activeSection === step.id ? "#00e5ff" : "#66747c", fontSize: 9, letterSpacing: "0.12em" }}>
+                <span>{step.number}</span><span>{index < 4 ? "→" : "END"}</span>
+              </div>
+              <div style={{ marginTop: 7, fontSize: 10, fontWeight: 700, letterSpacing: "0.04em" }}>{step.title}</div>
+              <div style={{ marginTop: 5, color: "#718089", fontSize: 9, lineHeight: 1.45 }}>{step.instruction}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Main layout: code left, workspace right */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", height: "calc(100vh - 53px)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", height: "calc(100vh - 175px)" }}>
 
         {/* LEFT: Contract source */}
         <div style={{ borderRight: "1px solid #1a1a1a", display: "flex", flexDirection: "column" }}>
@@ -521,7 +556,7 @@ export default function ManualReviewWorkspace({
                   onAnalysisComplete={(result) => {
                     // Save full on-chain analysis to session for PDF export
                     setSession(s => {
-                      const td = result.tokenData || {}
+                      const td: TokenData = (result.tokenData || {}) as TokenData
                       const an = result.analysis || {}
                       
                       const newOnChainAnalysis = {
@@ -765,7 +800,7 @@ export default function ManualReviewWorkspace({
                     
                     // ── Immediately push full on-chain analysis data to audit workspace ──
                     if (onOnChainAnalysisData) {
-                      const td3 = result.tokenData || {}
+                      const td3: TokenData = (result.tokenData || {}) as TokenData
                       const an3 = result.analysis || {}
                       onOnChainAnalysisData({
                         tokenName: td3.name || td3.tokenName,
@@ -917,6 +952,19 @@ export default function ManualReviewWorkspace({
                                   </span>
                                 </div>
 
+                                <div style={{ marginTop: 9 }}>
+                                  <label style={{ display: "block", fontSize: 9, color: "#718089", letterSpacing: "0.08em", marginBottom: 5 }}>
+                                    RISPOSTA AUDITOR
+                                  </label>
+                                  <textarea
+                                    aria-label={`Risposta auditor per: ${check.question}`}
+                                    value={check.note}
+                                    onChange={e => updateCheck(check.id, check.status, e.target.value)}
+                                    placeholder="Scrivi cosa hai verificato, quale evidenza hai trovato e il riferimento (link/file/linea)..."
+                                    rows={2}
+                                    style={{ width: "100%", background: "#0d0d0d", border: "1px solid #222", color: "#aaa", fontSize: 10, padding: "7px 8px", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }}
+                                  />
+                                </div>
                                 {expandedCheck === check.id && (
                                   <div style={{ marginTop: 8 }}>
                                     <div style={{ fontSize: 10, color: "#666", marginBottom: 6 }}>{check.why}</div>
@@ -934,13 +982,6 @@ export default function ManualReviewWorkspace({
                                         </button>
                                       </div>
                                     )}
-                                    <textarea
-                                      value={check.note}
-                                      onChange={e => updateCheck(check.id, check.status, e.target.value)}
-                                      placeholder="Auditor note (optional)..."
-                                      rows={2}
-                                      style={{ width: "100%", background: "#0d0d0d", border: "1px solid #222", color: "#aaa", fontSize: 10, padding: "6px 8px", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }}
-                                    />
                                   </div>
                                 )}
                               </div>
