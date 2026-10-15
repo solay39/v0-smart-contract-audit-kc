@@ -18,6 +18,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { OnChainAnalysisPanel } from "./onchain-analysis-panel"
+import type { TokenData } from "@/lib/types/onchain"
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -555,7 +556,7 @@ export default function ManualReviewWorkspace({
                   onAnalysisComplete={(result) => {
                     // Save full on-chain analysis to session for PDF export
                     setSession(s => {
-                      const td = result.tokenData || {}
+                      const td: TokenData = (result.tokenData || {}) as TokenData
                       const an = result.analysis || {}
                       
                       const newOnChainAnalysis = {
@@ -799,7 +800,7 @@ export default function ManualReviewWorkspace({
                     
                     // ── Immediately push full on-chain analysis data to audit workspace ──
                     if (onOnChainAnalysisData) {
-                      const td3 = result.tokenData || {}
+                      const td3: TokenData = (result.tokenData || {}) as TokenData
                       const an3 = result.analysis || {}
                       onOnChainAnalysisData({
                         tokenName: td3.name || td3.tokenName,
