@@ -1,3 +1,4 @@
+import { getStaticBackendUrl } from "@/lib/static-backend"
 import { NextRequest, NextResponse } from "next/server"
 
 export const runtime = "nodejs"
@@ -57,7 +58,7 @@ interface AnalysisResult {
 
 // Real analysis using external service (Railway backend)
 async function runRealAnalysis(code: string, contractName: string, includeHalmos = false): Promise<AnalysisResult | null> {
-  const apiUrl = process.env.STATIC_ANALYSIS_API_URL
+  const apiUrl = getStaticBackendUrl()
   
   if (!apiUrl) {
     return null
@@ -314,7 +315,7 @@ export async function POST(req: NextRequest) {
     
     return NextResponse.json({
       success: true,
-      analysisMode: process.env.STATIC_ANALYSIS_API_URL ? "real" : "pattern-based",
+      analysisMode: getStaticBackendUrl() ? "real" : "pattern-based",
       ...result
     })
     
@@ -328,7 +329,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  const hasExternalService = !!process.env.STATIC_ANALYSIS_API_URL
+  const hasExternalService = !!getStaticBackendUrl()
   
   return NextResponse.json({
     service: "Solay39 Static Analysis + Formal Verification",

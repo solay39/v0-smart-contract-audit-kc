@@ -22,6 +22,7 @@ import Solay39Validator from "@/components/solay39-validator"
 import { useAuditValidator, ValidationPanel } from "@/components/validation-panel"
 import ManualReviewWorkspace from "@/components/manual-review-workspace"
 import { Tier1AnalysisPanel } from "@/components/tier1-analysis-panel"
+import { AuditAssurancePanel, type ConsensusData, type ConfirmedPoC, type MonitoringData } from "@/components/audit-assurance-panel"
 
 // ════════════════════════════════════════════════════════════════
 // BLOCKCHAIN TAB — Solana On-Chain Attestation
@@ -398,6 +399,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const [aiScopeTable, setAiScopeTable] = useState<Record<string, unknown>[] | null>(null)
   // Enterprise Standards
   const [economicAttackVectors, setEconomicAttackVectors] = useState<Record<string, unknown>[] | null>(null)
+  const [consensusData, setConsensusData] = useState<ConsensusData | null>(null)
+  const [confirmedPoCs, setConfirmedPoCs] = useState<ConfirmedPoC[]>([])
+  const [monitoringData, setMonitoringData] = useState<MonitoringData | null>(null)
   const [reviewRecord, setReviewRecord] = useState<Record<string, unknown> | null>(null)
   const [attackerProfiles, setAttackerProfiles] = useState<Record<string, unknown>[] | null>(null)
   const [assetsAtRisk, setAssetsAtRisk] = useState<Record<string, unknown>[] | null>(null)
@@ -1219,6 +1223,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         signatureSol: manualReviewSession.solanaSignature,
         reviewNotes: manualReviewSession.reviewNotes,
       } : undefined,
+      multiEngineConsensus: consensusData,
+      confirmedPoCs,
+      monitoring: monitoringData,
       // Security Checklist for PDF export
       securityChecklist: manualReviewSession?.checks?.map(c => ({
         id: c.id,
@@ -1448,6 +1455,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       if (data.aiScopeTable) setAiScopeTable(data.aiScopeTable)
       // Enterprise Standards
       if (data.economicAttackVectors) setEconomicAttackVectors(data.economicAttackVectors)
+      if (data.multiEngineConsensus) setConsensusData(data.multiEngineConsensus)
+      if (Array.isArray(data.confirmedPoCs)) setConfirmedPoCs(data.confirmedPoCs)
+      if (data.monitoring) setMonitoringData(data.monitoring)
       if (data.reviewRecord) setReviewRecord(data.reviewRecord)
       if (data.attackerProfiles) setAttackerProfiles(data.attackerProfiles)
       if (data.assetsAtRisk) setAssetsAtRisk(data.assetsAtRisk)
@@ -1719,6 +1729,9 @@ const TABS: [TabId, string][] = [
       signatureSol: manualReviewSession.solanaSignature,
       reviewNotes: manualReviewSession.reviewNotes,
     } : undefined,
+    multiEngineConsensus: consensusData,
+    confirmedPoCs,
+    monitoring: monitoringData,
     // Security Checklist from Manual Review
     securityChecklist: manualReviewSession?.checks?.map(c => ({
       id: c.id,
@@ -2167,6 +2180,7 @@ const TABS: [TabId, string][] = [
         {/* ── FINDINGS ── */}
         {tab === "findings" && (
           <div className="animate-[fadeUp_0.4s_ease]">
+            <AuditAssurancePanel consensus={consensusData} pocs={confirmedPoCs} monitoring={monitoringData} />
             {/* Add finding form */}
             <div className="bg-s39-bg1 border border-s39-border p-4 sm:p-6 mb-5">
               <div className="text-[9px] text-s39-mid tracking-[0.15em] mb-4">NEW FINDING</div>

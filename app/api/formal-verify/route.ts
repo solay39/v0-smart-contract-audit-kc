@@ -1,3 +1,4 @@
+import { getStaticBackendUrl } from "@/lib/static-backend"
 import { NextRequest, NextResponse } from "next/server"
 
 export const runtime = "nodejs"
@@ -340,7 +341,7 @@ contract MaliciousReentrant {
 
 // Run real Halmos verification
 async function runRealHalmos(code: string, contractName: string): Promise<FormalVerificationReport | null> {
-  const apiUrl = process.env.STATIC_ANALYSIS_API_URL
+  const apiUrl = getStaticBackendUrl()
   
   if (!apiUrl) {
     return null
@@ -482,7 +483,7 @@ export async function GET() {
       name: p.name,
       description: p.description
     })),
-    configured: !!process.env.STATIC_ANALYSIS_API_URL,
+    configured: !!getStaticBackendUrl(),
     whatItDoes: [
       "Mathematically PROVES properties about contract behavior",
       "Unlike fuzzing, verification covers ALL possible inputs",

@@ -1,3 +1,4 @@
+import { getStaticBackendUrl } from "@/lib/static-backend"
 export const maxDuration = 60
 
 import { generateText } from "ai"
@@ -17,7 +18,62 @@ import { runAttackSimulation } from "@/core/simulator/attackSimulator"
 import { pinReportToIPFS } from "@/lib/ipfs-pinning"
 import { generatePoCScripts, generateHardhatPoC } from "@/core/poc/pocGenerator"
 import { analyzeTestCoverage } from "@/core/analyzer/testCoverageAnalyzer"
-import { runMultiEngineConsensus } from "@/core/consensus/multiEngineConsensus"
+import { runMultiEngineConsensus, type EngineHit } from "@/core/consensus/multiEngineConsensus"
+import { generateConsensusPoCs } from "@/core/poc/consensusPoc"
+import { enrollPostAuditMonitoring } from "@/lib/skynet-enroll"
+
+const BACKEND_CATEGORY_MAP: Array<[RegExp, string]> = [
+  [/reentran|SWC-107/i, "Reentrancy"],
+  [/tx-?origin|SWC-115/i, "Access Control"],
+  [/suicidal|selfdestruct|SWC-106|unprotected|arbitrary-send|SWC-105/i, "Access Control"],
+  [/delegatecall|SWC-112/i, "Delegatecall"],
+  [/unchecked|SWC-104|unused-return/i, "Unchecked Return Value"],
+  [/overflow|underflow|SWC-101/i, "Integer Overflow"],
+  [/timestamp|SWC-116|weak-prng|SWC-120/i, "Randomness"],
+  [/uninitialized|SWC-109/i, "Uninitialized Storage"],
+  [/locked-ether|controlled-array|shadowing/i, "Logic Error"],
+]
+
+function backendCategory(label: string): string {
+  return BACKEND_CATEGORY_MAP.find(([re]) => re.test(label))?.[1] ?? label
+}
+
+function backendSeverity(raw: string): EngineHit["severity"] {
+  const s = raw.toLowerCase()
+  if (s === "high") return "HIGH"
+  if (s === "medium") return "MEDIUM"
+  if (s === "low") return "LOW"
+  return "INFO"
+}
+
+function staticResultsToEngineHits(res: StaticAnalysisResult | null): EngineHit[] {
+  if (!res) return []
+  const hits: EngineHit[] = []
+  for (const f of res.slither?.findings ?? []) {
+    hits.push({
+      engine: "slither",
+      id: `SLITHER-${f.check}`,
+      name: f.check,
+      category: backendCategory(f.check),
+      severity: backendSeverity(f.impact),
+      confidence: f.confidence?.toLowerCase() === "high" ? 0.9 : f.confidence?.toLowerCase() === "medium" ? 0.7 : 0.5,
+      line: f.elements?.[0]?.lines?.[0],
+    })
+  }
+  for (const f of res.mythril?.findings ?? []) {
+    hits.push({
+      engine: "mythril",
+      id: `MYTHRIL-${f.swc_id}`,
+      name: f.swc_title,
+      category: backendCategory(`SWC-${f.swc_id} ${f.swc_title}`),
+      severity: backendSeverity(f.severity),
+      confidence: 0.85,
+      line: f.lineno,
+      swc: `SWC-${f.swc_id}`,
+    })
+  }
+  return hits
+}
 // Solana attestation rimossa dal flusso principale - disponibile manualmente via /api/solana-attest
 
 /* ───────── Static Analysis (Slither/Mythril) ───────── */
@@ -1504,7 +1560,7 @@ ENTERPRISE RULES:
 
 export async function POST(req: Request) {
   try {
-    const { code, network, contractAddress: rawAddr, tags: clientTags } = await req.json()
+    const { code, network, contractAddress: rawAddr, tags: clientTags, auditId: bodyAuditId, projectName: bodyProjectName } = await req.json()
     const projectTags: string[] = Array.isArray(clientTags) ? clientTags : []
     const isDeFiByTags = projectTags.some((c: string) =>
       /dex|defi|swap|perpetual|yield|lending|amm|liquidity|staking/i.test(c)
@@ -1735,7 +1791,7 @@ ${truncatedCode}`
           runStaticAnalysis(code, meta.contractName || "Contract"),
           // Foundry Fuzzing (if backend configured)
           (async () => {
-            if (!process.env.STATIC_ANALYSIS_API_URL) return null
+            if (!getStaticBackendUrl()) return null
             try {
               const res = await fetch(`${baseUrl}/api/fuzz`, {
                 method: "POST",
@@ -1747,7 +1803,7 @@ ${truncatedCode}`
           })(),
           // Formal Verification (if backend configured)
           (async () => {
-            if (!process.env.STATIC_ANALYSIS_API_URL) return null
+            if (!getStaticBackendUrl()) return null
             try {
               const res = await fetch(`${baseUrl}/api/formal-verify`, {
                 method: "POST",
@@ -2133,8 +2189,9 @@ ${truncatedCode}`
         return f
       })
   
+      const backendHits = staticResultsToEngineHits(staticAnalysisResults)
       const consensus = isEVM
-        ? runMultiEngineConsensus(truncatedCode, finalFindings as Array<Record<string, unknown>>)
+        ? runMultiEngineConsensus(truncatedCode, finalFindings as Array<Record<string, unknown>>, backendHits)
         : null
       const multiEngineConsensus = consensus?.report ?? null
       if (consensus) {
@@ -2146,6 +2203,30 @@ ${truncatedCode}`
           })
         })
       }
+
+      const backendOnline = Boolean(staticAnalysisResults?.slither?.success || staticAnalysisResults?.mythril?.success)
+      const [confirmedPoCs, monitoring] = await Promise.all([
+        isEVM
+          ? generateConsensusPoCs(truncatedCode, finalFindings as Array<Record<string, unknown>>, {
+              contractAddress: rawAddr || undefined,
+              backendOnline,
+            }).catch(() => [])
+          : Promise.resolve([]),
+        enrollPostAuditMonitoring({
+          contractAddress: rawAddr ? String(rawAddr).trim() : null,
+          network: String(network || "ethereum"),
+          auditId: typeof bodyAuditId === "string" ? bodyAuditId : undefined,
+          projectName: typeof bodyProjectName === "string" ? bodyProjectName : undefined,
+          criticalFindings: finalFindings.filter((f) => f.severity === "CRITICAL").length,
+        }).catch((e) => ({
+          enrolled: false,
+          network: String(network || ""),
+          contractAddress: rawAddr ?? null,
+          pollInterval: "5 min",
+          watchedEvents: [] as string[],
+          reason: String(e),
+        })),
+      ])
 
       // ── ENTERPRISE: Economic Attack Analysis ──
 const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
@@ -2442,7 +2523,7 @@ return Response.json({
     externalDependencies: crossContractResults.risks?.map(r => r.type) || [],
   } : null,
   // Analysis Mode (real vs pattern-based)
-  analysisMode: process.env.STATIC_ANALYSIS_API_URL ? "tier1-real" : "tier1-pattern",
+  analysisMode: getStaticBackendUrl() ? "tier1-real" : "tier1-pattern",
   // Tier-1 sections
   privilegedRoles,
         trustAssumptions,
@@ -2461,6 +2542,8 @@ return Response.json({
         // Enterprise sections
         economicAttackVectors,
         multiEngineConsensus,
+        confirmedPoCs,
+        monitoring,
         reviewRecord,
         reportIntegrity: reportIntegrityPlaceholder,
         // Enterprise: New sections

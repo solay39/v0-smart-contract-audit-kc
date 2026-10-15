@@ -1,3 +1,4 @@
+import { getStaticBackendUrl } from "@/lib/static-backend"
 /**
  * Slither Static Analysis Runner
  * 
@@ -155,7 +156,7 @@ export async function runSlitherRemote(
   contractName?: string,
   apiUrl?: string
 ): Promise<SlitherResult> {
-  const backendUrl = apiUrl || process.env.SECURITY_BACKEND_URL || process.env.STATIC_ANALYSIS_API_URL
+  const backendUrl = apiUrl || process.env.SECURITY_BACKEND_URL || getStaticBackendUrl()
   
   if (!backendUrl) {
     return {

@@ -38,6 +38,7 @@ interface ChainEvent {
 }
 
 interface SubscriptionConfig {
+  id?: string
   contractAddress: string
   chain: string
   auditId?: string
@@ -137,7 +138,7 @@ function classifyEvent(topic0: string, log: any): { type: ChainEvent["eventType"
 
 // ─── Supabase Storage ─────────────────────────────────────────────────────────
 
-async function storeEvent(event: ChainEvent): Promise<boolean> {
+async function storeEvent(event: ChainEvent, sub: SubscriptionConfig): Promise<boolean> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   
@@ -145,22 +146,22 @@ async function storeEvent(event: ChainEvent): Promise<boolean> {
   
   const supabase = createClient(supabaseUrl, supabaseKey)
   
-  const { error } = await supabase.from("skynet_events").insert({
-    id: event.id,
-    chain: event.chain,
+  const { error } = await supabase.from("skynet_events").upsert({
+    subscription_id: sub.id,
+    audit_id: sub.auditId || "unlinked",
+    network: event.chain,
     contract_address: event.contractAddress,
     event_type: event.eventType,
     severity: event.severity,
     tx_hash: event.txHash,
     block_number: event.blockNumber,
-    timestamp: event.timestamp,
     from_address: event.from,
     to_address: event.to,
     value: event.value,
     data: event.data,
-    processed: false,
     alert_sent: false,
-  })
+    created_at: event.timestamp,
+  }, { onConflict: "tx_hash,event_type", ignoreDuplicates: true })
   
   return !error
 }
@@ -176,14 +177,15 @@ async function getActiveSubscriptions(): Promise<SubscriptionConfig[]> {
   const { data } = await supabase
     .from("skynet_subscriptions")
     .select("*")
-    .eq("active", true)
+    .eq("status", "active")
   
   return (data || []).map((row: any) => ({
+    id: row.id,
     contractAddress: row.contract_address,
-    chain: row.chain,
+    chain: row.network,
     auditId: row.audit_id,
-    projectName: row.project_name,
-    events: row.events || Object.keys(EVENT_SIGNATURES),
+    projectName: row.alert_config?.projectName ?? undefined,
+    events: row.alert_config?.events || Object.keys(EVENT_SIGNATURES),
   }))
 }
 
@@ -358,7 +360,61 @@ ${event.to ? `*To:* \`${event.to}\`` : ""}
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
 
-export async function GET() {
+async function pollAllSubscriptions() {
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+  const subscriptions = await getActiveSubscriptions()
+  const allEvents: ChainEvent[] = []
+
+  for (const sub of subscriptions) {
+    const { data: lastEvent } = await supabase
+      .from("skynet_events")
+      .select("block_number")
+      .eq("contract_address", sub.contractAddress)
+      .eq("network", sub.chain)
+      .order("block_number", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const fromBlock = (lastEvent?.block_number || 0) + 1
+    const events = sub.chain === "solana" ? await pollEventsSolana(sub) : await pollEventsEVM(sub, fromBlock)
+
+    for (const event of events) {
+      const stored = await storeEvent(event, sub)
+      if (stored && (event.severity === "HIGH" || event.severity === "CRITICAL")) {
+        await sendAlert(event, sub)
+      }
+    }
+    if (sub.id) {
+      await supabase
+        .from("skynet_subscriptions")
+        .update({ updated_at: new Date().toISOString(), last_block_checked: Math.max(fromBlock - 1, ...events.map((e) => e.blockNumber)) })
+        .eq("id", sub.id)
+    }
+    allEvents.push(...events)
+  }
+
+  return {
+    success: true,
+    subscriptionsPolled: subscriptions.length,
+    eventsFound: allEvents.length,
+    criticalAlerts: allEvents.filter((e) => e.severity === "CRITICAL").length,
+    highAlerts: allEvents.filter((e) => e.severity === "HIGH").length,
+  }
+}
+
+export async function GET(req: NextRequest) {
+  // Vercel Cron calls GET with `Authorization: Bearer $CRON_SECRET`.
+  if (req.nextUrl.searchParams.get("action") === "poll") {
+    const secret = process.env.CRON_SECRET
+    if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: "Supabase not configured" }, { status: 500 })
+    }
+    return NextResponse.json(await pollAllSubscriptions())
+  }
+
   const subscriptions = await getActiveSubscriptions()
   const wsEndpoints = {
     ethereum: getWebSocketUrl("ethereum") ? "connected" : "unavailable",
@@ -399,14 +455,13 @@ export async function POST(req: NextRequest) {
       }
       
       const { error } = await supabase.from("skynet_subscriptions").upsert({
-        contract_address: contractAddress.toLowerCase(),
-        chain: chain.toLowerCase(),
-        audit_id: auditId,
-        project_name: projectName,
-        events: Object.keys(EVENT_SIGNATURES),
-        active: true,
-        created_at: new Date().toISOString(),
-      }, { onConflict: "contract_address,chain" })
+        contract_address: chain.toLowerCase() === "solana" ? contractAddress : contractAddress.toLowerCase(),
+        network: chain.toLowerCase(),
+        audit_id: auditId || `manual-${Date.now()}`,
+        status: "active",
+        alert_config: { projectName: projectName ?? null, events: Object.keys(EVENT_SIGNATURES) },
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "contract_address,network" })
       
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 })
@@ -423,9 +478,9 @@ export async function POST(req: NextRequest) {
     if (action === "unsubscribe") {
       const { error } = await supabase
         .from("skynet_subscriptions")
-        .update({ active: false })
-        .eq("contract_address", contractAddress.toLowerCase())
-        .eq("chain", chain.toLowerCase())
+        .update({ status: "stopped", updated_at: new Date().toISOString() })
+        .eq("contract_address", chain.toLowerCase() === "solana" ? contractAddress : contractAddress.toLowerCase())
+        .eq("network", chain.toLowerCase())
       
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 })
@@ -436,47 +491,7 @@ export async function POST(req: NextRequest) {
     
     // ── Poll for events (called by cron or manually) ──
     if (action === "poll") {
-      const subscriptions = await getActiveSubscriptions()
-      const allEvents: ChainEvent[] = []
-      
-      for (const sub of subscriptions) {
-        // Get last processed block from DB
-        const { data: lastEvent } = await supabase
-          .from("skynet_events")
-          .select("block_number")
-          .eq("contract_address", sub.contractAddress)
-          .eq("chain", sub.chain)
-          .order("block_number", { ascending: false })
-          .limit(1)
-          .single()
-        
-        const fromBlock = (lastEvent?.block_number || 0) + 1
-        
-        let events: ChainEvent[] = []
-        if (sub.chain === "solana") {
-          events = await pollEventsSolana(sub)
-        } else {
-          events = await pollEventsEVM(sub, fromBlock)
-        }
-        
-        // Store and alert
-        for (const event of events) {
-          const stored = await storeEvent(event)
-          if (stored && (event.severity === "HIGH" || event.severity === "CRITICAL")) {
-            await sendAlert(event, sub)
-          }
-        }
-        
-        allEvents.push(...events)
-      }
-      
-      return NextResponse.json({
-        success: true,
-        subscriptionsPolled: subscriptions.length,
-        eventsFound: allEvents.length,
-        criticalAlerts: allEvents.filter(e => e.severity === "CRITICAL").length,
-        highAlerts: allEvents.filter(e => e.severity === "HIGH").length,
-      })
+      return NextResponse.json(await pollAllSubscriptions())
     }
     
     // ── Get recent events ──
@@ -484,8 +499,8 @@ export async function POST(req: NextRequest) {
       const { data: events } = await supabase
         .from("skynet_events")
         .select("*")
-        .eq("contract_address", contractAddress?.toLowerCase())
-        .order("timestamp", { ascending: false })
+        .in("contract_address", [contractAddress, contractAddress?.toLowerCase()].filter(Boolean))
+        .order("created_at", { ascending: false })
         .limit(50)
       
       return NextResponse.json({ events: events || [] })

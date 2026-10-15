@@ -1,3 +1,4 @@
+import { getStaticBackendUrl } from "@/lib/static-backend"
 import { NextRequest, NextResponse } from "next/server"
 
 export const runtime = "nodejs"
@@ -258,7 +259,7 @@ ${FUZZ_TEMPLATES.overflow}
 
 // Run fuzz tests via backend
 async function runRealFuzzing(code: string, contractName: string): Promise<FuzzReport | null> {
-  const apiUrl = process.env.STATIC_ANALYSIS_API_URL
+  const apiUrl = getStaticBackendUrl()
   
   if (!apiUrl) {
     return null
@@ -365,7 +366,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  const hasBackend = !!process.env.STATIC_ANALYSIS_API_URL
+  const hasBackend = !!getStaticBackendUrl()
   
   return NextResponse.json({
     service: "SOLAY39 Foundry Fuzzing",
