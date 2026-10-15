@@ -198,6 +198,53 @@ export function getAuditReportHTML(project: AuditProject, rawScore: number, find
 }
 
 /**
+ * openPrintableReport — client-only. Opens the HTML report and triggers the
+ * browser print dialog ("Save as PDF"). Falls back to a hidden iframe when
+ * popups are blocked (e.g. inside the sandboxed v0 preview iframe).
+ */
+export function openPrintableReport(html: string, fileName = "solay39-audit-report") {
+  if (typeof window === "undefined") return
+
+  const popup = window.open("", "_blank")
+  if (popup) {
+    popup.document.open()
+    popup.document.write(html)
+    popup.document.close()
+    popup.document.title = fileName
+    popup.focus()
+    setTimeout(() => popup.print(), 800)
+    return
+  }
+
+  const frame = document.createElement("iframe")
+  frame.style.position = "fixed"
+  frame.style.width = "0"
+  frame.style.height = "0"
+  frame.style.border = "0"
+  frame.setAttribute("aria-hidden", "true")
+  document.body.appendChild(frame)
+  const doc = frame.contentDocument
+  if (!doc || !frame.contentWindow) {
+    frame.remove()
+    const url = URL.createObjectURL(new Blob([html], { type: "text/html" }))
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `${fileName}.html`
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    return
+  }
+  doc.open()
+  doc.write(html)
+  doc.close()
+  setTimeout(() => {
+    frame.contentWindow?.focus()
+    frame.contentWindow?.print()
+    setTimeout(() => frame.remove(), 1000)
+  }, 800)
+}
+
+/**
  * exportPDF — returns the full HTML report string.
  * The workspace calls this and uploads the result to GitHub.
  * For client-side print, open the returned HTML in a new window.

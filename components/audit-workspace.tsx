@@ -33,7 +33,7 @@ function pickScore(source: Record<string, unknown> | null, keys: string[], fallb
 }
 import { isValidAddress, getExplorer, chainLanguage } from "@/lib/explorers"
 import { ScoreRing, S39Input, S39Btn, SevBadge } from "@/components/solay39-ui"
-import { exportPDF, exportMarkdown } from "@/lib/export-pdf"
+import { exportPDF, exportMarkdown, openPrintableReport } from "@/lib/export-pdf"
 import { savePublishedAudit } from "@/components/skynet-public"
 import { computeReportHash, buildReportIntegrity } from "@/lib/enterprise-standards"
 import Solay39Validator from "@/components/solay39-validator"
@@ -1610,7 +1610,7 @@ const TABS: [TabId, string][] = [
                 <S39Btn
                   primary
                   small
-                  onClick={() => exportPDF(project, score, findings, {
+                  onClick={() => openPrintableReport(exportPDF(project, score, findings, {
     privilegedRoles: privilegedRoles.length > 0 ? privilegedRoles : undefined,
     trustAssumptions: trustAssumptions.length > 0 ? trustAssumptions : undefined,
     architectureOverview: architectureOverview || undefined,
@@ -1790,7 +1790,7 @@ const TABS: [TabId, string][] = [
       scores: onChainAnalysisData?.scores || manualReviewSession?.onChainAnalysis?.scores,
       topHolders: onChainAnalysisData?.topHolders || manualReviewSession?.onChainAnalysis?.topHolders,
     } : undefined,
-  })}
+  }), `solay39-${(project.name || "audit").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-report`)}
                   className="w-full"
                 >
                   Export PDF
