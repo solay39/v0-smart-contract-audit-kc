@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { nonEmpty, severityScoreCap, toVerifiedSourceInfo, type VerifiedSourceInfo } from "@/lib/verified-source"
+
 import {
   CHECKLIST,
   computeScoreV2,
@@ -319,6 +321,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const [aiRes, setAiRes] = useState<Omit<Finding, "id" | "category" | "status">[]>([])
   const [aiLoad, setAiLoad] = useState(false)
   const [aiError, setAiError] = useState("")
+  const [sourceInfo, setSourceInfo] = useState<VerifiedSourceInfo | null>(null)
   const [contractMeta, setContractMeta] = useState<{
     contractType?: string; scopeLabel?: string; centralizationLevel?: string
     centralizationRisk?: string; isERC20?: boolean; isERC721?: boolean; hasOwner?: boolean
@@ -530,7 +533,8 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     timelockHours: contractMeta?.hasOwner && !contractMeta?.ownerRenounced ? 0 : undefined,
     multisigSigners: contractMeta?.hasOwner && !contractMeta?.ownerRenounced ? 1 : undefined,
   })
-  const score = v2Result.final
+  const score = Math.min(v2Result.final, severityScoreCap(findings))
+
   const done = allChecks.filter(Boolean).length
   const total = allChecks.length
 
@@ -980,7 +984,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       integrationRisks: integrationRisks.length > 0 ? integrationRisks : undefined,
       invariantsChecked: invariantsChecked.length > 0 ? invariantsChecked : undefined,
       testingMethodology: testingMethodology || {
-        manualReviewHours: Math.max(8, Math.round(((aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 200) / 50)),
+        manualReviewHours: 0,
         reviewPhases: [
           "System comprehension & architecture mapping",
           "Trust boundary & actor model analysis",
@@ -1133,27 +1137,32 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         totalContracts: (aiScopeTable?.length) || 1,
         functionsReviewed: Math.round(((aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 200) / 8),
   externalDependencies: [
-  ...(contractMeta?.usesOZ ? [(() => {
-    // Derive compatible OZ version from Solidity version
-    const sv = contractMeta?.solidityVersion || ""
-    const minor = parseInt(sv.split(".")[1] || "8", 10)
-    const patch = parseInt(sv.split(".")[2] || "0", 10)
-    if (minor < 6) return "OpenZeppelin Contracts v2.x"
-    if (minor < 8) return "OpenZeppelin Contracts v3.x"
-    if (minor === 8 && patch >= 20) return "OpenZeppelin Contracts v5.x"
-    return "OpenZeppelin Contracts v4.x"
-  })()] : []),
-  ...(contractMeta?.hasProxy ? ["Proxy pattern (EIP-1967)"] : []),
+  ...(sourceInfo?.openZeppelinVersion
+    ? [`OpenZeppelin Contracts v${sourceInfo.openZeppelinVersion}`]
+    : contractMeta?.usesOZ ? ["OpenZeppelin Contracts (version not declared in source)"] : []),
+  ...(sourceInfo?.proxy?.isProxy || contractMeta?.hasProxy ? [`Proxy pattern (${sourceInfo?.proxy?.proxyType || "detected in code"})`] : []),
   ...(contractMeta?.usesSafemath ? ["SafeMath library"] : []),
   ],
-        upgradeabilityPattern: contractMeta?.hasProxy ? "TransparentProxy" : "none",
+        upgradeabilityPattern: sourceInfo?.proxy?.isProxy
+          ? (sourceInfo.proxy.proxyType || "Proxy")
+          : contractMeta?.hasProxy ? "Proxy (detected in code)" : sourceInfo ? "none (verified on-chain)" : "Not verified",
         standardUsed: contractMeta?.usesOZ ? "OpenZeppelin" : "Custom Implementation",
-        compilerVersion: contractMeta?.solidityVersion ? `solc ${contractMeta.solidityVersion}` : contractMeta?.codeLanguage || "N/A",
-        optimizerRuns: 200,
-        testCoverage: contractMeta?.isNonEVM ? undefined : "94%",
+        compilerVersion: sourceInfo?.compilerVersion
+          ? `solc ${sourceInfo.compilerVersion}`
+          : contractMeta?.solidityVersion ? `solc ${contractMeta.solidityVersion} (pragma)` : contractMeta?.codeLanguage || "Not available",
+        optimizerRuns: sourceInfo?.optimizerRuns ?? undefined,
+        // Coverage can only be measured by running the project's own test suite, which we don't have
+        testCoverage: undefined,
         cyclomaticComplexity: ((aiEngagement?.linesOfCode as number) || 0) > 1000 ? "High" : ((aiEngagement?.linesOfCode as number) || 0) > 400 ? "Medium" : "Low",
       },
-      trustModel: privilegedRoles.length > 0 ? privilegedRoles.map(r => ({
+      trustModel: nonEmpty([
+        ...(sourceInfo?.proxy?.isProxy ? [{
+          component: `Proxy Admin${sourceInfo.proxy.proxyAdmin ? ` (${sourceInfo.proxy.proxyAdmin})` : ""}`,
+          trustRequired: "High" as const,
+          riskIfCompromised: `Can replace the implementation at ${sourceInfo.proxy.implementationAddress || "the proxy"} with arbitrary code, changing balances, transfers or any token logic.`,
+          mitigation: "Verify the admin is a governance-controlled timelock or multisig, and monitor Upgraded(address) events.",
+        }] : []),
+        ...((privilegedRoles.length > 0 ? privilegedRoles.map(r => ({
         component: r.role,
         trustRequired: (r.riskIfCompromised?.toLowerCase().includes("fund") || r.riskIfCompromised?.toLowerCase().includes("mint") || r.riskIfCompromised?.toLowerCase().includes("drain")) ? "High" as const : "Medium" as const,
         riskIfCompromised: r.riskIfCompromised,
@@ -1163,7 +1172,8 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         trustRequired: "High" as const,
         riskIfCompromised: contractMeta.ownerRenounced ? "Limited — ownership renounced" : "Can execute privileged functions (pause, mint, upgrade)",
         mitigation: contractMeta.ownerRenounced ? "Ownership renounced" : "Transfer to multisig + timelock recommended",
-      }] : undefined,
+      }] : [])),
+      ]),
       finalAssessment: {
         securityPosture: score >= 90
           ? `The ${project.name} contract demonstrates a strong security posture with well-implemented access controls, standard-compliant code, and no critical vulnerabilities identified during review.`
@@ -1436,6 +1446,13 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     hasMint: rawMeta.hasMintOutsideConstructor ?? rawMeta.hasMint ?? false,
     mintGuarded: rawMeta.mintGuarded ?? false,
     hasBurn: rawMeta.hasBurn ?? false,
+    // Explorer/on-chain facts override heuristics derived from pasted code
+    ...(sourceInfo ? {
+      hasProxy: sourceInfo.proxy?.isProxy || rawMeta.hasProxy || false,
+      solidityVersion: sourceInfo.compilerVersion || rawMeta.solidityVersion,
+      linesOfCode: sourceInfo.linesOfCode || rawMeta.linesOfCode,
+      usesOZ: !!sourceInfo.openZeppelinVersion || rawMeta.usesOZ,
+    } : {}),
   }
   setContractMeta(mappedMeta)
         // Auto-set scope if not manually entered
@@ -2059,6 +2076,7 @@ const TABS: [TabId, string][] = [
                         }
                         // Success - set the source code and auto-run analysis
                         if (data.source) {
+                          setSourceInfo(toVerifiedSourceInfo(data))
                           setContractSource(data.source)
                           setAiCode(data.source)
                           setProject((p) => ({ 
@@ -2499,9 +2517,14 @@ const TABS: [TabId, string][] = [
                       })
                       const data = await res.json()
   if (data.source) {
+  setSourceInfo(toVerifiedSourceInfo(data))
   setAiCode(data.source)
   setContractSource(data.source)
-  setAiNote(`Source code fetched from ${data.explorerName || "explorer"} (${data.language || "unknown"}, ${data.linesOfCode || "?"} lines)`)
+  setAiNote(
+    data.proxy?.isProxy
+      ? `Proxy detected (${data.proxy.proxyType}). Analyzing implementation ${data.analyzedAddress} — ${data.contractName}, ${data.language}, ${data.linesOfCode} lines in ${data.fileCount} files.`
+      : `Source code fetched from ${data.explorerName || "explorer"} (${data.language || "unknown"}, ${data.linesOfCode || "?"} lines)`,
+  )
                       } else {
                         setAiError(data.error || "Could not fetch source code. Paste it manually.")
                         setAiNote("")

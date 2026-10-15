@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { put, list } from "@vercel/blob"
+import { isEstablishedToken } from "@/lib/verified-source"
 
 /**
  * POST /api/onchain-audit-merge
@@ -143,7 +144,8 @@ function buildAuditSections(onchain: OnChainAnalysis) {
 
   // 3. LP not locked
   const lpLocked = td.liquidityPools.some((lp) => lp.lpLocked)
-  if (!lpLocked && totalLiquidity > 0) {
+  const tdStats = td as unknown as { marketCap?: number; totalHolders?: number }
+  if (!lpLocked && totalLiquidity > 0 && !isEstablishedToken({ marketCap: tdStats.marketCap, totalHolders: tdStats.totalHolders, totalLiquidity })) {
     findings.push({
       id: "OC-004",
       title: "Liquidity Pool NOT Locked",

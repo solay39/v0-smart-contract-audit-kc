@@ -19,6 +19,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { OnChainAnalysisPanel } from "./onchain-analysis-panel"
 import type { TokenData } from "@/lib/types/onchain"
+import { isEstablishedToken } from "@/lib/verified-source"
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -640,7 +641,7 @@ export default function ManualReviewWorkspace({
                         })
                       }
 
-                      if (!lpLocked && totalLiq > 0) {
+                      if (!lpLocked && totalLiq > 0 && !isEstablishedToken({ marketCap: td.marketCap, totalHolders: td.totalHolders, totalLiquidity: totalLiq })) {
                         ocFindings.push({
                           id: `onchain-oc004-${ts}`,
                           title: "OC-004 · Liquidity Pool NOT Locked",
@@ -705,17 +706,7 @@ export default function ManualReviewWorkspace({
                         })
                       }
 
-                      // Always add summary finding with full executive summary
-                      ocFindings.push({
-                        id: `onchain-oc000-${ts}`,
-                        title: `OC-000 · On-Chain Risk Assessment: ${an.overallRiskScore > 70 ? "HIGH" : an.overallRiskScore > 40 ? "MEDIUM" : "LOW"} RISK (Score ${an.overallRiskScore}/100)`,
-                        severity: (an.overallRiskScore > 70 ? "HIGH" : an.overallRiskScore > 40 ? "MEDIUM" : "LOW") as Severity,
-                        location: td.tokenAddress || "Token Contract",
-                        description: an.executiveSummary || an.recommendation || "On-chain analysis completed.",
-                        impact: an.rugPullRisk || "See full on-chain analysis for details.",
-                        recommendation: an.recommendation || "Review all on-chain findings carefully before interacting with this token.",
-                        addedBy: "manual" as const,
-                      })
+                      // The overall risk score is a summary, not a vulnerability; it stays in the on-chain panel only
 
                       const newManualFindings = [
                         ...s.manualFindings.filter(f => !f.id.startsWith("onchain-")), // remove stale onchain findings
@@ -773,7 +764,7 @@ export default function ManualReviewWorkspace({
                           recommendation: "Monitor top wallets.",
                         })
                       }
-                      if (!locked2 && liq2 > 0) {
+                      if (!locked2 && liq2 > 0 && !isEstablishedToken({ marketCap: td2.marketCap, totalHolders: td2.totalHolders, totalLiquidity: liq2 })) {
                         ocForCallback.push({
                           id: `OC-004-${ts2}`,
                           title: "OC-004 · Liquidity Pool NOT Locked",
@@ -784,17 +775,7 @@ export default function ManualReviewWorkspace({
                           recommendation: "Lock LP for ≥6 months.",
                         })
                       }
-                      // Summary
-                      ocForCallback.push({
-                        id: `OC-000-${ts2}`,
-                        title: `OC-000 · Risk Score: ${an2.overallRiskScore}/100`,
-                        severity: an2.overallRiskScore > 70 ? "HIGH" : an2.overallRiskScore > 40 ? "MEDIUM" : "LOW",
-                        location: td2.tokenAddress || "Token",
-                        description: an2.executiveSummary || "On-chain analysis completed.",
-                        impact: an2.rugPullRisk || "See analysis.",
-                        recommendation: an2.recommendation || "Review findings.",
-                      })
-                      
+
                       onOnChainFindings(ocForCallback)
                     }
                     
