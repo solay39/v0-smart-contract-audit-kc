@@ -10,9 +10,27 @@ import {
   type SeverityLevel,
   type FindingStatus,
   type PortfolioProject,
+  type AttackScenario,
+  type GovernanceSecurity,
+  type UpgradeabilityAnalysis,
+  type EconomicRisk,
+  type IntegrationRisk,
+  type TestingMethodology,
+  type PrivilegedRole,
+  type AuditEngagement,
   SEV_CONFIG,
   SEV_RAW_COLORS,
 } from "@/lib/solay39-constants"
+
+// The AI endpoint returns its own category names (accessControl, upgradeSafety, ...)
+// while the export/report format expects the deterministic engine's names.
+function pickScore(source: Record<string, unknown> | null, keys: string[], fallback: number): number {
+  for (const key of keys) {
+    const value = source?.[key]
+    if (typeof value === "number" && Number.isFinite(value)) return Math.max(0, Math.min(100, value))
+  }
+  return fallback
+}
 import { isValidAddress, getExplorer, chainLanguage } from "@/lib/explorers"
 import { ScoreRing, S39Input, S39Btn, SevBadge } from "@/components/solay39-ui"
 import { exportPDF, exportMarkdown } from "@/lib/export-pdf"
@@ -267,7 +285,7 @@ type TabId = "dashboard" | "checklist" | "findings" | "skynet" | "review" | "val
 export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   const [tab, setTab] = useState<TabId>("dashboard")
   const [cat, setCat] = useState(Object.keys(CHECKLIST)[0])
-  const [project, setProject] = useState<AuditProject>({
+  const [project, setProject] = useState<AuditProject & { contractAddress?: string; tags?: string[] }>({
     name: "",
     network: "",
     commit: "",
@@ -309,16 +327,16 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     // Mint / burn / supply
     hasMint?: boolean; mintGuarded?: boolean; hasConstructorOnlyMint?: boolean
     hasBurn?: boolean; hasMaxSupply?: boolean; hasBlacklist?: boolean
-    hasPause?: boolean; hasSetFee?: boolean; hasSelfDestruct?: boolean
+    hasPause?: boolean; hasSetFee?: boolean; hasSelfDestruct?: boolean; hasGovernance?: boolean; usesSafemath?: boolean
     // Multi-chain fields
     codeLanguage?: string; network?: string; linesOfCode?: number; isNonEVM?: boolean
   } | null>(null)
   const [apiScoreBreakdown, setApiScoreBreakdown] = useState<Record<string, number> | null>(null)
   // Tier-1 sections from AI
-  const [privilegedRoles, setPrivilegedRoles] = useState<{ role: string; capabilities: string; riskIfCompromised: string }[]>([])
+  const [privilegedRoles, setPrivilegedRoles] = useState<PrivilegedRole[]>([])
   const [trustAssumptions, setTrustAssumptions] = useState<{ statement: string }[]>([])
   const [architectureOverview, setArchitectureOverview] = useState("")
-  const [attackSurface, setAttackSurface] = useState<{ title: string; type: string; description: string; likelihood: string; mitigated: boolean }[]>([])
+  const [attackSurface, setAttackSurface] = useState<AttackScenario[]>([])
   const [toolingUsed, setToolingUsed] = useState<string[]>([])
   // Tier-1 Analysis Results (Slither, Mythril, Foundry, Halmos, Cross-contract)
   const [tier1Results, setTier1Results] = useState<{
@@ -390,12 +408,12 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   }
   } | null>(null)
   // Tier-1 advanced sections
-  const [governanceSecurity, setGovernanceSecurity] = useState<Record<string, unknown> | null>(null)
-  const [upgradeabilityAnalysis, setUpgradeabilityAnalysis] = useState<Record<string, unknown> | null>(null)
-  const [economicRisks, setEconomicRisks] = useState<{ title: string; category: string; description: string; severity: string; mitigation: string | null }[]>([])
-  const [integrationRisks, setIntegrationRisks] = useState<{ dependency: string; riskType: string; description: string; severity: string }[]>([])
+  const [governanceSecurity, setGovernanceSecurity] = useState<GovernanceSecurity | null>(null)
+  const [upgradeabilityAnalysis, setUpgradeabilityAnalysis] = useState<UpgradeabilityAnalysis | null>(null)
+  const [economicRisks, setEconomicRisks] = useState<EconomicRisk[]>([])
+  const [integrationRisks, setIntegrationRisks] = useState<IntegrationRisk[]>([])
   const [invariantsChecked, setInvariantsChecked] = useState<{ invariant: string; holds: boolean; evidence: string }[]>([])
-  const [testingMethodology, setTestingMethodology] = useState<Record<string, unknown> | null>(null)
+  const [testingMethodology, setTestingMethodology] = useState<TestingMethodology | null>(null)
   const [aiEngagement, setAiEngagement] = useState<Record<string, unknown> | null>(null)
   const [aiScopeTable, setAiScopeTable] = useState<Record<string, unknown>[] | null>(null)
   // Enterprise Standards
@@ -783,13 +801,13 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         ...(contractMeta.hasPausable ? [{ label: "Pause Capability", value: true as boolean }] : []),
         { label: "Ownership Renounced", value: !!contractMeta.ownerRenounced },
       ] : undefined,
-      scoreBreakdown: apiScoreBreakdown || {
-        codeSecurity: v2Result.codeSecurity,
-        architectureRisk: v2Result.architecture,
-        governanceRisk: v2Result.governance,
-        centralization: v2Result.onChain,
-        testingCoverage: v2Result.operations,
-        economic: v2Result.economic,
+      scoreBreakdown: {
+        codeSecurity: pickScore(apiScoreBreakdown, ["codeSecurity"], v2Result.codeSecurity),
+        architectureRisk: pickScore(apiScoreBreakdown, ["architectureRisk", "upgradeSafety"], v2Result.architecture),
+        governanceRisk: pickScore(apiScoreBreakdown, ["governanceRisk", "accessControl"], v2Result.governance),
+        centralization: pickScore(apiScoreBreakdown, ["centralization", "dependencyHealth"], v2Result.onChain),
+        testingCoverage: pickScore(apiScoreBreakdown, ["testingCoverage", "operationalMaturity"], v2Result.operations),
+        economic: pickScore(apiScoreBreakdown, ["economic", "economicSafety"], v2Result.economic),
       },
       findings: findings.map((f) => ({
         title: f.title,
@@ -1052,7 +1070,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         ],
         // Enterprise: pass through auditId + reviewTeam from AI response
         auditId: (aiEngagement?.auditId as string) || undefined,
-        reviewTeam: (aiEngagement?.reviewTeam as Record<string, unknown>) || undefined,
+        reviewTeam: (aiEngagement?.reviewTeam as AuditEngagement["reviewTeam"]) || undefined,
       }})(),
       scopeTable: aiScopeTable ? aiScopeTable.map((s) => ({
         contract: String(s.contract || project.name),
@@ -1635,7 +1653,7 @@ const TABS: [TabId, string][] = [
       objectives: (aiEngagement.objectives as string[]) || [],
       // Enterprise: pass through auditId + reviewTeam from AI response
       auditId: (aiEngagement.auditId as string) || undefined,
-      reviewTeam: (aiEngagement.reviewTeam as Record<string, unknown>) || undefined,
+      reviewTeam: (aiEngagement.reviewTeam as AuditEngagement["reviewTeam"]) || undefined,
     }})() : undefined,
     scopeTable: aiScopeTable ? aiScopeTable.map((s) => ({
       contract: String(s.contract || ""),
@@ -2007,7 +2025,7 @@ const TABS: [TabId, string][] = [
                         return
                       }
                       setAiLoad(true)
-                      setAiError(null)
+                      setAiError("")
                       try {
                         const res = await fetch("/api/contract-source", {
                           method: "POST",
@@ -2711,13 +2729,13 @@ const TABS: [TabId, string][] = [
         setOnChainAnalysisData(data)
         // Also update project name with token name
         if (data.tokenName) {
-          setProject(p => ({ ...p, name: data.tokenName }))
+          setProject(p => ({ ...p, name: data.tokenName || p.name }))
         }
       }}
       onReviewComplete={(session) => {
         // Aggiungi i finding confermati ai findings del workspace
         const confirmedCount = session.aiFindings.filter(f => f.decision === "confirmed" || f.decision === "modified").length
-        const rejectedCount = session.aiFindings.filter(f => f.decision === "rejected").length
+        const rejectedCount = session.aiFindings.filter(f => f.decision === "false-positive").length
         
         session.aiFindings
           .filter(f => f.decision === "confirmed" || f.decision === "modified")
@@ -2749,7 +2767,7 @@ const TABS: [TabId, string][] = [
 
         // Update project name with token name if available from on-chain analysis
         if (session.onChainAnalysis?.tokenName) {
-          setProject(p => ({ ...p, name: session.onChainAnalysis!.tokenName }))
+          setProject(p => ({ ...p, name: session.onChainAnalysis?.tokenName || p.name }))
         }
         
         // Salva la sessione di review per includerla nel report

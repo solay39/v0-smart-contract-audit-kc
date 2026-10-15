@@ -364,6 +364,15 @@ export interface PortfolioProject {
     auditorSignature: string
     verificationUrl: string
   }
+  multiEngineConsensus?: {
+    enginesRun?: string[]
+    confirmed?: number
+    likely?: number
+    unconfirmed?: number
+    engineOnly?: { name: string; severity: string; engine: string }[]
+  } | null
+  confirmedPoCs?: { findingId: string; findingTitle: string; severity: string; pocFile: string; runCommand: string; compiled: boolean | null }[]
+  monitoring?: { enrolled: boolean; network: string; contractAddress: string | null; pollInterval: string; watchedEvents: string[]; reason?: string } | null
   economicAttackVectors?: {
     type: string
     title: string
