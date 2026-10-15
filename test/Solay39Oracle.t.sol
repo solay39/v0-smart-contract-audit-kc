@@ -232,9 +232,11 @@ contract Solay39OracleTest is Test {
         vm.prank(signer);
         oracle.revokeAudit(TARGET, "x");
 
-        vm.warp(block.timestamp + 1 days);
-        vm.expectEmit(true, false, false, true, address(oracle));
-        emit AuditUpdated(TARGET, 92, "AAA");
+  // Explicit timestamp: via_ir (and coverage's --ir-minimum) may cache block.timestamp.
+  uint256 updatedAt = vm.getBlockTimestamp() + 1 days;
+  vm.warp(updatedAt);
+  vm.expectEmit(true, false, false, true, address(oracle));
+  emit AuditUpdated(TARGET, 92, "AAA");
         vm.prank(signer);
         oracle.updateAudit(TARGET, 92, "AAA", 0, 0, 1, 1);
 
@@ -242,7 +244,7 @@ contract Solay39OracleTest is Test {
         assertEq(r.score, 92);
         assertEq(r.rating, "AAA");
         assertEq(r.criticals, 0);
-        assertEq(r.timestamp, block.timestamp);
+        assertEq(r.timestamp, updatedAt);
         assertTrue(r.isActive);
         assertEq(r.reportHash, "sha256:r", "update keeps original report hash");
     }
