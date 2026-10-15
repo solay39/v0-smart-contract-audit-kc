@@ -79,8 +79,10 @@ contract Solay39Attestation {
         if (bytes(reportHash).length == 0) revert EmptyField("reportHash");
         if (auditors.length == 0)          revert NoAuditors();
 
+        // abi.encode length-prefixes dynamic fields (no ("ab","c") vs ("a","bc") collision);
+        // the sequence number makes IDs unique even for identical reports in the same block.
         id = keccak256(
-            abi.encodePacked(project, reportHash, block.timestamp)
+            abi.encode(block.chainid, address(this), totalAttestations, project, reportHash, block.timestamp)
         );
 
         if (attestations[id].auditors.length > 0) revert AttestationExists(id);

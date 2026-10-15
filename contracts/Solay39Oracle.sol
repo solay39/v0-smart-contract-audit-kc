@@ -149,6 +149,8 @@ contract Solay39Oracle is Ownable {
             ? block.timestamp + (validityDays * 1 days) 
             : 0;
 
+        _removeFromTotals(contractAddress);
+
         audits[contractAddress] = AuditRecord({
             contractAddress: contractAddress,
             score: score,
@@ -205,8 +207,17 @@ contract Solay39Oracle is Ownable {
      */
     function revokeAudit(address contractAddress, string calldata reason) external onlyAuthorizedSigner {
         require(hasAudit[contractAddress], "No audit exists");
+        _removeFromTotals(contractAddress);
         audits[contractAddress].isActive = false;
         emit AuditRevoked(contractAddress, reason);
+    }
+
+    /// @dev Totals track open findings of active audits only; call before overwriting or revoking a record.
+    function _removeFromTotals(address contractAddress) private {
+        AuditRecord storage previous = audits[contractAddress];
+        if (!previous.isActive) return;
+        totalCriticals -= previous.criticals;
+        totalHighs -= previous.highs;
     }
 
     /**
@@ -222,8 +233,15 @@ contract Solay39Oracle is Ownable {
         uint256 lows
     ) external onlyAuthorizedSigner {
         require(hasAudit[contractAddress], "No audit exists");
-        
+        require(newScore <= 100, "Score must be 0-100");
+
+        _removeFromTotals(contractAddress);
+
         AuditRecord storage record = audits[contractAddress];
+        // Renew the expiry with the same validity window originally granted.
+        if (record.expiresAt > 0) {
+            record.expiresAt = block.timestamp + (record.expiresAt - record.timestamp);
+        }
         record.score = newScore;
         record.rating = newRating;
         record.criticals = criticals;
@@ -232,6 +250,9 @@ contract Solay39Oracle is Ownable {
         record.lows = lows;
         record.timestamp = block.timestamp;
         record.isActive = true;
+
+        totalCriticals += criticals;
+        totalHighs += highs;
 
         emit AuditUpdated(contractAddress, newScore, newRating);
     }
