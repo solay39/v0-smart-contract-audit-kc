@@ -18,25 +18,36 @@ export const founderCookieOptions = {
   maxAge: SESSION_TTL_SECONDS,
 }
 
-function founderSecret(): string | null {
-  const key = process.env.SOLAY39_FOUNDER_KEY
+// SHA-256 of the founder's chosen password: only the fingerprint lives in code, never the plaintext.
+const FOUNDER_PASSWORD_SHA256 = "dc3960ab2247a0196a2d2af0390d36fb8fa8acb57c828ec16642d63a0c247cb8"
+
+function envFounderKey(): string | null {
+  const key = process.env.SOLAY39_FOUNDER_KEY?.trim()
   return key && key.length >= 12 ? key : null
 }
 
+function founderSecret(): string {
+  return envFounderKey() ?? FOUNDER_PASSWORD_SHA256
+}
+
+function sha256(value: string): Buffer {
+  return createHash("sha256").update(value).digest()
+}
+
 function safeEqual(a: string, b: string): boolean {
-  const ha = createHash("sha256").update(a).digest()
-  const hb = createHash("sha256").update(b).digest()
-  return timingSafeEqual(ha, hb)
+  return timingSafeEqual(sha256(a), sha256(b))
 }
 
 export function isValidFounderKey(candidate: unknown): boolean {
-  const secret = founderSecret()
-  if (!secret || typeof candidate !== "string" || candidate.length === 0) return false
-  return safeEqual(candidate, secret)
+  if (typeof candidate !== "string" || candidate.length === 0) return false
+  const matchesPassword = timingSafeEqual(sha256(candidate), Buffer.from(FOUNDER_PASSWORD_SHA256, "hex"))
+  const envKey = envFounderKey()
+  const matchesEnv = envKey ? safeEqual(candidate, envKey) : false
+  return matchesPassword || matchesEnv
 }
 
 export function getFounderKeyForServerCall(): string | null {
-  return founderSecret()
+  return envFounderKey()
 }
 
 function sign(payload: string, secret: string): string {
@@ -45,14 +56,13 @@ function sign(payload: string, secret: string): string {
 
 export function createFounderSessionToken(): string | null {
   const secret = founderSecret()
-  if (!secret) return null
   const exp = String(Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS)
   return `${exp}.${sign(exp, secret)}`
 }
 
 function isValidSessionToken(token: string | undefined): boolean {
   const secret = founderSecret()
-  if (!secret || !token) return false
+  if (!token) return false
   const [exp, sig] = token.split(".")
   if (!exp || !sig || !/^\d+$/.test(exp)) return false
   if (Number(exp) < Math.floor(Date.now() / 1000)) return false
@@ -78,9 +88,5 @@ export function unauthorizedResponse() {
 
 /** Returns a 401 response when the caller is not the founder, otherwise null. */
 export async function requireFounder(req: Request, bodyKey?: unknown): Promise<NextResponse | null> {
-  if (!founderSecret()) {
-    console.error("[founder-auth] SOLAY39_FOUNDER_KEY missing or too short: refusing protected request")
-    return NextResponse.json({ success: false, error: "Server auth not configured" }, { status: 503 })
-  }
   return (await isFounderRequest(req, bodyKey)) ? null : unauthorizedResponse()
 }
