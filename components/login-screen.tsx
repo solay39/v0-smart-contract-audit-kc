@@ -2,8 +2,6 @@
 
 import { useState } from "react"
 import {
-  FOUNDER_EMAIL,
-  FOUNDER_PASS,
   PUB_EMAIL,
   TG_URL,
   DEFAULT_PROJECTS,
@@ -37,11 +35,23 @@ export function LoginScreen({
   const [pass, setPass] = useState("")
   const [err, setErr] = useState("")
 
-  const login = () => {
-    if (email === FOUNDER_EMAIL && pass === FOUNDER_PASS) {
-      onFounder()
-    } else {
-      setErr("Invalid credentials.")
+  const login = async () => {
+    setErr("")
+    try {
+      const res = await fetch("/api/founder/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ email, password: pass }),
+      })
+      if (res.ok) {
+        setPass("")
+        onFounder()
+      } else {
+        setErr(res.status === 503 ? "Server auth not configured." : "Invalid credentials.")
+      }
+    } catch {
+      setErr("Network error. Try again.")
     }
   }
 

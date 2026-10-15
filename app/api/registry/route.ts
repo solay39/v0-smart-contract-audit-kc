@@ -4,6 +4,7 @@
 // ================================================================
 
 import { NextRequest, NextResponse } from "next/server"
+import { requireFounder } from "@/lib/founder-auth"
 
 // ABI minimo del contratto Solay39AuditRegistry (single-auditor)
 const REGISTRY_ABI = [
@@ -36,6 +37,9 @@ const AUDITOR_PRIVATE_KEY = process.env.AUDITOR_PRIVATE_KEY ?? ""
 const RPC_URL = process.env.BLOCKCHAIN_RPC_URL ?? "https://bsc-dataseed.binance.org/"
 
 export async function POST(req: NextRequest) {
+  const denied = await requireFounder(req)
+  if (denied) return denied
+
   try {
     const { projectName, reportHash, commitHash, auditId, auditors } = await req.json()
 

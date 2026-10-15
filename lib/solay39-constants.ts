@@ -16,8 +16,6 @@ export {
   type AttackSimResult,
 } from "./audit-engine-helpers"
 
-export const FOUNDER_EMAIL = "lippo.f80@gmail.com"
-export const FOUNDER_PASS = "Solay39!Audit#2025"
 export const PUB_EMAIL = "solay2126@gmail.com"
 export const TG_URL = "https://t.me/Solay39audit"
 

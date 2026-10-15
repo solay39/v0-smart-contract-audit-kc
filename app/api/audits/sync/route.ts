@@ -4,10 +4,14 @@
 
 import { put } from "@vercel/blob"
 import { type NextRequest, NextResponse } from "next/server"
+import { requireFounder } from "@/lib/founder-auth"
 
 const BLOB_PREFIX = "audits/"
 
 export async function POST(request: NextRequest) {
+  const denied = await requireFounder(request)
+  if (denied) return denied
+
   try {
     const { audit } = await request.json()
     if (!audit?.id || !audit?.name) {

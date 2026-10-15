@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { requireFounder } from "@/lib/founder-auth"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -294,6 +295,11 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const { action } = body
+
+    if (action === "publish" || action === "sign" || action === "deploy") {
+      const denied = await requireFounder(req)
+      if (denied) return denied
+    }
     
     // ── Publish score to blockchain ──
     if (action === "publish") {
