@@ -8,6 +8,9 @@ export function getStaticBackendUrl(): string | null {
   let url = raw.replace(/^STATIC_ANALYSIS_API_URL\s*=?\s*/i, "").replace(/^["']|["']$/g, "").replace(/\/+$/, "")
   if (!url) return null
   if (!/^https?:\/\//i.test(url)) url = `https://${url}`
+  // The Railway deployment was shut down (free plan expired); ignoring it avoids
+  // multi-second timeouts on every audit and keeps the pattern-based fallback.
+  if (/railway\.app/i.test(url)) return null
   return url
 }
 
