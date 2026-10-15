@@ -74,49 +74,192 @@ function getExplorerUrl(network: string, address: string): string {
   return map[network] || `https://etherscan.io/address/${address}`
 }
 
-async function fetchEVMSource(config: ExplorerConfig, address: string): Promise<{ source: string; compiler: string; contractName: string; abi: string } | null> {
-  try {
-  // Etherscan V2 API - unified endpoint with chainid
+interface EVMSourceResult {
+  source: string
+  compiler: string
+  contractName: string
+  abi: string
+  fileCount: number
+  optimizerRuns: number | null
+  openZeppelinVersion: string | null
+  explorerFlaggedProxy: boolean
+  explorerImplementation: string | null
+}
+
+const EIP1967_IMPLEMENTATION_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
+const EIP1967_ADMIN_SLOT = "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103"
+const EIP1967_BEACON_SLOT = "0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50"
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+
+function etherscanUrl(chainId: number, params: string): string {
   const apiKey = process.env.ETHERSCAN_API_KEY || ""
-  const url = `${ETHERSCAN_V2_BASE}?chainid=${config.chainId}&module=contract&action=getsourcecode&address=${address}${apiKey ? `&apikey=${apiKey}` : ""}`
-  const res = await fetch(url)
-  if (!res.ok) return null
-  const data = await res.json()
-    
+  return `${ETHERSCAN_V2_BASE}?chainid=${chainId}&${params}${apiKey ? `&apikey=${apiKey}` : ""}`
+}
+
+function detectOpenZeppelinVersion(source: string): string | null {
+  const versions = [...source.matchAll(/OpenZeppelin Contracts(?: \(last updated)? v(\d+\.\d+(?:\.\d+)?)/g)].map((m) => m[1])
+  if (versions.length === 0) return null
+  return versions.sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))[0]
+}
+
+async function fetchEVMSource(config: ExplorerConfig, address: string): Promise<EVMSourceResult | null> {
+  try {
+    const res = await fetch(etherscanUrl(config.chainId, `module=contract&action=getsourcecode&address=${address}`), {
+      signal: AbortSignal.timeout(15000),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
     if (data.status !== "1" || !data.result?.[0]) return null
     const result = data.result[0]
-    
+
     let source = result.SourceCode || ""
-    
-    // Handle JSON-wrapped multi-file source (Etherscan format)
-    if (source.startsWith("{") || source.startsWith("{{")) {
+    let fileCount = source ? 1 : 0
+
+    if (source.startsWith("{")) {
       try {
         const cleaned = source.startsWith("{{") ? source.slice(1, -1) : source
         const parsed = JSON.parse(cleaned)
         if (parsed.sources) {
-          // Multi-file source: concatenate all files
-          source = Object.entries(parsed.sources)
-            .map(([name, content]: [string, unknown]) => {
-              const src = (content as { content?: string })?.content || ""
-              return `// ── File: ${name} ──\n${src}`
-            })
+          const entries = Object.entries(parsed.sources)
+          fileCount = entries.length
+          source = entries
+            .map(([name, content]) => `// ── File: ${name} ──\n${(content as { content?: string })?.content || ""}`)
             .join("\n\n")
         }
       } catch {
-        // Not JSON, use as-is
+        // Single-file source that happens to start with "{"
       }
     }
-    
+
     if (!source || source.length < 10) return null
-    
+
+    const runs = Number.parseInt(result.Runs, 10)
     return {
       source,
       compiler: result.CompilerVersion || "unknown",
       contractName: result.ContractName || "Unknown",
       abi: result.ABI || "",
+      fileCount,
+      optimizerRuns: result.OptimizationUsed === "1" && Number.isFinite(runs) ? runs : null,
+      openZeppelinVersion: detectOpenZeppelinVersion(source),
+      explorerFlaggedProxy: result.Proxy === "1",
+      explorerImplementation: /^0x[a-fA-F0-9]{40}$/.test(result.Implementation || "") ? result.Implementation : null,
     }
   } catch {
     return null
+  }
+}
+
+const PUBLIC_RPC: Record<number, string> = {
+  1: "https://ethereum-rpc.publicnode.com",
+  56: "https://bsc-rpc.publicnode.com",
+  42161: "https://arb1.arbitrum.io/rpc",
+  10: "https://mainnet.optimism.io",
+  137: "https://polygon-rpc.com",
+  43114: "https://api.avax.network/ext/bc/C/rpc",
+  8453: "https://mainnet.base.org",
+  100: "https://rpc.gnosischain.com",
+  59144: "https://rpc.linea.build",
+  534352: "https://rpc.scroll.io",
+  81457: "https://rpc.blast.io",
+  324: "https://mainnet.era.zksync.io",
+  42220: "https://forno.celo.org",
+  5000: "https://rpc.mantle.xyz",
+}
+
+const ALCHEMY_NETWORK: Record<number, string> = {
+  1: "eth-mainnet", 42161: "arb-mainnet", 10: "opt-mainnet", 137: "polygon-mainnet",
+  8453: "base-mainnet", 43114: "avax-mainnet", 56: "bnb-mainnet",
+}
+
+function rpcEndpoints(chainId: number): string[] {
+  const endpoints: string[] = []
+  if (PUBLIC_RPC[chainId]) endpoints.push(PUBLIC_RPC[chainId])
+  const alchemyKey = process.env.ALCHEMY_API_KEY
+  if (alchemyKey && ALCHEMY_NETWORK[chainId]) endpoints.push(`https://${ALCHEMY_NETWORK[chainId]}.g.alchemy.com/v2/${alchemyKey}`)
+  return endpoints
+}
+
+async function readStorageAddress(chainId: number, address: string, slot: string): Promise<string | null> {
+  for (const endpoint of rpcEndpoints(chainId)) {
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getStorageAt", params: [address, slot, "latest"] }),
+        signal: AbortSignal.timeout(8000),
+      })
+      if (!res.ok) continue
+      const data = await res.json()
+      const raw = typeof data.result === "string" ? data.result : ""
+      if (!/^0x[0-9a-fA-F]{64}$/.test(raw)) continue
+      const addr = `0x${raw.slice(-40)}`
+      return addr.toLowerCase() === ZERO_ADDRESS ? null : addr
+    } catch {
+      // Try the next endpoint
+    }
+  }
+  return null
+}
+
+async function fetchSourcifySource(chainId: number, address: string): Promise<EVMSourceResult | null> {
+  try {
+    const res = await fetch(`https://sourcify.dev/server/v2/contract/${chainId}/${address}?fields=all`, {
+      signal: AbortSignal.timeout(15000),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const sources = data.sources as Record<string, { content?: string }> | undefined
+    if (!sources) return null
+    const entries = Object.entries(sources)
+    const source = entries.map(([name, file]) => `// ── File: ${name} ──\n${file?.content || ""}`).join("\n\n")
+    if (source.length < 10) return null
+    const optimizer = data.compilation?.compilerSettings?.optimizer
+    const implementation = data.proxyResolution?.implementations?.[0]?.address
+    return {
+      source,
+      compiler: data.compilation?.compilerVersion || "unknown",
+      contractName: data.compilation?.name || "Unknown",
+      abi: data.abi ? JSON.stringify(data.abi) : "",
+      fileCount: entries.length,
+      optimizerRuns: optimizer?.enabled && Number.isFinite(optimizer.runs) ? optimizer.runs : null,
+      openZeppelinVersion: detectOpenZeppelinVersion(source),
+      explorerFlaggedProxy: !!data.proxyResolution?.isProxy,
+      explorerImplementation: /^0x[a-fA-F0-9]{40}$/.test(implementation || "") ? implementation : null,
+    }
+  } catch {
+    return null
+  }
+}
+
+async function fetchVerifiedSource(config: ExplorerConfig, address: string): Promise<EVMSourceResult | null> {
+  return (await fetchSourcifySource(config.chainId, address)) || (await fetchEVMSource(config, address))
+}
+
+interface ProxyInfo {
+  isProxy: boolean
+  proxyType: "EIP-1967 Transparent/UUPS" | "EIP-1967 Beacon" | "Explorer-detected proxy" | null
+  proxyAddress: string
+  implementationAddress: string | null
+  proxyAdmin: string | null
+  beacon: string | null
+}
+
+async function resolveProxy(config: ExplorerConfig, address: string, explorer: EVMSourceResult | null): Promise<ProxyInfo> {
+  const [implementation, admin, beacon] = await Promise.all([
+    readStorageAddress(config.chainId, address, EIP1967_IMPLEMENTATION_SLOT),
+    readStorageAddress(config.chainId, address, EIP1967_ADMIN_SLOT),
+    readStorageAddress(config.chainId, address, EIP1967_BEACON_SLOT),
+  ])
+  const implementationAddress = implementation || explorer?.explorerImplementation || null
+  const isProxy = !!(implementation || beacon || explorer?.explorerFlaggedProxy)
+  return {
+    isProxy,
+    proxyType: implementation ? "EIP-1967 Transparent/UUPS" : beacon ? "EIP-1967 Beacon" : isProxy ? "Explorer-detected proxy" : null,
+    proxyAddress: address,
+    implementationAddress,
+    proxyAdmin: admin,
+    beacon,
   }
 }
 
@@ -375,7 +518,7 @@ This is a Solana SPL Token using the standard Token Program.
 - Upgradeable: No (SPL Token program is immutable)
 */
 
-// ── METADATA ───────────────────────────────────────────────────────────
+// ── METADATA ──────────────────────���────────────────────────────────────
 const TOKEN_METADATA = ${JSON.stringify(metadata, null, 2)};
 
 // ── AUDIT CHECKLIST FOR MANUAL REVIEW ──────────────────────────────────
@@ -486,30 +629,42 @@ export async function POST(req: Request) {
 
     // ── EVM chains (Etherscan-compatible APIs) ──
     if (config.type === "etherscan") {
-      const result = await fetchEVMSource(config, address)
+      const proxySource = await fetchVerifiedSource(config, address)
+      const proxy = await resolveProxy(config, address, proxySource)
+
+      // For proxies the logic lives in the implementation; auditing the proxy shell alone is misleading.
+      const implementationSource = proxy.isProxy && proxy.implementationAddress
+        ? await fetchVerifiedSource(config, proxy.implementationAddress)
+        : null
+      const result = implementationSource || proxySource
+
       if (!result || !result.source) {
         return Response.json({
-          error: `Contract source not verified on ${net} explorer. Please paste the source code manually.`,
+          error: proxy.isProxy
+            ? `Proxy detected, but the implementation ${proxy.implementationAddress || "(unknown)"} is not verified on the ${net} explorer.`
+            : `Contract source not verified on ${net} explorer. Please paste the source code manually.`,
           explorerUrl,
           network: net,
+          proxy,
         }, { status: 404 })
       }
-      const linesOfCode = result.source.split("\n").length
-      const explorerName = config.apiUrl.includes("etherscan") ? "Etherscan" :
-        config.apiUrl.includes("bscscan") ? "BscScan" :
-        config.apiUrl.includes("arbiscan") ? "Arbiscan" :
-        config.apiUrl.includes("polygonscan") ? "PolygonScan" :
-        config.apiUrl.includes("basescan") ? "BaseScan" :
-        config.apiUrl.includes("snowscan") ? "Snowscan" :
-        net + " Explorer"
+
+      const explorerName = new URL(explorerUrl).hostname.replace(/^www\./, "")
+      const compilerVersion = result.compiler.match(/v?(\d+\.\d+\.\d+)/)?.[1] || null
       return Response.json({
         source: result.source,
         compiler: result.compiler,
+        compilerVersion,
         contractName: result.contractName,
-        language: "Solidity " + (result.compiler || ""),
+        language: compilerVersion ? `Solidity ${compilerVersion}` : "Solidity",
         explorerName,
         explorerUrl,
-        linesOfCode,
+        linesOfCode: result.source.split("\n").length,
+        fileCount: result.fileCount,
+        optimizerRuns: result.optimizerRuns,
+        openZeppelinVersion: result.openZeppelinVersion,
+        analyzedAddress: implementationSource ? proxy.implementationAddress : address,
+        proxy,
         network: net,
       })
     }

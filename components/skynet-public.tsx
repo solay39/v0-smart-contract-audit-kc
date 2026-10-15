@@ -539,10 +539,19 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
 
               {/* Badges row */}
               <div className="flex gap-2 flex-wrap mt-3 mb-4">
-                <span className="flex items-center gap-1.5 text-[8px] text-s39-green bg-s39-green/5 border border-s39-green/20 px-2.5 py-1 tracking-wider">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="#00ff88" strokeWidth="1"/><path d="M3 5l1.5 1.5L7 4" stroke="#00ff88" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  SOLAY39 AUDITED
-                </span>
+                {p.manualReview ? (
+                  <span className="flex items-center gap-1.5 text-[8px] text-s39-green bg-s39-green/5 border border-s39-green/20 px-2.5 py-1 tracking-wider">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><circle cx="5" cy="5" r="4" stroke="#00ff88" strokeWidth="1"/><path d="M3 5l1.5 1.5L7 4" stroke="#00ff88" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    SOLAY39 AUDITED · MANUAL REVIEW
+                  </span>
+                ) : (
+                  <span
+                    className="flex items-center gap-1.5 text-[8px] text-s39-dim bg-s39-bg2 border border-s39-border px-2.5 py-1 tracking-wider"
+                    title="Automated analysis only. Not yet reviewed manually by an auditor."
+                  >
+                    AUTOMATED SCAN · NOT MANUALLY REVIEWED
+                  </span>
+                )}
                 <span className="text-[8px] border px-2.5 py-1 font-bold tracking-wider" style={{ color: sc, borderColor: `${sc}33`, background: `${sc}08` }}>
                   {computedRating}
                 </span>
@@ -2586,7 +2595,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-2 h-2 bg-[#00e5ff]" />
                 <span className="text-[8px] text-[#00e5ff] tracking-widest font-bold">4. MANUAL LINE-BY-LINE REVIEW</span>
-                <span className="text-[7px] text-s39-dim ml-auto">{p.testingMethodology.manualReviewHours}h total</span>
+                <span className="text-[7px] text-s39-dim ml-auto">{p.manualReview ? `${p.testingMethodology.manualReviewHours}h total` : "NOT PERFORMED"}</span>
               </div>
               <div className="border border-s39-border overflow-hidden">
                 {/* Commit + Scope info */}
