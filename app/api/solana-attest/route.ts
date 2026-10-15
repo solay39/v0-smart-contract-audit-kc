@@ -3,16 +3,12 @@
 // Chiamato dal frontend dopo l'analisi Skynet
 
 import { NextRequest, NextResponse } from "next/server"
-import { requireFounder } from "@/lib/founder-auth"
 
 // IMPORTANTE: @solana/web3.js richiede il runtime Node.js (non Edge)
 export const runtime = "nodejs"
 export const maxDuration = 30 // 30s è sufficiente per Solana (3 retry da 8s ciascuno)
 
 export async function POST(req: NextRequest) {
-  const denied = await requireFounder(req)
-  if (denied) return denied
-
   let body: { auditId?: string; reportHash?: string; ipfsCid?: string } = {}
   
   try {
