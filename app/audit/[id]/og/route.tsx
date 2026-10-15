@@ -1,5 +1,4 @@
 import { ImageResponse } from "next/og"
-import { getPublishedAudit } from "@/lib/get-published-audit"
 import { DEFAULT_PROJECTS, scoreColor, ratingOf, getWeightedScore, type PortfolioProject } from "@/lib/solay39-constants"
 
 const projectMap = new Map(DEFAULT_PROJECTS.map((p) => [p.id, p]))
@@ -49,24 +48,6 @@ async function fetchBlobAudit(id: string): Promise<PortfolioProject | null> {
   return null
 }
 
-// A slow or unsupported remote logo must never break the whole social preview image.
-async function loadLogoAsDataUrl(src: string): Promise<string | null> {
-  try {
-    const res = await fetch(src, { signal: AbortSignal.timeout(4000) })
-    const type = res.headers.get("content-type") || ""
-    if (!res.ok || !/image\/(png|jpe?g|gif)/.test(type)) return null
-    const bytes = new Uint8Array(await res.arrayBuffer())
-    if (bytes.length > 1_500_000) return null
-    let binary = ""
-    for (let i = 0; i < bytes.length; i += 0x8000) {
-      binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
-    }
-    return `data:${type.split(";")[0]};base64,${btoa(binary)}`
-  } catch {
-    return null
-  }
-}
-
 export const runtime = "edge"
 
 export async function GET(
@@ -78,7 +59,7 @@ export async function GET(
   const origin = url.origin || "https://www.solay39.eu"
   
   // First try static projects, then fetch from Blob (using origin from request)
-  const p = projectMap.get(id) || (await getPublishedAudit(id)) || (await fetchBlobAudit(id))
+  const p = projectMap.get(id) || (await fetchBlobAudit(id))
 
   if (!p) {
     return new ImageResponse(
@@ -102,8 +83,6 @@ export async function GET(
       { width: 1200, height: 630 }
     )
   }
-
-  const logoSrc = p.logoUrl ? await loadLogoAsDataUrl(p.logoUrl) : null
 
   const ws = getWeightedScore(p)
   const wr = ratingOf(ws)
@@ -227,9 +206,9 @@ export async function GET(
                   border: `2px solid ${sc}33`,
                 }}
               >
-                {logoSrc ? (
+                {p.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={logoSrc} width={56} height={56} alt="" style={{ borderRadius: 8 }} />
+                  <img src={p.logoUrl} width={56} height={56} alt="" style={{ borderRadius: 8 }} />
                 ) : (
                   p.name.charAt(0).toUpperCase()
                 )}
@@ -240,7 +219,7 @@ export async function GET(
                 </div>
                 {p.ticker && (
                   <div style={{ fontSize: 16, color: "#3e5060", marginTop: 4 }}>
-                    {`${p.ticker}${p.network ? ` | ${p.network}` : ""}`}
+                    {p.ticker} | {p.network}
                   </div>
                 )}
               </div>
@@ -275,13 +254,11 @@ export async function GET(
 
             {/* Date + Auditor */}
             <div style={{ display: "flex", gap: 20, marginTop: 20 }}>
-              <div style={{ display: "flex", gap: 6, fontSize: 12, color: "#3e5060" }}>
-                <span>Auditor:</span>
-                <span style={{ color: "#7a8c9e" }}>{p.auditor || "Solay39"}</span>
+              <div style={{ fontSize: 12, color: "#3e5060" }}>
+                Auditor: <span style={{ color: "#7a8c9e" }}>{p.auditor || "Solay39"}</span>
               </div>
-              <div style={{ display: "flex", gap: 6, fontSize: 12, color: "#3e5060" }}>
-                <span>Date:</span>
-                <span style={{ color: "#7a8c9e" }}>{p.date || "—"}</span>
+              <div style={{ fontSize: 12, color: "#3e5060" }}>
+                Date: <span style={{ color: "#7a8c9e" }}>{p.date}</span>
               </div>
             </div>
           </div>
@@ -343,7 +320,7 @@ export async function GET(
           }}
         >
           <div style={{ fontSize: 11, color: "#3e5060", letterSpacing: "0.1em" }}>
-            {`solay39.eu/audit/${p.id || id}`}
+            solay39.eu/audit/{p.id}
           </div>
           <div style={{ fontSize: 11, color: "#3e5060", letterSpacing: "0.1em" }}>
             SOLAY39 SMART CONTRACT SECURITY
