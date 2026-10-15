@@ -140,6 +140,9 @@ importers:
       express:
         specifier: ^5.2.1
         version: 5.2.1
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       hardhat:
         specifier: ^3.3.0
         version: 3.3.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)
@@ -2228,8 +2231,8 @@ packages:
   fd-slicer@1.1.0:
     resolution: {integrity: sha512-cE1qsB/VwyQozZ+q1dGxR8LBYNZeofhEdUNGSMbQD3Gw2lAzX9Zb3uIU6Ebc/Fmyjo9AWWfnn0AUCHqtevs/8g==}
 
-  fflate@0.8.2:
-    resolution: {integrity: sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==}
+  fflate@0.8.3:
+    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
 
   finalhandler@2.1.1:
     resolution: {integrity: sha512-S8KoZgRZN+a5rNwqTxlZZePjT/4cnm0ROV70LedRHZ0p8u9fRID0hJUZQpkKLzro8LfmC8sx23bY6tVNxv8pQA==}
@@ -5055,7 +5058,7 @@ snapshots:
     dependencies:
       pend: 1.2.0
 
-  fflate@0.8.2: {}
+  fflate@0.8.3: {}
 
   finalhandler@2.1.1:
     dependencies:
@@ -5256,7 +5259,7 @@ snapshots:
       '@babel/runtime': 7.28.6
       atob: 2.1.2
       btoa: 1.2.1
-      fflate: 0.8.2
+      fflate: 0.8.3
     optionalDependencies:
       canvg: 3.0.11
       core-js: 3.49.0
