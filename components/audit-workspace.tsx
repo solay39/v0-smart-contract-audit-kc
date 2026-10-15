@@ -22,6 +22,7 @@ import Solay39Validator from "@/components/solay39-validator"
 import { useAuditValidator, ValidationPanel } from "@/components/validation-panel"
 import ManualReviewWorkspace from "@/components/manual-review-workspace"
 import { Tier1AnalysisPanel } from "@/components/tier1-analysis-panel"
+import { CiStaticAnalysisCard } from "@/components/ci-static-analysis-card"
 import { AuditAssurancePanel, type ConsensusData, type ConfirmedPoC, type MonitoringData } from "@/components/audit-assurance-panel"
 
 // ════════════════════════════════════════════════════════════════
@@ -2557,6 +2558,12 @@ const TABS: [TabId, string][] = [
                   crossContractAnalysis={tier1Results.crossContractAnalysis}
                   analysisMode={tier1Results.analysisMode}
                 />
+              </div>
+            )}
+
+            {aiCode.trim() && (
+              <div className="mb-5">
+                <CiStaticAnalysisCard code={aiCode} contractName={project.name || "Contract"} />
               </div>
             )}
 
