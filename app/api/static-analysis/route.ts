@@ -344,9 +344,8 @@ export async function GET() {
     },
     setupInstructions: hasExternalService ? null : {
       message: "Configure STATIC_ANALYSIS_API_URL for real tool execution",
-      railway: "Deploy railway-backend/ to Railway.app",
       options: [
-        "Deploy railway-backend/ to Railway with Docker",
+        "Deploy security-backend/ (Docker) to any container host and set STATIC_ANALYSIS_API_URL",
         "Tools: slither-analyzer, mythril, foundry, halmos",
         "Halmos uses Z3 solver for bounded model checking"
       ]

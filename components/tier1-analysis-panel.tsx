@@ -172,7 +172,7 @@ export function Tier1AnalysisPanel({
               {isRealMode ? (
                 <span className="text-green-400 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
-                  Docker backend connected (Railway)
+                  Docker backend connected
                 </span>
               ) : (
                 <span className="text-yellow-400">
@@ -182,8 +182,7 @@ export function Tier1AnalysisPanel({
             </div>
             {!isRealMode && (
               <div className="mt-2 text-xs text-gray-500">
-                Deploy the Docker backend to Railway for real Slither/Mythril/Foundry/Halmos execution:
-                <code className="ml-2 px-1 py-0.5 bg-black rounded text-cyan-300">cd scripts/static-analysis-backend && ./deploy.sh</code>
+                Deploy the Docker backend (security-backend/) to a container host and set STATIC_ANALYSIS_API_URL for real Slither/Mythril/Foundry/Halmos execution.
               </div>
             )}
           </div>
