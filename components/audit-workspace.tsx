@@ -1560,36 +1560,55 @@ const TABS: [TabId, string][] = [
   ["blockchain", "Blockchain"],
   ]
 
+  const renderTabButton = (t: TabId, l: string, compact = false) => (
+    <button
+      key={t}
+      role="tab"
+      aria-selected={tab === t}
+      onClick={() => setTab(t)}
+      className={`text-[9px] tracking-[0.12em] uppercase cursor-pointer font-mono transition-colors shrink-0 ${
+        compact
+          ? `border px-2.5 py-1.5 ${
+              tab === t
+                ? "text-s39-green border-s39-green bg-s39-green/10"
+                : "text-s39-dim border-s39-border bg-transparent"
+            }`
+          : `bg-transparent border-none pb-0.5 ${
+              tab === t
+                ? "text-s39-green border-b border-s39-green"
+                : "text-s39-dim hover:text-s39-lite"
+            }`
+      }`}
+    >
+      {l}
+    </button>
+  )
+
   return (
     <div className="min-h-dvh bg-s39-bg0">
       {/* TOP BAR */}
-      <nav className="bg-s39-bg1 border-b border-s39-border px-4 sm:px-6 h-[52px] flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto">
-          <div className="text-[13px] font-bold text-s39-green tracking-wider shrink-0">
-            SOLAY39
+      <nav className="bg-s39-bg1 border-b border-s39-border px-4 sm:px-6 sticky top-0 z-50">
+        <div className="h-[52px] flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 lg:gap-6 min-w-0">
+            <div className="text-[13px] font-bold text-s39-green tracking-wider shrink-0">
+              SOLAY39
+            </div>
+            <div className="h-[18px] w-px bg-s39-border shrink-0 hidden lg:block" />
+            <div className="hidden lg:flex items-center gap-6" role="tablist" aria-label="Audit sections">
+              {TABS.map(([t, l]) => renderTabButton(t, l))}
+            </div>
           </div>
-          <div className="h-[18px] w-px bg-s39-border shrink-0 hidden sm:block" />
-          {TABS.map(([t, l]) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`text-[9px] tracking-[0.12em] uppercase cursor-pointer bg-transparent border-none font-mono pb-0.5 transition-colors shrink-0 ${
-                tab === t
-                  ? "text-s39-green border-b border-s39-green"
-                  : "text-s39-dim hover:text-s39-lite"
-              }`}
-            >
-              {l}
-            </button>
-          ))}
+          <div className="flex gap-3 items-center shrink-0">
+            <span className="text-[9px] text-s39-dim hidden sm:inline">
+              {project.name || "New Audit"}
+            </span>
+            <S39Btn small onClick={onLogout}>
+              Logout
+            </S39Btn>
+          </div>
         </div>
-        <div className="flex gap-3 items-center shrink-0">
-          <span className="text-[9px] text-s39-dim hidden sm:inline">
-            {project.name || "New Audit"}
-          </span>
-          <S39Btn small onClick={onLogout}>
-            Logout
-          </S39Btn>
+        <div className="lg:hidden flex flex-wrap gap-x-2 gap-y-2 pb-3" role="tablist" aria-label="Audit sections">
+          {TABS.map(([t, l]) => renderTabButton(t, l, true))}
         </div>
       </nav>
 
