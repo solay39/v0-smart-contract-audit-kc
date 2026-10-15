@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
-    { "path": "/api/skynet-realtime?action=poll", "schedule": "*/5 * * * *" }
+    { "path": "/api/skynet-realtime?action=poll", "schedule": "0 6 * * *" }
   ]
 }
