@@ -17,6 +17,7 @@ import { runAttackSimulation } from "@/core/simulator/attackSimulator"
 import { pinReportToIPFS } from "@/lib/ipfs-pinning"
 import { generatePoCScripts, generateHardhatPoC } from "@/core/poc/pocGenerator"
 import { analyzeTestCoverage } from "@/core/analyzer/testCoverageAnalyzer"
+import { runMultiEngineConsensus } from "@/core/consensus/multiEngineConsensus"
 // Solana attestation rimossa dal flusso principale - disponibile manualmente via /api/solana-attest
 
 /* ───────── Static Analysis (Slither/Mythril) ───────── */
@@ -1224,7 +1225,7 @@ REALISTIC SCORING: NEVER give 100/100. Max attainable = 98. Simple ERC-20 with n
 
 ════════════════════════════════════════════════
 MANDATORY REPORT SECTIONS
-════════════════════════════════════════════════
+════════════════════════════════════════���═══════
 
 You MUST generate ALL of these sections with full depth:
 
@@ -2132,6 +2133,20 @@ ${truncatedCode}`
         return f
       })
   
+      const consensus = isEVM
+        ? runMultiEngineConsensus(truncatedCode, finalFindings as Array<Record<string, unknown>>)
+        : null
+      const multiEngineConsensus = consensus?.report ?? null
+      if (consensus) {
+        consensus.findings.forEach((annotated, i) => {
+          Object.assign(finalFindings[i], {
+            confirmedBy: annotated.confirmedBy,
+            consensusConfidence: annotated.consensusConfidence,
+            consensusLevel: annotated.consensusLevel,
+          })
+        })
+      }
+
       // ── ENTERPRISE: Economic Attack Analysis ──
 const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
   hasProxy:         meta.hasProxy,
@@ -2445,6 +2460,7 @@ return Response.json({
         aiScopeTable,
         // Enterprise sections
         economicAttackVectors,
+        multiEngineConsensus,
         reviewRecord,
         reportIntegrity: reportIntegrityPlaceholder,
         // Enterprise: New sections
