@@ -8,9 +8,10 @@
 import { createClient } from "@supabase/supabase-js"
 import { createHash } from "crypto"
 import { getAuditReportHTML } from "@/lib/export-pdf"
+import { isFounderRequest } from "@/lib/founder-auth"
 
 const GITHUB_REPO = process.env.GITHUB_REPO || "solay39/Solay39-audit"
-const FOUNDER_KEY = "Solay39!Audit#2025"
+
 
 function generateHash(c: string) {
   return createHash("sha256").update(c, "utf8").digest("hex")
@@ -179,7 +180,7 @@ async function uploadToGitHub(token: string, path: string, html: string, msg: st
 export async function POST(req: Request) {
   try {
     const { founderKey, dryRun = false, auditIds } = await req.json()
-    if (founderKey !== FOUNDER_KEY) return Response.json({ error: "Invalid founder key" }, { status: 401 })
+    if (!(await isFounderRequest(req, founderKey))) return Response.json({ error: "Invalid founder key" }, { status: 401 })
 
     const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
     const token = process.env.GITHUB_TOKEN

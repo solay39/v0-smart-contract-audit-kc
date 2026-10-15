@@ -5,6 +5,7 @@
 
 import { createClient } from "@supabase/supabase-js"
 import { type NextRequest, NextResponse } from "next/server"
+import { isFounderRequest, isValidFounderKey, requireFounder } from "@/lib/founder-auth"
 
 // Initialize Supabase client with service role for server-side operations
 const supabase = createClient(
@@ -12,11 +13,11 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Founder password for protected operations (delete)
-const FOUNDER_KEY = process.env.SOLAY39_FOUNDER_KEY || "Solay39!Audit#2025"
-
-// POST — Save a published audit report
+// POST — Save a published audit report (founder-only)
 export async function POST(request: NextRequest) {
+  const denied = await requireFounder(request)
+  if (denied) return denied
+
   try {
     const body = await request.json()
     const { audit } = body
@@ -106,7 +107,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const { founderKey } = await request.json()
     
-    if (founderKey === FOUNDER_KEY) {
+    if (isValidFounderKey(founderKey)) {
       return NextResponse.json({ valid: true })
     }
     
@@ -122,7 +123,7 @@ export async function DELETE(request: NextRequest) {
     const { id, founderKey } = await request.json()
 
     // Authenticate founder
-    if (founderKey !== FOUNDER_KEY) {
+    if (!(await isFounderRequest(request, founderKey))) {
       return NextResponse.json({ error: "Unauthorized - invalid founder key" }, { status: 401 })
     }
 

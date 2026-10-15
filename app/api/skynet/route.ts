@@ -1,4 +1,5 @@
 import { getStaticBackendUrl } from "@/lib/static-backend"
+import { getFounderKeyForServerCall, isFounderRequest } from "@/lib/founder-auth"
 export const maxDuration = 60
 
 import { generateText } from "ai"
@@ -1229,7 +1230,7 @@ CRITICAL PATTERNS (check all):
 
 For each finding that matches: add "historicalContext" field with exploit name, protocol, amount lost, date.
 
-════════════════════════════════════════════════
+═══════════════════��════════════════════════════
 SCORING METHODOLOGY (S39-AAS v4.0)
 ════════════════════════════════════════════════
 
@@ -2421,12 +2422,18 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
 
       // ── ENTERPRISE: Registrazione on-chain (opzionale) ────
       let onChainRecord = null
-      if (process.env.AUDIT_REGISTRY_ADDRESS && process.env.AUDITOR_PRIVATE_KEY) {
+      const serverFounderKey = getFounderKeyForServerCall()
+      if (
+        process.env.AUDIT_REGISTRY_ADDRESS &&
+        process.env.AUDITOR_PRIVATE_KEY &&
+        serverFounderKey &&
+        (await isFounderRequest(req))
+      ) {
         try {
           const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.solay39.eu"
           const registryRes = await fetch(baseUrl + "/api/registry", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${serverFounderKey}` },
             body: JSON.stringify({
               projectName: meta.scopeLabel || "Unknown",
               reportHash: signedReport.reportHash,

@@ -22,7 +22,12 @@ export default function Home() {
         <SkynetPublic onBack={() => setScreen("login")} />
       )}
       {screen === "workspace" && (
-        <AuditWorkspace onLogout={() => setScreen("login")} />
+        <AuditWorkspace
+          onLogout={() => {
+            void fetch("/api/founder/session", { method: "DELETE" }).catch(() => {})
+            setScreen("login")
+          }}
+        />
       )}
     </>
   )

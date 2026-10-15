@@ -9,9 +9,10 @@
 import { createClient } from "@supabase/supabase-js"
 import { createHash } from "crypto"
 import { getAuditReportHTML } from "@/lib/export-pdf"
+import { isFounderRequest } from "@/lib/founder-auth"
 
 const GITHUB_REPO = process.env.GITHUB_REPO || "solay39/Solay39-audit"
-const FOUNDER_KEY = "Solay39!Audit#2025"
+
 
 function generateHash(content: string): string {
   return createHash("sha256").update(content, "utf8").digest("hex")
@@ -182,7 +183,7 @@ export async function POST(req: Request) {
   try {
     const { auditId, founderKey } = await req.json()
 
-    if (founderKey !== FOUNDER_KEY) {
+    if (!(await isFounderRequest(req, founderKey))) {
       return Response.json({ error: "Invalid founder key" }, { status: 401 })
     }
     if (!auditId) {

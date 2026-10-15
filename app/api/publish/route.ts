@@ -7,6 +7,7 @@
 
 import { createClient } from "@supabase/supabase-js"
 import { createHash } from "crypto"
+import { requireFounder } from "@/lib/founder-auth"
 
 const GITHUB_REPO = process.env.GITHUB_REPO || "solay39/Solay39-audit"
 
@@ -16,6 +17,9 @@ function generateAuditHash(content: string): string {
 }
 
 export async function POST(req: Request) {
+  const denied = await requireFounder(req)
+  if (denied) return denied
+
   try {
     const body = await req.json()
     const { project, portfolioData } = body

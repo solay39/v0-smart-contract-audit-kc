@@ -12,9 +12,10 @@
 
 import { put, list } from "@vercel/blob"
 import { type NextRequest, NextResponse } from "next/server"
+import { isFounderRequest } from "@/lib/founder-auth"
 
 const BLOB_PREFIX = "audits/"
-const FOUNDER_KEY = process.env.SOLAY39_FOUNDER_KEY || "Solay39!Audit#2025"
+
 
 function normalizeTitle(t: string): string {
   return t
@@ -54,7 +55,7 @@ function deduplicateFindings(findings: Array<{ title: string; [key: string]: unk
 
 export async function GET(request: NextRequest) {
   const key = request.nextUrl.searchParams.get("key")
-  if (key !== FOUNDER_KEY) {
+  if (!(await isFounderRequest(request, key))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const { key, auditId } = body
 
-  if (key !== FOUNDER_KEY) {
+  if (!(await isFounderRequest(request, key))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
