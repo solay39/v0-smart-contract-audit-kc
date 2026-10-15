@@ -140,13 +140,44 @@ contract Solay39OracleTest is Test {
         assertEq(oracle.getAudit(TARGET).score, 95);
     }
 
-    /// @dev Documents current behaviour: global counters accumulate on every
-    ///      republish, so they reflect published findings, not live findings.
-    function testRepublishAccumulatesGlobalCounters() public {
+    function testRepublishReplacesGlobalCounters() public {
         _publish(TARGET, 70, 2, 0);
         _publish(TARGET, 70, 2, 0);
-        assertEq(oracle.totalCriticals(), 4);
-        assertEq(oracle.totalHighs(), 2);
+        assertEq(oracle.totalCriticals(), 2);
+        assertEq(oracle.totalHighs(), 1);
+
+        _publish(TARGET, 95, 0, 0);
+        assertEq(oracle.totalCriticals(), 0);
+        assertEq(oracle.totalHighs(), 1, "helper always publishes 1 high");
+    }
+
+    function testCountersSumAcrossContracts() public {
+        _publish(TARGET, 70, 2, 0);
+        _publish(address(0xBEEF), 70, 3, 0);
+        assertEq(oracle.totalCriticals(), 5);
+        _publish(TARGET, 90, 0, 0);
+        assertEq(oracle.totalCriticals(), 3);
+    }
+
+    function testRevokeRemovesFromCountersOnce() public {
+        _publish(TARGET, 70, 2, 0);
+        vm.startPrank(signer);
+        oracle.revokeAudit(TARGET, "x");
+        oracle.revokeAudit(TARGET, "x");
+        vm.stopPrank();
+        assertEq(oracle.totalCriticals(), 0);
+        assertEq(oracle.totalHighs(), 0);
+
+        _publish(TARGET, 70, 2, 0);
+        assertEq(oracle.totalCriticals(), 2);
+    }
+
+    function testUpdateReplacesCounters() public {
+        _publish(TARGET, 60, 3, 0);
+        vm.prank(signer);
+        oracle.updateAudit(TARGET, 80, "A", 1, 4, 0, 0);
+        assertEq(oracle.totalCriticals(), 1);
+        assertEq(oracle.totalHighs(), 4);
     }
 
     function testRepublishReactivatesRevokedAudit() public {
@@ -249,24 +280,39 @@ contract Solay39OracleTest is Test {
         assertEq(r.reportHash, "sha256:r", "update keeps original report hash");
     }
 
-    /// @dev Documents current behaviour: updateAudit skips the 0-100 bound
-    ///      enforced by publishAudit.
-    function testUpdateDoesNotEnforceScoreBound() public {
+    function testFuzzUpdateEnforcesScoreBound(uint8 score) public {
         _publish(TARGET, 60, 0, 0);
         vm.prank(signer);
-        oracle.updateAudit(TARGET, 255, "?", 0, 0, 0, 0);
-        assertEq(oracle.getAudit(TARGET).score, 255);
+        if (score > 100) {
+            vm.expectRevert(bytes("Score must be 0-100"));
+            oracle.updateAudit(TARGET, score, "?", 0, 0, 0, 0);
+            assertEq(oracle.getAudit(TARGET).score, 60);
+        } else {
+            oracle.updateAudit(TARGET, score, "?", 0, 0, 0, 0);
+            assertEq(oracle.getAudit(TARGET).score, score);
+        }
     }
 
-    /// @dev Documents current behaviour: updating does not extend expiry,
-    ///      so an expired audit stays invalid after an update.
-    function testUpdateDoesNotExtendExpiry() public {
+    function testUpdateRenewsExpiryWithSameWindow() public {
         _publish(TARGET, 90, 0, 1);
-        vm.warp(block.timestamp + 2 days);
+        uint256 updatedAt = vm.getBlockTimestamp() + 2 days;
+        vm.warp(updatedAt);
+        (, bool expired) = oracle.getScore(TARGET);
+        assertFalse(expired);
+
         vm.prank(signer);
         oracle.updateAudit(TARGET, 95, "AAA", 0, 0, 0, 0);
+        assertEq(oracle.getAudit(TARGET).expiresAt, updatedAt + 1 days);
         (, bool valid) = oracle.getScore(TARGET);
-        assertFalse(valid);
+        assertTrue(valid);
+        assertTrue(oracle.meetsRequirements(TARGET, 95, 0));
+    }
+
+    function testUpdateKeepsNeverExpiring() public {
+        _publish(TARGET, 90, 0, 0);
+        vm.prank(signer);
+        oracle.updateAudit(TARGET, 95, "AAA", 0, 0, 0, 0);
+        assertEq(oracle.getAudit(TARGET).expiresAt, 0);
     }
 
     function testUpdateRequiresAudit() public {

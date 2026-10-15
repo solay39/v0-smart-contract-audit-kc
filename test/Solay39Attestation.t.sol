@@ -87,7 +87,7 @@ contract Solay39AttestationTest is Test {
         vm.warp(1_700_000_000);
         bytes32 id = att.attestAudit("Solay39", "sha256:abc", "0xdead", _auditors(AUDITOR_A, AUDITOR_B));
 
-        assertEq(id, keccak256(abi.encodePacked("Solay39", "sha256:abc", uint256(1_700_000_000))));
+        assertEq(id, _expectedId(0, "Solay39", "sha256:abc", 1_700_000_000));
 
         (
             string memory project,
@@ -116,7 +116,7 @@ contract Solay39AttestationTest is Test {
     function testEmitsAuditAttested() public {
         vm.warp(1_700_000_000);
         address[] memory auditors = _auditors(AUDITOR_A, AUDITOR_B);
-        bytes32 expectedId = keccak256(abi.encodePacked("P", "h", uint256(1_700_000_000)));
+        bytes32 expectedId = _expectedId(0, "P", "h", 1_700_000_000);
 
         vm.expectEmit(true, false, false, true, address(att));
         emit AuditAttested(expectedId, "P", "h", auditors, true, 1_700_000_000);
@@ -155,10 +155,13 @@ contract Solay39AttestationTest is Test {
 
     // --- Duplicates / collisions ---
 
-    function testSameProjectAndHashInSameBlockReverts() public {
-        bytes32 id = att.attestAudit("P", "h", "c", _auditors(AUDITOR_A));
-        vm.expectRevert(abi.encodeWithSelector(Solay39Attestation.AttestationExists.selector, id));
-        att.attestAudit("P", "h", "other-commit", _auditors(AUDITOR_B));
+    function testSameProjectAndHashInSameBlockSucceeds() public {
+        bytes32 id1 = att.attestAudit("P", "h", "c", _auditors(AUDITOR_A));
+        bytes32 id2 = att.attestAudit("P", "h", "other-commit", _auditors(AUDITOR_B));
+        assertTrue(id1 != id2);
+        assertEq(att.totalAttestations(), 2);
+        (, , string memory commit2, , , ) = att.verifyAttestation(id2);
+        assertEq(commit2, "other-commit");
     }
 
     function testSameProjectAndHashInLaterBlockSucceeds() public {
@@ -169,12 +172,28 @@ contract Solay39AttestationTest is Test {
         assertEq(att.totalAttestations(), 2);
     }
 
-    /// @dev Documents the abi.encodePacked ambiguity: ("ab","c") and ("a","bc")
-    ///      hash to the same id, so the second, distinct attestation is blocked.
-    function testEncodePackedCollisionBlocksDistinctAttestation() public {
-        bytes32 id = att.attestAudit("ab", "c", "x", _auditors(AUDITOR_A));
-        vm.expectRevert(abi.encodeWithSelector(Solay39Attestation.AttestationExists.selector, id));
-        att.attestAudit("a", "bc", "x", _auditors(AUDITOR_A));
+    function testShiftedFieldBoundariesProduceDistinctIds() public {
+        bytes32 id1 = att.attestAudit("ab", "c", "x", _auditors(AUDITOR_A));
+        bytes32 id2 = att.attestAudit("a", "bc", "x", _auditors(AUDITOR_A));
+        assertTrue(id1 != id2);
+        (string memory p2, string memory h2, , , , ) = att.verifyAttestation(id2);
+        assertEq(p2, "a");
+        assertEq(h2, "bc");
+    }
+
+    function testFuzzIdsNeverCollide(string calldata p1, string calldata h1, string calldata p2, string calldata h2) public {
+        vm.assume(bytes(p1).length > 0 && bytes(h1).length > 0 && bytes(p2).length > 0 && bytes(h2).length > 0);
+        bytes32 id1 = att.attestAudit(p1, h1, "", _auditors(AUDITOR_A));
+        bytes32 id2 = att.attestAudit(p2, h2, "", _auditors(AUDITOR_A));
+        assertTrue(id1 != id2);
+    }
+
+    function _expectedId(uint256 seq, string memory project, string memory reportHash, uint256 ts)
+        internal
+        view
+        returns (bytes32)
+    {
+        return keccak256(abi.encode(block.chainid, address(att), seq, project, reportHash, ts));
     }
 
     // --- Reads ---
