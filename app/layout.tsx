@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     type: 'website',
     images: [
       {
-        url: 'https://solay39.eu/og-audit.png',
+        url: 'https://www.solay39.eu/og-audit.png',
         width: 1200,
         height: 630,
         alt: 'SOLAY39 Crypto Smart Contract Audit',
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Crypto Audit with SOLAY39 — Independent Web3 Security Standard',
     description: 'Manual-first smart contract auditing with Skynet post-audit monitoring. Trusted by Injective, Fetch.ai, chiliZ.',
-    images: ['https://solay39.eu/og-audit.png'],
+    images: ['https://www.solay39.eu/og-audit.png'],
   },
   robots: {
     index: true,
