@@ -1,7 +1,15 @@
-import type { AuditProject, Finding, PrivilegedRole, TrustAssumption, AttackScenario, GovernanceSecurity, UpgradeabilityAnalysis, EconomicRisk, IntegrationRisk, InvariantCheck, TestingMethodology, AuditEngagement, ScopeEntry, RiskModelConfig, AuditorProfile, AuditLimitations } from "@/lib/solay39-constants"
+import type { AuditProject, Finding, PortfolioProject, PrivilegedRole, TrustAssumption, AttackScenario, GovernanceSecurity, UpgradeabilityAnalysis, EconomicRisk, IntegrationRisk, InvariantCheck, TestingMethodology, AuditEngagement, ScopeEntry, RiskModelConfig, AuditorProfile, AuditLimitations } from "@/lib/solay39-constants"
 import { ratingOf, SEV_RAW_COLORS } from "@/lib/solay39-constants"
 
-interface Tier1Data {
+type EnterpriseSections = Partial<Pick<PortfolioProject,
+  | "economicAttackVectors" | "reviewRecord" | "attackerProfiles" | "assetsAtRisk"
+  | "enterpriseTrustAssumptions" | "formalVerification" | "residualRisk"
+  | "exploitSimulation" | "codeReference" | "multiEngineConsensus" | "auditorSignatures" | "signedReport" | "onChainRecord" | "testCoverage"
+  | "monitoring" | "confirmedPoCs" | "securityChecklist" | "onChainAnalysis"
+  | "solanaAttestation" | "manualReview"
+>>
+
+interface Tier1Data extends EnterpriseSections {
   privilegedRoles?: PrivilegedRole[]
   trustAssumptions?: TrustAssumption[]
   architectureOverview?: string
@@ -46,6 +54,15 @@ interface Tier1Data {
   }[]
   // On-Chain AI Analysis
   onChainAnalysis?: {
+    tokenName?: string
+    tokenSymbol?: string
+    tokenAddress?: string
+    tokenNetwork?: string
+    marketCap?: number
+    liquidity?: number
+    price?: number
+    volume24h?: number
+    holders?: number
     executiveSummary?: string
     tokenEconomics?: string
     whaleDistribution?: string
@@ -144,10 +161,10 @@ export function exportMarkdown(project: AuditProject, rawScore: number, findings
 
   if (tier1?.privilegedRoles && tier1.privilegedRoles.length > 0) {
     md += `## 4. Privileged Roles\n\n`
-    md += `| Role | Description |\n`
-    md += `| :--- | :--- |\n`
+    md += `| Role | Capabilities | Risk if compromised |\n`
+    md += `| :--- | :--- | :--- |\n`
     tier1.privilegedRoles.forEach(r => {
-      md += `| **${r.name}** | ${r.description} |\n`
+      md += `| **${r.role}** | ${r.capabilities} | ${r.riskIfCompromised}${r.riskLevel ? ` (${r.riskLevel})` : ""} |\n`
     })
     md += `\n`
   }

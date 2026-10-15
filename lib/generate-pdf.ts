@@ -335,7 +335,7 @@ export function generatePDFBase64(
     
     // ═══════════════════════════════════════════════════════════════
     // SCOPE & METHODOLOGY
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════���════════════════════════════
     checkPage(60)
     addSection("4. SCOPE & METHODOLOGY")
     
@@ -424,8 +424,8 @@ export function generatePDFBase64(
         checkPage(20)
         addText(`• ${r.role}`, margin + 2, y, { size: 8, bold: true, color: [238, 244, 250] })
         y += 4
-        if (r.permissions) {
-          const pl = doc.splitTextToSize(r.permissions.join(", "), pageWidth - margin * 2 - 10)
+        if (r.capabilities) {
+          const pl = doc.splitTextToSize(`${r.capabilities}${r.riskIfCompromised ? ` — Risk: ${r.riskIfCompromised}` : ""}`, pageWidth - margin * 2 - 10)
           doc.setFontSize(7)
           setColor(136, 153, 170)
           doc.text(pl, margin + 5, y)
@@ -442,10 +442,10 @@ export function generatePDFBase64(
       addSection("6. TRUST ASSUMPTIONS")
       tier1.trustAssumptions.forEach(t => {
         checkPage(15)
-        addText(`• ${t.title}`, margin + 2, y, { size: 8, bold: true, color: [238, 244, 250] })
+        addText(`• Assumption`, margin + 2, y, { size: 8, bold: true, color: [238, 244, 250] })
         y += 4
-        if (t.description) {
-          const tl = doc.splitTextToSize(t.description, pageWidth - margin * 2 - 10)
+        if (t.statement) {
+          const tl = doc.splitTextToSize(t.statement, pageWidth - margin * 2 - 10)
           doc.setFontSize(7)
           setColor(136, 153, 170)
           doc.text(tl, margin + 5, y)
@@ -578,8 +578,9 @@ export function generatePDFBase64(
       checkPage(50)
       addSection("11. ATTACK SURFACE ANALYSIS")
       tier1.attackSurface.forEach(a => {
-        const sevC = SEV_COLORS[a.severity as keyof typeof SEV_COLORS] || [136, 153, 170]
-        addText(`• ${a.title || a.name}`, margin + 2, y, { size: 8, bold: true, color: sevC })
+        const likelihoodToSeverity = { High: "HIGH", Medium: "MEDIUM", Low: "LOW" } as const
+        const sevC = SEV_COLORS[likelihoodToSeverity[a.likelihood] as keyof typeof SEV_COLORS] || [136, 153, 170]
+        addText(`• ${a.title}${a.mitigated ? " (mitigated)" : ""}`, margin + 2, y, { size: 8, bold: true, color: sevC })
         y += 4
         if (a.description) {
           const adl = doc.splitTextToSize(a.description, pageWidth - margin * 2 - 5)
@@ -642,7 +643,7 @@ export function generatePDFBase64(
 
     // ═══════════════════════════════════════════════════════════════
     // DISCLAIMER
-    // ═══════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════��═════════════
     checkPage(40)
     addSection("13. DISCLAIMER")
     const disclaimer = "This report is provided for informational purposes only. It does not constitute investment advice or a guarantee of security. Smart contracts are inherently risky, and while Solay39 Skynet uses state-of-the-art tools and AI, no audit can uncover all potential vulnerabilities. Users should perform their own due diligence before interacting with any smart contract."
