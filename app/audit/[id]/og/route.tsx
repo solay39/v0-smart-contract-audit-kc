@@ -1,65 +1,32 @@
 import { ImageResponse } from "next/og"
-import { DEFAULT_PROJECTS, scoreColor, ratingOf, getWeightedScore, type PortfolioProject } from "@/lib/solay39-constants"
+import { getPublishedAudit } from "@/lib/get-published-audit"
+import { scoreColor, ratingOf, getWeightedScore } from "@/lib/solay39-constants"
 
-const projectMap = new Map(DEFAULT_PROJECTS.map((p) => [p.id, p]))
+export const runtime = "nodejs"
+export const revalidate = 3600
 
-// Fetch audit from Vercel Blob (edge-compatible with fallback URLs)
-async function fetchBlobAudit(id: string): Promise<PortfolioProject | null> {
-  // Try multiple blob URL patterns
-  const blobHosts = [
-    "rlxtrsfp2gxpjmqt.public.blob.vercel-storage.com",
-    "blob.vercel-storage.com",
-  ]
-  
-  for (const host of blobHosts) {
-    try {
-      const blobUrl = `https://${host}/audits/${id}.json`
-      const res = await fetch(blobUrl, { 
-        cache: "no-store",
-        headers: { "Accept": "application/json" }
-      })
-      if (res.ok) {
-        return (await res.json()) as PortfolioProject
-      }
-    } catch {
-      continue
-    }
+// Satori aborts the whole image if a remote <img> fails or stalls, so the logo is
+// fetched up front with a timeout and embedded as a data URL (or skipped).
+async function loadLogoAsDataUrl(src?: string): Promise<string | null> {
+  if (!src || !/^https?:\/\//.test(src)) return null
+  try {
+    const res = await fetch(src, { signal: AbortSignal.timeout(3000) })
+    const type = res.headers.get("content-type") || ""
+    if (!res.ok || !/image\/(png|jpe?g|gif)/.test(type)) return null
+    const buf = Buffer.from(await res.arrayBuffer())
+    if (buf.length > 500_000) return null
+    return `data:${type.split(";")[0]};base64,${buf.toString("base64")}`
+  } catch {
+    return null
   }
-  
-  // Fallback: try internal API route with dynamic origin
-  const tryOrigins = [
-    "https://www.solay39.eu",
-    "https://solay39.eu", 
-    "https://solay39.vercel.app"
-  ]
-  
-  for (const origin of tryOrigins) {
-    try {
-      const apiUrl = `${origin}/api/audit/${id}`
-      const res = await fetch(apiUrl, { cache: "no-store" })
-      if (res.ok) {
-        return (await res.json()) as PortfolioProject
-      }
-    } catch {
-      continue
-    }
-  }
-  
-  return null
 }
 
-export const runtime = "edge"
-
 export async function GET(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const url = new URL(req.url)
-  const origin = url.origin || "https://www.solay39.eu"
-  
-  // First try static projects, then fetch from Blob (using origin from request)
-  const p = projectMap.get(id) || (await fetchBlobAudit(id))
+  const p = await getPublishedAudit(id)
 
   if (!p) {
     return new ImageResponse(
@@ -88,6 +55,9 @@ export async function GET(
   const wr = ratingOf(ws)
   const sc = scoreColor(ws)
   const ratingColor = sc
+  const logo = await loadLogoAsDataUrl(p.logoUrl)
+  const name = p.name || "Audit"
+  const subtitle = [p.ticker, p.network].filter(Boolean).join(" | ")
 
   return new ImageResponse(
     (
@@ -206,22 +176,22 @@ export async function GET(
                   border: `2px solid ${sc}33`,
                 }}
               >
-                {p.logoUrl ? (
+                {logo ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.logoUrl} width={56} height={56} alt="" style={{ borderRadius: 8 }} />
+                  <img src={logo} width={56} height={56} alt="" style={{ borderRadius: 8 }} />
                 ) : (
-                  p.name.charAt(0).toUpperCase()
+                  name.charAt(0).toUpperCase()
                 )}
               </div>
               <div style={{ display: "flex", flexDirection: "column" }}>
-                <div style={{ fontSize: 40, fontWeight: 800, color: "#e0eaf0", lineHeight: 1.1 }}>
-                  {p.name}
+                <div style={{ display: "flex", fontSize: 40, fontWeight: 800, color: "#e0eaf0", lineHeight: 1.1 }}>
+                  {name}
                 </div>
-                {p.ticker && (
-                  <div style={{ fontSize: 16, color: "#3e5060", marginTop: 4 }}>
-                    {p.ticker} | {p.network}
+                {subtitle ? (
+                  <div style={{ display: "flex", fontSize: 16, color: "#3e5060", marginTop: 4 }}>
+                    {subtitle}
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
 
@@ -244,7 +214,7 @@ export async function GET(
                     backgroundColor: `${s.color}08`,
                   }}
                 >
-                  <span style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.count}</span>
+                  <span style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{String(s.count ?? 0)}</span>
                   <span style={{ fontSize: 10, color: s.color, letterSpacing: "0.1em", opacity: 0.8 }}>
                     {s.label}
                   </span>
@@ -254,11 +224,13 @@ export async function GET(
 
             {/* Date + Auditor */}
             <div style={{ display: "flex", gap: 20, marginTop: 20 }}>
-              <div style={{ fontSize: 12, color: "#3e5060" }}>
-                Auditor: <span style={{ color: "#7a8c9e" }}>{p.auditor || "Solay39"}</span>
+              <div style={{ display: "flex", gap: 6, fontSize: 12, color: "#3e5060" }}>
+                <span>Auditor:</span>
+                <span style={{ color: "#7a8c9e" }}>{p.auditor || "Solay39"}</span>
               </div>
-              <div style={{ fontSize: 12, color: "#3e5060" }}>
-                Date: <span style={{ color: "#7a8c9e" }}>{p.date}</span>
+              <div style={{ display: "flex", gap: 6, fontSize: 12, color: "#3e5060" }}>
+                <span>Date:</span>
+                <span style={{ color: "#7a8c9e" }}>{p.date || "-"}</span>
               </div>
             </div>
           </div>
@@ -286,8 +258,8 @@ export async function GET(
                 backgroundColor: `${sc}08`,
               }}
             >
-              <div style={{ fontSize: 56, fontWeight: 900, color: sc, lineHeight: 1 }}>
-                {ws}
+              <div style={{ display: "flex", fontSize: 56, fontWeight: 900, color: sc, lineHeight: 1 }}>
+                {String(ws)}
               </div>
               <div style={{ fontSize: 12, color: "#7a8c9e", letterSpacing: "0.12em", marginTop: 4 }}>
                 / 100
@@ -319,8 +291,8 @@ export async function GET(
             borderTop: "1px solid #1a2533",
           }}
         >
-          <div style={{ fontSize: 11, color: "#3e5060", letterSpacing: "0.1em" }}>
-            solay39.eu/audit/{p.id}
+          <div style={{ display: "flex", fontSize: 11, color: "#3e5060", letterSpacing: "0.1em" }}>
+            {`solay39.eu/audit/${id}`}
           </div>
           <div style={{ fontSize: 11, color: "#3e5060", letterSpacing: "0.1em" }}>
             SOLAY39 SMART CONTRACT SECURITY
