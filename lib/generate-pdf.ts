@@ -38,6 +38,15 @@ interface Tier1Data {
     status: "pass" | "fail" | "pending" | "n/a"
     note?: string
   }[]
+  multiEngineConsensus?: {
+    enginesRun?: string[]
+    confirmed?: number
+    likely?: number
+    unconfirmed?: number
+    engineOnly?: { name: string; severity: string; engine: string }[]
+  } | null
+  confirmedPoCs?: { findingId: string; findingTitle: string; severity: string; pocFile: string; runCommand: string; compiled: boolean | null }[]
+  monitoring?: { enrolled: boolean; network: string; contractAddress: string | null; pollInterval: string; watchedEvents: string[]; reason?: string } | null
   onChainAnalysis?: {
     executiveSummary?: string
     tokenEconomics?: string
@@ -351,6 +360,57 @@ export function generatePDFBase64(
         addText(tool, margin + 22, y, { size: 7 })
         y += 4
       })
+      y += 3
+    }
+
+    const mec = tier1?.multiEngineConsensus
+    if (mec) {
+      checkPage(40)
+      addText("MULTI-ENGINE CONSENSUS", margin, y, { size: 8, bold: true, color: [68, 85, 102] })
+      y += 5
+      addText(`Engines: ${(mec.enginesRun ?? []).join(", ") || "n/a"}`, margin + 2, y, { size: 7 })
+      y += 4
+      addText(`Confirmed: ${mec.confirmed ?? 0}   Likely: ${mec.likely ?? 0}   AI-only: ${mec.unconfirmed ?? 0}`, margin + 2, y, { size: 7, bold: true })
+      y += 4
+      ;(mec.engineOnly ?? []).slice(0, 10).forEach((h) => {
+        checkPage(8)
+        addText(`[${h.engine.toUpperCase()}] ${h.severity} - ${h.name}`, margin + 2, y, { size: 7, color: SEV_COLORS[h.severity] ?? [208, 216, 224] })
+        y += 4
+      })
+      y += 3
+    }
+
+    if (tier1?.confirmedPoCs && tier1.confirmedPoCs.length > 0) {
+      checkPage(40)
+      addText("PROOF-OF-CONCEPT EXPLOITS (CONFIRMED FINDINGS)", margin, y, { size: 8, bold: true, color: [68, 85, 102] })
+      y += 5
+      tier1.confirmedPoCs.forEach((p) => {
+        checkPage(14)
+        const status = p.compiled === true ? "COMPILED" : p.compiled === false ? "COMPILE FAILED" : "GENERATED"
+        addText(`${p.findingId} ${p.findingTitle}`, margin + 2, y, { size: 7, bold: true, color: SEV_COLORS[p.severity] ?? [238, 244, 250] })
+        y += 4
+        addText(`${p.pocFile}  [${status}]`, margin + 4, y, { size: 7 })
+        y += 4
+        addText(p.runCommand, margin + 4, y, { size: 6, color: [0, 255, 136] })
+        y += 5
+      })
+      y += 2
+    }
+
+    const mon = tier1?.monitoring
+    if (mon) {
+      checkPage(30)
+      addText("POST-AUDIT MONITORING (SKYNET)", margin, y, { size: 8, bold: true, color: [68, 85, 102] })
+      y += 5
+      addText(
+        mon.enrolled ? `ACTIVE on ${mon.network} - polled every ${mon.pollInterval}` : `NOT ACTIVE - ${mon.reason ?? "n/a"}`,
+        margin + 2, y, { size: 7, bold: true, color: mon.enrolled ? [0, 255, 136] : [255, 107, 0] }
+      )
+      y += 4
+      if (mon.enrolled && mon.watchedEvents.length) {
+        addText(`Watched events: ${mon.watchedEvents.join(", ")}`, margin + 2, y, { size: 7 })
+        y += 4
+      }
       y += 3
     }
     

@@ -1,3 +1,4 @@
+import { getStaticBackendUrl } from "@/lib/static-backend"
 /**
  * Mythril Symbolic Execution Runner
  * 
@@ -275,7 +276,7 @@ export async function runMythrilRemote(
   contractName?: string,
   apiUrl?: string
 ): Promise<MythrilResult> {
-  const backendUrl = apiUrl || process.env.SECURITY_BACKEND_URL || process.env.STATIC_ANALYSIS_API_URL
+  const backendUrl = apiUrl || process.env.SECURITY_BACKEND_URL || getStaticBackendUrl()
   
   if (!backendUrl) {
     return {

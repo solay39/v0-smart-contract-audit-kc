@@ -19,7 +19,7 @@ interface InputFinding {
 }
 
 export interface EngineHit {
-  engine: "signature-db" | "ml-detector" | "structural-analyzer"
+  engine: "signature-db" | "ml-detector" | "structural-analyzer" | "slither" | "mythril"
   id: string
   name: string
   category: string
@@ -188,9 +188,12 @@ function collectHits(code: string): { hits: EngineHit[]; enginesRun: string[] } 
 export function runMultiEngineConsensus<T extends InputFinding>(
   code: string,
   aiFindings: T[],
+  externalHits: EngineHit[] = [],
 ): { findings: (T & ConsensusAnnotation)[]; report: ConsensusReport } {
   const start = Date.now()
   const { hits, enginesRun } = collectHits(code)
+  hits.push(...externalHits)
+  for (const engine of new Set(externalHits.map((h) => h.engine))) enginesRun.push(engine)
   const usedHits = new Set<number>()
 
   const findings = aiFindings.map((f) => {
