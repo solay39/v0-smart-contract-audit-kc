@@ -1,107 +1,68 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
-/**
- * @title Solay39EnterpriseRegistry
- * @notice Enterprise on-chain audit registry with multi-auditor support
- * @dev Combines the simplicity of AuditRegistry with multi-auditor attestation.
- *      Supports publishAudit() with address[] auditors for enterprise dual review.
- *      Deploy on BSC Mainnet alongside Solay39AuditRegistry and Solay39Attestation.
- */
 contract Solay39EnterpriseRegistry {
+    struct Audit { string project; string reportHash; string commitHash; address[] auditors; uint256 timestamp; }
+    mapping(bytes32 => Audit) public audits;
+    mapping(bytes32 => bytes32[]) private _auditIdsByReportHash;
+    bytes32[] private _auditIds;
+    uint256 public auditNonce;
+    address public owner;
+    address public timelock;
+    error AuditNotFound();
+    error NotOwner();
+    error ZeroAddress();
+    event AuditPublished(bytes32 indexed id, string project);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event TimelockUpdated(address indexed previousTimelock, address indexed newTimelock);
 
-    // --- STRUCTS ---
-
-    struct Audit {
-        string    project;
-        string    reportHash;
-        string    commitHash;
-        address[] auditors;
-        uint256   timestamp;
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert NotOwner();
+        _;
     }
 
-    // --- STATE ---
+    modifier onlyOwnerOrTimelock() {
+        if (msg.sender != owner && msg.sender != timelock) revert NotOwner();
+        _;
+    }
 
-    mapping(bytes32 => Audit) public audits;
-    bytes32[] private _auditIds;
+    constructor() {
+        owner = msg.sender;
+    }
 
-    // --- EVENTS ---
-
-    event AuditPublished(
-        bytes32 indexed id,
-        string  project
-    );
-
-    // --- WRITE ---
-
-    /**
-     * @notice Publish a new audit report on-chain with multiple auditors
-     * @param project     Name of the audited project (e.g. "Chainlink")
-     * @param reportHash  SHA-256 hash of the complete JSON report
-     * @param commitHash  Git commit hash or contract address of the audited code
-     * @param auditors    Array of auditor wallet addresses
-     */
-    function publishAudit(
-        string memory project,
-        string memory reportHash,
-        string memory commitHash,
-        address[] memory auditors
-    ) public returns (bytes32 id) {
-        id = keccak256(
-            abi.encodePacked(project, reportHash, block.timestamp)
-        );
-
-        audits[id] = Audit(
-            project,
-            reportHash,
-            commitHash,
-            auditors,
-            block.timestamp
-        );
-
+    function publishAudit(string memory project, string memory reportHash, string memory commitHash, address[] memory auditors) public onlyOwner returns (bytes32 id) {
+        auditNonce++;
+        id = keccak256(abi.encode(auditNonce, msg.sender, project, reportHash, commitHash));
+        audits[id] = Audit(project, reportHash, commitHash, auditors, block.timestamp);
+        bytes32 reportKey = keccak256(bytes(reportHash));
+        _auditIdsByReportHash[reportKey].push(id);
         _auditIds.push(id);
-
         emit AuditPublished(id, project);
     }
 
-    // --- READ ---
-
-    function verifyAudit(bytes32 id)
-        external
-        view
-        returns (
-            string memory project,
-            string memory reportHash,
-            string memory commitHash,
-            address[] memory auditors,
-            uint256 timestamp
-        )
-    {
+    function verifyAudit(bytes32 id) external view returns (string memory, string memory, string memory, address[] memory, uint256) {
         Audit storage a = audits[id];
-        require(a.timestamp > 0, "Audit not found");
+        if (a.timestamp == 0) revert AuditNotFound();
         return (a.project, a.reportHash, a.commitHash, a.auditors, a.timestamp);
     }
-
-    function verifyByReportHash(string calldata reportHash)
-        external
-        view
-        returns (bool found, bytes32 id)
-    {
-        bytes32 needle = keccak256(bytes(reportHash));
-        for (uint256 i = 0; i < _auditIds.length; i++) {
-            bytes32 aid = _auditIds[i];
-            if (keccak256(bytes(audits[aid].reportHash)) == needle) {
-                return (true, aid);
-            }
-        }
+    function verifyByReportHash(string calldata reportHash) external view returns (bool found, bytes32 id) {
+        bytes32[] storage matchingIds = _auditIdsByReportHash[keccak256(bytes(reportHash))];
+        if (matchingIds.length != 0) return (true, matchingIds[0]);
         return (false, bytes32(0));
     }
+    function getAuditCount() external view returns (uint256) { return _auditIds.length; }
+    function getAllAuditIds() external view returns (bytes32[] memory) { return _auditIds; }
 
-    function getAuditCount() external view returns (uint256) {
-        return _auditIds.length;
+    function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) revert ZeroAddress();
+        address previousOwner = owner;
+        owner = newOwner;
+        emit OwnershipTransferred(previousOwner, newOwner);
     }
 
-    function getAllAuditIds() external view returns (bytes32[] memory) {
-        return _auditIds;
+    function setTimelock(address newTimelock) external onlyOwner {
+        address previousTimelock = timelock;
+        timelock = newTimelock;
+        emit TimelockUpdated(previousTimelock, newTimelock);
     }
 }

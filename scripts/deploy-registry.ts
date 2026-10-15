@@ -110,26 +110,9 @@ async function main() {
   fs.writeFileSync(envPath, updated)
   console.log("  ✓ Address saved to .env.local")
 
-  // Auto-attest Venice Token audit
-  console.log("\n  → Attesting Venice Token audit...")
-  
-  try {
-    const tx = await contract.publishAudit(
-      VENICE_AUDIT_DATA.auditKey,
-      VENICE_AUDIT_DATA.projectName,
-      VENICE_AUDIT_DATA.reportHash,
-      VENICE_AUDIT_DATA.contractAddress,
-      VENICE_AUDIT_DATA.score,
-      VENICE_AUDIT_DATA.criticals,
-      VENICE_AUDIT_DATA.highs,
-      VENICE_AUDIT_DATA.ipfsCid
-    )
-    const receipt = await tx.wait()
-    console.log(`  ✓ Venice Token audit attested: ${receipt.hash}`)
-  } catch (err) {
-    console.log(`  ⚠️ Venice attestation failed: ${err instanceof Error ? err.message : err}`)
-    console.log("  You can manually attest later via the registry contract")
-  }
+  console.log("\n  → Venice Token audit data prepared for manual registration")
+  console.log(`  Report hash: ${VENICE_AUDIT_DATA.reportHash}`)
+  console.log("  The deployed registry exposes registerAudit; no automatic publishAudit call is performed.")
 
   // Summary
   console.log("")

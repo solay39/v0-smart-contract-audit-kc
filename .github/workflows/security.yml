@@ -134,11 +134,18 @@ jobs:
           fi
           forge --version
 
+      - name: Install Solidity dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ -f lib/forge-std/src/Test.sol ] || { rm -rf lib/forge-std; git clone -q --depth 1 https://github.com/foundry-rs/forge-std lib/forge-std; }
+          [ -d lib/openzeppelin-contracts/contracts ] || git clone -q --depth 1 --branch v5.0.2 https://github.com/OpenZeppelin/openzeppelin-contracts lib/openzeppelin-contracts
+
       - name: Run Forge tests
         run: forge test -vvvv | tee reports/forge_output.txt
       - name: Run Forge coverage
         if: always()
-        run: forge coverage --report summary --report lcov | tee reports/coverage.txt || true
+        run: forge coverage --ir-minimum --report summary --report lcov | tee reports/coverage.txt || true
       - name: Run Slither
         if: always()
         shell: bash

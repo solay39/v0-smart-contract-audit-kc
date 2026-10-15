@@ -19,6 +19,13 @@ jobs:
         with:
           version: stable
 
+      - name: Install Solidity dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ -f lib/forge-std/src/Test.sol ] || { rm -rf lib/forge-std; git clone -q --depth 1 https://github.com/foundry-rs/forge-std lib/forge-std; }
+          [ -d lib/openzeppelin-contracts/contracts ] || git clone -q --depth 1 --branch v5.0.2 https://github.com/OpenZeppelin/openzeppelin-contracts lib/openzeppelin-contracts
+
       - name: Verify Foundry tools
         shell: bash
         run: |
@@ -33,4 +40,4 @@ jobs:
 
       - name: Run Forge coverage
         shell: bash
-        run: forge coverage --report summary --report lcov
+        run: forge coverage --ir-minimum --report summary --report lcov
