@@ -588,15 +588,15 @@ export default function ManualReviewWorkspace({
                         recommendation: an.recommendation,
                         overallRiskScore: an.overallRiskScore,
                         scores: an.scores,
-                        topHolders: (td.topHolders || []).map((h: { address: string; percentage: number }) => ({
+                        topHolders: (td.topHolders || []).map((h) => ({
                           address: h.address,
-                          percentage: h.percentage,
+                          percentage: h.percentage ?? 0,
                         })),
                       }
                       
                       // ── Build full set of on-chain findings (OC-001…) ──────────────
                       const ts = Date.now()
-                      const top6Pct = (td.topHolders || []).slice(0, 6).reduce((sum: number, h: { percentage: number }) => sum + h.percentage, 0)
+                      const top6Pct = (td.topHolders || []).slice(0, 6).reduce((sum, h) => sum + (h.percentage ?? 0), 0)
                       const totalLiq = (td.liquidityPools || []).reduce((sum: number, lp: { liquidity?: string }) => sum + parseFloat(lp.liquidity || "0"), 0)
                       const lpLocked = (td.liquidityPools || []).some((lp: { lpLocked?: boolean }) => lp.lpLocked)
 
@@ -809,9 +809,9 @@ export default function ManualReviewWorkspace({
                         recommendation: an3.recommendation,
                         overallRiskScore: an3.overallRiskScore,
                         scores: an3.scores,
-                        topHolders: (td3.topHolders || []).map((h: { address: string; percentage: number }) => ({
+                        topHolders: (td3.topHolders || []).map((h) => ({
                           address: h.address,
-                          percentage: h.percentage,
+                          percentage: h.percentage ?? 0,
                         })),
                       })
                     }

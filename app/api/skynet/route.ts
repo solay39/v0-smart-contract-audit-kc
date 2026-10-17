@@ -2483,7 +2483,7 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
       }
       const ipfsRecord = await pinReportToIPFS(ipfsReportData, auditId)
 
-      // ── ENTERPRISE: Solana On-Chain Attestation ─────────────────
+      // ── ENTERPRISE: Solana On-Chain Attestation ──���──────────────
       // Rimosso dal flusso principale per evitare timeout 504
       // L'utente puo' attestare manualmente dal tab Blockchain
       const solanaAttestation = null
@@ -2531,7 +2531,7 @@ return Response.json({
     externalDependencies: crossContractResults.risks?.map(r => r.type) || [],
   } : null,
   // Analysis Mode (real vs pattern-based)
-  analysisMode: getStaticBackendUrl() ? "tier1-real" : "tier1-pattern",
+  analysisMode: getStaticBackendUrl() ? "tier1-real" : "pattern-assisted-pending-tool-execution",
   // Tier-1 sections
   privilegedRoles,
         trustAssumptions,
