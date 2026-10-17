@@ -256,6 +256,7 @@ export interface InvariantCheck {
 }
 
 export interface AuditProject {
+  auditId?: string
   name: string
   network: string
   commit: string

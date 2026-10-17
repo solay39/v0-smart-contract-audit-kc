@@ -1636,6 +1636,7 @@ const TABS: [TabId, string][] = [
             contractAddress={project.contractAddress || ""}
             contractName={project.name || "Contract"}
             network={project.network || "Ethereum"}
+            auditId={project.auditId}
             aiFindings={aiRes.map((finding) => ({
               title: finding.title,
               severity: finding.severity,

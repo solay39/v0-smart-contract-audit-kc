@@ -151,6 +151,7 @@ interface ManualReviewWorkspaceProps {
   onOnChainAnalysisData?: (data: OnChainAnalysis) => void
   // Chiamata quando l'auditor completa e firma la review
   onReviewComplete: (session: ReviewSession) => void
+  auditId?: string
 }
 
 // ─── Severity config ──────────────────────────────────────────────
@@ -182,6 +183,7 @@ export default function ManualReviewWorkspace({
   onOnChainFindings,
   onOnChainAnalysisData,
   onReviewComplete,
+  auditId,
 }: ManualReviewWorkspaceProps) {
 
   const [session, setSession] = useState<ReviewSession>({
@@ -410,6 +412,13 @@ export default function ManualReviewWorkspace({
       }
       
       setSession(completedSession)
+      if (auditId) {
+        const persist = await fetch("/api/audit/review-signoff", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ auditId, session: completedSession }),
+        })
+        if (!persist.ok) throw new Error((await persist.json()).error || "Could not persist signed review")
+      }
       onReviewComplete(completedSession)
     } catch (err: unknown) {
       setSignError(err instanceof Error ? err.message : "Signing failed")
