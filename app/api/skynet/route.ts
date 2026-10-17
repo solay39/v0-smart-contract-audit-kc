@@ -2219,7 +2219,7 @@ ${truncatedCode}`
           network: String(network || "ethereum"),
           auditId: typeof bodyAuditId === "string" ? bodyAuditId : undefined,
           projectName: typeof bodyProjectName === "string" ? bodyProjectName : undefined,
-          criticalFindings: finalFindings.filter((f) => f.severity === "CRITICAL").length,
+          criticalFindings: finalFindings.filter((f: { severity?: string }) => f.severity === "CRITICAL").length,
         }).catch((e) => ({
           enrolled: false,
           network: String(network || ""),
@@ -2483,7 +2483,7 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
       }
       const ipfsRecord = await pinReportToIPFS(ipfsReportData, auditId)
 
-      // ── ENTERPRISE: Solana On-Chain Attestation ──���──────────────
+      // ── ENTERPRISE: Solana On-Chain Attestation ──�����──────────────
       // Rimosso dal flusso principale per evitare timeout 504
       // L'utente puo' attestare manualmente dal tab Blockchain
       const solanaAttestation = null
