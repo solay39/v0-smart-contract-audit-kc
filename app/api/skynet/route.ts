@@ -1988,8 +1988,11 @@ ${truncatedCode}`
 
       // Extract Testing Methodology
       const testingMethodology = parsed.testingMethodology ? {
-        manualReviewHours: Number(parsed.testingMethodology.manualReviewHours) || 4,
-        reviewPhases: Array.isArray(parsed.testingMethodology.reviewPhases) ? parsed.testingMethodology.reviewPhases.map(String) : ["Manual Review"],
+        // AI generation is not a manual review. Manual hours remain zero until an auditor signs off.
+        manualReviewHours: 0,
+        reviewPhases: Array.isArray(parsed.testingMethodology.reviewPhases)
+          ? parsed.testingMethodology.reviewPhases.map(String).filter((phase: string) => !/manual review/i.test(phase))
+          : [],
         staticAnalysisTools: Array.isArray(parsed.testingMethodology.staticAnalysisTools)
           ? parsed.testingMethodology.staticAnalysisTools.map((t: Record<string, string>) => ({
               tool: String(t.tool || ""),
@@ -2021,13 +2024,12 @@ ${truncatedCode}`
       const projectNameClean = (meta.scopeLabel ?? "CONTRACT").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12)
       const auditId = "SOL-" + new Date().getFullYear() + "-" + projectNameClean + "-01"
 
-      // Calculate REALISTIC engagement metrics based on actual LOC
-      const manualReviewHours = Math.ceil(realLOC / 12) // 12 LOC/hour is conservative standard
-      const toolSetupHours = 4 // Slither, Mythril, Foundry setup
-      const reportWritingHours = Math.ceil(findings.length * 1.5) + 2 // 1.5h per finding + 2h base
-      const totalEngHours = manualReviewHours + toolSetupHours + reportWritingHours
-      const realisticDays = Math.max(1, Math.ceil(totalEngHours / 8))
-      const realisticAuditors = realLOC < 500 ? 1 : realLOC < 2000 ? 2 : Math.min(3, Math.ceil(realLOC / 1500))
+      // These are automated-analysis metrics, not claimed human engagement time.
+      // Manual review and auditor count stay zero until a reviewer explicitly signs off.
+      const reportWritingHours = findings.length > 0 ? Math.ceil(findings.length * 0.5) : 0
+      const totalEngHours = reportWritingHours
+      const realisticDays = totalEngHours > 0 ? Math.max(1, Math.ceil(totalEngHours / 8)) : 0
+      const realisticAuditors = 0
 
       const aiEngagement = {
         compilerVersionUsed: String(parsed.engagement?.compilerVersionUsed || defaultCompiler),
@@ -2056,11 +2058,10 @@ ${truncatedCode}`
             name: "Solay39 Founder",
             role: "Lead Auditor",
             credentials: "Smart contract security specialist — manual adversarial review, EVM bytecode analysis, DeFi protocol security",
-            signedOff: true,
-            signOffDate: new Date().toISOString().slice(0, 10),
+            signedOff: false,
           },
-          reviewStatus: "SINGLE_REVIEW",
-          note: "Independent second reviewer available for enterprise engagements. Contact solay2126@gmail.com.",
+          reviewStatus: "AUTOMATED_ANALYSIS_PENDING_MANUAL_REVIEW",
+          note: "Generated analysis is not a human audit. Manual sign-off and independent review must be completed before publication as a professional audit.",
         },
       }
 
