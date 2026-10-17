@@ -306,6 +306,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     Object.fromEntries(Object.keys(CHECKLIST).map((k) => [k, ""]))
   )
   const [findings, setFindings] = useState<Finding[]>([])
+
   const [nf, setNf] = useState<Omit<Finding, "id">>({
     title: "",
     severity: "HIGH",
@@ -448,11 +449,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     securityEngineers?: { name: string; title: string }[]
     reviewers?: { name: string; title: string }[]
     firmName?: string
-  } | null>({
-    leadAuditor: { name: "Solay39 Lead", title: "Lead Security Auditor" },
-    securityEngineers: [{ name: "SKYNET AI", title: "AI Security Engine v2.1" }],
-    firmName: "Solay39 Security",
-  })
+  } | null>(null)
   const [testCoverage, setTestCoverage] = useState<Record<string, unknown> | null>(null)
   const [solanaAttestation, setSolanaAttestation] = useState<{
     txSignature: string
@@ -533,7 +530,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     timelockHours: contractMeta?.hasOwner && !contractMeta?.ownerRenounced ? 0 : undefined,
     multisigSigners: contractMeta?.hasOwner && !contractMeta?.ownerRenounced ? 1 : undefined,
   })
-  const score = Math.min(v2Result.final, severityScoreCap(findings))
+  const score = manualReviewSession?.signed
+    ? Math.min(v2Result.final, severityScoreCap(findings))
+    : Math.min(v2Result.final, 70)
 
   const done = allChecks.filter(Boolean).length
   const total = allChecks.length
@@ -612,7 +611,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         auditDateEnd: new Date().toISOString().slice(0, 10),
         durationDays,
         engineeringHours: engHours,
-        numberOfAuditors: 24,  // Lead auditors + senior reviewers
+        numberOfAuditors: manualReviewSession?.signed ? 1 : 0,
         linesOfCode: loc,
         codeSecurityScore: v2Result.codeSecurity,
         architectureScore: v2Result.architecture,
@@ -1051,8 +1050,9 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         auditDate,
         deliveryDate,
         auditDurationDays: realDays,
-        numberOfAuditors: 24,
-        engineeringHours: (() => {
+      numberOfAuditors: manualReviewSession?.signed ? 1 : 0,
+      manualReviewHours: manualReviewSession?.signed ? 0 : 0,
+      engineeringHours: (() => {
           if (loc <= 50) return 80
           if (loc <= 150) return 160
           if (loc <= 300) return 320
@@ -1630,6 +1630,35 @@ const TABS: [TabId, string][] = [
       </nav>
 
       <div className="max-w-[1000px] mx-auto px-4 sm:px-6 py-7">
+        {tab === "review" && (
+          <ManualReviewWorkspace
+            contractSource={contractSource || aiCode}
+            contractAddress={project.contractAddress || ""}
+            contractName={project.name || "Contract"}
+            network={project.network || "Ethereum"}
+            aiFindings={aiRes.map((finding) => ({
+              title: finding.title,
+              severity: finding.severity,
+              location: finding.location,
+              description: finding.description,
+              impact: finding.impact,
+              recommendation: finding.recommendation,
+              proofOfConcept: finding.proofOfConcept,
+            }))}
+            onOnChainFindings={(reviewFindings) => {
+              reviewFindings.forEach((finding) => importFinding(finding as Omit<Finding, "id" | "category" | "status">))
+            }}
+            onOnChainAnalysisData={(data) => setOnChainAnalysisData(data)}
+            onReviewComplete={(session) => {
+              setManualReviewSession(session as unknown as Parameters<typeof setManualReviewSession>[0])
+              setAuditorSignatures({
+                leadAuditor: { name: session.auditorWallet || "Manual reviewer", title: "Lead Security Reviewer" },
+                firmName: "Solay39 Security",
+              })
+            }}
+          />
+        )}
+
         {/* ── DASHBOARD ── */}
         {tab === "dashboard" && (
           <div className="animate-[fadeUp_0.4s_ease]">
