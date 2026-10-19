@@ -2,6 +2,8 @@
 // SOLAY39 — Audit Validator
 // ═══════════════════════════════════════════════════════════════════
 
+import { checkProfessionalIntegrity } from "@/lib/report-integrity"
+
 export type ValidationSeverity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
 
 export interface ValidationIssue {
@@ -48,6 +50,18 @@ export interface AuditReportFields {
   finalScore?: number
   findings?: { severity: string; status: string }[]
   ownerVerification?: string
+  auditTier?: "AUTOMATED_SCAN" | "MANUAL_AUDIT"
+  manualReviewSigned?: boolean
+  secondReviewerSigned?: boolean
+  claimedManualReviewHours?: number
+  claimedEngineeringHours?: number
+  claimedAuditorCount?: number
+  claimedFuzzRuns?: number
+  executedTools?: string[]
+  reportLabel?: string
+  productionReadiness?: string
+  onChainRiskLabel?: string
+  reportVersion?: string
 }
 
 const NON_EVM_CHAINS = ["Solana", "Sui", "Aptos", "Cosmos", "Injective", "Sei", "Near", "Ton", "Starknet"]
@@ -109,6 +123,7 @@ export function validateAuditReport(
   push(checkEngineeringHours(reportFields))
   push(checkLOCvsHours(reportFields))
   push(checkScoreMath(reportFields))
+  for (const issue of checkProfessionalIntegrity(reportFields)) push(issue)
 
   const criticals = issues.filter(i => i.severity === "CRITICAL").length
   const highs     = issues.filter(i => i.severity === "HIGH").length
