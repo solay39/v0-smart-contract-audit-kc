@@ -26,6 +26,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
+      - name: Checkout analysis toolchain
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
@@ -70,56 +75,78 @@ jobs:
 
       - name: Run Slither
         run: |
-          slither --version > out/slither-version.txt 2>&1 || true
-          ARGS=""
-          if [ -n "${{ steps.solc.outputs.remaps }}" ]; then ARGS="--solc-remaps ${{ steps.solc.outputs.remaps }}"; fi
-          slither work/Contract.sol $ARGS --json out/slither.json > out/slither.log 2>&1 || true
-          if [ ! -s out/slither.json ]; then
-            printf '{"success":false,"error":"slither_report_unavailable","results":{"detectors":[]}}' > out/slither.json
-          fi
+          set -euo pipefail
+          slither --version > out/slither-version.txt 2>&1
+          ARGS=()
+          if [ -n "${{ steps.solc.outputs.remaps }}" ]; then ARGS+=(--solc-remaps "${{ steps.solc.outputs.remaps }}"); fi
+          set +e
+          slither work/Contract.sol "${ARGS[@]}" --json out/slither.json > out/slither.log 2>&1
+          status=$?
+          set -e
+          SLITHER_STATUS=$status python - <<'PY'
+          import json, os, pathlib
+          p = pathlib.Path('out/slither.json')
+          if not p.exists() or p.stat().st_size == 0:
+              raise SystemExit('Slither did not produce a JSON artifact')
+          data = json.loads(p.read_text())
+          if not isinstance(data.get('results', {}).get('detectors'), list):
+              raise SystemExit('Slither artifact has no detector list')
+          print(f'Slither completed with {len(data["results"]["detectors"])} findings; exit={os.environ["SLITHER_STATUS"]}')
+          PY
 
       - name: Run Mythril
         run: |
-          myth version > out/mythril-version.txt 2>&1 || true
+          set -euo pipefail
+          myth version > out/mythril-version.txt 2>&1
           REMAP_JSON=""
           if [ -n "${{ steps.solc.outputs.remaps }}" ]; then
             printf '{"remappings":["%s"]}' "${{ steps.solc.outputs.remaps }}" > work/solc.json
             REMAP_JSON="--solc-json work/solc.json"
           fi
-          timeout 900 myth analyze work/Contract.sol $REMAP_JSON -o json --execution-timeout 300 > out/mythril.json 2> out/mythril.log || true
-          if [ ! -s out/mythril.json ]; then
-            printf '{"success":false,"error":"mythril_report_unavailable","issues":[]}' > out/mythril.json
-          fi
+          set +e
+          timeout 900 myth analyze work/Contract.sol $REMAP_JSON -o json --execution-timeout 300 > out/mythril.json 2> out/mythril.log
+          status=$?
+          set -e
+          MYTHRIL_STATUS=$status python - <<'PY'
+          import json, os, pathlib
+          p = pathlib.Path('out/mythril.json')
+          if not p.exists() or p.stat().st_size == 0:
+              raise SystemExit('Mythril did not produce a JSON artifact')
+          data = json.loads(p.read_text())
+          if not isinstance(data.get('issues'), list):
+              raise SystemExit('Mythril artifact has no issues list')
+          print(f'Mythril completed with {len(data["issues"])} findings; exit={os.environ["MYTHRIL_STATUS"]}')
+          PY
 
       - name: Run custom regression checks
         run: |
           python .github/audit/custom_analysis.py work/Contract.sol > out/custom.json
 
-      - name: Run Foundry invariant and fuzz smoke tests
+      - name: Run repository Foundry tests and fuzzing
         run: |
-          set +e
+          set -euo pipefail
           curl -L --fail --silent --show-error https://foundry.paradigm.xyz | bash
           export PATH="$HOME/.foundry/bin:$PATH"
           foundryup
-          mkdir -p fuzz/src fuzz/test
-          cp work/Contract.sol fuzz/src/Contract.sol
-          cat > fuzz/foundry.toml <<'EOF'
-          [profile.default]
-          src = 'src'
-          test = 'test'
-          out = 'out'
-          libs = ['lib']
-          solc_version = '${{ steps.solc.outputs.version }}'
-          EOF
-          cat > fuzz/test/Regression.t.sol <<'EOF'
-          // Generated regression harness: compilation is evidence; protocol-specific invariants require reviewer-authored tests.
-          pragma solidity >=0.6.0;
-          contract RegressionHarness { function invariant_source_is_present() public view returns (bool) { return true; } }
-          EOF
-          (cd fuzz && forge test --match-contract RegressionHarness -vvv) > out/foundry.log 2>&1
+          if [ ! -f foundry.toml ]; then
+            printf '{"success":false,"tool":"foundry","mode":"repository-tests","error":"foundry.toml_missing"}' > out/foundry.json
+            exit 1
+          fi
+          set +e
+          forge test -vvv > out/foundry.log 2>&1
           status=$?
-          if [ "$status" -eq 0 ]; then printf '{"success":true,"tool":"foundry","mode":"regression-smoke","invariants":1}' > out/foundry.json; else printf '{"success":false,"tool":"foundry","mode":"regression-smoke","error":"see foundry.log"}' > out/foundry.json; fi
-          exit 0
+          set -e
+          if [ "$status" -ne 0 ]; then
+            printf '{"success":false,"tool":"foundry","mode":"repository-tests-and-fuzzing","error":"forge_test_failed"}' > out/foundry.json
+            cat out/foundry.log
+            exit "$status"
+          fi
+          python - <<'PY'
+          import json, pathlib, re
+          log = pathlib.Path('out/foundry.log').read_text()
+          fuzz_runs = len(re.findall(r'fuzz', log, re.I))
+          json.dump({'success': True, 'tool': 'foundry', 'mode': 'repository-tests-and-fuzzing', 'invariants': len(re.findall(r'invariant', log, re.I)), 'fuzz_runs_detected': fuzz_runs}, open('out/foundry.json', 'w'))
+          PY
 
       - name: Create evidence manifest
         run: |
