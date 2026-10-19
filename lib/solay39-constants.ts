@@ -178,7 +178,7 @@ export interface AttackScenario {
   simulationResult?: string   // e.g. "Attempted: transferFrom(max_uint) -> reverted: SafeMath underflow"
 }
 
-// ── Tier-1 Governance ─────────────────────────────────────────
+// ─��� Tier-1 Governance ─────────────────────────────────────────
 export interface GovernanceSecurity {
   hasGovernance: boolean
   proposalLifecycle?: string        // "creation -> voting -> queue -> execution"
@@ -189,7 +189,7 @@ export interface GovernanceSecurity {
   votingRisks?: string[]            // ["flash-loan voting", "whale takeover", "low quorum"]
 }
 
-// ── Tier-1 Upgradeability ─────────────────────────────────────
+// ── Tier-1 Upgradeability ──────────────────���──────────────────
 export interface UpgradeabilityAnalysis {
   isUpgradeable: boolean
   proxyPattern?: string             // "TransparentProxy" / "UUPS" / "Beacon" / "none"
@@ -1003,11 +1003,10 @@ constructor() public {
       { title: "Arithmetic Overflow on transfer()", type: "fund-theft" as const, description: "An attacker attempts to trigger integer overflow by calling transfer() with uint256.max as the amount. If successful, this could wrap the balance calculation and allow the attacker to mint tokens from nothing.", narrativeImpact: "Direct loss of user funds via balance manipulation", mitigation: "SafeMath library applied to all arithmetic operations", likelihood: "Low" as const, mitigated: true, simulationResult: "Attempted: transfer(0xdead, 2^256-1) -> reverted: SafeMath: subtraction overflow. Attack not possible." },
     ],
     toolingUsed: [
-      "Solay39 Manual Review (5 phases)",
-      "Slither v0.10.0: 0 high, 0 medium, 1 optimization",
-      "Mythril v0.24: 0 vulnerabilities detected",
-      "AI-Guided Verification (Claude, Anthropic): 4 findings confirmed",
-      "OpenZeppelin Contract Analysis: SafeMath verified",
+      "Automated scan: pending CI artifact verification",
+      "Slither: not claimed without captured CI output",
+      "Mythril: not claimed without captured CI output",
+      "Manual review: not performed",
     ],
     onChainValidation: [
       { label: "Source Code Verified on Etherscan", status: "pass" as const, detail: "Verified at 0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30" },
@@ -1018,8 +1017,8 @@ constructor() public {
       { label: "pause() not present", status: "n/a" as const, detail: "Contract does not implement Pausable" },
     ],
     testingMethodology: {
-      manualReviewHours: 6,
-      reviewPhases: ["Scoping & architecture mapping", "Line-by-line manual code review", "Attack surface identification", "OpenZeppelin cross-reference", "Report generation & peer review"],
+      manualReviewHours: 0,
+      reviewPhases: ["Scoping & architecture mapping", "Automated finding triage", "Attack surface identification", "Report generation"],
       staticAnalysisTools: [
         { tool: "Slither v0.10.0", findings: "0 high, 0 medium, 1 optimization (gas)", configUsed: "Default config, all detectors enabled" },
       ],
@@ -1036,19 +1035,19 @@ constructor() public {
         "No off-chain components in scope",
       ],
       limitations: [
-        "Time-boxed to 6 hours of manual review",
-        "Formal verification performed using Halmos",
+        "Time-boxed automated analysis; no human review is represented in this sample record",
+        "Formal verification was not performed; Halmos is not claimed without a CI artifact",
         "Economic model analysis limited to on-chain contract logic",
       ],
     },
     // Tier-1 advanced
     governanceSecurity: {
       hasGovernance: false,
-      proposalLifecycle: null,
-      timelockDelay: null,
-      timelockBypassRisk: null,
-      votingMechanism: null,
-      quorumThreshold: null,
+      proposalLifecycle: undefined,
+      timelockDelay: undefined,
+      timelockBypassRisk: undefined,
+      votingMechanism: undefined,
+      quorumThreshold: undefined,
       votingRisks: [],
     },
     upgradeabilityAnalysis: {
@@ -1056,7 +1055,7 @@ constructor() public {
       proxyPattern: "none",
       storageCollisionRisk: "None" as const,
       initializerProtection: false,
-      upgradeControl: null,
+      upgradeControl: undefined,
     },
     economicRisks: [
       { title: "Initial Supply Concentration", category: "supply-concentration" as const, description: "100% of supply minted to single deployer address at construction. Market price can be manipulated by initial holder.", severity: "Medium" as const, mitigation: "Ownership renounced; supply distributed via exchanges and vesting." },
