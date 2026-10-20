@@ -122,30 +122,34 @@ jobs:
         run: |
           python .github/audit/custom_analysis.py work/Contract.sol > out/custom.json
 
-      - name: Run repository Foundry tests and fuzzing
+      - name: Compile submitted contract with Foundry
         run: |
           set -euo pipefail
           curl -L --fail --silent --show-error https://foundry.paradigm.xyz | bash
           export PATH="$HOME/.foundry/bin:$PATH"
           foundryup
-          if [ ! -f foundry.toml ]; then
-            printf '{"success":false,"tool":"foundry","mode":"repository-tests","error":"foundry.toml_missing"}' > out/foundry.json
-            exit 1
-          fi
+          mkdir -p submitted/src submitted/test
+          cp work/Contract.sol submitted/src/Contract.sol
+          cat > submitted/foundry.toml <<'EOF'
+          [profile.default]
+          src = 'src'
+          test = 'test'
+          out = 'out'
+          libs = ['lib']
+          bytecode_hash = 'none'
+          EOF
           set +e
-          forge test -vvv > out/foundry.log 2>&1
+          (cd submitted && forge build --json) > out/foundry-build.json 2> out/foundry.log
           status=$?
           set -e
           if [ "$status" -ne 0 ]; then
-            printf '{"success":false,"tool":"foundry","mode":"repository-tests-and-fuzzing","error":"forge_test_failed"}' > out/foundry.json
+            printf '{"success":false,"tool":"foundry","mode":"submitted-contract-compilation","tests_executed":false,"fuzzing_executed":false,"error":"forge_build_failed"}' > out/foundry.json
             cat out/foundry.log
             exit "$status"
           fi
           python - <<'PY'
-          import json, pathlib, re
-          log = pathlib.Path('out/foundry.log').read_text()
-          fuzz_runs = len(re.findall(r'fuzz', log, re.I))
-          json.dump({'success': True, 'tool': 'foundry', 'mode': 'repository-tests-and-fuzzing', 'invariants': len(re.findall(r'invariant', log, re.I)), 'fuzz_runs_detected': fuzz_runs}, open('out/foundry.json', 'w'))
+          import json
+          json.dump({'success': True, 'tool': 'foundry', 'mode': 'submitted-contract-compilation', 'tests_executed': False, 'fuzzing_executed': False, 'invariants': 0, 'note': 'Protocol-specific fuzzing and invariants require reviewer-supplied tests; no synthetic tests are claimed.'}, open('out/foundry.json', 'w'))
           PY
 
       - name: Create evidence manifest
@@ -156,7 +160,10 @@ jobs:
           files = {}
           for p in sorted(Path('out').glob('*')):
               if p.is_file(): files[p.name] = hashlib.sha256(p.read_bytes()).hexdigest()
-          Path('out/evidence-manifest.json').write_text(json.dumps({'job_id': '${{ inputs.job_id }}', 'source_sha256': hashlib.sha256(Path('work/Contract.sol').read_bytes()).hexdigest(), 'artifacts': files}, indent=2))
+          source = Path('work/Contract.sol').read_bytes()
+          source_hash = hashlib.sha256(source).hexdigest()
+          manifest = {'job_id': '${{ inputs.job_id }}', 'contract_name': '${{ inputs.contract_name }}', 'source_sha256': source_hash, 'analyzed_path': 'work/Contract.sol', 'artifacts': files, 'claims': {'slither': True, 'mythril': True, 'custom_regression': True, 'foundry_compile': True, 'protocol_fuzzing': False, 'invariants': False, 'manual_review': False}}
+          Path('out/evidence-manifest.json').write_text(json.dumps(manifest, indent=2))
           PY
 
       - name: Upload results

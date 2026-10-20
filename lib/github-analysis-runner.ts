@@ -113,7 +113,7 @@ export interface CiAnalysisResult {
   slither: { tool: "slither"; version: string; success: boolean; findings: CiSlitherFinding[]; detectors_run: number; error: string | null }
   mythril: { tool: "mythril"; version: string; success: boolean; findings: CiMythrilFinding[]; error: string | null }
   custom: { tool: "solay39-custom-regression"; version: string; success: boolean; checks: Record<string, boolean>; findings: CiCustomFinding[]; error: string | null }
-  foundry: { tool: "foundry"; success: boolean; mode: string; invariants: number; error: string | null }
+  foundry: { tool: "foundry"; success: boolean; mode: string; invariants: number; tests_executed?: boolean; fuzzing_executed?: boolean; error: string | null }
   evidenceManifest: { source_sha256: string; artifacts: Record<string, string> } | null
   solcVersion: string | null
 }
@@ -210,7 +210,7 @@ function parseArtifact(files: Record<string, Uint8Array>): CiAnalysisResult {
   const mythrilError = mythrilRaw.success === false ? mythrilRaw.error || firstLine(read("mythril.log")) : null
 
   const customRaw = safeJson<{ success?: boolean; tool?: string; version?: string; checks?: Record<string, boolean>; findings?: CiCustomFinding[]; error?: string }>(read("custom.json"), { success: false, error: "custom_report_unavailable" })
-  const foundryRaw = safeJson<{ success?: boolean; tool?: string; mode?: string; invariants?: number; error?: string }>(read("foundry.json"), { success: false, error: "foundry_report_unavailable" })
+  const foundryRaw = safeJson<{ success?: boolean; tool?: string; mode?: string; invariants?: number; tests_executed?: boolean; fuzzing_executed?: boolean; error?: string }>(read("foundry.json"), { success: false, error: "foundry_report_unavailable" })
   const evidenceManifest = safeJson<{ source_sha256?: string; artifacts?: Record<string, string> } | null>(read("evidence-manifest.json"), null)
 
   return {
@@ -242,7 +242,9 @@ function parseArtifact(files: Record<string, Uint8Array>): CiAnalysisResult {
       success: foundryRaw.success === true,
       mode: foundryRaw.mode || "regression-smoke",
       invariants: Number(foundryRaw.invariants || 0),
-      error: foundryRaw.success === false ? foundryRaw.error || "foundry regression failed" : null,
+      tests_executed: foundryRaw.tests_executed === true,
+      fuzzing_executed: foundryRaw.fuzzing_executed === true,
+      error: foundryRaw.success === false ? foundryRaw.error || "foundry compilation failed" : null,
     },
     evidenceManifest: evidenceManifest?.source_sha256 ? { source_sha256: evidenceManifest.source_sha256, artifacts: evidenceManifest.artifacts || {} } : null,
     solcVersion: safeJson<{ solc?: string }>(read("meta.json"), {}).solc || null,
