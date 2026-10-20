@@ -83,16 +83,20 @@ export function OnChainAnalysisPanel({ contractAddress, network, onAnalysisCompl
     
     try {
       // Step 1: Run on-chain analysis
+      const controller = new AbortController()
+      const timeout = window.setTimeout(() => controller.abort(), 30_000)
       const res = await fetch("/api/onchain-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: contractAddress, network }),
+        body: JSON.stringify({ address: contractAddress.trim(), network: network === "SO" ? "Solana" : network }),
+        signal: controller.signal,
       })
-      
-      const data = await res.json()
-      
-      if (data.error) {
-        setError(data.error)
+      window.clearTimeout(timeout)
+
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok || data.error) {
+        setError(data.error || `On-chain analysis failed (${res.status})`)
       } else {
         setResult(data)
         
@@ -125,7 +129,7 @@ export function OnChainAnalysisPanel({ contractAddress, network, onAnalysisCompl
         }
       }
     } catch (e) {
-      setError("Analysis failed: " + (e instanceof Error ? e.message : String(e)))
+      setError(e instanceof DOMException && e.name === "AbortError" ? "On-chain analysis timed out. Check the Solana address and RPC availability." : "Analysis failed: " + (e instanceof Error ? e.message : String(e)))
     }
     
     setLoading(false)
