@@ -39,8 +39,55 @@ class AuditErrorBoundary extends Component<{ children: ReactNode; auditId: strin
   }
 }
 
+function enforceEvidenceOnlyReport(input: PortfolioProject): PortfolioProject {
+  const integrity = input.reportIntegrity as { sourceSha256?: string; artifacts?: Record<string, string>; ciStatus?: string } | undefined
+  const hasCiEvidence = Boolean(integrity?.sourceSha256 && integrity?.artifacts && Object.keys(integrity.artifacts).length > 0)
+  const signedReview = Boolean(input.engagement?.reviewTeam?.reviewStatus === "SIGNED" && input.engagement.reviewTeam.leadAuditor.signedOff)
+  const evidenceBacked = hasCiEvidence && signedReview
+
+  if (evidenceBacked) return input
+
+  return {
+    ...input,
+    score: 0,
+    rating: "PENDING",
+    finalAssessment: {
+      ...input.finalAssessment,
+      securityPosture: "Automated scan with pending manual review.",
+      productionReadiness: "Not assessed until CI artifacts and manual sign-off are verified.",
+      keyRisksToMonitor: input.finalAssessment?.keyRisksToMonitor || ["CI evidence", "Manual reviewer sign-off"],
+    },
+    engagement: input.engagement ? {
+      ...input.engagement,
+      numberOfAuditors: 0,
+      engineeringHours: 0,
+      securityEngineersInvolved: 0,
+      leadAuditor: "Not assigned",
+      reviewTeam: {
+        ...input.engagement.reviewTeam,
+        leadAuditor: { name: "Pending reviewer", role: "Manual reviewer", credentials: "Not verified", signedOff: false },
+        reviewStatus: "AUTOMATED_ANALYSIS_PENDING_MANUAL_REVIEW",
+        note: "Human review, reviewer identity, and CI evidence are not verified for this report.",
+      },
+    } : input.engagement,
+    testingMethodology: {
+      ...input.testingMethodology,
+      manualReviewHours: 0,
+      reviewPhases: ["Automated analysis", "Evidence pending", "Manual review pending"],
+      staticAnalysisTools: input.testingMethodology?.staticAnalysisTools || [],
+      fuzzingApplied: false,
+      symbolicExecution: false,
+      assumptions: ["Only submitted source is in scope", "CI evidence is pending"],
+      limitations: ["No manual review", "No protocol-specific fuzzing or formal verification"],
+    },
+    manualReview: undefined,
+    auditorSignatures: undefined,
+    formalVerification: undefined,
+  }
+}
+
 export function AuditDetailClient({ project, auditId }: { project: PortfolioProject | null; auditId: string }) {
-  const [liveProject, setLiveProject] = useState<PortfolioProject | null>(project)
+  const [liveProject, setLiveProject] = useState<PortfolioProject | null>(project ? enforceEvidenceOnlyReport(project) : null)
   const [isLive, setIsLive] = useState(false)
   const [loading, setLoading] = useState(!project)
 
@@ -58,7 +105,7 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
         local = published.find((p) => p.id.toLowerCase().replace(/[^a-z0-9-]/g, "") === normalizedId)
       }
       if (local) {
-        setLiveProject(local)
+        setLiveProject(enforceEvidenceOnlyReport(local))
         setLoading(false)
       } else {
         // Last resort: try Blob API (handles cross-device access)
@@ -66,7 +113,7 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
           .then((res) => res.json())
           .then((data) => {
             if (data.audit) {
-              setLiveProject(data.audit)
+              setLiveProject(enforceEvidenceOnlyReport(data.audit))
             }
           })
           .catch(() => {})
@@ -82,7 +129,7 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
       )
       if (local) {
         // Merge: local data on top but blob enterprise fields take priority
-        setLiveProject({
+        setLiveProject(enforceEvidenceOnlyReport({
           ...project,
           ...local,
           findings: local.findings?.length ? local.findings : project.findings,
@@ -110,7 +157,7 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
           manualReview: project.manualReview || local.manualReview,
           securityChecklist: project.securityChecklist || local.securityChecklist,
           onChainAnalysis: project.onChainAnalysis || local.onChainAnalysis,
-        })
+        }))
       }
       setLoading(false)
     }
