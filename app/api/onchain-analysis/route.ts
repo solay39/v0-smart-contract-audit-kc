@@ -293,6 +293,9 @@ async function fetchEVMTokenData(address: string, network: string): Promise<OnCh
 // ── Fetch Solana Token Data ───────────────────────────────────────────────────
 async function fetchSolanaTokenData(address: string): Promise<OnChainData | null> {
   const rpcUrl = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com"
+  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) {
+    throw new Error("Invalid Solana mint address. Use the complete base58 address, not a shortened display value.")
+  }
   
   try {
     // 1. Get token mint info
@@ -762,7 +765,7 @@ export async function POST(req: NextRequest) {
     }
     
     if (!onChainData) {
-      return NextResponse.json({ error: "Failed to fetch token data from blockchain" }, { status: 500 })
+      return NextResponse.json({ error: `Could not read ${finalNetwork} token data. Verify the complete token address and RPC availability.` }, { status: 502 })
     }
     
     // Run AI analysis

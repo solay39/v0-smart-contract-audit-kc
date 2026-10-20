@@ -44,10 +44,28 @@ export async function generateStaticParams() {
   return DEFAULT_PROJECTS.map((p) => ({ id: p.id }))
 }
 
+function evidenceOnlyServerProject(project: PortfolioProject | null): PortfolioProject | null {
+  if (!project) return null
+  const integrity = project.reportIntegrity as { sourceSha256?: string; artifacts?: Record<string, string> } | undefined
+  const signed = project.engagement?.reviewTeam?.reviewStatus === "SIGNED" && Boolean(project.engagement.reviewTeam?.leadAuditor?.signedOff)
+  if (integrity?.sourceSha256 && Object.keys(integrity.artifacts || {}).length > 0 && signed) return project
+  return {
+    ...project,
+    score: 0,
+    rating: "PENDING",
+    finalAssessment: { ...project.finalAssessment, securityPosture: "Automated scan with pending manual review.", productionReadiness: "Not assessed until evidence and manual sign-off are verified." },
+    engagement: project.engagement ? { ...project.engagement, numberOfAuditors: 0, engineeringHours: 0, securityEngineersInvolved: 0, reviewTeam: { ...(project.engagement.reviewTeam || {}), reviewStatus: "AUTOMATED_ANALYSIS_PENDING_MANUAL_REVIEW", leadAuditor: { ...(project.engagement.reviewTeam?.leadAuditor || {}), signedOff: false, name: "Pending reviewer", credentials: "Not verified" } } } : project.engagement,
+    testingMethodology: { ...project.testingMethodology, manualReviewHours: 0, fuzzingApplied: false, symbolicExecution: false, reviewPhases: ["Automated analysis", "Evidence pending", "Manual review pending"] },
+    manualReview: undefined,
+    auditorSignatures: undefined,
+    formalVerification: undefined,
+  } as PortfolioProject
+}
+
 export default async function AuditPage({ params }: Props) {
   try {
     const { id } = await params
-    const project: PortfolioProject | null = await getPublishedAudit(id)
+    const project = evidenceOnlyServerProject(await getPublishedAudit(id))
     return <AuditDetailClient project={project} auditId={id} />
   } catch {
     const { id } = await params
