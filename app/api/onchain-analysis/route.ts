@@ -107,8 +107,8 @@ async function fetchEVMTokenData(address: string, network: string): Promise<OnCh
           const balanceBigInt = BigInt(h.TokenHolderQuantity || "0")
           // Calculate percentage: (balance / totalSupply) * 100
           // Use BigInt math: (balance * 10000) / totalSupply gives basis points, then divide by 100
-          const percentageBasisPoints = totalSupplyBigInt > 0n 
-            ? Number((balanceBigInt * 10000n) / totalSupplyBigInt)
+          const percentageBasisPoints = totalSupplyBigInt > BigInt(0)
+            ? Number((balanceBigInt * BigInt(10000)) / totalSupplyBigInt)
             : 0
           return {
             address: h.TokenHolderAddress,
