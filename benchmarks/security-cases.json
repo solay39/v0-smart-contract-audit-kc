@@ -1,0 +1,8 @@
+[
+  {
+    "id": "reentrancy-example-001",
+    "source": "benchmarks/fixtures/reentrancy-example.sol",
+    "expectedCategories": ["reentrancy"],
+    "provenance": "Replace this fixture with a pinned SmartBugs or DeFiHackLabs case before publishing benchmark results."
+  }
+]

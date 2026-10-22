@@ -51,10 +51,15 @@ The review covers Solidity contracts, deployment configuration, governance roles
 - External audit remains required; this document is not a certification.
 
 ## Reviewer sign-off
-- Reviewed commit: `________________`
-- Network(s): `________________`
-- Reviewer/date: `________________`
-- Open findings and accepted risks: `________________`
-- Approval for external audit submission: `YES / NO`
+
+Status: **NOT APPROVED FOR EXTERNAL AUDIT SUBMISSION**. This document records the threat model and required evidence; it is not a completed independent review.
+
+- Reviewed commit: `Pending named human reviewer`
+- Network(s): `Pending deployment-specific scope`
+- Reviewer/date: `Pending independent reviewer and date`
+- Open findings and accepted risks: `External review, deployment evidence, benchmark results, and protocol-specific test coverage remain open`
+- Approval for external audit submission: `NO`
+
+The current product scope is **AI-assisted Solidity audits with executable PoC support**. Automated analysis is reported separately from human review, formal verification, and production-readiness claims.
 
 See `AUDIT_EXTERNAL_SCOPE.md` and `scripts/verify_reproducible_build.sh` for the submission workflow.

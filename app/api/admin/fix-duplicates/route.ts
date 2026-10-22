@@ -133,11 +133,11 @@ export async function POST(request: NextRequest) {
           ...audit.executiveSummary,
           totalFindings: cleaned.length,
           findingsBySeverity: {
-            CRITICAL: cleaned.filter((f: { severity: string }) => f.severity === "CRITICAL").length,
-            HIGH: cleaned.filter((f: { severity: string }) => f.severity === "HIGH").length,
-            MEDIUM: cleaned.filter((f: { severity: string }) => f.severity === "MEDIUM").length,
-            LOW: cleaned.filter((f: { severity: string }) => f.severity === "LOW").length,
-            INFO: cleaned.filter((f: { severity: string }) => f.severity === "INFO").length,
+            CRITICAL: cleaned.filter(f => String(f.severity) === "CRITICAL").length,
+            HIGH: cleaned.filter(f => String(f.severity) === "HIGH").length,
+            MEDIUM: cleaned.filter(f => String(f.severity) === "MEDIUM").length,
+            LOW: cleaned.filter(f => String(f.severity) === "LOW").length,
+            INFO: cleaned.filter(f => String(f.severity) === "INFO").length,
           }
         } : audit.executiveSummary,
       }

@@ -1,12 +1,14 @@
 {
-  "name": "my-project",
+  "name": "solay39-smart-contract-audit",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "tsc --noEmit -p tsconfig.json",
+    "benchmark": "node scripts/benchmark-security.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
