@@ -43,15 +43,7 @@ export async function signReport(
   const privateKey = process.env.AUDITOR_PRIVATE_KEY
 
   if (!privateKey) {
-    // Fallback: firma simulata se la chiave non e' configurata
-    console.warn("[Solay39] AUDITOR_PRIVATE_KEY not set -- using placeholder signature")
-    return {
-      reportHash,
-      signature: "0x_CONFIGURE_AUDITOR_PRIVATE_KEY_IN_ENV",
-      auditorAddress: "0x_NOT_CONFIGURED",
-      timestamp: new Date().toISOString(),
-      auditId,
-    }
+    throw new Error("Cannot sign report: AUDITOR_PRIVATE_KEY is not configured")
   }
 
   const wallet = new ethers.Wallet(privateKey)
