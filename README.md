@@ -1,33 +1,43 @@
-# v0-smart-contract-audit-kc
+# Solay39 Smart Contract Audit
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+Solay39 is a Next.js application for evidence-backed smart-contract security analysis. It orchestrates static analysis, symbolic execution, Foundry compilation/testing, on-chain checks, and report generation while keeping automated evidence separate from human sign-off.
 
-## Built with v0
+## Current scope
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+The current focus is **AI-assisted Solidity audits with executable proof-of-concept support**. The product is not a CertiK replacement and does not claim a human audit, certification, formal verification, fuzzing, or production readiness unless a verifiable artifact and reviewer sign-off are attached.
 
-[Continue working on v0 →](https://v0.app/chat/projects/prj_DHzOXxs3vked3QBHoFsoKRIL1qVZ)
+## Architecture
 
-## Getting Started
+- `app/` and `components/`: web application and audit workflow
+- `core/`: analysis, finding, severity, PoC, and review engines
+- `security-backend/`: Docker service for Slither, Mythril, Foundry, and Echidna
+- `formal-verify-backend/`: Coq/K verification service; verification is only reported when the backend returns a real proof artifact
+- `.github/workflows/`: reproducible CI analysis and evidence manifest
+- `scripts/benchmark-security.mjs`: benchmark runner for labelled vulnerable contracts
 
-First, run the development server:
+## Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+npm test
+npm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`npm test` is currently a type-check gate. It does not claim protocol fuzzing or a human review.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Security backend
 
-## Learn More
+```bash
+cd security-backend
+npm install
+npm start
+```
 
-To learn more, take a look at the following resources:
+The benchmark runner sends Solidity fixtures to the backend and records raw responses, tool versions, source hashes, and expected-vs-detected labels. Set `SECURITY_API_URL` and `SECURITY_API_KEY` before running it.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
+## Evidence policy
+
+Published reports are evidence-only. Automated scans are labelled `AUTOMATED_SCAN_WITH_PENDING_MANUAL_REVIEW` until CI artifacts are persisted and a named reviewer signs the report. Unsupported scores, auditor counts, engineering hours, and verification claims must not be published.
+
+See `THREAT_MODEL.md`, `AUDIT_EXTERNAL_SCOPE.md`, and `scripts/benchmark-security.mjs` for scope and reproducibility details.
