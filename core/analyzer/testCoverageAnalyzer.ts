@@ -1,6 +1,6 @@
 /**
  * Solay39 Test Coverage & Analysis Simulator
- * Simulates comprehensive testing metrics based on code analysis
+ * Reports only evidence supplied by executed testing tools; source heuristics are not coverage evidence.
  */
 
 interface ContractMeta {
@@ -69,7 +69,7 @@ export interface TestCoverageReport {
   gasAnalysis: GasAnalysisResult
 }
 
-// Pattern detection helpers
+// Static source-pattern indicators; these are not executed security tests.
 function countFunctions(code: string): number {
   const matches = code.match(/function\s+\w+\s*\(/g)
   return matches ? matches.length : 1
@@ -114,6 +114,7 @@ function extractFunctionNames(code: string): string[] {
  */
 export function analyzeTestCoverage(code: string, meta: ContractMeta, findings: { severity: string }[]): TestCoverageReport {
   const loc = meta.totalLOC || code.split('\n').length
+  const usesOZ = meta.usesOpenZeppelin || /import.*@openzeppelin/.test(code)
   const functionCount = countFunctions(code)
   const branchCount = countBranches(code)
   const patterns = detectPatterns(code)
@@ -126,44 +127,22 @@ export function analyzeTestCoverage(code: string, meta: ContractMeta, findings: 
   const lowCount = findings.filter(f => f.severity === "LOW").length
   const infoCount = findings.filter(f => f.severity === "INFO" || f.severity === "GAS").length
 
-  // Calculate coverage based on code quality indicators
-  const usesOZ = meta.usesOpenZeppelin || /import.*@openzeppelin/.test(code)
-  const hasTests = /pragma solidity/.test(code) // All submitted code is analyzed
-  const isSolidity8Plus = /pragma solidity \^?0\.[8-9]/.test(code)
-  
-  // Base coverage starts high for well-structured code
-  let baseCoverage = 75
-  if (usesOZ) baseCoverage += 10
-  if (isSolidity8Plus) baseCoverage += 5
-  if (patterns.hasAccessControl) baseCoverage += 5
-  if (criticalCount > 0) baseCoverage -= 15
-  if (highCount > 0) baseCoverage -= 10
-  
-  // Clamp between 60-98
-  baseCoverage = Math.max(60, Math.min(98, baseCoverage))
-  
-  // Generate slightly varying coverage numbers
-  const lineCoverage = Math.min(99, baseCoverage + Math.floor(Math.random() * 5))
-  const branchCoverage = Math.max(55, baseCoverage - 5 + Math.floor(Math.random() * 8))
-  const functionCoverage = Math.min(100, baseCoverage + 3 + Math.floor(Math.random() * 4))
-  const statementCoverage = Math.min(98, baseCoverage + Math.floor(Math.random() * 6))
-
-  // Fuzz testing results
-  const fuzzEdgeCases = Object.values(patterns).filter(Boolean).length
-  const fuzzStatus: "PASSED" | "ISSUES_FOUND" | "NOT_RUN" = 
-    criticalCount > 0 ? "ISSUES_FOUND" : 
-    fuzzEdgeCases > 2 ? "ISSUES_FOUND" : "PASSED"
-  
+  // Coverage and fuzzing are unknown until forge coverage/Echidna artifacts are supplied.
+  // Source patterns and finding counts must never be presented as executed tests.
+  const lineCoverage = 0
+  const branchCoverage = 0
+  const functionCoverage = 0
+  const statementCoverage = 0
   const fuzzTesting: FuzzTestResult = {
-    enabled: true,
-    runsCompleted: 10000 + Math.floor(Math.random() * 90000),
-    edgeCasesFound: fuzzEdgeCases,
-    maxDepth: Math.min(50, 10 + branchCount),
-    mutations: 500 + Math.floor(loc * 2.5),
-    status: fuzzStatus,
+    enabled: false,
+    runsCompleted: 0,
+    edgeCasesFound: 0,
+    maxDepth: 0,
+    mutations: 0,
+    status: "NOT_RUN",
   }
 
-  // Static analysis results (simulating Slither, Mythril, Solhint)
+  // Source-derived indicators only; real tool results must come from CI artifacts.
   const staticAnalysis: StaticAnalysisResult[] = [
     {
       tool: "Slither",
@@ -218,22 +197,21 @@ export function analyzeTestCoverage(code: string, meta: ContractMeta, findings: 
     invariantsBase.push("Voting power is correctly delegated")
   }
   
-  const propertiesVerified = invariantsBase.length - (criticalCount > 0 ? 1 : 0)
   const formalVerification: FormalVerificationResult = {
-    enabled: true,
-    tool: "Halmos",
-    propertiesVerified,
-    propertiesFailed: criticalCount > 0 ? 1 : 0,
-    invariantsChecked: invariantsBase,
-    status: criticalCount > 0 ? "PARTIAL" : "VERIFIED",
+    enabled: false,
+    tool: undefined,
+    propertiesVerified: 0,
+    propertiesFailed: 0,
+    invariantsChecked: [],
+    status: "NOT_RUN",
   }
 
-  // Symbolic execution
+  // Symbolic execution is not inferred from source structure.
   const symbolicExecution: SymbolicExecutionResult = {
-    enabled: true,
-    pathsExplored: 100 + branchCount * 50 + Math.floor(Math.random() * 500),
-    maxPathDepth: Math.min(100, 20 + branchCount * 3),
-    timeoutReached: loc > 500,
+    enabled: false,
+    pathsExplored: 0,
+    maxPathDepth: 0,
+    timeoutReached: false,
   }
 
   // Gas analysis
@@ -243,10 +221,10 @@ export function analyzeTestCoverage(code: string, meta: ContractMeta, findings: 
   ) || functionNames[0] || "fallback"
   
   const gasAnalysis: GasAnalysisResult = {
-    averageGasPerFunction: avgGas,
-    mostExpensiveFunction: mostExpensive,
-    mostExpensiveGas: avgGas + 50000 + Math.floor(Math.random() * 100000),
-    totalDeploymentCost: 500000 + loc * 200 + (usesOZ ? 200000 : 0),
+    averageGasPerFunction: 0,
+    mostExpensiveFunction: "NOT_RUN",
+    mostExpensiveGas: 0,
+    totalDeploymentCost: 0,
   }
 
   return {
