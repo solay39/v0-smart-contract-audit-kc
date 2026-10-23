@@ -49,8 +49,11 @@ RUN npm install
 # Copy source
 COPY . .
 
-# Create temp directories for analysis
-RUN mkdir -p /tmp/contracts /tmp/reports
+# Create temp directories for analysis and run the service without root privileges
+RUN useradd --create-home --shell /usr/sbin/nologin audit && \
+    mkdir -p /tmp/contracts /tmp/reports && \
+    chown -R audit:audit /app /tmp/contracts /tmp/reports
+USER audit
 
 # Expose port
 EXPOSE 3001

@@ -12,10 +12,16 @@ const crypto = require("crypto");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const API_KEY = process.env.SECURITY_API_KEY || "solay39-security-key";
+const API_KEY = process.env.SECURITY_API_KEY;
+const MAX_CODE_BYTES = 512 * 1024;
+const DEFAULT_TIMEOUT_MS = 120000;
 
-app.use(cors());
-app.use(express.json({ limit: "10mb" }));
+if (!API_KEY) {
+  throw new Error("SECURITY_API_KEY must be configured; refusing to start with a default credential");
+}
+
+app.use(cors({ origin: false }));
+app.use(express.json({ limit: `${MAX_CODE_BYTES}b` }));
 
 // Auth middleware
 function authMiddleware(req, res, next) {
@@ -42,11 +48,23 @@ app.get("/health", (req, res) => {
 
 function checkTool(cmd) {
   try {
-    execSync(cmd, { stdio: "pipe" });
+    execSync(cmd, { stdio: "pipe", timeout: 10000 });
     return true;
   } catch {
     return false;
   }
+}
+
+function scannerStatus({ available, exitCode, timedOut, findings }) {
+  if (!available) return "UNAVAILABLE";
+  if (timedOut || exitCode === null || exitCode === undefined) return "ERROR";
+  if (exitCode !== 0 && findings.length === 0) return "ERROR";
+  return findings.length > 0 ? "FINDINGS" : "PASS";
+}
+
+function safeContractName(value) {
+  const name = String(value || "Contract").replace(/[^a-zA-Z0-9_-]/g, "_");
+  return name.slice(0, 80) || "Contract";
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -54,11 +72,12 @@ function checkTool(cmd) {
 // ─────────────────────────────────────────────────────────────
 app.post("/api/slither", authMiddleware, async (req, res) => {
   const { code, contractName, solcVersion } = req.body;
-  if (!code) return res.status(400).json({ error: "Missing code" });
+  if (typeof code !== "string" || !code.trim()) return res.status(400).json({ error: "Missing code" });
+  if (Buffer.byteLength(code, "utf8") > MAX_CODE_BYTES) return res.status(413).json({ error: "Code exceeds size limit" });
 
   const id = crypto.randomBytes(8).toString("hex");
   const dir = `/tmp/contracts/${id}`;
-  const filePath = `${dir}/${contractName || "Contract"}.sol`;
+  const filePath = `${dir}/${safeContractName(contractName)}.sol`;
 
   try {
     await fs.mkdir(dir, { recursive: true });
@@ -84,17 +103,21 @@ app.post("/api/slither", authMiddleware, async (req, res) => {
 
     const findings = parseSlitherOutput(result.stdout || result.stderr);
 
+    const available = checkTool("slither --version");
     res.json({
       tool: "slither",
-      success: true,
+      status: scannerStatus({ available, exitCode: result.code, findings }),
+      success: result.code === 0,
       version: getToolVersion("slither --version"),
       findings,
-      detectors_run: findings.length > 0 ? countDetectors(result.stdout) : 0,
+      detectors_run: countDetectors(result.stdout),
       raw: result.stdout,
+      error: result.code === 0 ? undefined : result.stderr || "Slither exited with an error",
     });
   } catch (error) {
     res.json({
       tool: "slither",
+      status: checkTool("slither --version") ? "ERROR" : "UNAVAILABLE",
       success: false,
       error: error.message,
       findings: [],
@@ -157,11 +180,13 @@ function countDetectors(output) {
 // ─────────────────────────────────────────────────────────────
 app.post("/api/mythril", authMiddleware, async (req, res) => {
   const { code, contractName, bytecode, timeout } = req.body;
-  if (!code && !bytecode) return res.status(400).json({ error: "Missing code or bytecode" });
+  if ((!code || typeof code !== "string") && (!bytecode || typeof bytecode !== "string")) return res.status(400).json({ error: "Missing code or bytecode" });
+  if (code && Buffer.byteLength(code, "utf8") > MAX_CODE_BYTES) return res.status(413).json({ error: "Code exceeds size limit" });
+  const boundedTimeout = Math.min(Math.max(Number(timeout) || 120, 1), 300);
 
   const id = crypto.randomBytes(8).toString("hex");
   const dir = `/tmp/contracts/${id}`;
-  const filePath = `${dir}/${contractName || "Contract"}.sol`;
+  const filePath = `${dir}/${safeContractName(contractName)}.sol`;
 
   try {
     await fs.mkdir(dir, { recursive: true });
@@ -169,26 +194,30 @@ app.post("/api/mythril", authMiddleware, async (req, res) => {
     let args;
     if (bytecode) {
       // Analyze bytecode directly
-      args = ["analyze", "-a", bytecode, "-o", "json", "--execution-timeout", String(timeout || 120)];
+      args = ["analyze", "-a", bytecode, "-o", "json", "--execution-timeout", String(boundedTimeout)];
     } else {
       await fs.writeFile(filePath, code);
       args = ["analyze", filePath, "-o", "json", "--execution-timeout", String(timeout || 120)];
     }
 
-    const result = await runCommand("myth", args, { timeout: (timeout || 120) * 1000 + 30000 });
+    const result = await runCommand("myth", args, { timeout: boundedTimeout * 1000 + 30000 });
 
     const findings = parseMythrilOutput(result.stdout);
+    const available = checkTool("myth version");
 
     res.json({
       tool: "mythril",
-      success: true,
+      status: scannerStatus({ available, exitCode: result.code, findings }),
+      success: result.code === 0,
       version: getToolVersion("myth version"),
       findings,
       raw: result.stdout,
+      error: result.code === 0 ? undefined : result.stderr || "Mythril exited with an error",
     });
   } catch (error) {
     res.json({
       tool: "mythril",
+      status: checkTool("myth version") ? "ERROR" : "UNAVAILABLE",
       success: false,
       error: error.message,
       findings: [],
@@ -532,8 +561,11 @@ app.post("/api/analyze", authMiddleware, async (req, res) => {
     );
   }
 
+  const toolResults = Object.values(results);
+  const hasExecutionError = toolResults.some((result) => ["ERROR", "UNAVAILABLE"].includes(result.status));
   res.json({
-    success: true,
+    success: !hasExecutionError,
+    status: hasExecutionError ? "INCOMPLETE" : (allFindings.length ? "FINDINGS" : "PASS"),
     tools: results,
     combinedFindings: allFindings,
     summary: {
