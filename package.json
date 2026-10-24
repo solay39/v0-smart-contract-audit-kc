@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "tsc --noEmit -p tsconfig.json",
-    "benchmark": "node scripts/benchmark-security.mjs"
+    "benchmark": "node scripts/benchmark-security.mjs",
+    "security:preflight": "node scripts/require-security-tools.mjs",
+    "benchmark:test": "python -m unittest discover -s benchmarks -p 'test_*.py' -v"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
