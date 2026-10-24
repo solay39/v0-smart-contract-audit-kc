@@ -1,0 +1,38 @@
+name: Solay39 Security Gate
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality-and-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: npm ci
+      - name: TypeScript type-check
+        run: npx tsc --noEmit
+      - name: Unit and integration tests
+        run: npm test
+      - name: Install Slither and Mythril
+        run: |
+          python -m pip install --upgrade pip pipx
+          pipx ensurepath
+          pipx install slither-analyzer
+          pipx install mythril
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Required scanner preflight
+        run: node scripts/require-security-tools.mjs
+      - name: Benchmark evaluator tests
+        run: python -m unittest discover -s benchmarks -p 'test_*.py' -v
