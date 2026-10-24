@@ -11,7 +11,9 @@
     "benchmark": "node scripts/benchmark-security.mjs",
     "security:preflight": "node scripts/require-security-tools.mjs",
     "benchmark:test": "python -m unittest discover -s benchmarks -p 'test_*.py' -v",
-    "security:evidence": "node scripts/validate-fork-evidence.mjs"
+    "security:evidence": "node scripts/validate-fork-evidence.mjs",
+    "benchmark:real": "python scripts/run-real-benchmark.py && python benchmarks/evaluate.py --input reports/benchmark/benchmark-input.json --output reports/benchmark/results.json",
+    "fork:poc": "bash scripts/run-fork-poc.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
