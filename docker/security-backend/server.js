@@ -33,18 +33,22 @@ function authMiddleware(req, res, next) {
 }
 
 // Health check
-app.get("/health", (req, res) => {
-  res.json({
+function healthResponse(req, res) {
+  const tools = {
+    slither: checkTool("slither --version"),
+    mythril: checkTool("myth version"),
+    foundry: checkTool("forge --version"),
+    solc: checkTool("solc --version"),
+  }
+  res.status(tools.slither && tools.mythril ? 200 : 503).json({
     status: "ok",
-    tools: {
-      slither: checkTool("slither --version"),
-      mythril: checkTool("myth version"),
-      foundry: checkTool("forge --version"),
-      solc: checkTool("solc --version"),
-    },
+    tools,
     timestamp: new Date().toISOString(),
   });
-});
+}
+
+app.get("/health", healthResponse);
+app.get("/api/health", healthResponse);
 
 function checkTool(cmd) {
   try {
