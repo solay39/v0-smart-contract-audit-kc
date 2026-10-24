@@ -203,6 +203,14 @@ jobs:
           config: echidna/echidna.yaml
           format: text
           output-file: reports/echidna_output.txt
+      - name: Run real public benchmark
+        run: npm run benchmark:real
+      - name: Run fork PoC evidence
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          FORK_RPC_URL: ${{ secrets.FORK_RPC_URL }}
+          FORK_BLOCK_NUMBER: ${{ secrets.FORK_BLOCK_NUMBER }}
+        run: npm run fork:poc
       - name: Aggregate security reports
         if: always()
         run: |
