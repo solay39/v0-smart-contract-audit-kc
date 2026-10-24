@@ -8,16 +8,13 @@ export function getStaticBackendUrl(): string | null {
   let url = raw.replace(/^STATIC_ANALYSIS_API_URL\s*=?\s*/i, "").replace(/^["']|["']$/g, "").replace(/\/+$/, "")
   if (!url) return null
   if (!/^https?:\/\//i.test(url)) url = `https://${url}`
-  // The Railway deployment was shut down (free plan expired); ignoring it avoids
-  // multi-second timeouts on every audit and keeps the pattern-based fallback.
-  if (/railway\.app/i.test(url)) return null
   return url
 }
 
 export function staticBackendHeaders(): Record<string, string> {
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${process.env.STATIC_ANALYSIS_API_KEY || ""}`,
+    "x-api-key": process.env.STATIC_ANALYSIS_API_KEY || "",
   }
 }
 
@@ -38,11 +35,14 @@ export async function checkStaticBackendHealth(timeoutMs = 8000): Promise<Static
     value = { configured: false, online: false, tools: {}, error: "STATIC_ANALYSIS_API_URL not set" }
   } else {
     try {
-      const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(timeoutMs), cache: "no-store" })
+      const healthUrl = `${url}/api/health`
+      const res = await fetch(healthUrl, { signal: AbortSignal.timeout(timeoutMs), cache: "no-store" })
       const body = await res.json().catch(() => null)
-      value = res.ok && body?.status === "ok"
-        ? { configured: true, online: true, tools: body.tools ?? {} }
-        : { configured: true, online: false, tools: {}, error: body?.message || `HTTP ${res.status}` }
+      const tools = body?.tools ?? {}
+      const requiredToolsAvailable = ["slither", "mythril"].every((tool) => tools[tool] === true || tools[tool]?.available === true)
+      value = res.ok && (body?.status === "ok" || body?.status === "healthy") && requiredToolsAvailable
+        ? { configured: true, online: true, tools }
+        : { configured: true, online: false, tools, error: !requiredToolsAvailable ? "Required scanners unavailable" : body?.message || `HTTP ${res.status}` }
     } catch (err) {
       value = { configured: true, online: false, tools: {}, error: err instanceof Error ? err.message : String(err) }
     }
