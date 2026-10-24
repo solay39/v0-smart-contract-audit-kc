@@ -1,8 +1,8 @@
 [
-  {
-    "id": "reentrancy-example-001",
-    "source": "benchmarks/fixtures/reentrancy-example.sol",
-    "expectedCategories": ["reentrancy"],
-    "provenance": "Replace this fixture with a pinned SmartBugs or DeFiHackLabs case before publishing benchmark results."
-  }
+  {"id":"reentrancy-001","label":"vulnerable","category":"reentrancy","source":"fixtures/reentrancy-example.sol","expected":["reentrancy"]},
+  {"id":"access-control-001","label":"vulnerable","category":"access-control","source":"fixtures/access-control-example.sol","expected":["missing-access-control"]},
+  {"id":"tx-origin-001","label":"vulnerable","category":"phishing","source":"fixtures/tx-origin-example.sol","expected":["tx-origin"]},
+  {"id":"unchecked-call-001","label":"vulnerable","category":"unchecked-call","source":"fixtures/unchecked-call-example.sol","expected":["unchecked-call"]},
+  {"id":"safe-owner-001","label":"safe","category":"access-control","source":"fixtures/safe-owner.sol","expected":[]},
+  {"id":"safe-withdraw-001","label":"safe","category":"reentrancy","source":"fixtures/safe-withdraw.sol","expected":[]}
 ]

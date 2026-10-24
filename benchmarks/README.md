@@ -1,6 +1,6 @@
 # Solay39 benchmark evaluator
 
-This directory contains an evaluator, not a validated vulnerability corpus.
+This directory contains a public starter corpus and a reproducible evaluator. The Solidity fixtures include vulnerable and safe cases; ground truth still requires independent review before making product claims.
 
 Use a reviewed JSON object with `dataset_version` and `cases`; each case contains `case_id`, `expected_findings`, and `actual_findings`. Finding IDs must be normalized consistently. The evaluator reports exact-ID micro TP/FP/FN, precision, recall, F1, and per-case metrics.
 
