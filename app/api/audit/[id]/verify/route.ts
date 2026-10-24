@@ -47,11 +47,12 @@ export async function GET(
     return Response.json({
       id: audit.id,
       name: audit.name,
-      auditHash: storedHash || computedHash,
+      auditHash: storedHash || null,
+      computedHash: computedHash || null,
       auditVersion: auditData?.auditVersion || "1.0.0",
       publishedAt: auditData?.publishedAt,
       githubUrl: auditData?.githubUrl,
-      verified: storedHash ? storedHash === computedHash : !!computedHash,
+      verified: Boolean(storedHash && computedHash && storedHash === computedHash),
       htmlSizeKB: auditData?.htmlSizeKB,
     })
   } catch (error) {
