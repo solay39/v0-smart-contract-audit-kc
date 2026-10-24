@@ -138,7 +138,6 @@ jobs:
         if: always()
         run: forge coverage --ir-minimum --report summary --report lcov | tee reports/coverage.txt || true
       - name: Run Slither
-        if: always()
         shell: bash
         run: |
           mkdir -p reports
@@ -164,7 +163,6 @@ jobs:
           print("No Slither high/critical findings")
           PY
       - name: Run Mythril
-        if: always()
         run: |
           command -v myth
           for contract in contracts/Solay39EnterpriseRegistry.sol contracts/Solay39AuditRegistry.sol contracts/AuditRegistry.sol; do
@@ -219,5 +217,5 @@ jobs:
             reports/**/*.json
             reports/*.txt
             out/**
-          if-no-files-found: warn
+          if-no-files-found: error
         
