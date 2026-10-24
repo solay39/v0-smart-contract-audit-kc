@@ -307,15 +307,27 @@ export async function POST(req: NextRequest) {
     let result = await runRealAnalysis(code, contractName, includeHalmos)
     
     // Fallback to pattern analysis
+    const analysisComplete = Boolean(result)
+    const analysisMode = result ? "real" : "pattern-based-fallback"
+
     if (!result) {
       result = runPatternAnalysis(code)
       result.slither.version += " (pattern-based fallback)"
       result.mythril.version += " (pattern-based fallback)"
+      result.slither.success = false
+      result.mythril.success = false
+      result.slither.error = "Scanner not run: pattern-based fallback used"
+      result.mythril.error = "Scanner not run: pattern-based fallback used"
     }
     
     return NextResponse.json({
-      success: true,
-      analysisMode: getStaticBackendUrl() ? "real" : "pattern-based",
+      success: analysisComplete,
+      analysisComplete,
+      analysisMode,
+      scannerExecution: {
+        slither: analysisComplete ? "executed" : "not-run",
+        mythril: analysisComplete ? "executed" : "not-run",
+      },
       ...result
     })
     

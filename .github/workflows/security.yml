@@ -39,21 +39,12 @@ jobs:
           echo "$RUNNER_TEMP/slither-tools/bin" >> "$GITHUB_PATH"
           slither --version
 
-          # Mythril currently resolves legacy NumPy dependencies that can fail on
-          # the runner Python. Keep it isolated and make its availability explicit
-          # so Forge/Slither reports and the always-run artifact upload are retained.
           python -m venv "$RUNNER_TEMP/mythril-tools"
-          if "$RUNNER_TEMP/mythril-tools/bin/python" -m pip install --upgrade pip wheel mythril && "$RUNNER_TEMP/mythril-tools/bin/python" -m pip install 'setuptools<81'; then
-            export PATH="$RUNNER_TEMP/mythril-tools/bin:$PATH"
-            echo "$RUNNER_TEMP/mythril-tools/bin" >> "$GITHUB_PATH"
-            if myth version; then
-              echo "Mythril is available."
-            else
-              echo "Mythril installed but unavailable at runtime; continuing with Mythril skipped." | tee reports/mythril_output.txt
-            fi
-          else
-            echo "Mythril installation failed; continuing with Mythril skipped." | tee reports/mythril_output.txt
-          fi
+          "$RUNNER_TEMP/mythril-tools/bin/python" -m pip install --upgrade pip wheel mythril
+          "$RUNNER_TEMP/mythril-tools/bin/python" -m pip install 'setuptools<81'
+          export PATH="$RUNNER_TEMP/mythril-tools/bin:$PATH"
+          echo "$RUNNER_TEMP/mythril-tools/bin" >> "$GITHUB_PATH"
+          myth version
       - name: Install Foundry (try official action, tolerant)
         uses: foundry-rs/foundry-toolchain@v1
         with:
@@ -151,12 +142,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p reports
-          if ! slither . --config-file slither.config.json --json reports/slither-report.json > reports/slither_output.txt 2>&1; then
-            echo "Slither exited non-zero; preserving diagnostics." >> reports/slither_output.txt
-          fi
-          if [ ! -s reports/slither-report.json ]; then
-            printf '{"results":{"detectors":[]},"error":"slither_report_unavailable"}\n' > reports/slither-report.json
-          fi
+          slither . --config-file slither.config.json --json reports/slither-report.json > reports/slither_output.txt 2>&1
+          test -s reports/slither-report.json
       - name: Fail on Slither high or critical findings
         if: always()
         run: |
@@ -177,15 +164,13 @@ jobs:
           print("No Slither high/critical findings")
           PY
       - name: Run Mythril
-        if: ${{ always() && hashFiles('reports/mythril_output.txt') == '' }}
+        if: always()
         run: |
-          if ! command -v myth >/dev/null 2>&1; then
-            echo "Mythril unavailable; skipping." | tee reports/mythril_output.txt
-            exit 0
-          fi
+          command -v myth
           for contract in contracts/Solay39EnterpriseRegistry.sol contracts/Solay39AuditRegistry.sol contracts/AuditRegistry.sol; do
             name="$(basename "$contract" .sol)"
-            myth analyze "$contract" -o json --execution-timeout 120 > "reports/mythril-${name}.json" || true
+            myth analyze "$contract" -o json --execution-timeout 120 > "reports/mythril-${name}.json"
+            test -s "reports/mythril-${name}.json"
           done
       - name: Fail on Mythril high or critical findings
         if: always()
@@ -208,7 +193,7 @@ jobs:
           if bad:
               raise SystemExit(f"Mythril found {len(bad)} high/critical finding(s)")
           if invalid:
-              print(f"Warning: invalid Mythril reports: {', '.join(invalid)}")
+              raise SystemExit(f"Invalid Mythril reports: {', '.join(invalid)}")
           print("No Mythril high/critical findings")
           PY
       - name: Run Echidna
