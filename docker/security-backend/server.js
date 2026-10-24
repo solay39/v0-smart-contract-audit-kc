@@ -5,7 +5,7 @@
 
 const express = require("express");
 const cors = require("cors");
-const { spawn, execSync } = require("child_process");
+const { spawn, execSync, execFileSync } = require("child_process");
 const fs = require("fs").promises;
 const path = require("path");
 const crypto = require("crypto");
@@ -13,6 +13,7 @@ const crypto = require("crypto");
 const app = express();
 const PORT = process.env.PORT || 3001;
 const API_KEY = process.env.SECURITY_API_KEY;
+if (!API_KEY) throw new Error("SECURITY_API_KEY is required");
 const MAX_CODE_BYTES = 512 * 1024;
 const DEFAULT_TIMEOUT_MS = 120000;
 
@@ -90,7 +91,7 @@ app.post("/api/slither", authMiddleware, async (req, res) => {
     // Select solc version if specified
     if (solcVersion) {
       try {
-        execSync(`solc-select use ${solcVersion}`, { stdio: "pipe" });
+        execFileSync("solc-select", ["use", String(solcVersion)], { stdio: "pipe" });
       } catch (e) {
         console.log(`solc ${solcVersion} not installed, using default`);
       }
