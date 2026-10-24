@@ -137,7 +137,7 @@ export async function POST(req: Request) {
 async function fetchGeckoTerminalInfo(netId: string, address: string) {
   try {
     // Token info
-    const tokenUrl = `${GECKO_BASE}/networks/${netId}/tokens/${address}`
+    const tokenUrl = `${GECKO_BASE}/networks/${encodeURIComponent(netId)}/tokens/${encodeURIComponent(address)}`
     const tokenRes = await fetch(tokenUrl, {
       headers: { Accept: "application/json;version=20230203" },
     })
@@ -156,7 +156,7 @@ async function fetchGeckoTerminalInfo(netId: string, address: string) {
     let volume24h = "N/A"
     let poolMcap = "N/A"
     try {
-      const poolsUrl = `${GECKO_BASE}/networks/${netId}/tokens/${address}/pools?page=1`
+      const poolsUrl = `${GECKO_BASE}/networks/${encodeURIComponent(netId)}/tokens/${encodeURIComponent(address)}/pools?page=1`
       const poolsRes = await fetch(poolsUrl, {
         headers: { Accept: "application/json;version=20230203" },
       })
@@ -218,8 +218,9 @@ async function fetchCoinGeckoInfo(address: string, netId: string) {
       tron: "tron",
       near: "near-protocol",
     }
-    const platform = platformMap[netId] || netId
-    const url = `${COINGECKO_BASE}/coins/${platform}/contract/${address}`
+    const platform = platformMap[netId]
+    if (!platform) return null
+    const url = `${COINGECKO_BASE}/coins/${platform}/contract/${encodeURIComponent(address)}`
     const res = await fetch(url)
     if (!res.ok) return null
 
