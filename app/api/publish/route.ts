@@ -8,6 +8,7 @@
 import { createClient } from "@supabase/supabase-js"
 import { createHash } from "crypto"
 import { requireFounder } from "@/lib/founder-auth"
+import { evaluateAuditGate, type AuditGateInput, type AuditGateResult } from "@/src/security/audit-gate"
 
 const GITHUB_REPO = process.env.GITHUB_REPO || "solay39/Solay39-audit"
 
@@ -23,6 +24,10 @@ export async function POST(req: Request) {
   try {
     const body = await req.json()
     const { project, portfolioData } = body
+    const suppliedGate = body.auditGate || portfolioData?.auditGate
+    const auditGate: AuditGateResult | null = suppliedGate
+      ? evaluateAuditGate(suppliedGate as AuditGateInput)
+      : null
 
     // Support both old format (htmlReport) and new format (files array)
     const files: { path: string; content: string; message: string }[] = body.files || []
@@ -141,6 +146,11 @@ export async function POST(req: Request) {
             githubUrl,
             publishedAt: new Date().toISOString(),
             htmlSizeKB,
+            auditGate: auditGate ? {
+              ...auditGate,
+              evaluatedAt: new Date().toISOString(),
+              source: "server-publish-gate",
+            } : undefined,
           },
         }, { onConflict: "id" })
 
@@ -162,6 +172,8 @@ export async function POST(req: Request) {
       supabaseSaved,
       auditHash,
       htmlSizeKB,
+      auditGate,
+      auditGateStatus: auditGate?.status || "NOT_SUBMITTED",
       filesUploaded: files.length,
       message: githubUrl 
         ? `Published ${files.length} files with SHA256: ${auditHash.slice(0, 16)}...`
