@@ -60,13 +60,13 @@ interface AnalysisResult {
 async function runRealAnalysis(code: string, contractName: string, includeHalmos = false): Promise<AnalysisResult | null> {
   const apiUrl = getStaticBackendUrl()
   
-  if (!apiUrl) {
+  if (!apiUrl || !process.env.STATIC_ANALYSIS_API_KEY) {
     return null
   }
   
   try {
-    // Call Railway backend (/analyze endpoint - no /api prefix)
-    const analyzeUrl = apiUrl.endsWith("/") ? `${apiUrl}analyze` : `${apiUrl}/analyze`
+    // Call the authenticated combined scanner endpoint.
+    const analyzeUrl = apiUrl.endsWith("/") ? `${apiUrl}api/analyze` : `${apiUrl}/api/analyze`
     
     const tools = ["slither", "mythril", "foundry"]
     if (includeHalmos) {
@@ -74,10 +74,11 @@ async function runRealAnalysis(code: string, contractName: string, includeHalmos
     }
     
     const response = await fetch(analyzeUrl, {
+      signal: AbortSignal.timeout(180_000),
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.STATIC_ANALYSIS_API_KEY || ""}`,
+        "x-api-key": process.env.STATIC_ANALYSIS_API_KEY || "",
       },
       body: JSON.stringify({
         code,

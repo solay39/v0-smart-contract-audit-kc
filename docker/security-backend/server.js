@@ -197,7 +197,7 @@ app.post("/api/mythril", authMiddleware, async (req, res) => {
       args = ["analyze", "-a", bytecode, "-o", "json", "--execution-timeout", String(boundedTimeout)];
     } else {
       await fs.writeFile(filePath, code);
-      args = ["analyze", filePath, "-o", "json", "--execution-timeout", String(timeout || 120)];
+      args = ["analyze", filePath, "-o", "json", "--execution-timeout", String(boundedTimeout)];
     }
 
     const result = await runCommand("myth", args, { timeout: boundedTimeout * 1000 + 30000 });
@@ -260,7 +260,7 @@ function mapMythrilSeverity(sev) {
 
 // ─────────────────────────────────────────────────────────────
 // 3. ECHIDNA PROPERTY-BASED FUZZING
-// ─────────────────────────────────────────────────────────────
+// ──��──────────────────────────────────────────────────────────
 app.post("/api/echidna", authMiddleware, async (req, res) => {
   const { code, contractName, invariants, testLimit } = req.body;
   if (!code) return res.status(400).json({ error: "Missing code" });
