@@ -62,5 +62,7 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3001/health || exit 1
 
-# Start server
-CMD ["node", "server.js"]
+# Runtime defaults are reinforced by docker-compose.security.yml.
+# Keep the process unprivileged and fail closed when the API key is absent.
+ENV NODE_ENV=production
+CMD ["node", "--disable-proto=throw", "server.js"]
