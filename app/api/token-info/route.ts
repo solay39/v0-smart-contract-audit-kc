@@ -6,6 +6,7 @@
 
 const GECKO_BASE = "https://api.geckoterminal.com/api/v2"
 const COINGECKO_BASE = "https://api.coingecko.com/api/v3"
+import { safeExternalUrl, safeRpcUrl } from "@/lib/security/ssrf"
 
 // Simple in-memory cache (per cold start)
 const infoCache = new Map<string, { data: TokenInfo; ts: number }>()
@@ -77,10 +78,13 @@ export async function POST(req: Request) {
           avax: "https://api.avax.network/ext/bc/C/rpc",
         }
         const rpcUrl = rpcUrls[netId]
-        if (rpcUrl) {
+        const validatedRpcUrl = rpcUrl
+          ? safeRpcUrl(rpcUrl, Object.values(rpcUrls).map((value) => new URL(value).origin))
+          : null
+        if (validatedRpcUrl) {
           const [nameRes, symbolRes] = await Promise.all([
-            fetch(rpcUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to: addrNormalized, data: "0x06fdde03" }, "latest"] }) }),
-            fetch(rpcUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "eth_call", params: [{ to: addrNormalized, data: "0x95d89b41" }, "latest"] }) }),
+            fetch(validatedRpcUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to: addrNormalized, data: "0x06fdde03" }, "latest"] }) }),
+            fetch(validatedRpcUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "eth_call", params: [{ to: addrNormalized, data: "0x95d89b41" }, "latest"] }) }),
           ])
           const nameData = await nameRes.json()
           const symbolData = await symbolRes.json()
@@ -137,7 +141,11 @@ export async function POST(req: Request) {
 async function fetchGeckoTerminalInfo(netId: string, address: string) {
   try {
     // Token info
-    const tokenUrl = `${GECKO_BASE}/networks/${encodeURIComponent(netId)}/tokens/${encodeURIComponent(address)}`
+    const tokenUrl = safeExternalUrl(
+      `${GECKO_BASE}/networks/${encodeURIComponent(netId)}/tokens/${encodeURIComponent(address)}`,
+      "https://api.geckoterminal.com",
+    )
+    if (!tokenUrl) return null
     const tokenRes = await fetch(tokenUrl, {
       headers: { Accept: "application/json;version=20230203" },
     })
@@ -156,7 +164,11 @@ async function fetchGeckoTerminalInfo(netId: string, address: string) {
     let volume24h = "N/A"
     let poolMcap = "N/A"
     try {
-      const poolsUrl = `${GECKO_BASE}/networks/${encodeURIComponent(netId)}/tokens/${encodeURIComponent(address)}/pools?page=1`
+      const poolsUrl = safeExternalUrl(
+        `${GECKO_BASE}/networks/${encodeURIComponent(netId)}/tokens/${encodeURIComponent(address)}/pools?page=1`,
+        "https://api.geckoterminal.com",
+      )
+      if (!poolsUrl) return null
       const poolsRes = await fetch(poolsUrl, {
         headers: { Accept: "application/json;version=20230203" },
       })
@@ -220,7 +232,11 @@ async function fetchCoinGeckoInfo(address: string, netId: string) {
     }
     const platform = platformMap[netId]
     if (!platform) return null
-    const url = `${COINGECKO_BASE}/coins/${platform}/contract/${encodeURIComponent(address)}`
+    const url = safeExternalUrl(
+      `${COINGECKO_BASE}/coins/${platform}/contract/${encodeURIComponent(address)}`,
+      "https://api.coingecko.com",
+    )
+    if (!url) return null
     const res = await fetch(url)
     if (!res.ok) return null
 
