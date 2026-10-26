@@ -78,11 +78,11 @@ export default function SkynetProPage() {
   const [network, setNetwork] = useState("BSC")
   const [analyzing, setAnalyzing] = useState(false)
   const [result, setResult] = useState<any>(null)
-  
+
   // ── Database Projects (all audited tokens) ──
   const [dbProjects, setDbProjects] = useState<DbProject[]>([])
   const [loadingDb, setLoadingDb] = useState(true)
-  
+
   // Load ALL projects from database
   useEffect(() => {
     const loadProjects = async () => {
@@ -100,7 +100,7 @@ export default function SkynetProPage() {
     }
     loadProjects()
   }, [])
-  
+
   // Merge database projects with DEFAULT_PROJECTS (db takes priority)
   const allProjects = useMemo(() => {
     const merged = [...dbProjects]
@@ -113,17 +113,8 @@ export default function SkynetProPage() {
     return merged
   }, [dbProjects])
 
-  // ── Anti-Hacker & Registry States ──
-  const [blockedEntities, setBlockedEntities] = useState([
-    { id: 1, type: 'WALLET', target: '0x7a2...f3e', reason: 'Flash Loan Exploit Pattern', time: '12m ago' },
-    { id: 2, type: 'IP', target: '192.x.x.42', reason: 'RPC DDoS Attempt', time: '45m ago' },
-  ])
-
-  const [securityRegistry, setSecurityRegistry] = useState([
-    { id: 1, event: 'Liquidity Drain Prevented', project: 'PancakeSwap Fork', impact: 'CRITICAL', time: '2h ago' },
-    { id: 2, event: 'Malicious Proxy Upgrade Blocked', project: 'Alpha Finance', impact: 'HIGH', time: '5h ago' },
-    { id: 3, event: 'Phishing Contract Flagged', project: 'Global Network', impact: 'MEDIUM', time: 'Yesterday' },
-  ])
+  const blockedEntities: Array<{ id: number; type: string; target: string; reason: string; time: string }> = []
+  const securityRegistry: Array<{ id: number; event: string; project: string; impact: string; time: string }> = []
 
   // Exploit Analysis State
   const [exploitTx, setExploitTx] = useState("")
@@ -149,55 +140,16 @@ export default function SkynetProPage() {
     }
   }
 
-  // Simulated live threats for the "Command Center" feel
-  const [liveThreats, setLiveThreats] = useState<{id: number, msg: string, time: string, type: 'info' | 'warn' | 'error'}[]>([
-    { id: 1, msg: "Monitoring mempool for sandwich attacks...", time: "LIVE", type: 'info' },
-    { id: 2, msg: "Cross-referencing with known exploit signatures...", time: "LIVE", type: 'info' },
-  ])
-
+  const liveThreats: {id: number, msg: string, time: string, type: 'info' | 'warn' | 'error'}[] = []
   const [firewallMode, setFirewallMode] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC')
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const projects = allProjects.length > 0 ? allProjects.map(p => p.name) : DEFAULT_PROJECTS.map(p => p.name)
-      const randomProject = projects[Math.floor(Math.random() * projects.length)]
-
-      const publicMessages = [
-        `Analyzing liquidity depth for ${randomProject}...`,
-        `Checking whale wallet clusters on ${randomProject}...`,
-        `Verifying bytecode integrity for ${randomProject}...`,
-        `ANTI-HACKER: Blocked malicious address targeting ${randomProject}`,
-        `REGISTRY: Logged security audit for ${randomProject} v2.0`,
-        `ANTI-HACKER: Intercepted suspicious flash loan request`,
-      ]
-      const privateMessages = [
-        "ANTI-HACKER: Stealth node active, blocking scanner IP...",
-        "REGISTRY: Encrypted log entry generated (AES-256)",
-        "ANTI-HACKER: Wallet 0x... blocked from interacting with RPC",
-        "Private Firewall: Intercepting unauthorized calls...",
-        "Node 0x3a2f: Deep packet inspection complete.",
-      ]
-      
-      const messages = firewallMode === 'PUBLIC' ? publicMessages : privateMessages
-      const types: ('info' | 'warn' | 'error')[] = ['info', 'info', 'warn']
-      const newMsg = {
-        id: Date.now(),
-        msg: messages[Math.floor(Math.random() * messages.length)],
-        time: new Date().toLocaleTimeString(),
-        type: types[Math.floor(Math.random() * types.length)]
-      }
-      setLiveThreats(prev => [newMsg, ...prev.slice(0, 5)])
-    }, 4000)
-    return () => clearInterval(interval)
-  }, [firewallMode])
 
   return (
     <div className="min-h-screen bg-[#05080a] text-[#c8d8e8] font-mono selection:bg-[#00ff8833]">
       <MarketTicker />
       {/* BACKGROUND GRID EFFECT */}
-      <div className="fixed inset-0 pointer-events-none opacity-20" 
+      <div className="fixed inset-0 pointer-events-none opacity-20"
         style={{ backgroundImage: 'radial-gradient(#1e2a3a 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
-      
+
       {/* HEADER / COMMAND BAR */}
       <nav className="relative z-10 border-b border-[#00ff8822] bg-[#05080a]/80 backdrop-blur-md px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -207,30 +159,30 @@ export default function SkynetProPage() {
         </div>
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[#00ff88] animate-pulse" />
-            <span className="text-[10px] text-[#00ff88] uppercase tracking-widest">Global Network Active</span>
+            <div className="w-2 h-2 rounded-full bg-[#f5b942]" />
+            <span className="text-[10px] text-[#f5b942] uppercase tracking-widest">Awaiting verified telemetry</span>
           </div>
           <a href="/" className="text-[10px] text-[#7a8c9e] hover:text-[#00ff88] transition-colors uppercase tracking-widest">Back to Hub</a>
         </div>
       </nav>
 
       <main className="relative z-10 max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
+
         {/* LEFT COLUMN: SYSTEM STATUS */}
         <div className="lg:col-span-3 space-y-6">
-          
+
           {/* NODE FIREWALL CONTROLS */}
           <section className="bg-[#0a0e14] border border-[#1e2a3a] p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-[10px] text-[#00ff88] tracking-[0.2em] uppercase font-bold">Node Firewall</h2>
               <div className="flex bg-[#05080a] border border-[#1e2a3a] p-1">
-                <button 
+                <button
                   onClick={() => setFirewallMode('PUBLIC')}
                   className={`px-3 py-1 text-[8px] tracking-widest uppercase transition-all ${firewallMode === 'PUBLIC' ? 'bg-[#00ff8822] text-[#00ff88]' : 'text-[#445566]'}`}
                 >
                   Public
                 </button>
-                <button 
+                <button
                   onClick={() => setFirewallMode('PRIVATE')}
                   className={`px-3 py-1 text-[8px] tracking-widest uppercase transition-all ${firewallMode === 'PRIVATE' ? 'bg-[#ff2d5522] text-[#ff2d55]' : 'text-[#445566]'}`}
                 >
@@ -238,7 +190,7 @@ export default function SkynetProPage() {
                 </button>
               </div>
             </div>
-            
+
             <div className="p-4 border border-[#1e2a3a] bg-[#05080a] space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[9px] text-[#7a8c9e]">Shield Status</span>
@@ -253,8 +205,8 @@ export default function SkynetProPage() {
                 </span>
               </div>
               <div className="h-1 bg-[#1e2a3a] w-full overflow-hidden">
-                <div 
-                  className={`h-full transition-all duration-500 ${firewallMode === 'PRIVATE' ? 'bg-[#ff2d55] w-full' : 'bg="#00ff88" w-1/3'}`} 
+                <div
+                  className={`h-full transition-all duration-500 ${firewallMode === 'PRIVATE' ? 'bg-[#ff2d55] w-full' : 'bg="#00ff88" w-1/3'}`}
                 />
               </div>
             </div>
@@ -266,7 +218,7 @@ export default function SkynetProPage() {
             <div className="space-y-4">
               <div>
                 <label className="text-[9px] text-[#445566] uppercase mb-2 block">Network</label>
-                <select 
+                <select
                   value={network}
                   onChange={(e) => setNetwork(e.target.value)}
                   className="w-full bg-[#05080a] border border-[#1e2a3a] text-[11px] p-2 outline-none focus:border-[#00ff8844] text-[#c8d8e8]"
@@ -279,14 +231,14 @@ export default function SkynetProPage() {
               </div>
               <div>
                 <label className="text-[9px] text-[#445566] uppercase mb-2 block">Contract Address</label>
-                <input 
+                <input
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="0x... or Solana Address"
                   className="w-full bg-[#05080a] border border-[#1e2a3a] text-[11px] p-2 outline-none focus:border-[#00ff8844] text-[#c8d8e8] font-mono"
                 />
               </div>
-              <button 
+              <button
                 className="w-full py-3 bg-[#00ff8815] border border-[#00ff8844] text-[#00ff88] text-[10px] font-bold uppercase tracking-widest hover:bg-[#00ff8825] transition-all"
                 onClick={() => setAnalyzing(true)}
               >
@@ -337,7 +289,7 @@ export default function SkynetProPage() {
 
         {/* MIDDLE COLUMN: COMMAND CENTER */}
         <div className="lg:col-span-5 space-y-6">
-          
+
           {/* EXPLOIT ANALYSIS ENGINE */}
           <section className="bg-[#0a0e14] border border-[#ff2d5544] p-6 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 p-2 opacity-10">
@@ -348,16 +300,16 @@ export default function SkynetProPage() {
               Exploit Analysis Engine
             </h2>
             <p className="text-[9px] text-[#7a8c9e] mb-4">Paste a transaction hash to analyze the attack vector and root cause.</p>
-            
+
             <div className="flex gap-2 mb-4">
-              <input 
-                type="text" 
-                placeholder="0x..." 
+              <input
+                type="text"
+                placeholder="0x..."
                 value={exploitTx}
                 onChange={(e) => setExploitTx(e.target.value)}
                 className="flex-1 bg-[#05080a] border border-[#1e2a3a] text-[11px] p-2 outline-none focus:border-[#ff2d5544] text-white font-mono"
               />
-              <button 
+              <button
                 onClick={handleExploitAnalysis}
                 disabled={analyzingExploit || !exploitTx}
                 className="bg-[#ff2d5522] border border-[#ff2d5544] text-[#ff2d55] px-4 py-2 text-[10px] uppercase tracking-widest hover:bg-[#ff2d5544] transition-all disabled:opacity-50"
@@ -414,7 +366,7 @@ export default function SkynetProPage() {
 
         {/* RIGHT COLUMN: ANALYSIS & METRICS */}
         <div className="lg:col-span-4 space-y-6">
-          
+
           {/* TOP METRICS GRID */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-[#0a0e14] border border-[#1e2a3a] p-6 flex flex-col items-center justify-center">
@@ -462,8 +414,8 @@ export default function SkynetProPage() {
                       <td className="py-4 px-2">
                         <div className="flex items-center gap-3">
                           {p.logoUrl ? (
-                            <img 
-                              src={p.logoUrl} 
+                            <img
+                              src={p.logoUrl}
                               alt={p.name}
                               className="w-7 h-7 rounded-full object-cover border border-[#00ff8844]"
                               onError={(e) => {
@@ -493,8 +445,8 @@ export default function SkynetProPage() {
                       </td>
                       <td className="py-4 px-2">
                         <span className={`px-2 py-0.5 text-[8px] font-bold tracking-widest uppercase border ${
-                          p.score >= 90 ? 'bg-[#00ff8811] text-[#00ff88] border-[#00ff8833]' : 
-                          p.score >= 70 ? 'bg-[#ffd60011] text-[#ffd600] border-[#ffd60033]' : 
+                          p.score >= 90 ? 'bg-[#00ff8811] text-[#00ff88] border-[#00ff8833]' :
+                          p.score >= 70 ? 'bg-[#ffd60011] text-[#ffd600] border-[#ffd60033]' :
                           'bg-[#ff2d5511] text-[#ff2d55] border-[#ff2d5533]'
                         }`}>
                           {p.score >= 90 ? 'SECURE' : p.score >= 70 ? 'WARNING' : 'CRITICAL'}
@@ -521,20 +473,20 @@ export default function SkynetProPage() {
           {/* ANALYSIS PANEL INTEGRATION */}
           <div className="bg-[#0a0e14] border border-[#1e2a3a] p-2 min-h-[600px]">
             {analyzing ? (
-              <OnChainAnalysisPanel 
-                contractAddress={address} 
-                network={network} 
+              <OnChainAnalysisPanel
+                contractAddress={address}
+                network={network}
                 onAnalysisComplete={(res) => {
                   setResult(res)
                   setAnalyzing(false)
-                }} 
+                }}
               />
             ) : result ? (
-              <OnChainAnalysisPanel 
-                contractAddress={address} 
-                network={network} 
+              <OnChainAnalysisPanel
+                contractAddress={address}
+                network={network}
                 initialResult={result}
-                onAnalysisComplete={(res) => setResult(res)} 
+                onAnalysisComplete={(res) => setResult(res)}
               />
             ) : (
               <div className="flex flex-col items-center justify-center h-[600px] text-center space-y-6 p-12">
@@ -546,7 +498,7 @@ export default function SkynetProPage() {
                 <div>
                   <h3 className="text-[#c8d8e8] text-lg font-bold mb-2">System Idle</h3>
                   <p className="text-[#7a8c9e] text-xs max-w-sm mx-auto leading-relaxed">
-                    Enter a smart contract address on the left to begin deep security analysis. 
+                    Enter a smart contract address on the left to begin deep security analysis.
                     Our engine will scan bytecode, on-chain events, and market data in real-time.
                   </p>
                 </div>
