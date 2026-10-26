@@ -4,7 +4,6 @@
  */
 
 const express = require("express");
-const cors = require("cors");
 const { spawn, execSync, execFileSync } = require("child_process");
 const fs = require("fs").promises;
 const path = require("path");
@@ -16,15 +15,40 @@ const API_KEY = process.env.SECURITY_API_KEY;
 if (!API_KEY) throw new Error("SECURITY_API_KEY is required");
 const WORK_DIR = "/tmp/contracts";
 
-app.use(cors());
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "").split(",").map((origin) => origin.trim()).filter(Boolean);
+const requestTimes = [];
+app.disable("x-powered-by");
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Headers", "content-type,x-api-key");
+    res.setHeader("Vary", "Origin");
+  }
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
 app.use(express.json({ limit: "10mb" }));
 
-// Auth middleware
+function safeContractName(name) {
+  const value = String(name || "Contract");
+  if (!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(value)) throw new Error("Invalid contractName");
+  return value;
+}
+
+function sameSecret(left, right) {
+  const a = Buffer.from(String(left || ""));
+  const b = Buffer.from(String(right || ""));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 function authMiddleware(req, res, next) {
-  const key = req.headers["x-api-key"] || req.query.key;
-  if (key !== API_KEY) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
+  if (req.path === "/health") return next();
+  if (!sameSecret(req.headers["x-api-key"], API_KEY)) return res.status(401).json({ error: "Unauthorized" });
+  const now = Date.now();
+  while (requestTimes[0] && now - requestTimes[0] > 60_000) requestTimes.shift();
+  if (requestTimes.length >= 60) return res.status(429).json({ error: "Rate limit exceeded" });
+  requestTimes.push(now);
   next();
 }
 
@@ -57,10 +81,12 @@ function checkTool(cmd) {
 app.post("/api/slither", authMiddleware, async (req, res) => {
   const { code, contractName, solcVersion } = req.body;
   if (!code) return res.status(400).json({ error: "Missing code" });
+  let safeName;
+  try { safeName = safeContractName(contractName); } catch { return res.status(400).json({ error: "Invalid contractName" }); }
 
   const id = crypto.randomBytes(8).toString("hex");
   const dir = `/tmp/contracts/${id}`;
-  const filePath = `${dir}/${contractName || "Contract"}.sol`;
+  const filePath = path.join(dir, `${safeName}.sol`);
 
   try {
     await fs.mkdir(dir, { recursive: true });
@@ -160,10 +186,12 @@ function countDetectors(output) {
 app.post("/api/mythril", authMiddleware, async (req, res) => {
   const { code, contractName, bytecode, timeout } = req.body;
   if (!code && !bytecode) return res.status(400).json({ error: "Missing code or bytecode" });
+  let safeName;
+  try { safeName = safeContractName(contractName); } catch { return res.status(400).json({ error: "Invalid contractName" }); }
 
   const id = crypto.randomBytes(8).toString("hex");
   const dir = `/tmp/contracts/${id}`;
-  const filePath = `${dir}/${contractName || "Contract"}.sol`;
+  const filePath = path.join(dir, `${safeName}.sol`);
 
   try {
     await fs.mkdir(dir, { recursive: true });
@@ -237,6 +265,8 @@ function mapMythrilSeverity(sev) {
 app.post("/api/echidna", authMiddleware, async (req, res) => {
   const { code, contractName, invariants, testLimit } = req.body;
   if (!code) return res.status(400).json({ error: "Missing code" });
+  let safeName;
+  try { safeName = safeContractName(contractName); } catch { return res.status(400).json({ error: "Invalid contractName" }); }
 
   const id = crypto.randomBytes(8).toString("hex");
   const dir = `/tmp/contracts/${id}`;
@@ -245,12 +275,12 @@ app.post("/api/echidna", authMiddleware, async (req, res) => {
     await fs.mkdir(dir, { recursive: true });
 
     // Write contract
-    const fileName = `${contractName || "Contract"}.sol`;
+    const fileName = `${safeName}.sol`;
     await fs.writeFile(`${dir}/${fileName}`, code);
 
     // Generate Echidna test contract
-    const testCode = generateEchidnaTest(code, contractName || "Contract", invariants);
-    await fs.writeFile(`${dir}/${contractName || "Contract"}Echidna.sol`, testCode);
+    const testCode = generateEchidnaTest(code, safeName, invariants);
+    await fs.writeFile(path.join(dir, `${safeName}Echidna.sol`), testCode);
 
     // Write echidna config
     await fs.writeFile(`${dir}/echidna.yaml`, `
@@ -264,7 +294,7 @@ sender: ["0x10000", "0x20000"]
     // Run Echidna
     const result = await runCommand(
       "echidna",
-      [`${contractName || "Contract"}Echidna.sol`, "--format", "json", "--config", "echidna.yaml"],
+      [`${safeName}Echidna.sol`, "--format", "json", "--config", "echidna.yaml"],
       { cwd: dir, timeout: 300000 }
     );
 
@@ -348,6 +378,8 @@ function parseEchidnaOutput(output) {
 app.post("/api/foundry/fuzz", authMiddleware, async (req, res) => {
   const { code, testCode, contractName, fuzzRuns } = req.body;
   if (!code) return res.status(400).json({ error: "Missing code" });
+  let safeName;
+  try { safeName = safeContractName(contractName); } catch { return res.status(400).json({ error: "Invalid contractName" }); }
 
   const id = crypto.randomBytes(8).toString("hex");
   const dir = `/tmp/contracts/${id}`;
@@ -371,7 +403,7 @@ runs = ${fuzzRuns || 1000}
     );
 
     // Write contract
-    await fs.writeFile(`${dir}/src/${contractName || "Contract"}.sol`, code);
+    await fs.writeFile(path.join(dir, "src", `${safeName}.sol`), code);
 
     // Write test (auto-generate if not provided)
     const testContent = testCode || generateFuzzTest(code, contractName);
