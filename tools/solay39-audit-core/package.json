@@ -1,0 +1,8 @@
+{
+  "name": "solay39-audit-core",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": { "test": "node --test test/*.test.mjs" },
+  "dependencies": { "solc": "0.8.26" }
+}

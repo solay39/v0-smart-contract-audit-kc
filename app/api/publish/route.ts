@@ -9,7 +9,8 @@ import { createClient } from "@supabase/supabase-js"
 import { createHash } from "crypto"
 import { requireFounder } from "@/lib/founder-auth"
 import { evaluateAuditGate, type AuditGateInput, type AuditGateResult } from "@/src/security/audit-gate"
-import { validateAuditReport, type AuditReportValidation } from "@/lib/security/audit-report-validator"
+import { evaluatePublish } from "@/src/security/publish-gate"
+import { canonicalJson } from "@/core/audit-core/report.mjs"
 
 const GITHUB_REPO = process.env.GITHUB_REPO || "solay39/Solay39-audit"
 
@@ -29,16 +30,20 @@ export async function POST(req: Request) {
     const auditGate: AuditGateResult | null = suppliedGate
       ? evaluateAuditGate(suppliedGate as AuditGateInput)
       : null
-    const reportValidation: AuditReportValidation = validateAuditReport(
-      body.auditReport || portfolioData,
-    )
-    if (!reportValidation.valid) {
+    // The server recalculates hashes, source anchors, evidence artifacts, and review status.
+    const gateMode = process.env.PUBLISH_GATE === "warn" ? "warn" : "enforce"
+    const publishDecision = evaluatePublish({
+      auditReport: body.auditReport,
+      sourceText: body.sourceText,
+      artifacts: body.artifacts,
+    })
+    if (publishDecision.decision === "BLOCK" && gateMode === "enforce") {
+      console.error("[publish] integrity gate blocked report", JSON.stringify(publishDecision.errors))
       return Response.json({
-        error: "Audit report is not publishable",
-        blockers: reportValidation.blockers,
-        warnings: reportValidation.warnings,
+        error: "Publish refused by integrity gate",
+        gate: publishDecision.decision,
+        errors: publishDecision.errors,
         auditGate,
-        reportValidation,
       }, { status: 422 })
     }
 
@@ -63,6 +68,15 @@ export async function POST(req: Request) {
 
     if (files.length === 0) {
       return Response.json({ error: "No files to publish" }, { status: 400 })
+    }
+
+    if (body.auditReport && publishDecision.decision !== "BLOCK") {
+      const base = (files.find((f) => f.path.endsWith(".html"))?.path ?? `audits/${project.name.replace(/\s+/g, "-")}.html`).replace(/\.html$/, "")
+      files.push({
+        path: `${base}.report.json`,
+        content: Buffer.from(canonicalJson(body.auditReport), "utf-8").toString("base64"),
+        message: `[Solay39] ${project.name} - report.json (sha256 ${publishDecision.reportSha256?.slice(0, 12) ?? "unsealed"})`,
+      })
     }
 
     // Find the HTML file content for hash generation
@@ -164,10 +178,10 @@ export async function POST(req: Request) {
               evaluatedAt: new Date().toISOString(),
               source: "server-publish-gate",
             } : undefined,
-            reportValidation: {
-              ...reportValidation,
+            publishGate: {
+              ...publishDecision,
               evaluatedAt: new Date().toISOString(),
-              source: "server-report-validator",
+              source: "server-publish-gate",
             },
           },
         }, { onConflict: "id" })
@@ -192,7 +206,12 @@ export async function POST(req: Request) {
       htmlSizeKB,
       auditGate,
       auditGateStatus: auditGate?.status || "NOT_SUBMITTED",
-      reportValidation,
+      publishGate: {
+        decision: publishDecision.decision,
+        label: publishDecision.label,
+        reportSha256: publishDecision.reportSha256,
+        errors: publishDecision.errors,
+      },
       filesUploaded: files.length,
       message: githubUrl 
         ? `Published ${files.length} files with SHA256: ${auditHash.slice(0, 16)}...`
