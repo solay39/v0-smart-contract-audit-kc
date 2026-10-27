@@ -9,6 +9,7 @@ import { createClient } from "@supabase/supabase-js"
 import { createHash } from "crypto"
 import { requireFounder } from "@/lib/founder-auth"
 import { evaluateAuditGate, type AuditGateInput, type AuditGateResult } from "@/src/security/audit-gate"
+import { validateAuditReport, type AuditReportValidation } from "@/lib/security/audit-report-validator"
 
 const GITHUB_REPO = process.env.GITHUB_REPO || "solay39/Solay39-audit"
 
@@ -28,6 +29,18 @@ export async function POST(req: Request) {
     const auditGate: AuditGateResult | null = suppliedGate
       ? evaluateAuditGate(suppliedGate as AuditGateInput)
       : null
+    const reportValidation: AuditReportValidation = validateAuditReport(
+      body.auditReport || portfolioData,
+    )
+    if (!reportValidation.valid) {
+      return Response.json({
+        error: "Audit report is not publishable",
+        blockers: reportValidation.blockers,
+        warnings: reportValidation.warnings,
+        auditGate,
+        reportValidation,
+      }, { status: 422 })
+    }
 
     // Support both old format (htmlReport) and new format (files array)
     const files: { path: string; content: string; message: string }[] = body.files || []
@@ -151,6 +164,11 @@ export async function POST(req: Request) {
               evaluatedAt: new Date().toISOString(),
               source: "server-publish-gate",
             } : undefined,
+            reportValidation: {
+              ...reportValidation,
+              evaluatedAt: new Date().toISOString(),
+              source: "server-report-validator",
+            },
           },
         }, { onConflict: "id" })
 
@@ -174,6 +192,7 @@ export async function POST(req: Request) {
       htmlSizeKB,
       auditGate,
       auditGateStatus: auditGate?.status || "NOT_SUBMITTED",
+      reportValidation,
       filesUploaded: files.length,
       message: githubUrl 
         ? `Published ${files.length} files with SHA256: ${auditHash.slice(0, 16)}...`
