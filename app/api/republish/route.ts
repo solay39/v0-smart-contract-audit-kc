@@ -103,7 +103,7 @@ export async function POST(req: Request) {
               numberOfAuditors: portfolioData.engagement.numberOfAuditors || 24,
               engineeringHours: portfolioData.engagement.engineeringHours || 80,
               securityEngineersInvolved: portfolioData.engagement.securityEngineersInvolved || 108,
-              leadAuditor: portfolioData.engagement.leadAuditor || "Solay39 Founder",
+              leadAuditor: portfolioData.engagement.leadAuditor || "Pending reviewer",
               compilerVersionUsed: portfolioData.engagement.compilerVersionUsed || "Solidity",
               contractsReviewed: portfolioData.engagement.contractsReviewed || 1,
               linesOfCode: portfolioData.engagement.linesOfCode || 0,

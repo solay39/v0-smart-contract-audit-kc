@@ -68,7 +68,7 @@ function buildTier1(d: Record<string, unknown>) {
       numberOfAuditors: (eng.numberOfAuditors as number) ?? 24,
       engineeringHours: (eng.engineeringHours as number) ?? 80,
       securityEngineersInvolved: (eng.securityEngineersInvolved as number) ?? 108,
-      leadAuditor: (eng.leadAuditor as string) || "Solay39 Founder",
+      leadAuditor: (eng.leadAuditor as string) || "Pending reviewer",
       compilerVersionUsed: (eng.compilerVersionUsed as string) || "Solidity",
       contractsReviewed: (eng.contractsReviewed as number) ?? 1,
       linesOfCode: (eng.linesOfCode as number) ?? 0,
