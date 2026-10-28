@@ -1,4 +1,5 @@
 import { getStaticBackendUrl } from "@/lib/static-backend"
+import { detectProxy } from "@/lib/proxy-detect"
 import { NextRequest, NextResponse } from "next/server"
 
 export const runtime = "nodejs"
@@ -99,9 +100,10 @@ async function runRealAnalysis(code: string, contractName: string, includeHalmos
   }
 }
 
-// Pattern-based analysis when external service unavailable
-// FIXED: Smarter patterns to reduce false positives and add missing checks
+  // Pattern-based analysis when external service unavailable
+  // Keep fallback findings evidence-based and never claim a CI tool completed.
 function runPatternAnalysis(code: string): AnalysisResult {
+  const proxyInfo = detectProxy(code)
   const findings: SlitherFinding[] = []
   const mythrilFindings: MythrilFinding[] = []
   const lines = code.split("\n")
@@ -155,9 +157,9 @@ function runPatternAnalysis(code: string): AnalysisResult {
       // isLegitDeadline → NO finding (permit deadline, lock period = legitimate)
     }
 
-    // delegatecall
-    if (/\.delegatecall\(/.test(line)) {
-      addSlither(n, "controlled-delegatecall", "HIGH", "Controlled delegatecall destination")
+    // delegatecall: inspect only executable contract code, not imported libraries.
+    if (proxyInfo.hasProxy && /\.delegatecall\s*\(/.test(line) && !/library\s+/.test(line)) {
+      addSlither(n, "controlled-delegatecall", "HIGH", "Delegatecall path requires manual validation")
       addMythril(n, "SWC-112", "Delegatecall to Untrusted Callee", "HIGH", line)
     }
 
@@ -222,7 +224,7 @@ function runPatternAnalysis(code: string): AnalysisResult {
       }
     }
 
-    // FIX: Reentrancy — correct multi-line check
+    // FIX: Reentrancy �� correct multi-line check
     if (/\.call\{value:|\.call\(/.test(line)) {
       const nextLines = lines.slice(idx + 1, idx + 15).join("\n")
       const hasStateChange = /\w+\s*=\s*[^=]|\.push\(|delete\s/.test(nextLines)

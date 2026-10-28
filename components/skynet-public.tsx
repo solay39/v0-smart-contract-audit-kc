@@ -410,7 +410,7 @@ function ShareButton({ auditId, name }: { auditId: string; name: string }) {
 }
 
 export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: PortfolioProject; onBack?: () => void; isLive?: boolean; backHref?: string }) {
-  // ── DEFENSIVE NORMALIZATION: ensure all nested properties are safe for rendering ─������
+  // ── DEFENSIVE NORMALIZATION: ensure all nested properties are safe for rendering ─�������
   const p = useMemo<PortfolioProject>(() => {
     const findings = _raw.findings || []
     return {
@@ -480,13 +480,22 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
 
   // ── SINGLE SOURCE OF TRUTH: compute final score from weighted category sum ──
   const bd = p.scoreBreakdown
-  const computedScore = getWeightedScore(p)
-  const computedRating = ratingOf(computedScore)
+  const reportIntegrity = p.reportIntegrity as (typeof p.reportIntegrity & { sourceSha256?: string; artifacts?: Record<string, string> }) | undefined
+  const verifiedReport = Boolean(
+    reportIntegrity?.sourceSha256 &&
+    reportIntegrity?.artifacts &&
+    Object.keys(reportIntegrity.artifacts).length > 0 &&
+    p.engagement?.reviewTeam?.reviewStatus === "SIGNED" &&
+    p.engagement.reviewTeam.leadAuditor.signedOff,
+  )
+  const computedScore = verifiedReport ? getWeightedScore(p) : 0
+  const computedRating = verifiedReport ? ratingOf(computedScore) : "PENDING"
   const sc = scoreColor(computedScore)
-  const totalFindings = p.criticals + p.highs + p.mediums + p.lows + p.infos || p.findings.length
-  const resolvedCount = p.findings.filter((f) => f.status === "RESOLVED").length
-  const openCount = p.findings.filter((f) => f.status === "OPEN").length
-  const ackCount = p.findings.filter((f) => f.status === "ACKNOWLEDGED").length
+  const findings = p.findings || []
+  const totalFindings = p.criticals + p.highs + p.mediums + p.lows + p.infos || findings.length
+  const resolvedCount = findings.filter((f) => f.status === "RESOLVED").length
+  const openCount = findings.filter((f) => f.status === "OPEN").length
+  const ackCount = findings.filter((f) => f.status === "ACKNOWLEDGED").length
 
   // Client Display Mode: hides internal scoring details, shows clean public view
   const [clientMode, setClientMode] = useState(false)
@@ -3488,9 +3497,9 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
             <div className="border-2 border-s39-green/30 bg-[#001a08] p-5">
               <div className="text-[8px] text-s39-green tracking-widest mb-3 font-bold">WHY THIS MATTERS FOR PRODUCTION</div>
               <p className="text-[10px] text-s39-mid leading-relaxed mb-4">
-                {computedScore >= 80
-                  ? `This audit provides independent third-party verification that ${p.name} has been reviewed for security vulnerabilities, centralization risks, and compliance with industry standards. The findings and their resolution status are documented transparently to support informed deployment and investment decisions.`
-                  : `This audit identifies areas requiring attention before ${p.name} can be considered production-ready. The findings documented herein should be addressed and verified in a follow-up review to establish confidence in the protocol's security posture.`
+                {verifiedReport
+                  ? `This verified report documents the evidence, findings, and review status for ${p.name}. Deployment decisions remain the responsibility of the protocol team and should account for all open findings.`
+                  : `This report is not production-ready: CI artifacts and independent manual reviewer sign-off are not verified. Findings and scores remain provisional until the evidence gate passes.`
                 }
               </p>
 
@@ -3500,11 +3509,9 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                   <span className="text-[6px] text-s39-dim tracking-widest bg-s39-bg2 border border-s39-border px-1.5 py-0.5">INVESTOR-READY STATEMENT</span>
                 </div>
                 <p className="text-[11px] text-s39-green font-bold leading-relaxed pr-8">
-                  {computedScore >= 80
-                    ? `The protocol demonstrates a solid security posture and is considered suitable for production deployment, assuming the operational recommendations outlined in this report are followed.`
-                    : computedScore >= 60
-                    ? `The protocol shows a developing security posture. Deployment is conditionally recommended pending resolution of the identified findings and implementation of the operational recommendations.`
-                    : `The protocol requires additional security hardening before production deployment. A follow-up audit is recommended after addressing the findings documented in this report.`
+                  {verifiedReport
+                    ? `Evidence and reviewer sign-off are verified. This report does not constitute an approval or recommendation to deploy; resolve all open findings before production use.`
+                    : `NOT PRODUCTION READY. Evidence artifacts and independent manual reviewer sign-off are pending. Do not use this report as an investment or deployment approval.`
                   }
                 </p>
               </div>
