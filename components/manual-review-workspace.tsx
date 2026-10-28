@@ -356,11 +356,13 @@ export default function ManualReviewWorkspace({
     setSignError("")
     try {
       // Step 1: MetaMask (Ethereum)
-      const ethereum = (window as Window & { ethereum?: { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum
-      if (!ethereum) throw new Error("MetaMask not found. Install MetaMask to sign.")
+      const ethereumWindow = window as Window & { ethereum?: { request: (a: { method: string; params?: unknown[] }) => Promise<unknown>; providers?: Array<{ isMetaMask?: boolean; request: (a: { method: string; params?: unknown[] }) => Promise<unknown> }> } }
+      const ethereum = ethereumWindow.ethereum?.providers?.find((provider) => provider.isMetaMask) || ethereumWindow.ethereum
+      if (!ethereum) throw new Error("MetaMask non è disponibile in questo browser. Apri questa pagina nell'app MetaMask Mobile o usa un browser con l'estensione MetaMask.")
 
       const accounts = await ethereum.request({ method: "eth_requestAccounts" }) as string[]
       const ethAddress = accounts[0]
+      if (!ethAddress) throw new Error("MetaMask non ha restituito un account. Sblocca il wallet e riprova.")
 
       const confirmedFindings = session.aiFindings.filter(f => f.decision === "confirmed" || f.decision === "modified").length
       const reviewedAt = new Date().toISOString()
