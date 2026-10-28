@@ -252,6 +252,13 @@ export interface AttackSimResult {
 }
 
 export function generateConsistentSimulations(code: string): AttackSimResult[] {
+  // Static pattern matches are not executed exploits. Do not publish SIM-* results
+  // without a real artifact produced by the simulator/CI pipeline.
+  if (!code.trim()) return []
+  // This legacy generator only infers risks from text; it cannot claim an executed PoC.
+  // Real SIM-* entries must come from an artifact-backed runner.
+  return []
+  /*
   const mintCheck = checkMintProtection(code)
   const hasReentrancy = /\.call\{value:|\.call\(/.test(code) && !/nonReentrant|ReentrancyGuard/.test(code)
   const hasOracle = /getReserves\(\)|reserve0|reserve1/.test(code) && !/TWAP|twap|consult\(/.test(code)
@@ -425,4 +432,5 @@ contract MintExploit is Test {
       mitigation: "Add require(tax <= MAX_TAX) check",
     },
   ]
+  */
 }

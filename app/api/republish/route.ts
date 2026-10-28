@@ -99,10 +99,10 @@ export async function POST(req: Request) {
           ? {
               auditDate: portfolioData.engagement.auditDate || portfolioData.date || new Date().toISOString().slice(0, 10),
               deliveryDate: portfolioData.engagement.deliveryDate || new Date().toISOString().slice(0, 10),
-              auditDurationDays: portfolioData.engagement.auditDurationDays || 1,
-              numberOfAuditors: portfolioData.engagement.numberOfAuditors || 24,
-              engineeringHours: portfolioData.engagement.engineeringHours || 80,
-              securityEngineersInvolved: portfolioData.engagement.securityEngineersInvolved || 108,
+              auditDurationDays: portfolioData.engagement.auditDurationDays || 0,
+              numberOfAuditors: portfolioData.engagement.numberOfAuditors || 0,
+              engineeringHours: portfolioData.engagement.engineeringHours || 0,
+              securityEngineersInvolved: portfolioData.engagement.securityEngineersInvolved || 0,
               leadAuditor: portfolioData.engagement.leadAuditor || "Pending reviewer",
               compilerVersionUsed: portfolioData.engagement.compilerVersionUsed || "Solidity",
               contractsReviewed: portfolioData.engagement.contractsReviewed || 1,
@@ -119,7 +119,7 @@ export async function POST(req: Request) {
           ? portfolioData.scopeTable.map((s: Record<string, unknown>) => ({
               contract: String(s.contract || ""),
               address: String(s.address || portfolioData.scope || "N/A"),
-              commit: String(s.commit || portfolioData.commit || "verified"),
+              commit: String(s.commit || portfolioData.commit || "unverified"),
               linesOfCode: Number(s.linesOfCode) || 0,
               language: String(s.language || "Solidity"),
             }))

@@ -761,7 +761,8 @@ function staticAnalysis(code: string, meta: ContractMeta): Finding[] {
   }
 
   /* ── 8. Delegatecall ── */
-  if (/delegatecall/.test(code)) {
+  const proxyInfo = detectProxy(code)
+  if (proxyInfo.hasProxy) {
     findings.push({
       title: "Delegatecall Usage",
       severity: "HIGH",
@@ -1232,7 +1233,7 @@ CRITICAL PATTERNS (check all):
 
 For each finding that matches: add "historicalContext" field with exploit name, protocol, amount lost, date.
 
-═══════════════════��════════════════════════════
+═══════════════════��═════════════���══════════════
 SCORING METHODOLOGY (S39-AAS v4.0)
 ════════════════════════════════════════════════
 
