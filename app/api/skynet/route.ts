@@ -1,5 +1,6 @@
 import { getStaticBackendUrl } from "@/lib/static-backend"
 import { getFounderKeyForServerCall, isFounderRequest } from "@/lib/founder-auth"
+import { detectProxy } from "@/lib/proxy-detect"
 export const maxDuration = 60
 
 import { generateText } from "ai"
@@ -8,7 +9,7 @@ import {
   getCWE,
   getSWC,
   analyzeEconomicAttacks,
-  buildDefaultReviewRecord,
+  buildPendingReviewRecord,
   generateFoundryPoC,
   generateRemediationExample,
   computeReportHash,
@@ -305,7 +306,8 @@ function extractContractMeta(code: string, network: string): ContractMeta {
     && /balances|_balances|balanceOf/.test(code)
 
   const isERC721 = /ERC721|function\s+ownerOf|function\s+tokenURI/.test(code)
-  const hasProxy = /delegatecall|EIP1967|TransparentUpgradeableProxy|UUPSUpgradeable|BeaconProxy|UpgradeableBeacon|implementation\(\)/.test(code)
+  const proxyInfo = detectProxy(code)
+  const hasProxy = proxyInfo.hasProxy
   const hasDeFiLogic = /swap|liquidity|pool|vault|stake|borrow|lend|oracle|liquidat/.test(code.toLowerCase())
 
   const hasSafeMath = /library\s+SafeMath|SafeMath\s+for\s+uint|using\s+SafeMath|\.add\(|\.sub\(|\.mul\(|\.div\(/.test(code)
@@ -939,7 +941,7 @@ function staticAnalysis(code: string, meta: ContractMeta): Finding[] {
 
   /* ── 16. Proxy / Upgrade Exploit ── */
   {
-    const hasProxy = meta.hasProxy || /UUPSUpgradeable|TransparentUpgradeableProxy|ProxyAdmin|_upgradeTo|upgradeTo\(/.test(code)
+    const hasProxy = meta.hasProxy
     const hasUpgradeAuth = /onlyOwner|onlyRole|onlyAdmin|_authorizeUpgrade/.test(code)
     const hasTimelockOnUpgrade = /timelock|TimelockController/.test(code)
     const hasInitializer = /initializer|__.*_init\(|initialize\(/.test(code)
@@ -2055,9 +2057,9 @@ ${truncatedCode}`
         deliveryDate: new Date().toISOString().slice(0, 10),
         reviewTeam: {
           leadAuditor: {
-            name: "Solay39 Founder",
+            name: "Pending reviewer",
             role: "Lead Auditor",
-            credentials: "Smart contract security specialist — manual adversarial review, EVM bytecode analysis, DeFi protocol security",
+            credentials: "Not verified",
             signedOff: false,
           },
           reviewStatus: "AUTOMATED_ANALYSIS_PENDING_MANUAL_REVIEW",
@@ -2242,14 +2244,14 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
   })
 
       // ── ENTERPRISE: Review Record ──
-      const reviewRecord = buildDefaultReviewRecord("Solay39 Founder")
+      const reviewRecord = buildPendingReviewRecord()
 
       // ── ENTERPRISE: Report Integrity placeholder (real hash computed at publish) ──
       const reportIntegrityPlaceholder = {
         reportId: "solay39-audit-" + Date.now(),
         sha256: "computed-at-publish-time",
         timestamp: new Date().toISOString(),
-        auditorSignature: "Solay39 Founder -- cryptographically bound to report content",
+        auditorSignature: "Pending manual reviewer sign-off",
         verificationUrl: "https://www.solay39.eu/verify/pending",
       }
 
@@ -2392,7 +2394,7 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
           "LOW \u2014 no systemic code exploit risk identified. Residual risk is operational in nature.",
       }
 
-      // ── ENTERPRISE: AI Exploit Simulation ──────────────────
+      // ── ENTERPRISE: AI Exploit Simulation ────��─────────────
       const exploitSimulation = runAttackSimulation(truncatedCode, {
         hasProxy: meta.hasProxy,
         hasMint: meta.hasMintOutsideConstructor,
@@ -2791,7 +2793,7 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
         contractMeta: meta,
         scoreBreakdown,
         economicAttackVectors: staticEconomicAttacks,
-        reviewRecord: buildDefaultReviewRecord("Solay39 Founder"),
+        reviewRecord: buildPendingReviewRecord(),
         // Enterprise fields — same as AI path
         attackerProfiles: staticAttackerProfiles,
         assetsAtRisk: staticAssetsAtRisk,

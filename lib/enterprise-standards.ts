@@ -51,7 +51,7 @@ export interface DoubleReviewRecord {
   leadAuditor: ReviewerProfile
   secondReviewer?: ReviewerProfile
   qaApprover?: ReviewerProfile
-  reviewStatus: "SINGLE_REVIEW" | "DOUBLE_REVIEW" | "QA_APPROVED"
+  reviewStatus: "NOT_REVIEWED" | "SINGLE_REVIEW" | "DOUBLE_REVIEW" | "QA_APPROVED"
   conflictsFound: string[]
   consensusReached: boolean
 }
@@ -264,25 +264,25 @@ export function buildReportIntegrity(auditId: string, sha256: string): ReportInt
     reportId: "solay39-audit-" + auditId,
     sha256,
     timestamp: new Date().toISOString(),
-    auditorSignature: "Solay39 Founder \u2014 cryptographically bound to report content",
+    auditorSignature: "Pending manual reviewer sign-off",
     verificationUrl: "https://www.solay39.eu/verify/" + auditId,
   }
 }
 
 // ─── DOUBLE REVIEWER ──────────────────────────────────────────────
 
-export function buildDefaultReviewRecord(leadName = "Solay39 Founder"): DoubleReviewRecord {
+export function buildPendingReviewRecord(): DoubleReviewRecord {
   return {
     leadAuditor: {
-      name: leadName,
-      role: "Lead Auditor",
-      credentials: "Smart contract security specialist — manual adversarial review, EVM bytecode analysis",
-      signedOff: true,
-      signOffDate: new Date().toISOString().slice(0, 10),
+      name: "Pending reviewer",
+      role: "Manual reviewer",
+      credentials: "Not verified",
+      signedOff: false,
+      signOffDate: "",
     },
-    reviewStatus: "SINGLE_REVIEW",
+    reviewStatus: "NOT_REVIEWED",
     conflictsFound: [],
-    consensusReached: true,
+    consensusReached: false,
   }
 }
 
