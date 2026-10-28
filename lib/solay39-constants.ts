@@ -696,8 +696,19 @@ export interface PortfolioProject {
 // Keep backward compat alias
 export type DemoProject = PortfolioProject
 
-/** Compute weighted score from scoreBreakdown — SINGLE SOURCE OF TRUTH for display */
+/** Compute weighted score only for a verified, sealed report. */
+export function isVerifiedReport(p: PortfolioProject): boolean {
+  const integrity = p.reportIntegrity as { sourceSha256?: string; artifacts?: Record<string, string> } | undefined
+  return Boolean(
+    integrity?.sourceSha256 &&
+    Object.keys(integrity.artifacts || {}).length > 0 &&
+    p.engagement?.reviewTeam?.reviewStatus === "SIGNED" &&
+    p.engagement.reviewTeam.leadAuditor.signedOff,
+  )
+}
+
 export function getWeightedScore(p: PortfolioProject): number {
+  if (!isVerifiedReport(p)) return 0
   const sb = p.scoreBreakdown
   const base = p.score ?? 0
   if (!sb) return base

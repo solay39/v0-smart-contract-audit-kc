@@ -31,7 +31,15 @@ export async function POST(req: Request) {
       ? evaluateAuditGate(suppliedGate as AuditGateInput)
       : null
     // The server recalculates hashes, source anchors, evidence artifacts, and review status.
-    const gateMode = process.env.PUBLISH_GATE === "warn" ? "warn" : "enforce"
+    const gateMode = "enforce"
+    if (!body.auditReport || typeof body.auditReport !== "object") {
+      return Response.json({
+        error: "Publish refused: sealed report.json is required",
+        gate: "BLOCK",
+        errors: ["The HTML cannot be published without the canonical auditReport JSON."],
+        auditGate,
+      }, { status: 422 })
+    }
     const publishDecision = evaluatePublish({
       auditReport: body.auditReport,
       sourceText: body.sourceText,
