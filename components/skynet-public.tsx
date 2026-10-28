@@ -410,7 +410,7 @@ function ShareButton({ auditId, name }: { auditId: string; name: string }) {
 }
 
 export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: PortfolioProject; onBack?: () => void; isLive?: boolean; backHref?: string }) {
-  // ── DEFENSIVE NORMALIZATION: ensure all nested properties are safe for rendering ─�������
+  // ── DEFENSIVE NORMALIZATION: ensure all nested properties are safe for rendering ─��������
   const p = useMemo<PortfolioProject>(() => {
     const findings = _raw.findings || []
     return {
@@ -3465,9 +3465,11 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                   ? "text-s39-red"
                   : "text-s39-green"
               }`}>
-                {p.finalAssessment.productionReadiness.toLowerCase().includes("not recommended") || p.finalAssessment.productionReadiness.toLowerCase().includes("not ready")
-                  ? "NOT READY FOR PRODUCTION"
-                  : "PRODUCTION READY"
+                {!verifiedReport
+                  ? "NOT ASSESSED"
+                  : p.finalAssessment.productionReadiness.toLowerCase().includes("not recommended") || p.finalAssessment.productionReadiness.toLowerCase().includes("not ready")
+                    ? "NOT READY FOR PRODUCTION"
+                    : "EVIDENCE VERIFIED"
                 }
               </div>
               <div className="text-[9px] text-s39-mid leading-relaxed mt-1.5">
@@ -3506,7 +3508,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               {/* Copyable pitch statement */}
               <div className="bg-s39-bg0 border border-s39-green/25 p-4 relative">
                 <div className="absolute top-2 right-2">
-                  <span className="text-[6px] text-s39-dim tracking-widest bg-s39-bg2 border border-s39-border px-1.5 py-0.5">INVESTOR-READY STATEMENT</span>
+                  <span className="text-[6px] text-s39-dim tracking-widest bg-s39-bg2 border border-s39-border px-1.5 py-0.5">EVIDENCE STATEMENT</span>
                 </div>
                 <p className="text-[11px] text-s39-green font-bold leading-relaxed pr-8">
                   {verifiedReport
@@ -4612,7 +4614,7 @@ console.log("Signer:", recovered);
             )}
 
             {/* TEST COVERAGE & ANALYSIS */}
-            {p.testCoverage && (
+            {verifiedReport && p.testCoverage && (
               <section className="border border-emerald-900/40 rounded-xl overflow-hidden bg-s39-bg1 mt-6">
                 <div className="p-5 sm:p-6 bg-emerald-950/10 border-b border-emerald-900/30">
                   <div className="flex items-center gap-2 mb-3">
@@ -4650,7 +4652,7 @@ console.log("Signer:", recovered);
                   </div>
 
                   {/* Fuzz Testing */}
-                  {p.testCoverage.fuzzTesting && (
+                  {verifiedReport && p.testCoverage.fuzzTesting && (
                     <div className="bg-s39-bg0 border border-cyan-900/30 p-4 rounded">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
@@ -4689,7 +4691,7 @@ console.log("Signer:", recovered);
                   )}
 
                   {/* Static Analysis Tools */}
-                  {p.testCoverage.staticAnalysis && p.testCoverage.staticAnalysis.length > 0 && (
+                  {verifiedReport && p.testCoverage.staticAnalysis && p.testCoverage.staticAnalysis.length > 0 && (
                     <div className="space-y-2">
                       <div className="text-[8px] text-s39-dim tracking-widest">STATIC ANALYSIS TOOLS</div>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
