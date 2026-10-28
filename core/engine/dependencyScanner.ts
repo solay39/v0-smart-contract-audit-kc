@@ -3,6 +3,8 @@
  * Detects OpenZeppelin, custom libraries, and cross-contract interactions
  */
 
+import { detectProxy } from "@/lib/proxy-detect"
+
 export interface Dependency {
   name: string
   path: string
@@ -72,6 +74,7 @@ export function scanDependencies(code: string, imports: { path: string; symbols:
 
   // Scan for external calls
   const lines = code.split("\n")
+  const proxyInfo = detectProxy(code)
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     const lineNum = i + 1
@@ -91,7 +94,7 @@ export function scanDependencies(code: string, imports: { path: string; symbols:
     }
 
     // Delegatecall
-    if (line.includes(".delegatecall(")) {
+    if (proxyInfo.hasProxy && line.includes(".delegatecall(")) {
       externalCalls.push({
         target: extractTarget(line),
         method: "delegatecall",
@@ -150,7 +153,7 @@ export function scanDependencies(code: string, imports: { path: string; symbols:
 
   // Generate recommendations based on findings
   if (externalCalls.some(c => c.isDelegateCall)) {
-    recommendations.push("CRITICAL: delegatecall detected - ensure target is trusted and cannot be changed")
+    recommendations.push("HIGH: reachable proxy delegatecall detected - verify implementation authorization and target integrity")
   }
   if (externalCalls.some(c => c.isLowLevel && c.method === "call")) {
     recommendations.push("HIGH: Low-level call() detected - validate return value and handle failures")
