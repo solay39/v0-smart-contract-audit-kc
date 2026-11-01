@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://solay39.eu/schemas/security-report.schema.json",
+  "title": "Solay39 Security Report",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["report_status", "manual_review_status", "production_ready", "findings", "evidence"],
+  "properties": {
+    "report_status": { "enum": ["DRAFT", "PRELIMINARY", "PUBLISHED"] },
+    "manual_review_status": { "enum": ["NOT_PERFORMED", "PARTIAL", "FULL"] },
+    "production_ready": { "type": "boolean" },
+    "summary": { "type": "string" },
+    "executive_summary": { "type": "string" },
+    "reviewer_names": { "type": "array", "items": { "type": "string" } },
+    "review_scope": { "type": "string" },
+    "manual_review_evidence": { "type": "object" },
+    "evidence": { "type": "object" },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "required": ["severity", "title", "description"],
+      "properties": {
+        "severity": { "enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "proof": { "type": "object" }
+      }
+    }
+  }
+}

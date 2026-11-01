@@ -11,6 +11,7 @@ import { requireFounder } from "@/lib/founder-auth"
 import { evaluateAuditGate, type AuditGateInput, type AuditGateResult } from "@/src/security/audit-gate"
 import { evaluatePublish } from "@/src/security/publish-gate"
 import { canonicalJson } from "@/core/audit-core/report.mjs"
+import { validateAuditReport } from "@/lib/security/audit-report-validator"
 
 const GITHUB_REPO = process.env.GITHUB_REPO || "solay39/Solay39-audit"
 
@@ -37,6 +38,16 @@ export async function POST(req: Request) {
         error: "Publish refused: sealed report.json is required",
         gate: "BLOCK",
         errors: ["The HTML cannot be published without the canonical auditReport JSON."],
+        auditGate,
+      }, { status: 422 })
+    }
+    const semanticValidation = validateAuditReport(body.auditReport)
+    if (!semanticValidation.valid) {
+      return Response.json({
+        error: "Publish refused: report semantic validation failed",
+        gate: "BLOCK",
+        errors: semanticValidation.blockers,
+        warnings: semanticValidation.warnings,
         auditGate,
       }, { status: 422 })
     }
