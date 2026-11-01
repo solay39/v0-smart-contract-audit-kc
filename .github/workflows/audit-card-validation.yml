@@ -1,0 +1,20 @@
+name: Validate audit cards
+
+on:
+  pull_request:
+    paths: ["**/*.json"]
+  push:
+    paths: ["**/*.json"]
+
+jobs:
+  audit-card-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - name: Validate audit card
+        run: |
+          if [ -f audit-card.json ]; then node validate-audit-card-cli.js audit-card.json; else echo "No audit-card.json found; skipping validation."; fi

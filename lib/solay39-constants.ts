@@ -1508,6 +1508,42 @@ function pause() public onlyPauser {
 // backward compat
 export const DEMO_PROJECTS = DEFAULT_PROJECTS
 
+// ── audit card normalization ─────────────────────────────────────
+export type AuditStatus = "AUDITED" | "NOT_EVALUATED" | "DEMO" | "UNVERIFIED"
+
+export function auditHasEvidence(project: Partial<PortfolioProject>): boolean {
+  const candidate = project as Partial<PortfolioProject> & Record<string, any>
+  const reportHash = candidate.reportIntegrity?.sha256 || candidate.reportHash || candidate.auditManifest?.hash
+  const ciArtifacts = Array.isArray(candidate.evidence?.ci_artifacts) ? candidate.evidence.ci_artifacts.length : 0
+  const reviewerNames = Array.isArray(candidate.reviewer_names)
+    ? candidate.reviewer_names.length
+    : Array.isArray(candidate.reviewerNames)
+      ? candidate.reviewerNames.length
+      : 0
+  const signedReview = candidate.engagement?.reviewTeam?.reviewStatus === "SIGNED" || candidate.reviewRecord?.consensusReached === true
+  const findings = Array.isArray(candidate.findings) ? candidate.findings.length : 0
+
+  return Boolean(reportHash || ciArtifacts > 0 || reviewerNames > 0 || signedReview || findings > 0)
+}
+
+export function normalizeAuditProject(project: Partial<PortfolioProject>, allowEvidence = true): Partial<PortfolioProject> & { status: AuditStatus } {
+  const candidate = project as Partial<PortfolioProject> & Record<string, any>
+  if (candidate.status === "DEMO") return { ...project, status: "DEMO", score: Number(candidate.score ?? 0) }
+  const score = Number(candidate.score ?? 0)
+  const criticals = Number(candidate.criticals ?? 0)
+  const highs = Number(candidate.highs ?? 0)
+  const mediums = Number(candidate.mediums ?? 0)
+  const evidence = allowEvidence && auditHasEvidence(project)
+  const hasRealFindings = criticals > 0 || highs > 0 || mediums > 0
+
+  let status: AuditStatus = "DEMO"
+  if (evidence && score > 0) status = "AUDITED"
+  else if (evidence && score === 0 && hasRealFindings) status = "UNVERIFIED"
+  else if (!evidence && score === 0) status = "NOT_EVALUATED"
+
+  return { ...project, status, score: score > 0 ? score : 0 }
+}
+
 // ── utils ────────────────────────────────────────────────────────
 export function scoreColor(s: number): string {
   if (s >= 90) return "#00ff88"

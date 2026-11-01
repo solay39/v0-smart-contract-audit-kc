@@ -17,6 +17,7 @@
     "validate-dir:ci": "node scripts/validate-dir.mjs ./reports --output validation-summary.json --summary-output report-summary.json --markdown-output report-summary.md",
     "diffsum": "node generate-diffsum.js report.json report.previous.example.json --output report-diff.md",
     "diffsum:ci": "node generate-diffsum.js report.json report.previous.example.json --output report-diff.md",
+    "validate-audit-card": "node validate-audit-card-cli.js audit-card.json",
     "benchmark:real": "python scripts/run-real-benchmark.py && python benchmarks/evaluate.py --input reports/benchmark/benchmark-input.json --output reports/benchmark/results.json",
     "fork:poc": "bash scripts/run-fork-poc.sh"
   },
