@@ -1,31 +1,48 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://solay39.eu/schemas/security-report.schema.json",
-  "title": "Solay39 Security Report",
+  "title": "Security Report",
   "type": "object",
-  "additionalProperties": true,
-  "required": ["report_status", "manual_review_status", "production_ready", "findings", "evidence"],
+  "additionalProperties": false,
+  "required": ["report_status", "manual_review_status", "production_ready", "summary", "findings", "evidence"],
   "properties": {
-    "report_status": { "enum": ["DRAFT", "PRELIMINARY", "PUBLISHED"] },
-    "manual_review_status": { "enum": ["NOT_PERFORMED", "PARTIAL", "FULL"] },
+    "report_status": { "type": "string", "enum": ["DRAFT", "PRELIMINARY", "PUBLISHED"] },
+    "manual_review_status": { "type": "string", "enum": ["NOT_PERFORMED", "PARTIAL", "FULL"] },
     "production_ready": { "type": "boolean" },
     "summary": { "type": "string" },
     "executive_summary": { "type": "string" },
     "reviewer_names": { "type": "array", "items": { "type": "string" } },
     "review_scope": { "type": "string" },
-    "manual_review_evidence": { "type": "object" },
-    "evidence": { "type": "object" },
+    "manual_review_evidence": { "type": "object", "additionalProperties": true },
+    "scanner_status": { "type": "string" },
+    "evidence": {
+      "type": "object", "additionalProperties": true,
+      "properties": {
+        "ci_artifacts": { "type": "array", "items": { "type": "string" } },
+        "test_logs": { "type": "array", "items": { "type": "string" } },
+        "tests": {
+          "type": "object", "additionalProperties": false,
+          "properties": { "passed": { "type": "integer", "minimum": 0 }, "total": { "type": "integer", "minimum": 0 } }
+        },
+        "coverage": { "type": "object", "additionalProperties": true },
+        "fuzzing": { "type": "object", "additionalProperties": true },
+        "echidna": { "type": "object", "additionalProperties": true }
+      }
+    },
     "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } }
   },
   "$defs": {
     "finding": {
-      "type": "object",
+      "type": "object", "additionalProperties": true,
       "required": ["severity", "title", "description"],
       "properties": {
-        "severity": { "enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"] },
-        "title": { "type": "string" },
-        "description": { "type": "string" },
-        "proof": { "type": "object" }
+        "severity": { "type": "string", "enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+        "title": { "type": "string" }, "description": { "type": "string" },
+        "location": { "type": "object", "additionalProperties": true },
+        "proof": {
+          "type": "object", "additionalProperties": true,
+          "properties": { "trigger": { "type": "string" }, "artifact": { "type": "string" }, "fork_result": { "type": "string" } }
+        }
       }
     }
   }
