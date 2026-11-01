@@ -1,0 +1,36 @@
+name: Validate security reports
+
+on:
+  pull_request:
+    paths: ["report.json", "reports/**", "**/*.json", "**/*.md"]
+  push:
+    paths: ["report.json", "reports/**", "**/*.json", "**/*.md"]
+
+jobs:
+  validate-security-reports:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate report.json
+        run: |
+          if [ -f report.json ]; then npm run validate-report; fi
+      - name: Validate reports directory
+        run: |
+          if [ -d reports ]; then npm run validate-dir; fi
+      - name: Upload validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report-validation-results
+          path: |
+            validation-summary.json
+            report-summary.json
+          if-no-files-found: ignore
