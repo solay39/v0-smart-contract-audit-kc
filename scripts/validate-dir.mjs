@@ -2,13 +2,11 @@
 import fs from "node:fs"
 import path from "node:path"
 import { globSync } from "glob"
-import { readJson, validateReport } from "./validate-report.mjs"
+import { parseReportFile, validateReport } from "./validate-report.mjs"
 
 function parseFile(file) {
   const text = fs.readFileSync(file, "utf8")
-  if (file.endsWith(".json")) return JSON.parse(text)
-  const match = text.match(/```(?:json|JSON)\s*([\s\S]*?)```/)
-  return match ? JSON.parse(match[1].trim()) : null
+  return parseReportFile(file)
 }
 function severityCounts(findings) {
   const counts = { INFO: 0, LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0 }
@@ -19,6 +17,7 @@ const args = process.argv.slice(2)
 const inputDir = path.resolve(args[0] || "./reports")
 const output = args.includes("--output") ? args[args.indexOf("--output") + 1] : "validation-summary.json"
 const summaryOutput = args.includes("--summary-output") ? args[args.indexOf("--summary-output") + 1] : "report-summary.json"
+const markdownOutput = args.includes("--markdown-output") ? args[args.indexOf("--markdown-output") + 1] : "report-summary.md"
 const schemaPath = path.resolve("schema/security-report.schema.json")
 if (!fs.existsSync(inputDir)) { console.error(`Directory not found: ${inputDir}`); process.exit(1) }
 const files = globSync("**/*.{json,md}", { cwd: inputDir, absolute: true, nodir: true, ignore: ["**/node_modules/**", "**/.git/**"] })
@@ -44,5 +43,6 @@ const totals = results.reduce((acc, result) => {
 const summary = { generatedAt: new Date().toISOString(), totalFiles: results.length, validFiles: results.filter((r) => r.status === "valid").length, invalidFiles: results.filter((r) => r.status === "invalid").length, totalFindings: totals.totalFindings, summaryBySeverity: totals.summaryBySeverity, files: results }
 fs.writeFileSync(output, JSON.stringify(summary, null, 2))
 fs.writeFileSync(summaryOutput, JSON.stringify({ generatedAt: summary.generatedAt, totalFiles: summary.totalFiles, validFiles: summary.validFiles, invalidFiles: summary.invalidFiles, totalFindings: summary.totalFindings, summaryBySeverity: summary.summaryBySeverity }, null, 2))
-console.log(JSON.stringify({ inputDir, output, summaryOutput, totalFiles: summary.totalFiles, validFiles: summary.validFiles, invalidFiles: summary.invalidFiles, totalFindings: summary.totalFindings, summaryBySeverity: summary.summaryBySeverity }, null, 2))
+fs.writeFileSync(markdownOutput, [`# Security Report Validation Summary`, ``, `- Total files: ${summary.totalFiles}`, `- Valid files: ${summary.validFiles}`, `- Invalid files: ${summary.invalidFiles}`, `- Total findings: ${summary.totalFindings}`, ``, `## Severity breakdown`, ``, ...Object.entries(summary.summaryBySeverity).map(([severity, count]) => `- ${severity}: ${count}`), ``, `## Files`, ``, ...summary.files.flatMap((file) => [`### ${file.file}`, `- Status: ${file.status}`, `- Findings: ${file.findingCount}`, ...(file.errors.length ? [`- Errors:`, ...file.errors.map((error) => `  - ${error}`)] : []), ``])].join("\\n"))
+console.log(JSON.stringify({ inputDir, output, summaryOutput, markdownOutput, totalFiles: summary.totalFiles, validFiles: summary.validFiles, invalidFiles: summary.invalidFiles, totalFindings: summary.totalFindings, summaryBySeverity: summary.summaryBySeverity }, null, 2))
 process.exit(summary.invalidFiles ? 1 : 0)

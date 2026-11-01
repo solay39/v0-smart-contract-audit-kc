@@ -2,9 +2,9 @@ name: Validate security reports
 
 on:
   pull_request:
-    paths: ["report.json", "reports/**", "**/*.json", "**/*.md"]
+    paths: ["report.json", "reports/**", "**/*.json", "**/*.md", "**/*.yaml", "**/*.yml"]
   push:
-    paths: ["report.json", "reports/**", "**/*.json", "**/*.md"]
+    paths: ["report.json", "reports/**", "**/*.json", "**/*.md", "**/*.yaml", "**/*.yml"]
 
 jobs:
   validate-security-reports:
@@ -25,6 +25,9 @@ jobs:
       - name: Validate reports directory
         run: |
           if [ -d reports ]; then npm run validate-dir; fi
+      - name: Generate diff summary
+        run: |
+          if [ -f report.json ]; then node generate-diffsum.js report.json report.previous.example.json --output report-diff.md; fi
       - name: Upload validation artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -33,4 +36,6 @@ jobs:
           path: |
             validation-summary.json
             report-summary.json
+            report-summary.md
+            report-diff.md
           if-no-files-found: ignore

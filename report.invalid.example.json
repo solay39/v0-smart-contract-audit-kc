@@ -1,0 +1,1 @@
+{"report_status":"PUBLISHED","manual_review_status":"FULL","production_ready":true,"summary":"Production ready. Manual review FULL.","findings":[{"severity":"HIGH","title":"Unsupported claim","description":"Missing proof.","proof":{}}],"evidence":{"ci_artifacts":[],"tests":{"passed":96,"total":96}}}
