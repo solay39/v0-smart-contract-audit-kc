@@ -3,8 +3,21 @@ import fs from "node:fs"
 import path from "node:path"
 import Ajv from "ajv/dist/2020.js"
 import addFormats from "ajv-formats"
+import yaml from "js-yaml"
 
 export function readJson(filePath) { return JSON.parse(fs.readFileSync(filePath, "utf8")) }
+export function parseReportFile(filePath) {
+  const text = fs.readFileSync(filePath, "utf8")
+  const extension = path.extname(filePath).toLowerCase()
+  if (extension === ".json") return JSON.parse(text)
+  if (extension === ".yaml" || extension === ".yml") return yaml.load(text)
+  if (extension === ".md") {
+    const match = text.match(/```(?:json|yaml|yml)\s*([\s\S]*?)```/i)
+    if (!match) return null
+    try { return JSON.parse(match[1]) } catch { return yaml.load(match[1]) }
+  }
+  throw new Error(`Unsupported file type: ${filePath}`)
+}
 export function validateSchema(report, schemaPath) {
   const ajv = new Ajv({ allErrors: true, strict: false, allowUnionTypes: true })
   addFormats(ajv)
@@ -57,7 +70,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const schemaPath = path.resolve("schema/security-report.schema.json")
   if (!fs.existsSync(filePath)) { console.error(`File not found: ${filePath}`); process.exit(1) }
   let report
-  try { report = readJson(filePath) } catch (error) { console.error(`Invalid JSON: ${error.message}`); process.exit(1) }
+  try { report = parseReportFile(filePath) } catch (error) { console.error(`Invalid report: ${error.message}`); process.exit(1) }
   const errors = validateReport(report, schemaPath)
   if (errors.length) { console.error("Report validation failed:"); errors.forEach((error) => console.error(`- ${error}`)); process.exit(1) }
   console.log("Report validation passed.")
