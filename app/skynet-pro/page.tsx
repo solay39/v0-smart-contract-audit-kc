@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { ScoreRing } from "@/components/solay39-ui"
 import { OnChainAnalysisPanel } from "@/components/onchain-analysis-panel"
-import { DEFAULT_PROJECTS, scoreColor } from "@/lib/solay39-constants"
+import { DEFAULT_PROJECTS, normalizeAuditProject, scoreColor } from "@/lib/solay39-constants"
 
 // ── Market Ticker Component ──────────────────────────────────────
 function MarketTicker() {
@@ -71,6 +71,10 @@ interface DbProject {
   criticals: number
   highs: number
   mediums: number
+  status?: "AUDITED" | "NOT_EVALUATED" | "DEMO" | "UNVERIFIED"
+  evidence?: { ci_artifacts?: string[]; reviewer_names?: string[]; reportHash?: string }
+  reportHash?: string
+  reviewer_names?: string[]
 }
 
 export default function SkynetProPage() {
@@ -90,7 +94,7 @@ export default function SkynetProPage() {
         const res = await fetch("/api/audits")
         const data = await res.json()
         if (data.audits && Array.isArray(data.audits)) {
-          setDbProjects(data.audits) // ALL projects, no limit
+          setDbProjects(data.audits.map((project: DbProject) => normalizeAuditProject(project) as DbProject))
         }
       } catch (e) {
         console.error("Failed to load projects:", e)
@@ -101,14 +105,12 @@ export default function SkynetProPage() {
     loadProjects()
   }, [])
 
-  // Merge database projects with DEFAULT_PROJECTS (db takes priority)
+  // Keep seeded portfolio entries visible, but never present them as audited evidence.
   const allProjects = useMemo(() => {
     const merged = [...dbProjects]
-    const dbIds = new Set(dbProjects.map(p => p.id))
-    for (const p of DEFAULT_PROJECTS) {
-      if (!dbIds.has(p.id)) {
-        merged.push(p as DbProject)
-      }
+    const dbIds = new Set(dbProjects.map((project) => project.id))
+    for (const project of DEFAULT_PROJECTS) {
+      if (!dbIds.has(project.id)) merged.push(normalizeAuditProject(project, false) as DbProject)
     }
     return merged
   }, [dbProjects])
@@ -409,7 +411,15 @@ export default function SkynetProPage() {
                   </tr>
                 </thead>
                 <tbody className="text-[10px]">
-                  {allProjects.map((p) => (
+                  {allProjects.map((p) => {
+                    const normalized = normalizeAuditProject(p)
+                    const status = normalized.status
+                    const score = Number(normalized.score ?? 0)
+                    const risk = status === "AUDITED"
+                      ? score >= 90 ? "SECURE" : score >= 70 ? "WARNING" : "CRITICAL"
+                      : status === "UNVERIFIED" ? "UNVERIFIED" : status === "NOT_EVALUATED" ? "NOT EVALUATED" : "DEMO"
+
+                    return (
                     <tr key={p.id} className="border-b border-[#1e2a3a]/50 hover:bg-[#00ff8805] transition-colors group">
                       <td className="py-4 px-2">
                         <div className="flex items-center gap-3">
@@ -438,28 +448,29 @@ export default function SkynetProPage() {
                       <td className="py-4 px-2">
                         <div className="flex items-center gap-2">
                           <div className="w-24 h-1 bg-[#1e2a3a] rounded-full overflow-hidden">
-                            <div className="h-full" style={{ width: `${p.score}%`, backgroundColor: scoreColor(p.score) }} />
+                            <div className="h-full" style={{ width: `${score}%`, backgroundColor: scoreColor(score) }} />
                           </div>
-                          <span className="font-bold font-mono" style={{ color: scoreColor(p.score) }}>{p.score}</span>
+                          <span className="font-bold font-mono" style={{ color: scoreColor(score) }}>{score}</span>
                         </div>
                       </td>
                       <td className="py-4 px-2">
                         <span className={`px-2 py-0.5 text-[8px] font-bold tracking-widest uppercase border ${
-                          p.score >= 90 ? 'bg-[#00ff8811] text-[#00ff88] border-[#00ff8833]' :
-                          p.score >= 70 ? 'bg-[#ffd60011] text-[#ffd600] border-[#ffd60033]' :
+                          status === "AUDITED" ? 'bg-[#00ff8811] text-[#00ff88] border-[#00ff8833]' :
+                          status === "UNVERIFIED" ? 'bg-[#ffb80011] text-[#ffb800] border-[#ffb80033]' :
                           'bg-[#ff2d5511] text-[#ff2d55] border-[#ff2d5533]'
                         }`}>
-                          {p.score >= 90 ? 'SECURE' : p.score >= 70 ? 'WARNING' : 'CRITICAL'}
+                          {status === "AUDITED" ? "AUDITED" : status === "UNVERIFIED" ? "UNVERIFIED" : status === "NOT_EVALUATED" ? "NOT EVALUATED" : "DEMO"}
                         </span>
                       </td>
                       <td className="py-4 px-2">
                         <div className="flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-[#00ff88] animate-pulse" />
-                          <span className="text-[8px] text-[#7a8c9e] uppercase">Monitoring Live</span>
+                          <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${status === "AUDITED" ? "bg-[#00ff88]" : status === "UNVERIFIED" ? "bg-[#ffb800]" : "bg-[#ff2d55]"}`} />
+                          <span className="text-[8px] text-[#7a8c9e] uppercase">{risk}</span>
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
