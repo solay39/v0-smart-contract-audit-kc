@@ -410,7 +410,7 @@ function ShareButton({ auditId, name }: { auditId: string; name: string }) {
 }
 
 export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: PortfolioProject; onBack?: () => void; isLive?: boolean; backHref?: string }) {
-  // ── DEFENSIVE NORMALIZATION: ensure all nested properties are safe for rendering ─��������
+  // ── DEFENSIVE NORMALIZATION: ensure all nested properties are safe for rendering ─���������
   const p = useMemo<PortfolioProject>(() => {
     const findings = _raw.findings || []
     return {
@@ -489,6 +489,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
     p.engagement.reviewTeam.leadAuditor.signedOff,
   )
   const computedScore = verifiedReport ? getWeightedScore(p) : 0
+  const displayedScore = verifiedReport ? computedScore : null
   const computedRating = verifiedReport ? ratingOf(computedScore) : "PENDING"
   const sc = scoreColor(computedScore)
   const findings = p.findings || []
@@ -505,7 +506,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
   const operationsScore = bd ? (bd.testingCoverage ?? computedScore) : computedScore
 
   // Radar chart data (6 categories)
-  const radarData = bd ? [
+  const radarData = verifiedReport && bd ? [
     { label: "Code Security", value: bd.codeSecurity ?? computedScore, color: "#00ff88" },
     { label: "Architecture", value: bd.architectureRisk ?? computedScore, color: "#00e5ff" },
     { label: "Governance", value: bd.governanceRisk ?? computedScore, color: "#4488ff" },
@@ -598,7 +599,13 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
 
               {/* Security Badge (copyable) */}
               <div className="mb-4">
-                <SecurityBadge rating={computedRating} score={computedScore} name={p.name} />
+                {displayedScore === null ? (
+                  <div className="text-[9px] text-s39-dim uppercase tracking-widest border border-s39-border px-3 py-2 inline-block">
+                    SCORE PENDING · NOT VERIFIED
+                  </div>
+                ) : (
+                  <SecurityBadge rating={computedRating} score={displayedScore} name={p.name} />
+                )}
               </div>
 
               {/* Price + Market Cap row */}
@@ -640,7 +647,13 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
             <div className="shrink-0 flex flex-col items-center gap-2">
               <div className="text-[8px] text-s39-dim tracking-[0.15em]">SOLAY39 SECURITY SCORE</div>
               <div className="flex items-center gap-4">
-                <ScoreArc score={Math.min(computedScore, 100)} size={160} />
+                {displayedScore === null ? (
+                  <div className="w-[160px] h-[160px] border border-s39-border flex items-center justify-center text-center px-6">
+                    <span className="text-[10px] text-s39-dim tracking-widest leading-relaxed">PENDING<br />NOT VERIFIED</span>
+                  </div>
+                ) : (
+                  <ScoreArc score={Math.min(displayedScore, 100)} size={160} />
+                )}
                 {radarData.length > 0 && (
                   <div className="hidden lg:block">
                     <RadarChart data={radarData} size={180} />
@@ -671,7 +684,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
           )}
 
           {/* Sub-Score Breakdown — 6 categories (SOLAY39 Security Rating Model) */}
-          {p.scoreBreakdown && (
+          {verifiedReport && p.scoreBreakdown && (
             <div className="mt-5 pt-5 border-t border-s39-border">
               <div className="flex items-center gap-2 mb-3">
                 <div className="text-[8px] text-s39-dim tracking-[0.15em]">SOLAY39 SECURITY RATING MODEL</div>
@@ -841,9 +854,9 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               <CategoryBar label="Centralization" score={bd.centralization} color="#ffd600" />
               <CategoryBar label="Testing Coverage" score={bd.testingCoverage} color="#7a8c9e" />
               <div className="bg-s39-bg2 border border-s39-border p-4 flex flex-col justify-center items-center">
-                <div className="text-3xl font-bold" style={{ color: sc }}>{computedScore}</div>
-                <div className="text-[8px] text-s39-dim tracking-widest mt-1">OVERALL SCORE</div>
-                <div className="text-xs font-bold mt-1" style={{ color: sc }}>{computedRating}</div>
+  <div className="text-3xl font-bold" style={{ color: sc }}>{displayedScore === null ? "—" : displayedScore}</div>
+  <div className="text-[8px] text-s39-dim tracking-widest mt-1">{displayedScore === null ? "SCORE PENDING" : "OVERALL SCORE"}</div>
+  <div className="text-xs font-bold mt-1" style={{ color: sc }}>{computedRating}</div>
               </div>
             </div>
           </div>
@@ -861,7 +874,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
             {/* Rating Badge */}
             <div className="flex items-center gap-6 mb-6 flex-wrap">
               <div className="flex items-center gap-3">
-                <div className="text-4xl font-bold font-mono" style={{ color: sc }}>{computedScore}</div>
+                <div className="text-4xl font-bold font-mono" style={{ color: sc }}>{displayedScore === null ? "—" : displayedScore}</div>
                 <div>
                   <div className="text-lg font-bold" style={{ color: sc }}>{computedRating}</div>
                   <div className="text-[8px] text-s39-dim tracking-widest">
@@ -869,7 +882,11 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
                   </div>
                 </div>
               </div>
-                <SecurityBadge rating={computedRating} score={computedScore} name={p.name} />
+                {displayedScore === null ? (
+  <div className="text-[9px] text-s39-dim uppercase tracking-widest">SCORE PENDING · NOT VERIFIED</div>
+  ) : (
+  <SecurityBadge rating={computedRating} score={displayedScore} name={p.name} />
+  )}
             </div>
 
             {/* Category Breakdown Table — Clean */}
@@ -1283,7 +1300,7 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
             </div>
             <div className="bg-s39-bg2 border border-s39-border p-3 text-center">
               <div className="text-[7px] text-s39-dim tracking-widest mb-1">SECURITY SCORE</div>
-              <div className="text-lg font-bold font-mono" style={{ color: scoreColor(computedScore) }}>{computedScore}/100</div>
+              <div className="text-lg font-bold font-mono" style={{ color: sc }}>{displayedScore === null ? "—" : `${displayedScore}/100`}</div>
             </div>
           </div>
 
@@ -1304,11 +1321,13 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
           <div className={`border p-4 ${
             computedScore >= 80 ? "bg-[#001a08] border-s39-green/30" : computedScore >= 60 ? "bg-[#1a1200] border-s39-yellow/30" : "bg-[#1a0000] border-s39-red/30"
             }`}>
-            <div className="text-[11px] font-bold mb-1" style={{ color: scoreColor(computedScore) }}>
-            {computedScore >= 95 ? "EXCEPTIONAL" : computedScore >= 90 ? "VERY STRONG" : computedScore >= 80 ? "STRONG" : computedScore >= 70 ? "ADEQUATE" : computedScore >= 60 ? "BELOW AVERAGE" : "NEEDS IMPROVEMENT"}
+  <div className="text-[11px] font-bold mb-1" style={{ color: sc }}>
+  {displayedScore === null ? "PENDING / NOT VERIFIED" : displayedScore >= 95 ? "EXCEPTIONAL" : displayedScore >= 90 ? "VERY STRONG" : displayedScore >= 80 ? "STRONG" : displayedScore >= 70 ? "ADEQUATE" : displayedScore >= 60 ? "BELOW AVERAGE" : "NEEDS IMPROVEMENT"}
             </div>
             <p className="text-[9px] text-s39-mid leading-relaxed">
-              {p.finalAssessment?.securityPosture || `The protocol achieved a score of ${computedScore}/100, rated ${computedRating}. ${p.findings?.filter(f => f.status === "RESOLVED").length || 0} of ${p.findings?.length || 0} findings have been resolved.`}
+              {p.finalAssessment?.securityPosture || (displayedScore === null
+    ? "Security score is pending verification. Source integrity, CI evidence, and manual reviewer sign-off are required."
+    : `The protocol achieved a score of ${displayedScore}/100, rated ${computedRating}. ${p.findings?.filter(f => f.status === "RESOLVED").length || 0} of ${p.findings?.length || 0} findings have been resolved.`)}
             </p>
           </div>
 
@@ -3636,7 +3655,9 @@ export function ProjectDetail({ p: _raw, onBack, isLive, backHref }: { p: Portfo
               const cr = computedRating
               // Generate fact-based text
               let text = ""
-              if (totalOpen === 0) {
+              if (!verifiedReport) {
+                text = "Risk outlook is pending verification. This report has not received the required CI evidence and manual reviewer sign-off."
+              } else if (totalOpen === 0) {
                 text = `The protocol demonstrates a ${cs >= 90 ? "exemplary" : cs >= 80 ? "strong" : "developing"} security posture with a computed score of ${cs}/100 (${cr}). All identified findings have been resolved or acknowledged.`
               } else {
                 const parts: string[] = []
