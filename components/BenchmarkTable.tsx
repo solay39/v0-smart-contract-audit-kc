@@ -1,0 +1,5 @@
+import { benchmarkHistory } from "@/lib/benchmark"
+
+export function BenchmarkTable() {
+  return <div className="overflow-x-auto border border-s39-border bg-s39-bg1/50"><table className="min-w-full text-left text-sm"><caption className="sr-only">Public benchmark history</caption><thead className="bg-s39-bg1 text-s39-dim text-[10px] uppercase tracking-widest"><tr>{["Dataset", "Samples", "Precision", "Recall", "F1", "Date"].map((heading) => <th key={heading} scope="col" className="px-4 py-3">{heading}</th>)}</tr></thead><tbody>{benchmarkHistory.map((row) => <tr key={row.id} className="border-t border-s39-border text-s39-white"><td className="px-4 py-3">{row.dataset}</td><td className="px-4 py-3 text-s39-dim">{row.samples}</td><td className="px-4 py-3 text-s39-cyan">{(row.precision * 100).toFixed(0)}%</td><td className="px-4 py-3 text-s39-cyan">{(row.recall * 100).toFixed(0)}%</td><td className="px-4 py-3 text-s39-green">{(row.f1 * 100).toFixed(0)}%</td><td className="px-4 py-3 text-s39-dim">{row.date}</td></tr>)}</tbody></table></div>
+}
