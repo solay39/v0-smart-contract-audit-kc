@@ -86,6 +86,22 @@ function enforceEvidenceOnlyReport(input: PortfolioProject): PortfolioProject {
   }
 }
 
+function isPendingVerification(project: PortfolioProject | null): boolean {
+  if (!project) return true
+  const integrity = project.reportIntegrity as { sourceSha256?: string; artifacts?: Record<string, string> } | undefined
+  const hasCiEvidence = Boolean(
+    integrity?.sourceSha256 &&
+    integrity?.artifacts &&
+    Object.keys(integrity.artifacts).length > 0
+  )
+  const signedReview = Boolean(
+    project.engagement?.reviewTeam?.reviewStatus === "SIGNED" &&
+    project.engagement.reviewTeam?.leadAuditor?.signedOff
+  )
+  const hasRealScore = Number(project.score ?? 0) > 0
+  return !hasCiEvidence || !signedReview || !hasRealScore
+}
+
 export function AuditDetailClient({ project, auditId }: { project: PortfolioProject | null; auditId: string }) {
   const [liveProject, setLiveProject] = useState<PortfolioProject | null>(project ? enforceEvidenceOnlyReport(project) : null)
   const [isLive, setIsLive] = useState(false)
@@ -216,6 +232,26 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
           <h1 className="text-xl font-bold text-s39-white mb-4 font-mono">Report does not exist</h1>
           <p className="text-[10px] text-s39-dim mb-6 max-w-sm mx-auto leading-relaxed">
             This audit report does not exist or may have been removed. Check the URL and try again.
+          </p>
+          <a
+            href="/"
+            className="text-[10px] text-s39-cyan border border-s39-cyan/30 px-4 py-2 tracking-widest hover:bg-s39-cyan/5 transition-colors no-underline font-mono"
+          >
+            {"<- BACK TO PORTFOLIO"}
+          </a>
+        </div>
+      </div>
+    )
+  }
+
+  if (isPendingVerification(liveProject)) {
+    return (
+      <div className="min-h-dvh bg-s39-bg0 flex items-center justify-center">
+        <div className="max-w-md mx-auto text-center p-6">
+          <div className="text-[9px] text-[#ffb800] tracking-[0.2em] mb-4 font-mono">PENDING</div>
+          <h1 className="text-xl font-bold text-s39-white mb-3 font-mono">Security score not available</h1>
+          <p className="text-[10px] text-s39-dim mb-6 leading-relaxed">
+            This report has no verified CI artifacts and no signed manual review. The score ring and numeric score are intentionally hidden until evidence is complete.
           </p>
           <a
             href="/"
