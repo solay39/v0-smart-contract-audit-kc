@@ -1,34 +1,8 @@
-"use client"
+import Link from "next/link"
+import { getAllAudits } from "@/lib/mock-db"
+import { PortfolioGrid } from "@/components/PortfolioGrid"
 
-import { useState } from "react"
-import { LoginScreen } from "@/components/login-screen"
-import { SkynetPublic } from "@/components/skynet-public"
-import { AuditWorkspace } from "@/components/audit-workspace"
-
-type Screen = "login" | "skynet" | "workspace"
-
-export default function Home() {
-  const [screen, setScreen] = useState<Screen>("login")
-
-  return (
-    <>
-      {screen === "login" && (
-        <LoginScreen
-          onFounder={() => setScreen("workspace")}
-          onGuest={() => setScreen("skynet")}
-        />
-      )}
-      {screen === "skynet" && (
-        <SkynetPublic onBack={() => setScreen("login")} />
-      )}
-      {screen === "workspace" && (
-        <AuditWorkspace
-          onLogout={() => {
-            void fetch("/api/founder/session", { method: "DELETE" }).catch(() => {})
-            setScreen("login")
-          }}
-        />
-      )}
-    </>
-  )
+export default async function HomePage() {
+  const audits = await getAllAudits()
+  return <main className="min-h-screen bg-s39-bg0 text-s39-white"><header className="border-b border-s39-border"><div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5"><Link href="/" className="flex items-center gap-3 no-underline"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-s39-green to-s39-cyan text-lg font-black text-s39-bg0">S</div><div><div className="text-lg font-black tracking-tight">SOLAY39</div><div className="text-[10px] uppercase tracking-[0.28em] text-s39-dim">Security Intelligence</div></div></Link><nav className="hidden gap-8 text-sm text-s39-dim md:flex"><Link href="/">Portfolio</Link><Link href="/benchmark">Benchmark</Link><Link href="/audit/injective-token">Audit Demo</Link></nav></div></header><section className="mx-auto max-w-7xl px-6 py-16"><div className="grid items-center gap-10 lg:grid-cols-2"><div><div className="mb-4 inline-flex rounded-full border border-s39-green/30 bg-s39-green/10 px-3 py-1 text-[10px] uppercase tracking-[0.28em] text-s39-green">Verified Security</div><h1 className="max-w-xl text-5xl font-black leading-tight tracking-tight">Non vendiamo punteggi.<span className="text-s39-green"> Vendiamo evidenza verificabile.</span></h1><p className="mt-6 max-w-xl text-lg leading-8 text-s39-dim">Benchmark pubblico, attestation multipla, report firmati e sicurezza continua nel ciclo di sviluppo. Nessun score senza evidence.</p><div className="mt-8 flex flex-wrap gap-4"><Link href="/benchmark" className="rounded-full bg-s39-green px-5 py-3 text-sm font-semibold text-s39-bg0">View benchmark</Link><Link href="/audit/injective-token" className="rounded-full border border-s39-border px-5 py-3 text-sm font-semibold text-s39-white">View sample audit</Link></div></div><div className="grid gap-4"><div className="border border-s39-border bg-s39-bg1/60 p-6"><div className="text-[10px] uppercase tracking-[0.3em] text-s39-dim">Verified metrics</div><div className="mt-5 grid grid-cols-3 gap-4">{[["87%", "Precision"], ["83%", "Recall"], ["2+", "Signers"]].map(([value, label]) => <div key={label} className="border border-s39-border bg-s39-bg0/60 p-4"><div className="text-3xl font-black">{value}</div><div className="mt-2 text-[10px] uppercase tracking-[0.2em] text-s39-dim">{label}</div></div>)}</div></div><div className="border border-s39-border bg-s39-bg1/60 p-6"><div className="text-[10px] uppercase tracking-[0.3em] text-s39-dim">Evidence chain</div><ul className="mt-5 space-y-3 text-sm text-s39-dim"><li>Report hash published</li><li>Reviewer names public</li><li>CI artifacts attached</li><li>Multi-signer attestation</li></ul></div></div></div></section><section className="mx-auto max-w-7xl px-6 pb-20"><div className="mb-8 flex items-center justify-between"><h2 className="text-2xl font-bold">Portfolio</h2><div className="text-[10px] uppercase tracking-[0.28em] text-s39-dim">Verified + pending</div></div><PortfolioGrid audits={audits} /></section></main>
 }
