@@ -244,33 +244,25 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
     )
   }
 
-  if (isPendingVerification(liveProject)) {
-    return (
-      <div className="min-h-dvh bg-s39-bg0 flex items-center justify-center">
-        <div className="max-w-md mx-auto text-center p-6">
-          <div className="text-[9px] text-[#ffb800] tracking-[0.2em] mb-4 font-mono">PENDING</div>
-          <h1 className="text-xl font-bold text-s39-white mb-3 font-mono">Security score not available</h1>
-          <p className="text-[10px] text-s39-dim mb-6 leading-relaxed">
-            This report has no verified CI artifacts and no signed manual review. The score ring and numeric score are intentionally hidden until evidence is complete.
-          </p>
-          <a
-            href="/"
-            className="text-[10px] text-s39-cyan border border-s39-cyan/30 px-4 py-2 tracking-widest hover:bg-s39-cyan/5 transition-colors no-underline font-mono"
-          >
-            {"<- BACK TO PORTFOLIO"}
-          </a>
-        </div>
-      </div>
-    )
-  }
+  const pendingVerification = isPendingVerification(liveProject)
 
   return (
-    <AuditErrorBoundary auditId={auditId}>
-      <ProjectDetail
-        p={liveProject}
-        backHref="/"
-        isLive={isLive}
-      />
-    </AuditErrorBoundary>
+    <div className="relative">
+      <AuditErrorBoundary auditId={auditId}>
+        <ProjectDetail
+          p={liveProject}
+          backHref="/"
+          isLive={isLive}
+        />
+      </AuditErrorBoundary>
+
+      {pendingVerification && (
+        <div className="pointer-events-none absolute inset-0 flex items-start justify-center pt-16">
+          <div className="border border-[#ffb800]/40 bg-[#05080a]/80 text-[#ffb800] font-mono text-[9px] tracking-[0.25em] uppercase px-4 py-2 shadow-[0_0_20px_rgba(255,184,0,0.15)]">
+            PENDING
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
