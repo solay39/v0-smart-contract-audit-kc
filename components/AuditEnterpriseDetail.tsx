@@ -70,7 +70,7 @@ export function AuditEnterpriseDetail({ project }: Props) {
             <Link href="/audit/injective-token" className="transition hover:text-white">Sample report</Link>
           </nav>
           <div className={`rounded-full border px-3 py-1.5 text-[9px] font-semibold tracking-[0.18em] ${evidenceComplete ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300" : "border-amber-400/25 bg-amber-400/10 text-amber-300"}`}>
-            {evidenceComplete ? "EVIDENCE COMPLETE" : "PENDING EVIDENCE"}
+            {evidenceComplete ? "EVIDENCE FIELDS PRESENT" : "PENDING EVIDENCE"}
           </div>
         </div>
       </header>
@@ -97,7 +97,7 @@ export function AuditEnterpriseDetail({ project }: Props) {
               <div className="rounded-lg border border-white/[0.07] px-3 py-2.5 text-center text-[9px] uppercase tracking-[0.14em] text-slate-400">{evidence.reviewerNames?.length ? `${evidence.reviewerNames.length} reviewer name(s) listed` : "No reviewer names listed"}</div>
             </div>
             <div className="mt-5 border-t border-white/[0.07] pt-4">
-              <div className="mb-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-500">Evidence checklist</div>
+              <div className="mb-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-500">Evidence summary</div>
               <div className="space-y-2.5">
                 {evidenceChecks.map((item) => <div key={item.label} className="flex items-start justify-between gap-3 text-[10px]"><span className="text-slate-400">{item.label}</span><span className={item.present ? "max-w-[150px] truncate text-right text-emerald-300" : "text-amber-300"}>{item.present ? item.value : "Pending"}</span></div>)}
               </div>
