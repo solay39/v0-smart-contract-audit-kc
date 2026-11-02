@@ -1,17 +1,51 @@
 import Link from "next/link"
 import { getAuditById } from "@/lib/mock-db"
-import { ScoreBadge } from "@/components/ScoreBadge"
-import { SecurityScoreRing } from "@/components/SecurityScoreRing"
 import { hasEnoughEvidence } from "@/lib/verification"
+import { AuditEnterpriseDetail } from "@/components/AuditEnterpriseDetail"
 
 export default async function AuditDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const project = await getAuditById(id)
-  if (!project) return <main className="min-h-screen bg-s39-bg0 px-6 py-20 text-center text-s39-white"><div className="mx-auto max-w-xl"><div className="text-[10px] uppercase tracking-[0.28em] text-s39-red">Audit not found</div><h1 className="mt-4 text-4xl font-black">Report unavailable</h1><p className="mt-4 text-s39-dim">This audit does not exist or has not been published with enough evidence.</p></div></main>
-  const verified = hasEnoughEvidence(project.evidence)
-  const score = verified ? project.score : null
-  return <main className="min-h-screen bg-s39-bg0 text-s39-white"><div className="mx-auto max-w-6xl px-6 py-10"><Link href="/" className="text-[10px] uppercase tracking-[0.28em] text-s39-dim hover:text-s39-green">Back to portfolio</Link><div className="mt-8 border border-s39-border bg-s39-bg1/40 p-6 md:p-8"><div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between"><div className="flex items-center gap-5"><div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-s39-green to-s39-cyan text-2xl font-black text-s39-bg0">{project.ticker.slice(0, 2)}</div><div><div className="text-[10px] uppercase tracking-[0.28em] text-s39-dim">{project.network} · {project.category}</div><h1 className="mt-2 text-4xl font-black tracking-tight">{project.name}</h1></div></div><ScoreBadge score={score} rating={verified ? project.rating : "PENDING"} evidence={project.evidence} /></div><div className="mt-8 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]"><div className="border border-s39-border bg-s39-bg0/60 p-6"><div className="mb-3 text-[10px] uppercase tracking-[0.28em] text-s39-dim">Executive Summary</div><p className="text-s39-dim">{project.description}</p><div className="mt-6 grid grid-cols-2 gap-4 text-sm"><Info label="Price" value={project.price} /><Info label="24h" value={project.change24h} /><Info label="Market Cap" value={project.marketCap} /><Info label="Risk" value={project.riskLabel} /></div></div><div className="border border-s39-border bg-s39-bg0/60 p-6"><div className="mb-3 text-[10px] uppercase tracking-[0.28em] text-s39-dim">Verification status</div><div className="text-xl font-bold">{verified ? "VERIFIED" : "PENDING"}</div><ul className="mt-5 space-y-3 text-sm text-s39-dim"><li>Report hash: {project.evidence.reportHash || "missing"}</li><li>Reviewers: {project.evidence.reviewerNames?.length ? project.evidence.reviewerNames.join(", ") : "pending"}</li><li>CI artifacts: {project.evidence.ciArtifacts?.length ?? 0}</li><li>Signers: {project.evidence.attestationCount ?? 0}</li></ul></div></div><div className="mt-8 border border-s39-border bg-s39-bg0/60 p-6"><div className="mb-6 text-[10px] uppercase tracking-[0.28em] text-s39-dim">Security score</div><div className="flex justify-center"><SecurityScoreRing score={score} evidence={project.evidence} /></div>{verified && <div className="mt-8 grid gap-4 md:grid-cols-5">{Object.entries(project.scoreBreakdown ?? {}).map(([label, value]) => <Metric key={label} label={label} value={String(value)} />)}</div>}</div></div></div></main>
-}
 
-function Info({ label, value }: { label: string; value: string }) { return <div className="border border-s39-border bg-s39-bg1/50 p-3"><div className="text-[10px] uppercase tracking-[0.2em] text-s39-dim">{label}</div><div className="mt-2 text-lg font-bold">{value}</div></div> }
-function Metric({ label, value }: { label: string; value: string }) { return <div className="border border-s39-border bg-s39-bg1/50 p-4 text-center"><div className="text-[10px] uppercase tracking-[0.2em] text-s39-dim">{label}</div><div className="mt-3 text-2xl font-black">{value}</div></div> }
+  if (!project) {
+    return (
+      <main className="min-h-screen bg-slate-950 px-6 py-20 text-center text-white">
+        <div className="mx-auto max-w-xl">
+          <div className="text-[10px] uppercase tracking-[0.28em] text-rose-300">Audit not found</div>
+          <h1 className="mt-4 text-4xl font-black">Report unavailable</h1>
+          <p className="mt-4 text-slate-400">
+            This audit does not exist or has not been published with enough evidence.
+          </p>
+        </div>
+      </main>
+    )
+  }
+
+  if (!hasEnoughEvidence(project.evidence)) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white">
+        <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+            <div className="flex items-center gap-4">
+              <Link href="/" className="text-[10px] uppercase tracking-[0.24em] text-slate-300">← Back</Link>
+            </div>
+            <div className="rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-amber-300">
+              PENDING
+            </div>
+          </div>
+        </header>
+        <div className="mx-auto max-w-4xl px-6 py-20">
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-10 text-center">
+            <div className="text-[10px] uppercase tracking-[0.28em] text-amber-300">Verification pending</div>
+            <h1 className="mt-4 text-4xl font-black">Security score not available yet</h1>
+            <p className="mt-4 text-slate-400">
+              This report is still pending required evidence: report hash, reviewer names, CI artifacts, commit snapshot and multi-signer attestation.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return <AuditEnterpriseDetail project={project} />
+}
