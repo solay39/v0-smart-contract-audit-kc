@@ -1508,6 +1508,9 @@ function pause() public onlyPauser {
 // backward compat
 export const DEMO_PROJECTS = DEFAULT_PROJECTS
 
+// Normalized defaults are always non-audited demo entries.
+export const DEMO_PROJECTS_NORMALIZED = DEFAULT_PROJECTS.map((project) => normalizeAuditProject(project, false))
+
 // ── audit card normalization ─────────────────────────────────────
 export type AuditStatus = "AUDITED" | "NOT_EVALUATED" | "DEMO" | "UNVERIFIED"
 

@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { ScoreRing } from "@/components/solay39-ui"
 import { OnChainAnalysisPanel } from "@/components/onchain-analysis-panel"
-import { DEFAULT_PROJECTS, normalizeAuditProject, scoreColor } from "@/lib/solay39-constants"
+import { DEMO_PROJECTS_NORMALIZED, normalizeAuditProject, scoreColor } from "@/lib/solay39-constants"
 
 // ── Market Ticker Component ──────────────────────────────────────
 function MarketTicker() {
@@ -109,8 +109,8 @@ export default function SkynetProPage() {
   const allProjects = useMemo(() => {
     const merged = [...dbProjects]
     const dbIds = new Set(dbProjects.map((project) => project.id))
-    for (const project of DEFAULT_PROJECTS) {
-      if (!dbIds.has(project.id)) merged.push(normalizeAuditProject(project, false) as DbProject)
+    for (const project of DEMO_PROJECTS_NORMALIZED) {
+      if (project.id && !dbIds.has(project.id)) merged.push(project as DbProject)
     }
     return merged
   }, [dbProjects])
@@ -406,8 +406,8 @@ export default function SkynetProPage() {
                     <th className="py-3 px-2">Project</th>
                     <th className="py-3 px-2">Network</th>
                     <th className="py-3 px-2">Security Score</th>
-                    <th className="py-3 px-2">Risk Status</th>
-                    <th className="py-3 px-2">Market Action</th>
+                    <th className="py-3 px-2">Status</th>
+                    <th className="py-3 px-2">Risk</th>
                   </tr>
                 </thead>
                 <tbody className="text-[10px]">
