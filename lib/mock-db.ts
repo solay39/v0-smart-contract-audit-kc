@@ -1,10 +1,65 @@
 import type { AuditProject } from "@/lib/types"
 
+// UI sample records intentionally contain no audit evidence or asserted security scores.
+// Replace these with persisted, evidence-backed audit records before publication.
 export const mockAudits: AuditProject[] = [
-  { id: "injective-token", name: "Injective Token", ticker: "INJ", network: "Ethereum", category: "DeFi", score: 92, rating: "A", status: "VERIFIED", price: "$7.16", change24h: "+0.34%", marketCap: "$727.88M", findings: { critical: 0, high: 1, medium: 2, low: 4 }, description: "Injective is a lightning-fast interoperable Layer 1 optimized for Web3 and DeFi infrastructure.", evidence: { reportHash: "0x9f82addc", reviewerNames: ["Alice Morgan", "Rafael Voss"], ciArtifacts: ["slither-report.json", "mythril-report.json"], commitHash: "57a8d2c", branch: "main", signedAt: "2026-10-12T00:00:00Z", attestationCount: 3 }, riskLabel: "LOW", scoreBreakdown: { codeSecurity: 94, architecture: 91, governance: 88, economics: 85, onChain: 90 }, tags: ["Layer 1", "DeFi", "ERC-20"] },
-  { id: "fetch-ai", name: "Fetch.ai", ticker: "FET", network: "Ethereum", category: "AI / Infrastructure", score: 0, rating: "PENDING", status: "PENDING", price: "$0.15", change24h: "-0.25%", marketCap: "$1.84B", findings: { critical: 0, high: 0, medium: 0, low: 0 }, description: "AI infrastructure network with active token utility and large ecosystem coverage.", evidence: { reportHash: "", reviewerNames: [], ciArtifacts: [], commitHash: "", branch: "main", signedAt: "", attestationCount: 0 }, riskLabel: "LOW", tags: ["AI", "Infrastructure", "ERC-20"] },
-  { id: "chiliz", name: "chiliZ", ticker: "CHZ", network: "Ethereum", category: "Fan Tokens", score: 88, rating: "B", status: "VERIFIED", price: "$0.0121", change24h: "-2.62%", marketCap: "$1.13B", findings: { critical: 0, high: 0, medium: 1, low: 3 }, description: "Sports and entertainment token ecosystem with community and token utility.", evidence: { reportHash: "0x0e7b981a", reviewerNames: ["Priya Shah", "Dorian Lee"], ciArtifacts: ["analysis.json", "scan.xml"], commitHash: "e6d8ac1", branch: "main", signedAt: "2026-09-15T00:00:00Z", attestationCount: 2 }, riskLabel: "MEDIUM", scoreBreakdown: { codeSecurity: 89, architecture: 82, governance: 76, economics: 85, onChain: 86 }, tags: ["Sports", "Fan Token", "ERC-20"] },
+  {
+    id: "injective-token",
+    name: "Injective Token",
+    ticker: "INJ",
+    network: "Ethereum",
+    category: "DeFi",
+    score: null,
+    rating: null,
+    status: "PENDING",
+    price: "—",
+    change24h: "",
+    marketCap: "—",
+    findings: { critical: 0, high: 0, medium: 0, low: 0 },
+    description: "Sample project record. Audit findings and score will be displayed only after report evidence is supplied.",
+    evidence: { reportHash: "", reviewerNames: [], ciArtifacts: [], commitHash: "", attestationCount: 0 },
+    tags: ["Layer 1", "DeFi", "ERC-20"],
+  },
+  {
+    id: "fetch-ai",
+    name: "Fetch.ai",
+    ticker: "FET",
+    network: "Ethereum",
+    category: "AI / Infrastructure",
+    score: null,
+    rating: null,
+    status: "PENDING",
+    price: "—",
+    change24h: "",
+    marketCap: "—",
+    findings: { critical: 0, high: 0, medium: 0, low: 0 },
+    description: "Sample project record. No audit conclusion is asserted by this demo entry.",
+    evidence: { reportHash: "", reviewerNames: [], ciArtifacts: [], commitHash: "", attestationCount: 0 },
+    tags: ["AI", "Infrastructure", "ERC-20"],
+  },
+  {
+    id: "chiliz",
+    name: "chiliZ",
+    ticker: "CHZ",
+    network: "Ethereum",
+    category: "Fan Tokens",
+    score: null,
+    rating: null,
+    status: "PENDING",
+    price: "—",
+    change24h: "",
+    marketCap: "—",
+    findings: { critical: 0, high: 0, medium: 0, low: 0 },
+    description: "Sample project record. Add reviewed findings and evidence before presenting an audit result.",
+    evidence: { reportHash: "", reviewerNames: [], ciArtifacts: [], commitHash: "", attestationCount: 0 },
+    tags: ["Sports", "Fan Token", "ERC-20"],
+  },
 ]
 
-export async function getAllAudits() { return mockAudits }
-export async function getAuditById(id: string) { return mockAudits.find((audit) => audit.id === id) ?? null }
+export async function getAllAudits(): Promise<AuditProject[]> {
+  return mockAudits
+}
+
+export async function getAuditById(id: string): Promise<AuditProject | null> {
+  return mockAudits.find((audit) => audit.id === id) ?? null
+}
