@@ -3,6 +3,16 @@ import { DEFAULT_PROJECTS, type PortfolioProject } from "@/lib/solay39-constants
 
 const projectMap = new Map(DEFAULT_PROJECTS.map((p) => [p.id, p]))
 
+const auditIdAliases: Record<string, string> = {
+  "injective-token": "inj-token",
+  "fetch-ai": "fetch-token",
+  "chiliz-token": "chiliz",
+}
+
+function normalizeAuditId(id: string): string {
+  return auditIdAliases[id] || id
+}
+
 async function fromSupabase(id: string): Promise<PortfolioProject | null> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
@@ -32,5 +42,6 @@ async function fromBlob(id: string): Promise<PortfolioProject | null> {
 }
 
 export async function getPublishedAudit(id: string): Promise<PortfolioProject | null> {
-  return projectMap.get(id) ?? (await fromSupabase(id)) ?? (await fromBlob(id))
+  const normalizedId = normalizeAuditId(id)
+  return projectMap.get(id) ?? projectMap.get(normalizedId) ?? (await fromSupabase(id)) ?? (await fromSupabase(normalizedId)) ?? (await fromBlob(id)) ?? (await fromBlob(normalizedId))
 }
