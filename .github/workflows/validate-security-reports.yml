@@ -2,9 +2,12 @@ name: Validate security reports
 
 on:
   pull_request:
-    paths: ["report.json", "reports/**", "**/*.json", "**/*.md", "**/*.yaml", "**/*.yml"]
+    paths: ["report.json", "reports/**", "**/*.json", "**/*.md", "**/*.yaml", "**/*.yml", "package.json", "pnpm-lock.yaml"]
   push:
-    paths: ["report.json", "reports/**", "**/*.json", "**/*.md", "**/*.yaml", "**/*.yml"]
+    paths: ["report.json", "reports/**", "**/*.json", "**/*.md", "**/*.yaml", "**/*.yml", "package.json", "pnpm-lock.yaml"]
+
+permissions:
+  contents: read
 
 jobs:
   validate-security-reports:
@@ -12,19 +15,22 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+          cache: pnpm
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       - name: Validate report.json
         run: |
-          if [ -f report.json ]; then npm run validate-report; fi
+          if [ -f report.json ]; then pnpm run validate-report; fi
       - name: Validate reports directory
         run: |
-          if [ -d reports ]; then npm run validate-dir; fi
+          if [ -d reports ]; then pnpm run validate-dir; fi
       - name: Generate diff summary
         run: |
           if [ -f report.json ]; then node generate-diffsum.js report.json report.previous.example.json --output report-diff.md; fi

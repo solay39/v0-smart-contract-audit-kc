@@ -23,15 +23,24 @@ jobs:
           cache: pnpm
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-      - run: pnpm install --frozen-lockfile
+          # Mythril's legacy dependency chain does not build cleanly with NumPy
+          # from source on Python 3.11+. Python 3.10 has compatible binary wheels.
+          python-version: "3.10"
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile
       - name: Install isolated Slither and Mythril
         run: |
           python -m venv "$RUNNER_TEMP/security-tools"
-          "$RUNNER_TEMP/security-tools/bin/python" -m pip install --upgrade pip wheel
-          "$RUNNER_TEMP/security-tools/bin/python" -m pip install slither-analyzer mythril
+          "$RUNNER_TEMP/security-tools/bin/python" -m pip install --upgrade pip setuptools wheel
+          "$RUNNER_TEMP/security-tools/bin/python" -m pip install slither-analyzer
+          # Pin to a Python 3.10 wheel to avoid attempting the obsolete source build
+          # that fails with distutils.msvccompiler on current Python environments.
+          "$RUNNER_TEMP/security-tools/bin/python" -m pip install "numpy==1.26.4"
+          "$RUNNER_TEMP/security-tools/bin/python" -m pip install mythril
           echo "$RUNNER_TEMP/security-tools/bin" >> "$GITHUB_PATH"
       - name: Required scanner preflight
         run: node scripts/require-security-tools.mjs
+      - name: TypeScript build checks
+        run: pnpm test
       - name: Benchmark evaluator tests
         run: python -m unittest discover -s benchmarks -p 'test_*.py' -v
