@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://solay39.eu/schemas/audit-record.schema.json",
+  "title": "Solay39 Audit Record",
+  "description": "Versioned audit record. Evidence metadata is not, by itself, an authenticated signature or security certification.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "auditId", "project", "audit", "review", "findings", "evidence"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "auditId": { "type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{2,127}$" },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "network"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "network": { "type": "string", "minLength": 1 },
+        "chainId": { "type": ["integer", "null"], "minimum": 0 },
+        "repositoryUrl": { "type": ["string", "null"], "format": "uri" }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "scope", "methodologyVersion", "sourceCommit", "startedAt"],
+      "properties": {
+        "status": { "enum": ["DRAFT", "AUTOMATED_PRELIMINARY", "MANUAL_REVIEWED", "PUBLISHED"] },
+        "scope": { "type": "string", "minLength": 1 },
+        "methodologyVersion": { "type": "string", "minLength": 1 },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": ["string", "null"], "format": "date-time" },
+        "sourceCommit": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repository", "sha"],
+          "properties": {
+            "repository": { "type": "string", "minLength": 1 },
+            "sha": { "type": "string", "pattern": "^[a-fA-F0-9]{40}$" }
+          }
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reviewers"],
+      "properties": {
+        "status": { "enum": ["NOT_PERFORMED", "PARTIAL", "FULL"] },
+        "reviewers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "role"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "role": { "type": "string", "minLength": 1 },
+              "identityReference": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "severity", "title", "description", "status", "location", "evidenceArtifactIds"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Z0-9][A-Z0-9._-]{1,63}$" },
+          "severity": { "enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+          "title": { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 1 },
+          "impact": { "type": ["string", "null"] },
+          "recommendation": { "type": ["string", "null"] },
+          "status": { "enum": ["OPEN", "MITIGATED", "ACCEPTED_RISK", "FALSE_POSITIVE"] },
+          "location": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["file"],
+            "properties": {
+              "file": { "type": "string", "minLength": 1 },
+              "startLine": { "type": ["integer", "null"], "minimum": 1 },
+              "endLine": { "type": ["integer", "null], "minimum": 1 },
+              "contract": { "type": ["string", "null"] },
+              "function": { "type": ["string", "null"] }
+            }
+          },
+          "evidenceArtifactIds": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifacts"],
+      "properties": {
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "path", "mediaType"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{1,63}$" },
+              "path": { "type": "string", "minLength": 1 },
+              "mediaType": { "type": "string", "pattern": "^[a-zA-Z0-9.+-]+/[a-zA-Z0-9.+-]+$" },
+              "description": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
