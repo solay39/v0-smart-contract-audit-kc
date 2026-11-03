@@ -1,14 +1,6 @@
-export type VerificationStatus = "VERIFIED" | "PENDING" | "REJECTED"
+import type { AuditEvidence, VerificationStatus } from "@/lib/verification"
 
-export interface AuditEvidence {
-  reportHash?: string
-  reviewerNames?: string[]
-  ciArtifacts?: string[]
-  commitHash?: string
-  branch?: string
-  signedAt?: string
-  attestationCount?: number
-}
+export type { AuditEvidence, VerificationStatus }
 
 export interface AuditProject {
   id: string

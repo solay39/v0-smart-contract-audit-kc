@@ -1,6 +1,14 @@
-import type { AuditEvidence, VerificationStatus } from "@/lib/types"
+export type VerificationStatus = "VERIFIED" | "PENDING" | "REJECTED"
 
-export type { AuditEvidence, VerificationStatus }
+export interface AuditEvidence {
+  reportHash?: string
+  reviewerNames?: string[]
+  ciArtifacts?: string[]
+  commitHash?: string
+  branch?: string
+  signedAt?: string
+  attestationCount?: number
+}
 
 export function hasEnoughEvidence(evidence: AuditEvidence | null | undefined): boolean {
   if (!evidence) return false
