@@ -1,8 +1,67 @@
 import Link from "next/link"
 import { getAllAudits } from "@/lib/mock-db"
 import { PortfolioGrid } from "@/components/PortfolioGrid"
+import { SiteHeader } from "@/components/SiteHeader"
+import { hasEnoughEvidence } from "@/lib/verification"
 
 export default async function HomePage() {
   const audits = await getAllAudits()
-  return <main className="min-h-screen bg-s39-bg0 text-s39-white"><header className="border-b border-s39-border"><div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5"><Link href="/" className="flex items-center gap-3 no-underline"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-s39-green to-s39-cyan text-lg font-black text-s39-bg0">S</div><div><div className="text-lg font-black tracking-tight">SOLAY39</div><div className="text-[10px] uppercase tracking-[0.28em] text-s39-dim">Security Intelligence</div></div></Link><nav className="hidden gap-8 text-sm text-s39-dim md:flex"><Link href="/">Portfolio</Link><Link href="/benchmark">Benchmark</Link><Link href="/audit/injective-token">Audit Demo</Link></nav></div></header><section className="mx-auto max-w-7xl px-6 py-16"><div className="grid items-center gap-10 lg:grid-cols-2"><div><div className="mb-4 inline-flex rounded-full border border-s39-green/30 bg-s39-green/10 px-3 py-1 text-[10px] uppercase tracking-[0.28em] text-s39-green">Verified Security</div><h1 className="max-w-xl text-5xl font-black leading-tight tracking-tight">Non vendiamo punteggi.<span className="text-s39-green"> Vendiamo evidenza verificabile.</span></h1><p className="mt-6 max-w-xl text-lg leading-8 text-s39-dim">Benchmark pubblico, attestation multipla, report firmati e sicurezza continua nel ciclo di sviluppo. Nessun score senza evidence.</p><div className="mt-8 flex flex-wrap gap-4"><Link href="/benchmark" className="rounded-full bg-s39-green px-5 py-3 text-sm font-semibold text-s39-bg0">View benchmark</Link><Link href="/audit/injective-token" className="rounded-full border border-s39-border px-5 py-3 text-sm font-semibold text-s39-white">View sample audit</Link></div></div><div className="grid gap-4"><div className="border border-s39-border bg-s39-bg1/60 p-6"><div className="text-[10px] uppercase tracking-[0.3em] text-s39-dim">Verified metrics</div><div className="mt-5 grid grid-cols-3 gap-4">{[["87%", "Precision"], ["83%", "Recall"], ["2+", "Signers"]].map(([value, label]) => <div key={label} className="border border-s39-border bg-s39-bg0/60 p-4"><div className="text-3xl font-black">{value}</div><div className="mt-2 text-[10px] uppercase tracking-[0.2em] text-s39-dim">{label}</div></div>)}</div></div><div className="border border-s39-border bg-s39-bg1/60 p-6"><div className="text-[10px] uppercase tracking-[0.3em] text-s39-dim">Evidence chain</div><ul className="mt-5 space-y-3 text-sm text-s39-dim"><li>Report hash published</li><li>Reviewer names public</li><li>CI artifacts attached</li><li>Multi-signer attestation</li></ul></div></div></div></section><section className="mx-auto max-w-7xl px-6 pb-20"><div className="mb-8 flex items-center justify-between"><h2 className="text-2xl font-bold">Portfolio</h2><div className="text-[10px] uppercase tracking-[0.28em] text-s39-dim">Verified + pending</div></div><PortfolioGrid audits={audits} /></section></main>
+  const evidenceCompleteCount = audits.filter((audit) => hasEnoughEvidence(audit.evidence)).length
+  const pendingCount = audits.length - evidenceCompleteCount
+
+  return (
+    <main className="min-h-screen bg-s39-bg0 text-s39-white">
+      <SiteHeader />
+      <div className="mx-auto max-w-6xl px-5 sm:px-8">
+        <section className="grid gap-10 border-b border-s39-border py-16 sm:py-24 lg:grid-cols-[1.3fr_0.7fr] lg:items-end">
+          <div>
+            <p className="text-[9px] uppercase tracking-[0.28em] text-s39-green">Independent security evidence</p>
+            <h1 className="mt-5 max-w-3xl text-4xl font-semibold leading-[1.12] tracking-tight sm:text-6xl">
+              Security reviews, <span className="text-s39-mid">with the evidence in view.</span>
+            </h1>
+            <p className="mt-5 max-w-2xl text-sm leading-7 text-s39-mid">
+              A public index for audit records, findings and supporting evidence. Scores are shown only when the required record fields are present; field presence alone is not independent verification.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link href="/benchmark" className="border border-s39-green/40 bg-s39-green/[0.07] px-4 py-3 text-[10px] font-medium uppercase tracking-[0.15em] text-s39-green transition hover:bg-s39-green/[0.12]">Benchmark methodology</Link>
+              <Link href="/methodology" className="border border-s39-border px-4 py-3 text-[10px] font-medium uppercase tracking-[0.15em] text-s39-lite transition hover:border-s39-mid">Review standards</Link>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 border-y border-s39-border py-5 lg:border-l lg:border-y-0 lg:pl-8">
+            <div className="pr-4">
+              <p className="text-[9px] uppercase tracking-[0.17em] text-s39-dim">Evidence fields present</p>
+              <p className="mt-3 text-3xl font-medium text-s39-lite">{evidenceCompleteCount}</p>
+              <p className="mt-1 text-[10px] text-s39-dim">Metadata completeness only</p>
+            </div>
+            <div className="border-l border-s39-border pl-5">
+              <p className="text-[9px] uppercase tracking-[0.17em] text-s39-dim">Pending records</p>
+              <p className="mt-3 text-3xl font-medium text-s39-lite">{pendingCount}</p>
+              <p className="mt-1 text-[10px] text-s39-dim">Evidence incomplete</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-10" aria-labelledby="portfolio-heading">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-[9px] uppercase tracking-[0.2em] text-s39-dim">Public records</p>
+              <h2 id="portfolio-heading" className="mt-1 text-xl font-medium">Audit portfolio</h2>
+            </div>
+            <Link href="/verification" className="text-[10px] text-s39-mid underline decoration-s39-border underline-offset-4 hover:text-s39-white">How status is determined</Link>
+          </div>
+          <PortfolioGrid audits={audits} />
+        </section>
+
+        <section className="grid gap-6 border-t border-s39-border py-8 sm:grid-cols-3">
+          <Principle title="Transparent records" text="Separate findings, evidence metadata and conclusions so readers can inspect what is—and is not—available." />
+          <Principle title="Reproducible evaluation" text="Benchmark claims require versioned data, documented methods and artifacts that can be independently reproduced." />
+          <Principle title="No implied guarantee" text="An audit report is a point-in-time review, not a promise that software is free of vulnerabilities or safe to deploy." />
+        </section>
+      </div>
+    </main>
+  )
+}
+
+function Principle({ title, text }: { title: string; text: string }) {
+  return <div className="border-t border-s39-border pt-4"><h3 className="text-xs font-medium text-s39-lite">{title}</h3><p className="mt-2 text-[11px] leading-5 text-s39-dim">{text}</p></div>
 }
