@@ -6,7 +6,7 @@ const projectMap = new Map(DEFAULT_PROJECTS.map((p) => [p.id, p]))
 const auditIdAliases: Record<string, string> = {
   "injective-token": "inj-token",
   "fetch-ai": "fetch-token",
-  "chiliz-token": "chiliz",
+  "chiliz-token": "chz-token",
 }
 
 function normalizeAuditId(id: string): string {
