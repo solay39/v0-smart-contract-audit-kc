@@ -5,6 +5,8 @@ import { AuditDetailClient } from "./client"
 
 // Allow dynamic audit slugs not in generateStaticParams
 export const dynamicParams = true
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 type Props = { params: Promise<{ id: string }> }
 

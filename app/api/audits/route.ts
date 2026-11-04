@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { getPublishedAudit } from "@/lib/get-published-audit"
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 export async function GET(request: Request) {
   const id = new URL(request.url).searchParams.get("id")?.trim()
   if (!id) return NextResponse.json({ audit: null, error: "id is required" }, { status: 400 })
