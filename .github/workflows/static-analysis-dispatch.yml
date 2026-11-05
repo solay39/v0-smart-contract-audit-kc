@@ -92,8 +92,17 @@ jobs:
           SLITHER_STATUS=$status python - <<'PY'
           import json, os, pathlib
           p = pathlib.Path('out/slither.json')
+          log = pathlib.Path('out/slither.log').read_text(errors='replace')
           if not p.exists() or p.stat().st_size == 0:
-              raise SystemExit('Slither did not produce a JSON artifact')
+              # Slither can exit before writing JSON when solc/import resolution
+              # fails. Preserve that failure as machine-readable evidence.
+              p.write_text(json.dumps({
+                  'success': False,
+                  'error': 'slither_failed_before_json_output',
+                  'exit_code': int(os.environ['SLITHER_STATUS']),
+                  'stderr': log[-8000:],
+                  'results': {'detectors': []},
+              }, indent=2))
           data = json.loads(p.read_text())
           if not isinstance(data.get('results', {}).get('detectors'), list):
               raise SystemExit('Slither artifact has no detector list')
@@ -168,7 +177,9 @@ jobs:
               if p.is_file(): files[p.name] = hashlib.sha256(p.read_bytes()).hexdigest()
           source = Path('work/Contract.sol').read_bytes()
           source_hash = hashlib.sha256(source).hexdigest()
-          manifest = {'job_id': '${{ inputs.job_id }}', 'contract_name': '${{ inputs.contract_name }}', 'source_sha256': source_hash, 'analyzed_path': 'work/Contract.sol', 'artifacts': files, 'claims': {'slither': True, 'mythril': True, 'custom_regression': True, 'foundry_compile': True, 'protocol_fuzzing': False, 'invariants': False, 'manual_review': False}}
+          slither = json.loads(Path('out/slither.json').read_text()).get('success', True)
+          mythril = json.loads(Path('out/mythril.json').read_text()).get('success', True)
+          manifest = {'job_id': '${{ inputs.job_id }}', 'contract_name': '${{ inputs.contract_name }}', 'source_sha256': source_hash, 'analyzed_path': 'work/Contract.sol', 'artifacts': files, 'claims': {'slither': slither, 'mythril': mythril, 'custom_regression': True, 'foundry_compile': True, 'protocol_fuzzing': False, 'invariants': False, 'manual_review': False}}
           Path('out/evidence-manifest.json').write_text(json.dumps(manifest, indent=2))
           PY
 
