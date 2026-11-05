@@ -17,9 +17,9 @@ function ref(): string {
 }
 
 function token(): string | null {
-  const raw = process.env.GITHUB_TOKEN?.trim()
+  const raw = (process.env.GITHUB_FINE_GRAINED_PAT || process.env.GITHUB_TOKEN)?.trim()
   if (!raw) return null
-  return raw.replace(/^GITHUB_TOKEN\s*=?\s*/i, "").replace(/^["']|["']$/g, "") || null
+  return raw.replace(/^(GITHUB_FINE_GRAINED_PAT|GITHUB_TOKEN)\s*=?\s*/i, "").replace(/^["']|["']$/g, "") || null
 }
 
 export function isGithubAnalysisConfigured(): boolean {
@@ -48,8 +48,8 @@ export class GithubAnalysisError extends Error {
 }
 
 function explain(status: number, body: string): string {
-  if (status === 401) return "GITHUB_TOKEN non valido o scaduto (401 Bad credentials). Rigenera il token."
-  if (status === 403) return "GITHUB_TOKEN senza permesso Actions: Read and write su questo repository."
+  if (status === 401) return "GITHUB_FINE_GRAINED_PAT non valido o scaduto (401 Bad credentials). Rigenera il token."
+  if (status === 403) return "GITHUB_FINE_GRAINED_PAT senza permesso Actions: Read and write su questo repository."
   if (status === 404) return `Workflow ${WORKFLOW_FILE} non trovato sul branch ${ref()}. Unisci il branch su main.`
   if (status === 422) return `Dispatch rifiutato da GitHub: ${body.slice(0, 200)}`
   return `GitHub API ${status}: ${body.slice(0, 200)}`
