@@ -42,8 +42,8 @@ jobs:
       - run: docker build -t solay39-slither-worker slither-worker
       - name: Smoke test
         run: |
-          docker run -d --name w -p 8080:8080 -e SLITHER_WORKER_API_KEY=ci-key solay39-slither-worker
-          for i in $(seq 1 30); do curl -sf localhost:8080/health && break; sleep 2; done
+          docker run -d --name slither-worker -p 8080:8080 -e SLITHER_WORKER_API_KEY=ci-key solay39-slither-worker
+          for i in $(seq 1 30); do curl -sf localhost:8080/health && break; sleep 2; done || { docker logs slither-worker; exit 1; }
           curl -sf -X POST localhost:8080/v1/analyze -H 'x-api-key: ci-key' -H 'content-type: application/json' \
             -d '{"code":"// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\ncontract B { mapping(address=>uint) b; function w() external { uint a=b[msg.sender]; (bool ok,)=msg.sender.call{value:a}(\"\"); require(ok); b[msg.sender]=0; } }","contractName":"B"}' \
             | tee /tmp/out.json | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['status']=='ok', d; assert any(f['check']=='reentrancy-eth' for f in d['findings']), d"
