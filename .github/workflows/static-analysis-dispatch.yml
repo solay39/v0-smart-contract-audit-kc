@@ -141,7 +141,12 @@ jobs:
         run: |
           set -euo pipefail
           curl -L --fail --silent --show-error https://foundry.paradigm.xyz | bash
-          export PATH="$HOME/.foundry/bin:$PATH"
+          for dir in "$HOME/.foundry/bin" "$HOME/.config/.foundry/bin" "$HOME/.config/foundry/bin"; do
+            if [ -d "$dir" ]; then
+              export PATH="$dir:$PATH"
+              echo "$dir" >> "$GITHUB_PATH"
+            fi
+          done
           foundryup
           mkdir -p submitted/src submitted/test
           cp work/Contract.sol submitted/src/Contract.sol
