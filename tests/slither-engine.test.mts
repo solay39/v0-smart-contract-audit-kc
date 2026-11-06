@@ -16,6 +16,43 @@ const run = (name: string) =>
 const reentrancyFindings = (r: Awaited<ReturnType<typeof runAuditEngine>>) =>
   r.staticAnalysis.findings.filter((f) => /reentran/i.test(f.title) || f.id.startsWith("REENTRANCY"))
 
+test("incomplete Slither never produces a numeric security score", async () => {
+  for (const status of ["compile_error", "timeout", "error", "unavailable"] as const) {
+    const r = await runAuditEngine(fx.safe.code, {
+      slither: { tool: "slither", status, findings: [], error: "test failure" },
+    })
+    assert.equal(r.summary.score, null)
+    assert.equal(r.assurance.status, "INCOMPLETE")
+    assert.equal(r.assurance.founderReviewRequired, true)
+    assert.equal(r.assurance.isCertification, false)
+    assert.notEqual(r.summary.overallRisk as string, "SAFE")
+  }
+})
+
+test("completed static analysis is still a draft requiring founder review", async () => {
+  const r = await run("safe")
+  assert.equal(r.assurance.status, "AUTOMATED_DRAFT")
+  assert.equal(r.assurance.founderReviewRequired, true)
+  assert.equal(r.assurance.isCertification, false)
+  assert.notEqual(r.summary.overallRisk as string, "SAFE")
+  assert.ok(r.assurance.limitations.some((s) => s.includes("formal verification")))
+})
+
+test("two same-title reentrancy findings at different locations must both survive", async () => {
+  const first = fx.reentrant.result.findings.find((f) => f.check === "reentrancy-eth")!
+  const second = {
+    ...first, id: "another-distinct-vulnerability", file: "Other.sol",
+    contract: "Other", function: "withdrawAll", startLine: 30, endLine: 40,
+    lines: [30, 40],
+  }
+  const r = await runAuditEngine(fx.reentrant.code, {
+    slither: { ...fx.reentrant.result, findings: [first, second, first] },
+  })
+  const hits = r.staticAnalysis.findings.filter((f) => f.detector === "reentrancy-eth")
+  assert.equal(hits.length, 2)
+  assert.notEqual(hits[0].location, hits[1].location)
+})
+
 test("Slither is the primary engine when it ran", async () => {
   const r = await run("reentrant")
   assert.equal(r.toolchain.mode, "slither")

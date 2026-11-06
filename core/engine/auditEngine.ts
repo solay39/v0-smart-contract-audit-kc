@@ -1,11 +1,11 @@
 /**
  * Solay39 AI Audit Engine — auditEngine.ts
- * UPGRADE v2: Every StaticFinding now carries CertiK-grade fields:
+ * Automated assessment support. Findings require founder validation.
  *   cvss       → full CVSSv3.1 vector + base score
  *   likelihood → "High" | "Medium" | "Low"
- *   codeEvidence → exact snippet proving the finding
+ *   codeEvidence → source snippet supporting the finding
  *   remediationExample → Solidity showing the correct fix
- *   foundryPoC → runnable forge test for HIGH/CRITICAL
+ *   foundryPoC → generated test template, not evidence of execution
  */
 
 import { parseContract, getAttackSurface, type ParseResult } from "./codeParser"
@@ -53,6 +53,12 @@ export interface AuditEngineResult {
     slither: Omit<SlitherRunResult, "findings"> & { findingsCount: number }
     /** Heuristic findings discarded because Slither analysed the same class precisely */
     heuristicFindingsDropped: number
+  }
+  assurance: {
+    status: "AUTOMATED_DRAFT" | "INCOMPLETE"
+    founderReviewRequired: true
+    isCertification: false
+    limitations: string[]
   }
   // Standard analysis
   economic: EconomicAnalysisResult
@@ -117,8 +123,9 @@ export interface AttackSimulation {
 }
 
 export interface AuditSummary {
-  overallRisk: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "SAFE"
-  score: number
+  overallRisk: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "NO_FINDINGS" | "INCOMPLETE"
+  /** Finding-weighted indicator, not a security probability. Null if Slither did not complete. */
+  score: number | null
   criticalCount: number
   highCount: number
   mediumCount: number
@@ -406,6 +413,19 @@ export async function runAuditEngine(
     checksRun,
     triggeredChecks
   )
+  const limitations = [
+    "Automated findings require manual validation by the founder.",
+    "No vulnerability detected does not prove the absence of vulnerabilities.",
+    "Generated exploit and Foundry templates have not been executed by this engine.",
+    "Fuzzing, symbolic execution and formal verification are not executed by this engine.",
+    "The score is a finding-weighted indicator, not a probability of security.",
+  ]
+  if (!slitherOk) {
+    summary.score = null
+    if (summary.overallRisk === "NO_FINDINGS") summary.overallRisk = "INCOMPLETE"
+    limitations.unshift(`Slither did not complete: ${slither.status}.`)
+    summary.recommendations.unshift("Complete Slither analysis before interpreting the assessment.")
+  }
 
   return {
     metadata: {
@@ -428,6 +448,12 @@ export async function runAuditEngine(
     signatureMatches,
     chainSpecificVulns,
     toolchain,
+    assurance: {
+      status: slitherOk ? "AUTOMATED_DRAFT" : "INCOMPLETE",
+      founderReviewRequired: true,
+      isCertification: false,
+      limitations,
+    },
     economic,
     crossChain,
     threatModel,
@@ -504,11 +530,14 @@ function writesStateVariable(line: string, stateVars: Set<string>): boolean {
   return false
 }
 
-// Deduplicate findings by title similarity
+// Never collapse distinct locations or detectors just because titles are similar.
 function deduplicateFindings(findings: StaticFinding[]): StaticFinding[] {
   const seen = new Set<string>()
   return findings.filter(f => {
-    const key = f.title.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 30)
+    const key = JSON.stringify([
+      f.source ?? "", f.detector ?? "", f.title.trim().toLowerCase(),
+      f.location, f.lineNumber ?? null, f.codeEvidence ?? "",
+    ])
     if (seen.has(key)) return false
     seen.add(key)
     return true
@@ -1223,7 +1252,7 @@ function calculateSummary(findings: Array<{ severity: string }>, totalChecks: nu
   for (const f of findings) if (f.severity in c) c[f.severity as keyof typeof c]++
   const penalty = c.CRITICAL * 20 + c.HIGH * 10 + c.MEDIUM * 5 + c.LOW * 2
   const score = Math.max(0, 100 - penalty)
-  let overallRisk: AuditSummary["overallRisk"] = "SAFE"
+  let overallRisk: AuditSummary["overallRisk"] = "NO_FINDINGS"
   if (c.CRITICAL > 0) overallRisk = "CRITICAL"
   else if (c.HIGH > 0) overallRisk = "HIGH"
   else if (c.MEDIUM > 0) overallRisk = "MEDIUM"

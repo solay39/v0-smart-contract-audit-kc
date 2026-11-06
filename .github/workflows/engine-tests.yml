@@ -2,10 +2,10 @@ name: Audit engine tests
 
 on:
   pull_request:
-    paths: ["core/**", "lib/slither-client.ts", "tests/**", "app/api/ai-audit/**", "package.json", "pnpm-lock.yaml"]
+    paths: ["core/**", "lib/slither-*.ts", "tests/**", "app/api/ai-audit/**", "package.json", "pnpm-lock.yaml", ".github/workflows/engine-tests.yml"]
   push:
     branches: [main]
-    paths: ["core/**", "lib/slither-client.ts", "tests/**", "app/api/ai-audit/**"]
+    paths: ["core/**", "lib/slither-*.ts", "tests/**", "app/api/ai-audit/**", "package.json", "pnpm-lock.yaml", ".github/workflows/engine-tests.yml"]
 
 permissions:
   contents: read

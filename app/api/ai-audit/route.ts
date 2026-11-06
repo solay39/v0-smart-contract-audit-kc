@@ -1,5 +1,5 @@
 /**
- * AI Audit Engine API  (UPGRADE v2 — CertiK-grade output)
+ * Automated audit draft API. Not a certification or a completed manual review.
  * POST /api/ai-audit
  */
 
@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
         metadata: result.metadata,
         summary: result.summary,
         toolchain: result.toolchain,
+        assurance: result.assurance,
         staticAnalysis: {
           findings: result.staticAnalysis.findings.map(f => ({
             id:                 f.id,
@@ -150,7 +151,7 @@ export async function GET() {
       "Likelihood assessment per finding (High / Medium / Low)",
       "Code evidence extraction (exact snippet per finding)",
       "Remediation examples in Solidity",
-      "Runnable Foundry PoC for HIGH/CRITICAL findings",
+      "Foundry PoC templates for HIGH/CRITICAL findings (not executed)",
       "Economic attack analysis (flash loan, MEV, sandwich)",
       "Cross-chain security analysis",
       "Dependency scanning",
