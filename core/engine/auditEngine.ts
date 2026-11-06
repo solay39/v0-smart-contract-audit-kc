@@ -14,11 +14,9 @@ import { analyzeEconomicAttacks, type EconomicAnalysisResult } from "./economicA
 import { analyzeCrossChain, type CrossChainAnalysisResult } from "./crossChainAnalyzer"
 import { computeCVSS, type CVSSVector } from "../severity/cvssEngine"
 // CertiK-level integrations
-import { MLVulnDetector, type MLDetectionResult } from "../ai/mlVulnDetector"
-import { VulnSignatureDB, type SignatureMatch } from "../db/vulnSignatureDB"
-import { ChainRegistry, type ChainConfig, type ChainVulnPattern } from "../multichain/chainRegistry"
-import { HumanReviewSystem, type ReviewStatus } from "../review/humanReviewSystem"
-import { TrackRecordSystem, type ReputationMetrics } from "../reputation/trackRecord"
+import { MLVulnDetector, type MLVulnerability } from "../ai/mlVulnDetector"
+import { VulnSignatureDB, type VulnMatch } from "../db/vulnSignatureDB"
+import { ChainRegistry, type ChainConfig, type ChainSpecificPattern } from "../multichain/chainRegistry"
 
 export interface AuditEngineResult {
   metadata: {
@@ -34,25 +32,36 @@ export interface AuditEngineResult {
   dependencies: DependencyScanResult
   staticAnalysis: {
     findings: StaticFinding[]
-    coverage: number
+    /** Not measured: there is no ground-truth benchmark yet, so no coverage percentage is claimed. */
+    coverage: number | null
+    /** Number of distinct checks actually executed on this contract. */
     checksRun: number
   }
-  // CertiK-level analysis
+  // Heuristic exploit-similarity and signature analysis (keyword/regex based, not a trained model)
   mlAnalysis: {
-    exploitMatches: MLDetectionResult[]
+    vulnerabilities: MLVulnerability[]
     riskScore: number
     confidence: number
   }
-  signatureMatches: SignatureMatch[]
-  chainSpecificVulns: ChainVulnPattern[]
-  reviewStatus?: ReviewStatus
-  reputation?: ReputationMetrics
+  signatureMatches: SignatureMatchSummary[]
+  chainSpecificVulns: ChainSpecificPattern[]
   // Standard analysis
   economic: EconomicAnalysisResult
   crossChain: CrossChainAnalysisResult
   threatModel: ThreatModel
   attackSimulations: AttackSimulation[]
   summary: AuditSummary
+}
+
+export interface SignatureMatchSummary {
+  signatureId: string
+  name: string
+  severity: StaticFinding["severity"]
+  category: string
+  /** 1-based line of the first occurrence */
+  line: number
+  occurrences: number
+  matchedText: string
 }
 
 export interface StaticFinding {
@@ -207,23 +216,61 @@ contract SignatureReplayTest is Test {
 }`
 }
 
-// Initialize CertiK-level systems
+// Heuristic analysis modules (shared, stateless after construction)
 const mlDetector = new MLVulnDetector()
 const vulnDB = new VulnSignatureDB()
 const chainRegistry = new ChainRegistry()
-const reviewSystem = new HumanReviewSystem()
-const trackRecord = new TrackRecordSystem()
+
+/** Distinct rule families implemented in runStaticAnalysis(). Keep in sync when adding rules. */
+const STATIC_RULE_FAMILIES = 25
+
+const SEVERITY_RANK: Record<StaticFinding["severity"], number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1, INFO: 0 }
+
+function resolveChain(network?: string, chainId?: number): ChainConfig | undefined {
+  const chains = chainRegistry.getAllChains()
+  if (chainId !== undefined) {
+    const byId = chains.find((c) => c.chainId === chainId)
+    if (byId) return byId
+  }
+  const key = (network || "ethereum").trim().toLowerCase()
+  return chainRegistry.getChain(key) ?? chains.find((c) => c.name.toLowerCase() === key)
+}
+
+function lineSnippet(code: string, line: number): string {
+  return code.split("\n")[line - 1]?.trim() ?? ""
+}
+
+/** Group raw regex hits so one signature produces one finding, not one per occurrence. */
+function summarizeSignatureMatches(matches: VulnMatch[]): SignatureMatchSummary[] {
+  const bySig = new Map<string, SignatureMatchSummary>()
+  for (const m of matches) {
+    const existing = bySig.get(m.signature.id)
+    if (existing) {
+      existing.occurrences++
+      continue
+    }
+    bySig.set(m.signature.id, {
+      signatureId: m.signature.id,
+      name: m.signature.name,
+      severity: m.signature.severity,
+      category: m.signature.category,
+      line: m.line,
+      occurrences: 1,
+      matchedText: m.matchedText.slice(0, 200),
+    })
+  }
+  return [...bySig.values()]
+}
 
 export async function runAuditEngine(
   code: string,
-  options: { 
+  options: {
     contractName?: string
     network?: string
     address?: string
     chainId?: number
     includeAttackSimulation?: boolean
     includeMLAnalysis?: boolean
-    includeHumanReview?: boolean
   } = {}
 ): Promise<AuditEngineResult> {
   const parsing = parseContract(code)
@@ -237,76 +284,81 @@ export async function runAuditEngine(
     ? buildAttackSimulations(economic, staticFindings)
     : []
 
-  // CertiK-level: ML-based exploit detection
-  const mlAnalysis = options.includeMLAnalysis !== false
-    ? mlDetector.analyze(code)
-    : { exploitMatches: [], riskScore: 0, confidence: 0 }
+  // Signature database (regex signatures of known vulnerability classes)
+  const rawSignatureMatches = vulnDB.scanCode(code)
+  const signatureMatches = summarizeSignatureMatches(rawSignatureMatches)
+  const signatureById = new Map(rawSignatureMatches.map((m) => [m.signature.id, m.signature]))
 
-  // CertiK-level: Signature database matching
-  const signatureMatches = vulnDB.matchSignatures(code)
+  // Heuristic exploit similarity (keyword overlap with historical exploits)
+  const ml = options.includeMLAnalysis !== false ? mlDetector.analyze(code) : null
+  const mlAnalysis = {
+    vulnerabilities: ml?.vulnerabilities ?? [],
+    riskScore: ml?.riskScore ?? 0,
+    confidence: ml?.confidence ?? 0,
+  }
 
-  // CertiK-level: Chain-specific vulnerability patterns
-  const chainConfig = options.chainId 
-    ? chainRegistry.getChain(options.chainId) 
-    : chainRegistry.getChainByName(options.network || "ethereum")
-  const chainSpecificVulns = chainConfig 
-    ? chainRegistry.getChainVulnPatterns(chainConfig.id)
-    : []
+  const chainConfig = resolveChain(options.network, options.chainId)
+  const chainSpecificVulns = chainConfig ? chainRegistry.getChainPatterns(chainConfig.id) : []
 
-  // Merge ML findings with static findings
-  const mlFindings: StaticFinding[] = mlAnalysis.exploitMatches.map((match, idx) => ({
-    id: `ML-EXPLOIT-${idx + 1}`,
-    title: `ML Detected: Similar to ${match.exploitName} (${match.similarity.toFixed(0)}% match)`,
-    severity: match.severity,
-    category: "ML Detection",
-    description: `Code pattern matches known exploit: ${match.exploitName}. ${match.description}`,
-    location: match.location || "Contract-wide",
-    impact: match.impact,
-    recommendation: match.remediation,
-    swcId: match.swcId,
-    cweId: match.cweId,
-    cvss: match.cvss,
-    likelihood: match.severity === "CRITICAL" ? "High" : match.severity === "HIGH" ? "Medium" : "Low",
-    codeEvidence: match.matchedCode,
-    remediationExample: match.remediationCode,
-    foundryPoC: match.foundryPoC,
-  }))
+  const sigFindings: StaticFinding[] = signatureMatches.map((m) => {
+    const sig = signatureById.get(m.signatureId)!
+    return {
+      id: `SIG-${m.signatureId}`,
+      title: m.name,
+      severity: m.severity,
+      category: m.category,
+      description: m.occurrences > 1 ? `${sig.description} (${m.occurrences} occurrences)` : sig.description,
+      location: `Line ${m.line}`,
+      lineNumber: m.line,
+      impact: sig.impact,
+      recommendation: sig.remediation,
+      swcId: sig.swc,
+      cweId: sig.cwe,
+      likelihood: m.severity === "CRITICAL" ? "High" : m.severity === "HIGH" ? "Medium" : "Low",
+      codeEvidence: lineSnippet(code, m.line) || m.matchedText,
+    }
+  })
 
-  // Merge signature matches
-  const sigFindings: StaticFinding[] = signatureMatches.map((sig, idx) => ({
-    id: `SIG-${sig.signatureId}-${idx}`,
-    title: sig.title,
-    severity: sig.severity,
-    category: sig.category,
-    description: sig.description,
-    location: sig.location,
-    lineNumber: sig.lineNumber,
-    impact: sig.impact,
-    recommendation: sig.recommendation,
-    swcId: sig.swcId,
-    cweId: sig.cweId,
-    cvss: sig.cvss,
-    likelihood: sig.likelihood,
-    codeEvidence: sig.codeEvidence,
-    remediationExample: sig.remediationExample,
-    foundryPoC: sig.foundryPoC,
-  }))
+  // ML vulnerabilities that are not just re-emitted signature hits
+  const mlFindings: StaticFinding[] = mlAnalysis.vulnerabilities
+    .filter((v) => !signatureById.has(v.id))
+    .map((v) => ({
+      id: `HEUR-${v.id}`,
+      title: v.name,
+      severity: v.severity,
+      category: v.category,
+      description: v.similarExploits.length
+        ? `${v.description} Similar historical exploits: ${v.similarExploits.slice(0, 3).join(", ")}.`
+        : v.description,
+      location: v.location ? `Line ${v.location.line}` : "Contract-wide",
+      lineNumber: v.location?.line,
+      impact: v.description,
+      recommendation: v.remediation,
+      swcId: v.swc,
+      cweId: v.cwe,
+      likelihood: v.confidence >= 80 ? "High" : v.confidence >= 50 ? "Medium" : "Low",
+      codeEvidence: v.location?.code,
+      foundryPoC: v.foundryPoC,
+    }))
 
-  // Combine all findings and deduplicate
-  const allFindings = deduplicateFindings([
-    ...staticFindings,
-    ...mlFindings,
-    ...sigFindings,
-  ])
+  const allFindings = deduplicateFindings(
+    [...staticFindings, ...sigFindings, ...mlFindings].sort(
+      (a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity]
+    )
+  )
 
-  const summary = calculateSummary([
-    ...allFindings,
-    ...economic.vulnerabilities.map(v => ({ severity: v.severity })),
-    ...crossChain.vulnerabilities.map(v => ({ severity: v.severity })),
-  ])
+  const checksRun = STATIC_RULE_FAMILIES + vulnDB.getStats().totalSignatures + chainSpecificVulns.length
+  const triggeredChecks = new Set(allFindings.map((f) => f.id.replace(/-\d+$/, ""))).size
 
-  // Get reputation metrics
-  const reputation = trackRecord.getMetrics()
+  const summary = calculateSummary(
+    [
+      ...allFindings,
+      ...economic.vulnerabilities.map((v) => ({ severity: v.severity })),
+      ...crossChain.vulnerabilities.map((v) => ({ severity: v.severity })),
+    ],
+    checksRun,
+    triggeredChecks
+  )
 
   return {
     metadata: {
@@ -320,21 +372,88 @@ export async function runAuditEngine(
     },
     parsing,
     dependencies,
-    staticAnalysis: { 
-      findings: allFindings, 
-      coverage: 92, // Improved with ML + signatures
-      checksRun: 70 + vulnDB.getSignatureCount() 
+    staticAnalysis: {
+      findings: allFindings,
+      coverage: null,
+      checksRun,
     },
     mlAnalysis,
     signatureMatches,
     chainSpecificVulns,
-    reputation,
     economic,
     crossChain,
     threatModel,
     attackSimulations,
     summary,
   }
+}
+
+// ── Source helpers for function-scoped rules ────────────────────────
+interface FunctionBody { name: string; header: string; bodyStart: number; end: number }
+
+function stripLineComment(line: string): string {
+  const i = line.indexOf("//")
+  return i >= 0 ? line.slice(0, i) : line
+}
+
+/** Locates every `function name(...) ... { ... }` with brace matching (comments and strings are ignored). */
+function extractFunctionBodies(lines: string[]): FunctionBody[] {
+  const out: FunctionBody[] = []
+  for (let i = 0; i < lines.length; i++) {
+    const m = stripLineComment(lines[i]).match(/\bfunction\s+(\w+)\s*\(/)
+    if (!m) continue
+    let header = ""
+    let depth = 0
+    let opened = false
+    let bodyStart = -1
+    for (let j = i; j < lines.length; j++) {
+      const line = stripLineComment(lines[j]).replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""')
+      for (let k = 0; k < line.length; k++) {
+        const ch = line[k]
+        if (!opened) {
+          if (ch === ";") { j = lines.length; break } // interface / abstract declaration
+          if (ch === "{") { opened = true; depth = 1; bodyStart = j; continue }
+          header += ch
+        } else if (ch === "{") depth++
+        else if (ch === "}") {
+          depth--
+          if (depth === 0) { out.push({ name: m[1], header, bodyStart, end: j }); j = lines.length; break }
+        }
+      }
+      if (!opened) header += " "
+    }
+  }
+  return out
+}
+
+/** Contract-level storage variables: parser output plus a declaration scan outside function bodies. */
+function collectStateVariables(code: string, parsing: ParseResult): Set<string> {
+  const names = new Set<string>()
+  const lines = code.split("\n")
+  const inFunction = new Set<number>()
+  for (const fn of extractFunctionBodies(lines)) for (let i = fn.bodyStart; i <= fn.end; i++) inFunction.add(i)
+  // The parser also reports local variables, so keep only declarations outside function bodies.
+  for (const c of parsing.contracts)
+    for (const v of c.variables) if (v.isMutable !== false && !inFunction.has(v.lineNumber - 1)) names.add(v.name)
+  const decl = /^\s*(?:mapping\s*\(.*\)|[A-Za-z_][\w.]*(?:\[\d*\])*)\s+(?:(?:public|private|internal|override)\s+)*(?!constant\b|immutable\b)([A-Za-z_]\w*)\s*(?:=[^;]*)?;/
+  lines.forEach((raw, i) => {
+    if (inFunction.has(i)) return
+    const line = stripLineComment(raw)
+    if (/\b(constant|immutable|event|error|using|import|pragma|return)\b/.test(line)) return
+    const m = line.match(decl)
+    if (m) names.add(m[1])
+  })
+  return names
+}
+
+function writesStateVariable(line: string, stateVars: Set<string>): boolean {
+  for (const v of stateVars) {
+    const esc = v.replace(/[$]/g, "\\$")
+    const assign = new RegExp(`(?:^|[^\\w.])${esc}(?:\\s*\\[[^\\]]*\\])*(?:\\.\\w+)?\\s*(?:[+\\-*/%|&^]|<<|>>)?=(?!=)`)
+    const mutate = new RegExp(`(?:^|[^\\w.])${esc}(?:\\s*\\[[^\\]]*\\])*\\.(?:push|pop)\\s*\\(|\\bdelete\\s+${esc}\\b|(?:\\+\\+|--)\\s*${esc}\\b|\\b${esc}(?:\\s*\\[[^\\]]*\\])*\\s*(?:\\+\\+|--)`)
+    if (assign.test(line) || mutate.test(line)) return true
+  }
+  return false
 }
 
 // Deduplicate findings by title similarity
@@ -353,36 +472,42 @@ function runStaticAnalysis(code: string, parsing: ParseResult): StaticFinding[] 
   const lines = code.split("\n")
   const cname = parsing.contracts[0]?.name || "Contract"
 
-  // 1. Reentrancy
-  for (let i = 0; i < lines.length; i++) {
-    if (/\.call\{value:|\.call\(|\.transfer\(|\.send\(/.test(lines[i])) {
-      for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
-        if (/\w+\s*=\s*[^=]|\.push\(|delete\s/.test(lines[j]) && !lines[j].includes("//")) {
-          if (!/ReentrancyGuard|nonReentrant/.test(code)) {
-            const snip = lines.slice(Math.max(0, i - 1), i + 4).join("\n")
-            findings.push({
-              id: "REENTRANCY-001",
-              title: "Reentrancy: State Update After External Call (CEI Violation)",
-              severity: "CRITICAL",
-              category: "Reentrancy",
-              description: `External call at line ${i + 1} occurs before state is updated — a classic CEI violation. A malicious contract can re-enter recursively before balances/flags are written.`,
-              location: `Line ${i + 1}`,
-              lineNumber: i + 1,
-              impact: "Attacker can recursively drain the contract's entire ETH balance in a single transaction.",
-              recommendation: "Move all state writes BEFORE the external call (CEI pattern), or add OpenZeppelin ReentrancyGuard with nonReentrant modifier.",
-              swcId: "SWC-107", cweId: "CWE-841",
-              cvss: cvss(CVSS_PRESETS.REENTRANCY),
-              likelihood: "High",
-              codeEvidence: snip,
-              remediationExample: `// CEI pattern — state update BEFORE external call
+  // 1. Reentrancy (per function: external call with value/control transfer followed by a storage write)
+  const stateVars = collectStateVariables(code, parsing)
+  for (const fn of extractFunctionBodies(lines)) {
+    if (/\bnonReentrant\b/.test(fn.header)) continue
+    let callLine = -1
+    for (let i = fn.bodyStart; i <= fn.end; i++) {
+      const line = stripLineComment(lines[i])
+      // .transfer()/.send() forward only 2300 gas and cannot re-enter; token calls are covered by signatures
+      if (callLine < 0 && /\.call\s*\{[^}]*value\s*:|\.call\s*\(|\.delegatecall\s*\(/.test(line)) {
+        callLine = i
+        continue
+      }
+      if (callLine >= 0 && writesStateVariable(line, stateVars)) {
+        const snip = lines.slice(callLine, i + 1).join("\n")
+        const cl = callLine + 1
+        findings.push({
+          id: "REENTRANCY-001",
+          title: "Reentrancy: State Update After External Call (CEI Violation)",
+          severity: "CRITICAL",
+          category: "Reentrancy",
+          description: `In ${fn.name}(), the external call at line ${cl} happens before the storage write at line ${i + 1}. A malicious receiver can re-enter ${fn.name}() before the state is updated.`,
+          location: `${fn.name}() line ${cl}`,
+          lineNumber: cl,
+          impact: "Attacker can recursively drain the contract's entire ETH balance in a single transaction.",
+          recommendation: "Move all state writes BEFORE the external call (CEI pattern), or add OpenZeppelin ReentrancyGuard and the nonReentrant modifier to this function.",
+          swcId: "SWC-107", cweId: "CWE-841",
+          cvss: cvss(CVSS_PRESETS.REENTRANCY),
+          likelihood: "High",
+          codeEvidence: snip,
+          remediationExample: `// CEI pattern — state update BEFORE external call
 balances[msg.sender] = 0;
 (bool ok,) = msg.sender.call{value: amount}("");
 require(ok, "Transfer failed");`,
-              foundryPoC: reentrancyPoC(cname, `Line ${i + 1}`),
-            })
-            break
-          }
-        }
+          foundryPoC: reentrancyPoC(cname, `${fn.name}() line ${cl}`),
+        })
+        break
       }
     }
   }
@@ -983,7 +1108,7 @@ function transferOwnership(address newOwner) external onlyOwner {
 }
 
 function buildThreatModel(code: string, parsing: ParseResult, deps: DependencyScanResult): ThreatModel {
-  const attackSurface = getAttackSurface(parsing)
+  const attackSurface = getAttackSurface(parsing).map((f) => `${f.name}() [${f.visibility}${f.mutability === "payable" ? ", payable" : ""}]`)
   const entryPoints = parsing.contracts.flatMap(c =>
     c.functions.filter(f => f.visibility === "public" || f.visibility === "external").map(f => `${f.name}()`)
   )
@@ -1007,7 +1132,7 @@ function buildThreatModel(code: string, parsing: ParseResult, deps: DependencySc
 
 function buildAttackSimulations(economic: EconomicAnalysisResult, staticFindings: StaticFinding[]): AttackSimulation[] {
   const sims: AttackSimulation[] = []
-  if (economic.flashLoanRisk === "HIGH" || economic.flashLoanRisk === "CRITICAL") {
+  if (economic.flashLoanRisk === "high") {
     sims.push({
       name: "Flash Loan Price Manipulation",
       type: "ECONOMIC",
@@ -1044,7 +1169,7 @@ function buildAttackSimulations(economic: EconomicAnalysisResult, staticFindings
   return sims
 }
 
-function calculateSummary(findings: Array<{ severity: string }>): AuditSummary {
+function calculateSummary(findings: Array<{ severity: string }>, totalChecks: number, triggeredChecks: number): AuditSummary {
   const c = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 }
   for (const f of findings) if (f.severity in c) c[f.severity as keyof typeof c]++
   const penalty = c.CRITICAL * 20 + c.HIGH * 10 + c.MEDIUM * 5 + c.LOW * 2
@@ -1060,7 +1185,7 @@ function calculateSummary(findings: Array<{ severity: string }>): AuditSummary {
   return {
     overallRisk, score,
     criticalCount: c.CRITICAL, highCount: c.HIGH, mediumCount: c.MEDIUM, lowCount: c.LOW, infoCount: c.INFO,
-    passedChecks: 50 - findings.length, totalChecks: 50, recommendations: recs,
+    passedChecks: Math.max(0, totalChecks - triggeredChecks), totalChecks, recommendations: recs,
   }
 }
 

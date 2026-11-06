@@ -1,0 +1,26 @@
+name: Audit engine tests
+
+on:
+  pull_request:
+    paths: ["core/**", "tests/**", "app/api/ai-audit/**", "package.json", "pnpm-lock.yaml"]
+  push:
+    branches: [main]
+    paths: ["core/**", "tests/**", "app/api/ai-audit/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm test:engine
