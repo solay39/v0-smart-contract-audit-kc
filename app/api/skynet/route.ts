@@ -1,5 +1,5 @@
 import { getStaticBackendUrl } from "@/lib/static-backend"
-import { getFounderKeyForServerCall, isFounderRequest } from "@/lib/founder-auth"
+import { getFounderKeyForServerCall, internalAuthHeaders, isFounderRequest } from "@/lib/founder-auth"
 import { detectProxy } from "@/lib/proxy-detect"
 export const maxDuration = 60
 
@@ -126,7 +126,7 @@ async function runStaticAnalysis(code: string, contractName: string): Promise<St
     
     const response = await fetch(`${baseUrl}/api/static-analysis`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...internalAuthHeaders() },
       body: JSON.stringify({ code, contractName }),
     })
     
@@ -1799,7 +1799,7 @@ ${truncatedCode}`
             try {
               const res = await fetch(`${baseUrl}/api/fuzz`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...internalAuthHeaders() },
                 body: JSON.stringify({ code, contractName: meta.contractName || "Contract", runs: 10000 }),
               })
               return res.ok ? await res.json() : null
@@ -1811,7 +1811,7 @@ ${truncatedCode}`
             try {
               const res = await fetch(`${baseUrl}/api/formal-verify`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...internalAuthHeaders() },
                 body: JSON.stringify({ code, contractName: meta.contractName || "Contract" }),
               })
               return res.ok ? await res.json() : null
@@ -1823,7 +1823,7 @@ ${truncatedCode}`
             try {
               const res = await fetch(`${baseUrl}/api/cross-contract`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...internalAuthHeaders() },
                 body: JSON.stringify({ 
                   code,
                   contractName: meta.contractName || "Contract",

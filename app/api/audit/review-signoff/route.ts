@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js"
 import { verifyMessage } from "ethers"
 import { createHash } from "crypto"
+import { requireFounder } from "@/lib/founder-auth"
 
 function canonicalMessage(input: { contractName: string; contractAddress: string; network: string; reviewedAt: string; checks: number; checksTotal: number; findings: number; findingsTotal: number; confirmed: number; manual: number }) {
   return [
@@ -17,6 +18,8 @@ function canonicalMessage(input: { contractName: string; contractAddress: string
 }
 
 export async function POST(req: Request) {
+  const denied = await requireFounder(req)
+  if (denied) return denied
   const body = await req.json() as { auditId?: string; session?: Record<string, unknown> }
   const session = body.session
   if (!body.auditId || !session?.signature || !session.auditorWallet) return Response.json({ error: "auditId, auditorWallet and signature are required" }, { status: 400 })
@@ -33,6 +36,8 @@ export async function POST(req: Request) {
   let recovered: string
   try { recovered = verifyMessage(message, String(session.signature)) } catch { return Response.json({ error: "Invalid Ethereum signature" }, { status: 400 }) }
   if (recovered.toLowerCase() !== String(session.auditorWallet).toLowerCase()) return Response.json({ error: "Signature does not match auditor wallet" }, { status: 400 })
+  const allowedWallets = (process.env.SOLAY39_AUDITOR_WALLETS || "").split(",").map((w) => w.trim().toLowerCase()).filter(Boolean)
+  if (allowedWallets.length > 0 && !allowedWallets.includes(recovered.toLowerCase())) return Response.json({ error: "Wallet is not an authorized Solay39 auditor" }, { status: 403 })
   const reviewHash = createHash("sha256").update(JSON.stringify({ message, signature: session.signature, session })).digest("hex")
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
   const { data: audit, error: readError } = await supabase.from("audits").select("data").eq("id", body.auditId).single()
