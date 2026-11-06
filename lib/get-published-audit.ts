@@ -1,17 +1,8 @@
 import { createClient } from "@supabase/supabase-js"
 import { DEFAULT_PROJECTS, type PortfolioProject } from "@/lib/solay39-constants"
+import { exactAuditBlob, lookupPublishedAudit } from "./published-audit-lookup"
 
 const projectMap = new Map(DEFAULT_PROJECTS.map((p) => [p.id, p]))
-
-const auditIdAliases: Record<string, string> = {
-  "injective-token": "inj-token",
-  "fetch-ai": "fetch-token",
-  "chiliz-token": "chz-token",
-}
-
-function normalizeAuditId(id: string): string {
-  return auditIdAliases[id] || id
-}
 
 async function fromSupabase(id: string): Promise<PortfolioProject | null> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
@@ -31,8 +22,8 @@ async function fromBlob(id: string): Promise<PortfolioProject | null> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return null
   try {
     const { list } = await import("@vercel/blob")
-    const { blobs } = await list({ prefix: `audits/${id}`, limit: 5 })
-    const blob = blobs.find((b) => b.pathname === `audits/${id}.json`) ?? blobs.find((b) => b.pathname.endsWith(".json"))
+    const { blobs } = await list({ prefix: `audits/${id}.json`, limit: 5 })
+    const blob = exactAuditBlob(blobs, id)
     if (!blob) return null
     const res = await fetch(blob.url, { cache: "no-store" })
     return res.ok ? ((await res.json()) as PortfolioProject) : null
@@ -42,6 +33,9 @@ async function fromBlob(id: string): Promise<PortfolioProject | null> {
 }
 
 export async function getPublishedAudit(id: string): Promise<PortfolioProject | null> {
-  const normalizedId = normalizeAuditId(id)
-  return projectMap.get(id) ?? projectMap.get(normalizedId) ?? (await fromSupabase(id)) ?? (await fromSupabase(normalizedId)) ?? (await fromBlob(id)) ?? (await fromBlob(normalizedId))
+  return lookupPublishedAudit(id, [
+    (candidate) => projectMap.get(candidate) ?? null,
+    fromSupabase,
+    fromBlob,
+  ])
 }

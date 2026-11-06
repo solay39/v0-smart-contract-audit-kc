@@ -5165,7 +5165,7 @@ function SyncToGitHubPanel({ auditId, projectName }: { auditId: string; projectN
       // con tutti i dati da Supabase e sovrascrive GitHub
       const res = await fetch("/api/force-publish", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${founderKey.trim()}` },
         body: JSON.stringify({ auditId, founderKey }),
       })
       const data = await res.json()
@@ -5279,7 +5279,7 @@ function BulkFixGitHubPanel() {
     try {
       const res = await fetch("/api/bulk-fix-github", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${founderKey.trim()}` },
         body: JSON.stringify({ founderKey, dryRun }),
       })
       const data = await res.json()
@@ -5565,7 +5565,7 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
       console.log("[v0] Deleting audit:", auditId)
       const res = await fetch("/api/audits", {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${founderKey}` },
         body: JSON.stringify({ id: auditId, founderKey }),
       })
       

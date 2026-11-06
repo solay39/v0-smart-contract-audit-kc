@@ -1,0 +1,282 @@
+{
+ "_note": "Real output of slither-worker. Regenerate with slither-worker/scripts/record_fixtures.py",
+ "reentrant": {
+  "code": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\ncontract Bank {\n    mapping(address => uint256) public balances;\n    function deposit() external payable { balances[msg.sender] += msg.value; }\n    function withdraw() external {\n        uint256 amount = balances[msg.sender];\n        (bool ok, ) = msg.sender.call{value: amount}(\"\");\n        require(ok);\n        balances[msg.sender] = 0;\n    }\n}\n",
+  "contractName": "Bank",
+  "result": {
+   "tool": "slither",
+   "slitherVersion": "0.11.6",
+   "solcVersion": "0.8.26",
+   "sourceSha256": "01a22f4ca5d7f19b3a8b68c9792bb407102bb64f620b0ada89f7dacd57316939",
+   "files": [
+    "Bank.sol"
+   ],
+   "remappings": [],
+   "durationMs": 667,
+   "status": "ok",
+   "detectorsRun": 96,
+   "findings": [
+    {
+     "id": "843914dffda09c30ce4f0419f7ee175c39d4a8b66e64d73b26d7038f7512b38e",
+     "check": "reentrancy-eth",
+     "impact": "High",
+     "confidence": "Medium",
+     "title": "Reentrancy vulnerabilities (theft of ethers)",
+     "description": "Reentrancy in Bank.withdraw() (Bank.sol#6-11):\n\tExternal calls:\n\t- (ok,None) = msg.sender.call{value: amount}() (Bank.sol#8)\n\tState variables written after the call(s):\n\t- balances[msg.sender] = 0 (Bank.sol#10)\n\tBank.balances (Bank.sol#4) can be used in cross function reentrancies:\n\t- Bank.balances (Bank.sol#4)\n\t- Bank.deposit() (Bank.sol#5)\n\t- Bank.withdraw() (Bank.sol#6-11)",
+     "markdown": "Reentrancy in [Bank.withdraw()](Bank.sol#L6-L11):\n\tExternal calls:\n\t- [(ok,None) = msg.sender.call{value: amount}()](Bank.sol#L8)\n\tState variables written after the call(s):\n\t- [balances[msg.sender] = 0](Bank.sol#L10)\n\t[Bank.balances](Bank.sol#L4) can be used in cross function reentrancies:\n\t- [Bank.balances](Bank.sol#L4)\n\t- [Bank.deposit()](Bank.sol#L5)\n\t- [Bank.withdraw()](Bank.sol#L6-L11)",
+     "recommendation": "Apply the [`check-effects-interactions pattern`](http://solidity.readthedocs.io/en/v0.4.21/security-considerations.html#re-entrancy).",
+     "wikiUrl": "https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-1",
+     "file": "Bank.sol",
+     "contract": "Bank",
+     "function": "withdraw",
+     "lines": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+     ],
+     "startLine": 6,
+     "endLine": 11,
+     "snippet": "    function withdraw() external {\n        uint256 amount = balances[msg.sender];\n        (bool ok, ) = msg.sender.call{value: amount}(\"\");\n        require(ok);\n        balances[msg.sender] = 0;\n    }",
+     "fromLibrary": false
+    },
+    {
+     "id": "f87c0f7b356d32c99fb93c46d5149c5a4eeaa9b53f4a1721f0aeb3e824b402f3",
+     "check": "solc-version",
+     "impact": "Informational",
+     "confidence": "High",
+     "title": "Incorrect Solidity version",
+     "description": "Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (Bank.sol#2)",
+     "markdown": "Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- [^0.8.20](Bank.sol#L2)",
+     "recommendation": "\nDeploy with a recent version of Solidity (at least 0.8.0) with no known severe issues.\n\nUse a simple pragma version that allows any of these versions.\nConsider using the latest version of Solidity for testing.",
+     "wikiUrl": "https://github.com/crytic/slither/wiki/Detector-Documentation#incorrect-versions-of-solidity",
+     "file": "Bank.sol",
+     "contract": null,
+     "function": null,
+     "lines": [
+      2
+     ],
+     "startLine": 2,
+     "endLine": 2,
+     "snippet": "pragma solidity ^0.8.20;",
+     "fromLibrary": false
+    },
+    {
+     "id": "35a427f18b6f052660584c1ad5306848ef679f8003114582d05b6867ee8a8ae1",
+     "check": "low-level-calls",
+     "impact": "Informational",
+     "confidence": "High",
+     "title": "Low level calls",
+     "description": "Low level call in Bank.withdraw() (Bank.sol#6-11):\n\t- (ok,None) = msg.sender.call{value: amount}() (Bank.sol#8)",
+     "markdown": "Low level call in [Bank.withdraw()](Bank.sol#L6-L11):\n\t- [(ok,None) = msg.sender.call{value: amount}()](Bank.sol#L8)",
+     "recommendation": "Avoid low-level calls. Check the call success. If the call is meant for a contract, check for code existence.",
+     "wikiUrl": "https://github.com/crytic/slither/wiki/Detector-Documentation#low-level-calls",
+     "file": "Bank.sol",
+     "contract": "Bank",
+     "function": "withdraw",
+     "lines": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+     ],
+     "startLine": 6,
+     "endLine": 11,
+     "snippet": "    function withdraw() external {\n        uint256 amount = balances[msg.sender];\n        (bool ok, ) = msg.sender.call{value: amount}(\"\");\n        require(ok);\n        balances[msg.sender] = 0;\n    }",
+     "fromLibrary": false
+    }
+   ]
+  }
+ },
+ "safe": {
+  "code": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\ncontract Bank {\n    mapping(address => uint256) public balances;\n    function deposit() external payable { balances[msg.sender] += msg.value; }\n    function withdraw() external {\n        uint256 amount = balances[msg.sender];\n        balances[msg.sender] = 0;\n        (bool ok, ) = msg.sender.call{value: amount}(\"\");\n        require(ok);\n    }\n}\n",
+  "contractName": "Bank",
+  "result": {
+   "tool": "slither",
+   "slitherVersion": "0.11.6",
+   "solcVersion": "0.8.26",
+   "sourceSha256": "c18320e6ad62eb15ebf30a10bc6119741115736a4730fa9b4dbeff18e9c2d300",
+   "files": [
+    "Bank.sol"
+   ],
+   "remappings": [],
+   "durationMs": 284,
+   "status": "ok",
+   "detectorsRun": 96,
+   "findings": [
+    {
+     "id": "f87c0f7b356d32c99fb93c46d5149c5a4eeaa9b53f4a1721f0aeb3e824b402f3",
+     "check": "solc-version",
+     "impact": "Informational",
+     "confidence": "High",
+     "title": "Incorrect Solidity version",
+     "description": "Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (Bank.sol#2)",
+     "markdown": "Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- [^0.8.20](Bank.sol#L2)",
+     "recommendation": "\nDeploy with a recent version of Solidity (at least 0.8.0) with no known severe issues.\n\nUse a simple pragma version that allows any of these versions.\nConsider using the latest version of Solidity for testing.",
+     "wikiUrl": "https://github.com/crytic/slither/wiki/Detector-Documentation#incorrect-versions-of-solidity",
+     "file": "Bank.sol",
+     "contract": null,
+     "function": null,
+     "lines": [
+      2
+     ],
+     "startLine": 2,
+     "endLine": 2,
+     "snippet": "pragma solidity ^0.8.20;",
+     "fromLibrary": false
+    },
+    {
+     "id": "33923a99723a0db2fd62b0e7d0b4ca392efb67d57cfdde36a30fc4a10a872cee",
+     "check": "low-level-calls",
+     "impact": "Informational",
+     "confidence": "High",
+     "title": "Low level calls",
+     "description": "Low level call in Bank.withdraw() (Bank.sol#6-11):\n\t- (ok,None) = msg.sender.call{value: amount}() (Bank.sol#9)",
+     "markdown": "Low level call in [Bank.withdraw()](Bank.sol#L6-L11):\n\t- [(ok,None) = msg.sender.call{value: amount}()](Bank.sol#L9)",
+     "recommendation": "Avoid low-level calls. Check the call success. If the call is meant for a contract, check for code existence.",
+     "wikiUrl": "https://github.com/crytic/slither/wiki/Detector-Documentation#low-level-calls",
+     "file": "Bank.sol",
+     "contract": "Bank",
+     "function": "withdraw",
+     "lines": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+     ],
+     "startLine": 6,
+     "endLine": 11,
+     "snippet": "    function withdraw() external {\n        uint256 amount = balances[msg.sender];\n        balances[msg.sender] = 0;\n        (bool ok, ) = msg.sender.call{value: amount}(\"\");\n        require(ok);\n    }",
+     "fromLibrary": false
+    }
+   ]
+  }
+ },
+ "old": {
+  "code": "// SPDX-License-Identifier: MIT\npragma solidity 0.7.6;\ncontract Old {\n    address owner;\n    function kill() external { selfdestruct(payable(msg.sender)); }\n}\n",
+  "contractName": "Old",
+  "result": {
+   "tool": "slither",
+   "slitherVersion": "0.11.6",
+   "solcVersion": "0.7.6",
+   "sourceSha256": "cdfdf63e52d30e1dbac28b637982f0735594671c50ac048677ed6916fe3d29f7",
+   "files": [
+    "Old.sol"
+   ],
+   "remappings": [],
+   "durationMs": 283,
+   "status": "ok",
+   "detectorsRun": 96,
+   "findings": [
+    {
+     "id": "280579b5945542a4856e6a75976d7d1ed86c151818607784982b7821fea5b7fb",
+     "check": "suicidal",
+     "impact": "High",
+     "confidence": "High",
+     "title": "Functions allowing anyone to destruct the contract",
+     "description": "Old.kill() (Old.sol#5) allows anyone to destruct the contract",
+     "markdown": "[Old.kill()](Old.sol#L5) allows anyone to destruct the contract",
+     "recommendation": "Protect access to all sensitive functions.",
+     "wikiUrl": "https://github.com/crytic/slither/wiki/Detector-Documentation#suicidal",
+     "file": "Old.sol",
+     "contract": "Old",
+     "function": "kill",
+     "lines": [
+      5
+     ],
+     "startLine": 5,
+     "endLine": 5,
+     "snippet": "    function kill() external { selfdestruct(payable(msg.sender)); }",
+     "fromLibrary": false
+    },
+    {
+     "id": "0798c9026842559d0dd604b772bc8a514169446111d57b119043a4b0da79ee92",
+     "check": "solc-version",
+     "impact": "Informational",
+     "confidence": "High",
+     "title": "Incorrect Solidity version",
+     "description": "Version constraint 0.7.6 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess\n\t- AbiReencodingHeadOverflowWithStaticArrayCleanup\n\t- DirtyBytesArrayToStorage\n\t- DataLocationChangeInInternalOverride\n\t- NestedCalldataArrayAbiReencodingSizeValidation\n\t- SignedImmutables\n\t- ABIDecodeTwoDimensionalArrayMemory\n\t- KeccakCaching.\nIt is used by:\n\t- 0.7.6 (Old.sol#2)",
+     "markdown": "Version constraint 0.7.6 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess\n\t- AbiReencodingHeadOverflowWithStaticArrayCleanup\n\t- DirtyBytesArrayToStorage\n\t- DataLocationChangeInInternalOverride\n\t- NestedCalldataArrayAbiReencodingSizeValidation\n\t- SignedImmutables\n\t- ABIDecodeTwoDimensionalArrayMemory\n\t- KeccakCaching.\nIt is used by:\n\t- [0.7.6](Old.sol#L2)",
+     "recommendation": "\nDeploy with a recent version of Solidity (at least 0.8.0) with no known severe issues.\n\nUse a simple pragma version that allows any of these versions.\nConsider using the latest version of Solidity for testing.",
+     "wikiUrl": "https://github.com/crytic/slither/wiki/Detector-Documentation#incorrect-versions-of-solidity",
+     "file": "Old.sol",
+     "contract": null,
+     "function": null,
+     "lines": [
+      2
+     ],
+     "startLine": 2,
+     "endLine": 2,
+     "snippet": "pragma solidity 0.7.6;",
+     "fromLibrary": false
+    },
+    {
+     "id": "6c66ba273cec33bf1a05dca8fc49efc60a4615ae890ead57f8956835f6838ab8",
+     "check": "solc-version",
+     "impact": "Informational",
+     "confidence": "High",
+     "title": "Incorrect Solidity version",
+     "description": "solc-0.7.6 is an outdated solc version. Use a more recent version (at least 0.8.0), if possible.",
+     "markdown": "solc-0.7.6 is an outdated solc version. Use a more recent version (at least 0.8.0), if possible.",
+     "recommendation": "\nDeploy with a recent version of Solidity (at least 0.8.0) with no known severe issues.\n\nUse a simple pragma version that allows any of these versions.\nConsider using the latest version of Solidity for testing.",
+     "wikiUrl": "https://github.com/crytic/slither/wiki/Detector-Documentation#incorrect-versions-of-solidity",
+     "file": "",
+     "contract": null,
+     "function": null,
+     "lines": [],
+     "startLine": null,
+     "endLine": null,
+     "snippet": "",
+     "fromLibrary": false
+    },
+    {
+     "id": "19b3d4b86f30160747cc07d0f4fe1e6883e980d8ade0949441b00218a7d1c06f",
+     "check": "unused-state",
+     "impact": "Informational",
+     "confidence": "High",
+     "title": "Unused state variables",
+     "description": "Old.owner (Old.sol#4) is never used in Old (Old.sol#3-6)",
+     "markdown": "[Old.owner](Old.sol#L4) is never used in [Old](Old.sol#L3-L6)",
+     "recommendation": "Remove unused state variables.",
+     "wikiUrl": "https://github.com/crytic/slither/wiki/Detector-Documentation#unused-state-variable",
+     "file": "Old.sol",
+     "contract": "Old",
+     "function": null,
+     "lines": [
+      4
+     ],
+     "startLine": 4,
+     "endLine": 4,
+     "snippet": "    address owner;",
+     "fromLibrary": false
+    }
+   ]
+  }
+ },
+ "oz5": {
+  "code": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\nimport {Ownable} from \"@openzeppelin/contracts/access/Ownable.sol\";\ncontract Owned is Ownable {\n    uint256 public x;\n    constructor() Ownable(msg.sender) {}\n    function set(uint256 v) external onlyOwner { x = v; }\n}\n",
+  "contractName": "Owned",
+  "result": {
+   "tool": "slither",
+   "slitherVersion": "0.11.6",
+   "solcVersion": "0.8.26",
+   "sourceSha256": "d12b85d098b97aee66bf2124bcb1cdc7aa3cf61be895d14aabf6257912624542",
+   "files": [
+    "Owned.sol"
+   ],
+   "remappings": [
+    "@openzeppelin/contracts/"
+   ],
+   "durationMs": 340,
+   "status": "ok",
+   "detectorsRun": 96,
+   "findings": []
+  }
+ }
+}

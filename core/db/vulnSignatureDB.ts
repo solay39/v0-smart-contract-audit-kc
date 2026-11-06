@@ -212,7 +212,7 @@ const ACCESS_CONTROL_SIGNATURES: VulnSignature[] = [
   {
     id: "ACCESS-001",
     name: "Missing Access Control on Critical Function",
-    pattern: "function\\s+(mint|burn|pause|unpause|setPrice|setOracle|upgrade|withdraw|emergencyWithdraw|setAdmin|transferOwnership)\\s*\\([^)]*\\)\\s*(external|public)(?!.*only|.*require.*msg\\.sender|.*modifier)",
+    pattern: "function\\s+(mint|burn|pause|unpause|setPrice|setOracle|upgrade|upgradeTo|emergencyWithdraw|withdrawAll|sweep|setAdmin|transferOwnership)\\s*\\([^)]*\\)\\s*(external|public)(?!.*only|.*require.*msg\\.sender|.*modifier)",
     category: "ACCESS_CONTROL",
     severity: "CRITICAL",
     confidence: 92,

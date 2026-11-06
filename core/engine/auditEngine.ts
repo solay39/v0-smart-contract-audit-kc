@@ -1,11 +1,11 @@
 /**
  * Solay39 AI Audit Engine — auditEngine.ts
- * UPGRADE v2: Every StaticFinding now carries CertiK-grade fields:
+ * Automated assessment support. Findings require founder validation.
  *   cvss       → full CVSSv3.1 vector + base score
  *   likelihood → "High" | "Medium" | "Low"
- *   codeEvidence → exact snippet proving the finding
+ *   codeEvidence → source snippet supporting the finding
  *   remediationExample → Solidity showing the correct fix
- *   foundryPoC → runnable forge test for HIGH/CRITICAL
+ *   foundryPoC → generated test template, not evidence of execution
  */
 
 import { parseContract, getAttackSurface, type ParseResult } from "./codeParser"
@@ -14,11 +14,11 @@ import { analyzeEconomicAttacks, type EconomicAnalysisResult } from "./economicA
 import { analyzeCrossChain, type CrossChainAnalysisResult } from "./crossChainAnalyzer"
 import { computeCVSS, type CVSSVector } from "../severity/cvssEngine"
 // CertiK-level integrations
-import { MLVulnDetector, type MLDetectionResult } from "../ai/mlVulnDetector"
-import { VulnSignatureDB, type SignatureMatch } from "../db/vulnSignatureDB"
-import { ChainRegistry, type ChainConfig, type ChainVulnPattern } from "../multichain/chainRegistry"
-import { HumanReviewSystem, type ReviewStatus } from "../review/humanReviewSystem"
-import { TrackRecordSystem, type ReputationMetrics } from "../reputation/trackRecord"
+import { MLVulnDetector, type MLVulnerability } from "../ai/mlVulnDetector"
+import { VulnSignatureDB, type VulnMatch } from "../db/vulnSignatureDB"
+import { ChainRegistry, type ChainConfig, type ChainSpecificPattern } from "../multichain/chainRegistry"
+import { runSlither, type SlitherRunResult } from "../../lib/slither-client"
+import { isCoveredBySlither, slitherToFindings } from "./slitherMapper"
 
 export interface AuditEngineResult {
   metadata: {
@@ -34,25 +34,49 @@ export interface AuditEngineResult {
   dependencies: DependencyScanResult
   staticAnalysis: {
     findings: StaticFinding[]
-    coverage: number
+    /** Not measured: there is no ground-truth benchmark yet, so no coverage percentage is claimed. */
+    coverage: number | null
+    /** Number of distinct checks actually executed on this contract. */
     checksRun: number
   }
-  // CertiK-level analysis
+  // Heuristic exploit-similarity and signature analysis (keyword/regex based, not a trained model)
   mlAnalysis: {
-    exploitMatches: MLDetectionResult[]
+    vulnerabilities: MLVulnerability[]
     riskScore: number
     confidence: number
   }
-  signatureMatches: SignatureMatch[]
-  chainSpecificVulns: ChainVulnPattern[]
-  reviewStatus?: ReviewStatus
-  reputation?: ReputationMetrics
+  signatureMatches: SignatureMatchSummary[]
+  chainSpecificVulns: ChainSpecificPattern[]
+  /** Which engines produced the findings, with tool versions for reproducibility. */
+  toolchain: {
+    mode: "slither" | "heuristic-only"
+    slither: Omit<SlitherRunResult, "findings"> & { findingsCount: number }
+    /** Heuristic findings discarded because Slither analysed the same class precisely */
+    heuristicFindingsDropped: number
+  }
+  assurance: {
+    status: "AUTOMATED_DRAFT" | "INCOMPLETE"
+    founderReviewRequired: true
+    isCertification: false
+    limitations: string[]
+  }
   // Standard analysis
   economic: EconomicAnalysisResult
   crossChain: CrossChainAnalysisResult
   threatModel: ThreatModel
   attackSimulations: AttackSimulation[]
   summary: AuditSummary
+}
+
+export interface SignatureMatchSummary {
+  signatureId: string
+  name: string
+  severity: StaticFinding["severity"]
+  category: string
+  /** 1-based line of the first occurrence */
+  line: number
+  occurrences: number
+  matchedText: string
 }
 
 export interface StaticFinding {
@@ -72,6 +96,11 @@ export interface StaticFinding {
   codeEvidence?: string
   remediationExample?: string
   foundryPoC?: string
+  /** Engine that produced the finding. Heuristic and signature findings need manual confirmation. */
+  source?: "slither" | "heuristic" | "signature"
+  /** Slither detector name, when source = "slither" */
+  detector?: string
+  referenceUrl?: string
 }
 
 export interface ThreatModel {
@@ -94,8 +123,9 @@ export interface AttackSimulation {
 }
 
 export interface AuditSummary {
-  overallRisk: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "SAFE"
-  score: number
+  overallRisk: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "NO_FINDINGS" | "INCOMPLETE"
+  /** Finding-weighted indicator, not a security probability. Null if Slither did not complete. */
+  score: number | null
   criticalCount: number
   highCount: number
   mediumCount: number
@@ -207,25 +237,75 @@ contract SignatureReplayTest is Test {
 }`
 }
 
-// Initialize CertiK-level systems
+// Heuristic analysis modules (shared, stateless after construction)
 const mlDetector = new MLVulnDetector()
 const vulnDB = new VulnSignatureDB()
 const chainRegistry = new ChainRegistry()
-const reviewSystem = new HumanReviewSystem()
-const trackRecord = new TrackRecordSystem()
+
+/** Distinct rule families implemented in runStaticAnalysis(). Keep in sync when adding rules. */
+const STATIC_RULE_FAMILIES = 25
+
+const SEVERITY_RANK: Record<StaticFinding["severity"], number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1, INFO: 0 }
+
+function resolveChain(network?: string, chainId?: number): ChainConfig | undefined {
+  const chains = chainRegistry.getAllChains()
+  if (chainId !== undefined) {
+    const byId = chains.find((c) => c.chainId === chainId)
+    if (byId) return byId
+  }
+  const key = (network || "ethereum").trim().toLowerCase()
+  return chainRegistry.getChain(key) ?? chains.find((c) => c.name.toLowerCase() === key)
+}
+
+function lineSnippet(code: string, line: number): string {
+  return code.split("\n")[line - 1]?.trim() ?? ""
+}
+
+/** Group raw regex hits so one signature produces one finding, not one per occurrence. */
+function summarizeSignatureMatches(matches: VulnMatch[]): SignatureMatchSummary[] {
+  const bySig = new Map<string, SignatureMatchSummary>()
+  for (const m of matches) {
+    const existing = bySig.get(m.signature.id)
+    if (existing) {
+      existing.occurrences++
+      continue
+    }
+    bySig.set(m.signature.id, {
+      signatureId: m.signature.id,
+      name: m.signature.name,
+      severity: m.signature.severity,
+      category: m.signature.category,
+      line: m.line,
+      occurrences: 1,
+      matchedText: m.matchedText.slice(0, 200),
+    })
+  }
+  return [...bySig.values()]
+}
 
 export async function runAuditEngine(
   code: string,
-  options: { 
+  options: {
     contractName?: string
     network?: string
     address?: string
     chainId?: number
     includeAttackSimulation?: boolean
     includeMLAnalysis?: boolean
-    includeHumanReview?: boolean
+    /** Multi-file sources (path -> content). When omitted, `code` is analysed as a single file. */
+    sources?: Record<string, string>
+    /** Pre-computed Slither result (tests, cached runs), or false to skip Slither. */
+    slither?: SlitherRunResult | false
   } = {}
 ): Promise<AuditEngineResult> {
+  // Primary engine: Slither (runs remotely on the Slither worker, in parallel with the heuristics)
+  const slitherPromise: Promise<SlitherRunResult> =
+    options.slither === false
+      ? Promise.resolve({ tool: "slither", status: "unavailable", findings: [], error: "Disabled for this run" })
+      : options.slither
+        ? Promise.resolve(options.slither)
+        : runSlither({ code: options.sources ? undefined : code, sources: options.sources, contractName: options.contractName })
+
   const parsing = parseContract(code)
   const mainContract = parsing.contracts[0]
   const dependencies = scanDependencies(code, mainContract?.imports || [])
@@ -233,80 +313,119 @@ export async function runAuditEngine(
   const economic = analyzeEconomicAttacks(code)
   const crossChain = analyzeCrossChain(code)
   const threatModel = buildThreatModel(code, parsing, dependencies)
+
+  // Signature database (regex signatures of known vulnerability classes)
+  const rawSignatureMatches = vulnDB.scanCode(code)
+  const signatureMatches = summarizeSignatureMatches(rawSignatureMatches)
+  const signatureById = new Map(rawSignatureMatches.map((m) => [m.signature.id, m.signature]))
+
+  // Heuristic exploit similarity (keyword overlap with historical exploits)
+  const ml = options.includeMLAnalysis !== false ? mlDetector.analyze(code) : null
+  const mlAnalysis = {
+    vulnerabilities: ml?.vulnerabilities ?? [],
+    riskScore: ml?.riskScore ?? 0,
+    confidence: ml?.confidence ?? 0,
+  }
+
+  const chainConfig = resolveChain(options.network, options.chainId)
+  const chainSpecificVulns = chainConfig ? chainRegistry.getChainPatterns(chainConfig.id) : []
+
+  const sigFindings: StaticFinding[] = signatureMatches.map((m) => {
+    const sig = signatureById.get(m.signatureId)!
+    return {
+      id: `SIG-${m.signatureId}`,
+      title: m.name,
+      severity: m.severity,
+      category: m.category,
+      description: m.occurrences > 1 ? `${sig.description} (${m.occurrences} occurrences)` : sig.description,
+      location: `Line ${m.line}`,
+      lineNumber: m.line,
+      impact: sig.impact,
+      recommendation: sig.remediation,
+      swcId: sig.swc,
+      cweId: sig.cwe,
+      likelihood: m.severity === "CRITICAL" ? "High" : m.severity === "HIGH" ? "Medium" : "Low",
+      codeEvidence: lineSnippet(code, m.line) || m.matchedText,
+    }
+  })
+
+  // ML vulnerabilities that are not just re-emitted signature hits
+  const mlFindings: StaticFinding[] = mlAnalysis.vulnerabilities
+    .filter((v) => !signatureById.has(v.id))
+    .map((v) => ({
+      id: `HEUR-${v.id}`,
+      title: v.name,
+      severity: v.severity,
+      category: v.category,
+      description: v.similarExploits.length
+        ? `${v.description} Similar historical exploits: ${v.similarExploits.slice(0, 3).join(", ")}.`
+        : v.description,
+      location: v.location ? `Line ${v.location.line}` : "Contract-wide",
+      lineNumber: v.location?.line,
+      impact: v.description,
+      recommendation: v.remediation,
+      swcId: v.swc,
+      cweId: v.cwe,
+      likelihood: v.confidence >= 80 ? "High" : v.confidence >= 50 ? "Medium" : "Low",
+      codeEvidence: v.location?.code,
+      foundryPoC: v.foundryPoC,
+    }))
+
+  const heuristicFindings: StaticFinding[] = [
+    ...staticFindings.map((f) => ({ ...f, source: "heuristic" as const })),
+    ...sigFindings.map((f) => ({ ...f, source: "signature" as const })),
+    ...mlFindings.map((f) => ({ ...f, source: "heuristic" as const })),
+  ]
+
+  const slither = await slitherPromise
+  const slitherOk = slither.status === "ok"
+  const slitherFindings = slitherToFindings(slither)
+  const keptHeuristics = slitherOk ? heuristicFindings.filter((f) => !isCoveredBySlither(f)) : heuristicFindings
+
+  const allFindings = deduplicateFindings(
+    [...slitherFindings, ...keptHeuristics].sort(
+      (a, b) =>
+        SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity] ||
+        Number(b.source === "slither") - Number(a.source === "slither")
+    )
+  )
+  // Attack simulations follow the final findings (Slither-confirmed when available)
   const attackSimulations = options.includeAttackSimulation !== false
-    ? buildAttackSimulations(economic, staticFindings)
+    ? buildAttackSimulations(economic, allFindings)
     : []
+  const { findings: _slitherRaw, ...slitherMeta } = slither
+  const toolchain: AuditEngineResult["toolchain"] = {
+    mode: slitherOk ? "slither" : "heuristic-only",
+    slither: { ...slitherMeta, findingsCount: slitherFindings.length },
+    heuristicFindingsDropped: heuristicFindings.length - keptHeuristics.length,
+  }
 
-  // CertiK-level: ML-based exploit detection
-  const mlAnalysis = options.includeMLAnalysis !== false
-    ? mlDetector.analyze(code)
-    : { exploitMatches: [], riskScore: 0, confidence: 0 }
+  const checksRun =
+    STATIC_RULE_FAMILIES + vulnDB.getStats().totalSignatures + chainSpecificVulns.length + (slitherOk ? slither.detectorsRun ?? 0 : 0)
+  const triggeredChecks = new Set(allFindings.map((f) => f.id.replace(/-\d+$/, ""))).size
 
-  // CertiK-level: Signature database matching
-  const signatureMatches = vulnDB.matchSignatures(code)
-
-  // CertiK-level: Chain-specific vulnerability patterns
-  const chainConfig = options.chainId 
-    ? chainRegistry.getChain(options.chainId) 
-    : chainRegistry.getChainByName(options.network || "ethereum")
-  const chainSpecificVulns = chainConfig 
-    ? chainRegistry.getChainVulnPatterns(chainConfig.id)
-    : []
-
-  // Merge ML findings with static findings
-  const mlFindings: StaticFinding[] = mlAnalysis.exploitMatches.map((match, idx) => ({
-    id: `ML-EXPLOIT-${idx + 1}`,
-    title: `ML Detected: Similar to ${match.exploitName} (${match.similarity.toFixed(0)}% match)`,
-    severity: match.severity,
-    category: "ML Detection",
-    description: `Code pattern matches known exploit: ${match.exploitName}. ${match.description}`,
-    location: match.location || "Contract-wide",
-    impact: match.impact,
-    recommendation: match.remediation,
-    swcId: match.swcId,
-    cweId: match.cweId,
-    cvss: match.cvss,
-    likelihood: match.severity === "CRITICAL" ? "High" : match.severity === "HIGH" ? "Medium" : "Low",
-    codeEvidence: match.matchedCode,
-    remediationExample: match.remediationCode,
-    foundryPoC: match.foundryPoC,
-  }))
-
-  // Merge signature matches
-  const sigFindings: StaticFinding[] = signatureMatches.map((sig, idx) => ({
-    id: `SIG-${sig.signatureId}-${idx}`,
-    title: sig.title,
-    severity: sig.severity,
-    category: sig.category,
-    description: sig.description,
-    location: sig.location,
-    lineNumber: sig.lineNumber,
-    impact: sig.impact,
-    recommendation: sig.recommendation,
-    swcId: sig.swcId,
-    cweId: sig.cweId,
-    cvss: sig.cvss,
-    likelihood: sig.likelihood,
-    codeEvidence: sig.codeEvidence,
-    remediationExample: sig.remediationExample,
-    foundryPoC: sig.foundryPoC,
-  }))
-
-  // Combine all findings and deduplicate
-  const allFindings = deduplicateFindings([
-    ...staticFindings,
-    ...mlFindings,
-    ...sigFindings,
-  ])
-
-  const summary = calculateSummary([
-    ...allFindings,
-    ...economic.vulnerabilities.map(v => ({ severity: v.severity })),
-    ...crossChain.vulnerabilities.map(v => ({ severity: v.severity })),
-  ])
-
-  // Get reputation metrics
-  const reputation = trackRecord.getMetrics()
+  const summary = calculateSummary(
+    [
+      ...allFindings,
+      ...economic.vulnerabilities.map((v) => ({ severity: v.severity })),
+      ...crossChain.vulnerabilities.map((v) => ({ severity: v.severity })),
+    ],
+    checksRun,
+    triggeredChecks
+  )
+  const limitations = [
+    "Automated findings require manual validation by the founder.",
+    "No vulnerability detected does not prove the absence of vulnerabilities.",
+    "Generated exploit and Foundry templates have not been executed by this engine.",
+    "Fuzzing, symbolic execution and formal verification are not executed by this engine.",
+    "The score is a finding-weighted indicator, not a probability of security.",
+  ]
+  if (!slitherOk) {
+    summary.score = null
+    if (summary.overallRisk === "NO_FINDINGS") summary.overallRisk = "INCOMPLETE"
+    limitations.unshift(`Slither did not complete: ${slither.status}.`)
+    summary.recommendations.unshift("Complete Slither analysis before interpreting the assessment.")
+  }
 
   return {
     metadata: {
@@ -320,15 +439,21 @@ export async function runAuditEngine(
     },
     parsing,
     dependencies,
-    staticAnalysis: { 
-      findings: allFindings, 
-      coverage: 92, // Improved with ML + signatures
-      checksRun: 70 + vulnDB.getSignatureCount() 
+    staticAnalysis: {
+      findings: allFindings,
+      coverage: null,
+      checksRun,
     },
     mlAnalysis,
     signatureMatches,
     chainSpecificVulns,
-    reputation,
+    toolchain,
+    assurance: {
+      status: slitherOk ? "AUTOMATED_DRAFT" : "INCOMPLETE",
+      founderReviewRequired: true,
+      isCertification: false,
+      limitations,
+    },
     economic,
     crossChain,
     threatModel,
@@ -337,11 +462,82 @@ export async function runAuditEngine(
   }
 }
 
-// Deduplicate findings by title similarity
+// ── Source helpers for function-scoped rules ────────────────────────
+interface FunctionBody { name: string; header: string; bodyStart: number; end: number }
+
+function stripLineComment(line: string): string {
+  const i = line.indexOf("//")
+  return i >= 0 ? line.slice(0, i) : line
+}
+
+/** Locates every `function name(...) ... { ... }` with brace matching (comments and strings are ignored). */
+function extractFunctionBodies(lines: string[]): FunctionBody[] {
+  const out: FunctionBody[] = []
+  for (let i = 0; i < lines.length; i++) {
+    const m = stripLineComment(lines[i]).match(/\bfunction\s+(\w+)\s*\(/)
+    if (!m) continue
+    let header = ""
+    let depth = 0
+    let opened = false
+    let bodyStart = -1
+    for (let j = i; j < lines.length; j++) {
+      const line = stripLineComment(lines[j]).replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""')
+      for (let k = 0; k < line.length; k++) {
+        const ch = line[k]
+        if (!opened) {
+          if (ch === ";") { j = lines.length; break } // interface / abstract declaration
+          if (ch === "{") { opened = true; depth = 1; bodyStart = j; continue }
+          header += ch
+        } else if (ch === "{") depth++
+        else if (ch === "}") {
+          depth--
+          if (depth === 0) { out.push({ name: m[1], header, bodyStart, end: j }); j = lines.length; break }
+        }
+      }
+      if (!opened) header += " "
+    }
+  }
+  return out
+}
+
+/** Contract-level storage variables: parser output plus a declaration scan outside function bodies. */
+function collectStateVariables(code: string, parsing: ParseResult): Set<string> {
+  const names = new Set<string>()
+  const lines = code.split("\n")
+  const inFunction = new Set<number>()
+  for (const fn of extractFunctionBodies(lines)) for (let i = fn.bodyStart; i <= fn.end; i++) inFunction.add(i)
+  // The parser also reports local variables, so keep only declarations outside function bodies.
+  for (const c of parsing.contracts)
+    for (const v of c.variables) if (v.isMutable !== false && !inFunction.has(v.lineNumber - 1)) names.add(v.name)
+  const decl = /^\s*(?:mapping\s*\(.*\)|[A-Za-z_][\w.]*(?:\[\d*\])*)\s+(?:(?:public|private|internal|override)\s+)*(?!constant\b|immutable\b)([A-Za-z_]\w*)\s*(?:=[^;]*)?;/
+  lines.forEach((raw, i) => {
+    if (inFunction.has(i)) return
+    const line = stripLineComment(raw)
+    if (/\b(constant|immutable|event|error|using|import|pragma|return)\b/.test(line)) return
+    const m = line.match(decl)
+    if (m) names.add(m[1])
+  })
+  return names
+}
+
+function writesStateVariable(line: string, stateVars: Set<string>): boolean {
+  for (const v of stateVars) {
+    const esc = v.replace(/[$]/g, "\\$")
+    const assign = new RegExp(`(?:^|[^\\w.])${esc}(?:\\s*\\[[^\\]]*\\])*(?:\\.\\w+)?\\s*(?:[+\\-*/%|&^]|<<|>>)?=(?!=)`)
+    const mutate = new RegExp(`(?:^|[^\\w.])${esc}(?:\\s*\\[[^\\]]*\\])*\\.(?:push|pop)\\s*\\(|\\bdelete\\s+${esc}\\b|(?:\\+\\+|--)\\s*${esc}\\b|\\b${esc}(?:\\s*\\[[^\\]]*\\])*\\s*(?:\\+\\+|--)`)
+    if (assign.test(line) || mutate.test(line)) return true
+  }
+  return false
+}
+
+// Never collapse distinct locations or detectors just because titles are similar.
 function deduplicateFindings(findings: StaticFinding[]): StaticFinding[] {
   const seen = new Set<string>()
   return findings.filter(f => {
-    const key = f.title.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 30)
+    const key = JSON.stringify([
+      f.source ?? "", f.detector ?? "", f.title.trim().toLowerCase(),
+      f.location, f.lineNumber ?? null, f.codeEvidence ?? "",
+    ])
     if (seen.has(key)) return false
     seen.add(key)
     return true
@@ -353,36 +549,42 @@ function runStaticAnalysis(code: string, parsing: ParseResult): StaticFinding[] 
   const lines = code.split("\n")
   const cname = parsing.contracts[0]?.name || "Contract"
 
-  // 1. Reentrancy
-  for (let i = 0; i < lines.length; i++) {
-    if (/\.call\{value:|\.call\(|\.transfer\(|\.send\(/.test(lines[i])) {
-      for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
-        if (/\w+\s*=\s*[^=]|\.push\(|delete\s/.test(lines[j]) && !lines[j].includes("//")) {
-          if (!/ReentrancyGuard|nonReentrant/.test(code)) {
-            const snip = lines.slice(Math.max(0, i - 1), i + 4).join("\n")
-            findings.push({
-              id: "REENTRANCY-001",
-              title: "Reentrancy: State Update After External Call (CEI Violation)",
-              severity: "CRITICAL",
-              category: "Reentrancy",
-              description: `External call at line ${i + 1} occurs before state is updated — a classic CEI violation. A malicious contract can re-enter recursively before balances/flags are written.`,
-              location: `Line ${i + 1}`,
-              lineNumber: i + 1,
-              impact: "Attacker can recursively drain the contract's entire ETH balance in a single transaction.",
-              recommendation: "Move all state writes BEFORE the external call (CEI pattern), or add OpenZeppelin ReentrancyGuard with nonReentrant modifier.",
-              swcId: "SWC-107", cweId: "CWE-841",
-              cvss: cvss(CVSS_PRESETS.REENTRANCY),
-              likelihood: "High",
-              codeEvidence: snip,
-              remediationExample: `// CEI pattern — state update BEFORE external call
+  // 1. Reentrancy (per function: external call with value/control transfer followed by a storage write)
+  const stateVars = collectStateVariables(code, parsing)
+  for (const fn of extractFunctionBodies(lines)) {
+    if (/\bnonReentrant\b/.test(fn.header)) continue
+    let callLine = -1
+    for (let i = fn.bodyStart; i <= fn.end; i++) {
+      const line = stripLineComment(lines[i])
+      // .transfer()/.send() forward only 2300 gas and cannot re-enter; token calls are covered by signatures
+      if (callLine < 0 && /\.call\s*\{[^}]*value\s*:|\.call\s*\(|\.delegatecall\s*\(/.test(line)) {
+        callLine = i
+        continue
+      }
+      if (callLine >= 0 && writesStateVariable(line, stateVars)) {
+        const snip = lines.slice(callLine, i + 1).join("\n")
+        const cl = callLine + 1
+        findings.push({
+          id: "REENTRANCY-001",
+          title: "Reentrancy: State Update After External Call (CEI Violation)",
+          severity: "CRITICAL",
+          category: "Reentrancy",
+          description: `In ${fn.name}(), the external call at line ${cl} happens before the storage write at line ${i + 1}. A malicious receiver can re-enter ${fn.name}() before the state is updated.`,
+          location: `${fn.name}() line ${cl}`,
+          lineNumber: cl,
+          impact: "Attacker can recursively drain the contract's entire ETH balance in a single transaction.",
+          recommendation: "Move all state writes BEFORE the external call (CEI pattern), or add OpenZeppelin ReentrancyGuard and the nonReentrant modifier to this function.",
+          swcId: "SWC-107", cweId: "CWE-841",
+          cvss: cvss(CVSS_PRESETS.REENTRANCY),
+          likelihood: "High",
+          codeEvidence: snip,
+          remediationExample: `// CEI pattern — state update BEFORE external call
 balances[msg.sender] = 0;
 (bool ok,) = msg.sender.call{value: amount}("");
 require(ok, "Transfer failed");`,
-              foundryPoC: reentrancyPoC(cname, `Line ${i + 1}`),
-            })
-            break
-          }
-        }
+          foundryPoC: reentrancyPoC(cname, `${fn.name}() line ${cl}`),
+        })
+        break
       }
     }
   }
@@ -832,11 +1034,12 @@ function transferOwnership(address newOwner) external onlyOwner {
   }
 
   // [NEW-10] Front-Running — missing deadline / slippage
-  if (/(swap|addLiquidity|removeLiquidity|deposit|withdraw)\s*\(/.test(code)) {
+  // Only AMM-style operations need a deadline and a minimum output; plain vault deposits/withdrawals do not.
+  if (/\b(swap\w*|addLiquidity\w*|removeLiquidity\w*)\s*\(/.test(code)) {
     const hasDeadline = /deadline|expiry|expiration/.test(code)
     const hasSlippage = /minAmount|minOut|amountOutMin|slippage/.test(code)
     if (!hasDeadline || !hasSlippage) {
-      const ln = lines.findIndex((l) => /(swap|addLiquidity|deposit)/.test(l)) + 1
+      const ln = lines.findIndex((l) => /\b(swap\w*|addLiquidity\w*|removeLiquidity\w*)\s*\(/.test(l)) + 1
       findings.push({
         id: "FRONTRUN-001",
         title: `DeFi Operation Missing ${!hasDeadline ? "Deadline" : ""}${!hasDeadline && !hasSlippage ? " + " : ""}${!hasSlippage ? "Slippage Protection" : ""}`,
@@ -983,7 +1186,7 @@ function transferOwnership(address newOwner) external onlyOwner {
 }
 
 function buildThreatModel(code: string, parsing: ParseResult, deps: DependencyScanResult): ThreatModel {
-  const attackSurface = getAttackSurface(parsing)
+  const attackSurface = getAttackSurface(parsing).map((f) => `${f.name}() [${f.visibility}${f.mutability === "payable" ? ", payable" : ""}]`)
   const entryPoints = parsing.contracts.flatMap(c =>
     c.functions.filter(f => f.visibility === "public" || f.visibility === "external").map(f => `${f.name}()`)
   )
@@ -1007,7 +1210,7 @@ function buildThreatModel(code: string, parsing: ParseResult, deps: DependencySc
 
 function buildAttackSimulations(economic: EconomicAnalysisResult, staticFindings: StaticFinding[]): AttackSimulation[] {
   const sims: AttackSimulation[] = []
-  if (economic.flashLoanRisk === "HIGH" || economic.flashLoanRisk === "CRITICAL") {
+  if (economic.flashLoanRisk === "high") {
     sims.push({
       name: "Flash Loan Price Manipulation",
       type: "ECONOMIC",
@@ -1023,7 +1226,7 @@ function buildAttackSimulations(economic: EconomicAnalysisResult, staticFindings
       mitigation: "Replace spot price with Chainlink or Uniswap V3 TWAP (>=30 min window)",
     })
   }
-  const reentrant = staticFindings.find(f => f.id.startsWith("REENTRANCY"))
+  const reentrant = staticFindings.find(f => f.id.startsWith("REENTRANCY") || f.detector === "reentrancy-eth" || f.detector === "reentrancy-no-eth")
   if (reentrant) {
     sims.push({
       name: "Reentrancy — Recursive ETH Drain",
@@ -1044,12 +1247,12 @@ function buildAttackSimulations(economic: EconomicAnalysisResult, staticFindings
   return sims
 }
 
-function calculateSummary(findings: Array<{ severity: string }>): AuditSummary {
+function calculateSummary(findings: Array<{ severity: string }>, totalChecks: number, triggeredChecks: number): AuditSummary {
   const c = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 }
   for (const f of findings) if (f.severity in c) c[f.severity as keyof typeof c]++
   const penalty = c.CRITICAL * 20 + c.HIGH * 10 + c.MEDIUM * 5 + c.LOW * 2
   const score = Math.max(0, 100 - penalty)
-  let overallRisk: AuditSummary["overallRisk"] = "SAFE"
+  let overallRisk: AuditSummary["overallRisk"] = "NO_FINDINGS"
   if (c.CRITICAL > 0) overallRisk = "CRITICAL"
   else if (c.HIGH > 0) overallRisk = "HIGH"
   else if (c.MEDIUM > 0) overallRisk = "MEDIUM"
@@ -1060,7 +1263,7 @@ function calculateSummary(findings: Array<{ severity: string }>): AuditSummary {
   return {
     overallRisk, score,
     criticalCount: c.CRITICAL, highCount: c.HIGH, mediumCount: c.MEDIUM, lowCount: c.LOW, infoCount: c.INFO,
-    passedChecks: 50 - findings.length, totalChecks: 50, recommendations: recs,
+    passedChecks: Math.max(0, totalChecks - triggeredChecks), totalChecks, recommendations: recs,
   }
 }
 

@@ -6,6 +6,19 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from "next/server"
+import { createHmac, timingSafeEqual } from "crypto"
+
+export const runtime = "nodejs"
+
+// Alchemy signs each webhook body with the webhook signing key (HMAC-SHA256, hex).
+function isValidAlchemySignature(rawBody: string, signature: string | null): boolean {
+  const key = process.env.ALCHEMY_WEBHOOK_SIGNING_KEY
+  if (!key || !signature) return false
+  const expected = createHmac("sha256", key).update(rawBody, "utf8").digest("hex")
+  const a = Buffer.from(expected, "utf8")
+  const b = Buffer.from(signature.trim().toLowerCase(), "utf8")
+  return a.length === b.length && timingSafeEqual(a, b)
+}
 
 const ALERT_TOPICS = {
   OwnershipTransferred: "0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0",
@@ -36,7 +49,11 @@ export async function POST(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const auditId = searchParams.get("auditId") || "unknown"
 
-    const body = await req.json()
+    const rawBody = await req.text()
+    if (!isValidAlchemySignature(rawBody, req.headers.get("x-alchemy-signature"))) {
+      return NextResponse.json({ error: "Invalid webhook signature" }, { status: 401 })
+    }
+    const body = JSON.parse(rawBody)
     const activity = body?.event?.activity || []
 
     const alerts: string[] = []

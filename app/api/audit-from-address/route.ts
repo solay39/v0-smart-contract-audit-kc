@@ -1,6 +1,7 @@
 export const maxDuration = 60
 
 import { NextRequest, NextResponse } from "next/server"
+import { internalAuthHeaders } from "@/lib/founder-auth"
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SOLAY39 — AUDIT FROM BLOCKCHAIN ADDRESS
@@ -131,7 +132,7 @@ async function fetchSourceCode(address: string, network: string, baseUrl: string
   try {
     const res = await fetch(`${baseUrl}/api/contract-source`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...internalAuthHeaders() },
       body: JSON.stringify({ address, network }),
     })
     
@@ -151,7 +152,7 @@ async function fetchTokenInfo(address: string, network: string, baseUrl: string)
   try {
     const res = await fetch(`${baseUrl}/api/token-info`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...internalAuthHeaders() },
       body: JSON.stringify({ address, network }),
     })
     
@@ -169,7 +170,7 @@ async function fetchOnChainAnalysis(address: string, network: string, baseUrl: s
   try {
     const res = await fetch(`${baseUrl}/api/onchain-analysis`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...internalAuthHeaders() },
       body: JSON.stringify({ address, network }),
     })
     
@@ -186,7 +187,7 @@ async function runFullAudit(code: string, contractName: string, network: string,
   try {
     const res = await fetch(`${baseUrl}/api/skynet`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...internalAuthHeaders() },
       body: JSON.stringify({
         code,
         projectName: contractName,

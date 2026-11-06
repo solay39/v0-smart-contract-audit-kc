@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect, Component, type ReactNode } from "react"
-import { ProjectDetail, getPublishedAudits } from "@/components/skynet-public"
-import { type PortfolioProject } from "@/lib/solay39-constants"
+import { ProjectDetail } from "@/components/skynet-public"
+import { isVerifiedReport, type PortfolioProject } from "@/lib/solay39-constants"
+import { PreliminaryAuditReport } from "@/components/preliminary-audit-report"
 
 // Error boundary to catch rendering crashes in ProjectDetail
 class AuditErrorBoundary extends Component<{ children: ReactNode; auditId: string }, { hasError: boolean }> {
@@ -100,76 +101,27 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
   const [isLive, setIsLive] = useState(false)
   const [loading, setLoading] = useState(!project)
 
-  // If server didn't find it, check localStorage then Blob API
+  // Public report identity comes only from the server. A local draft is not a publication.
   useEffect(() => {
-    const published = getPublishedAudits()
-    // Normalize ID for comparison (handle URL-encoded and special chars)
-    const normalizedId = decodeURIComponent(auditId).toLowerCase().replace(/[^a-z0-9-]/g, "")
-
-    if (!project) {
-      // Server didn't find it -- look in localStorage by ID (exact match first, then normalized)
-      let local = published.find((p) => p.id === auditId)
-      if (!local) {
-        // Try normalized comparison
-        local = published.find((p) => p.id.toLowerCase().replace(/[^a-z0-9-]/g, "") === normalizedId)
-      }
-      if (local) {
-        setLiveProject(enforceEvidenceOnlyReport(local))
-        setLoading(false)
-      } else {
-        // Last resort: try Blob API (handles cross-device access)
-        fetch(`/api/audits?id=${encodeURIComponent(auditId)}`)
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.audit) {
-              setLiveProject(enforceEvidenceOnlyReport(data.audit))
-            }
-          })
-          .catch(() => {})
-          .finally(() => setLoading(false))
-      }
-    } else {
-      // Server found it -- merge with any richer local data
-      const local = published.find(
-        (p) =>
-          p.id === project.id ||
-          (p.name || "").toLowerCase().replace(/[^a-z0-9]/g, "") ===
-            (project.name || "").toLowerCase().replace(/[^a-z0-9]/g, "")
-      )
-      if (local) {
-        // Merge: local data on top but blob enterprise fields take priority
-        setLiveProject(enforceEvidenceOnlyReport({
-          ...project,
-          ...local,
-          findings: local.findings?.length ? local.findings : project.findings,
-          // Enterprise fields: prefer server/blob version (more complete)
-          signedReport: project.signedReport || local.signedReport,
-          onChainRecord: project.onChainRecord || local.onChainRecord,
-          reportIntegrity: project.reportIntegrity || local.reportIntegrity,
-          scopeTable: project.scopeTable || local.scopeTable,
-          engagement: project.engagement || local.engagement,
-          reviewRecord: project.reviewRecord || local.reviewRecord,
-          attackerProfiles: project.attackerProfiles || local.attackerProfiles,
-          assetsAtRisk: project.assetsAtRisk || local.assetsAtRisk,
-          enterpriseTrustAssumptions: project.enterpriseTrustAssumptions || local.enterpriseTrustAssumptions,
-          formalVerification: project.formalVerification || local.formalVerification,
-          residualRisk: project.residualRisk || local.residualRisk,
-          economicAttackVectors: project.economicAttackVectors || local.economicAttackVectors,
-          exploitSimulation: project.exploitSimulation || local.exploitSimulation,
-          ipfsRecord: project.ipfsRecord || local.ipfsRecord,
-          pocScripts: project.pocScripts || local.pocScripts,
-          codeReference: project.codeReference || local.codeReference,
-          auditorSignatures: project.auditorSignatures || local.auditorSignatures,
-          testCoverage: project.testCoverage || local.testCoverage,
-          solanaAttestation: project.solanaAttestation || local.solanaAttestation,
-          // Manual Review + Security Checklist + On-Chain Analysis
-          manualReview: project.manualReview || local.manualReview,
-          securityChecklist: project.securityChecklist || local.securityChecklist,
-          onChainAnalysis: project.onChainAnalysis || local.onChainAnalysis,
-        }))
-      }
+    if (project) {
+      setLiveProject(enforceEvidenceOnlyReport(project))
       setLoading(false)
+      return
     }
+    let cancelled = false
+    const controller = new AbortController()
+    setLiveProject(null)
+    setLoading(true)
+    fetch(`/api/audits?id=${encodeURIComponent(auditId)}`, {
+      cache: "no-store", signal: controller.signal,
+    })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (!cancelled && data?.audit) setLiveProject(enforceEvidenceOnlyReport(data.audit))
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true; controller.abort() }
   }, [project, auditId])
 
   // Fetch live price
@@ -238,6 +190,10 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
   }
 
   const pendingVerification = isPendingVerification(liveProject)
+
+  if (pendingVerification || !isVerifiedReport(liveProject)) {
+    return <PreliminaryAuditReport project={liveProject} />
+  }
 
   return (
     <div className="relative">

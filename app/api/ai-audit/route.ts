@@ -1,12 +1,12 @@
 /**
- * AI Audit Engine API  (UPGRADE v2 — CertiK-grade output)
+ * Automated audit draft API. Not a certification or a completed manual review.
  * POST /api/ai-audit
  */
 
 import { NextRequest, NextResponse } from "next/server"
 import { runAuditEngine } from "@/core/engine/auditEngine"
 
-export const maxDuration = 60
+export const maxDuration = 300 // Slither on GitHub Actions takes ~1 min
 
 async function fetchContractSource(address: string, network: string): Promise<string | null> {
   const apiKeys: Record<string, string> = {
@@ -73,6 +73,8 @@ export async function POST(req: NextRequest) {
       audit: {
         metadata: result.metadata,
         summary: result.summary,
+        toolchain: result.toolchain,
+        assurance: result.assurance,
         staticAnalysis: {
           findings: result.staticAnalysis.findings.map(f => ({
             id:                 f.id,
@@ -91,6 +93,9 @@ export async function POST(req: NextRequest) {
             codeEvidence:       f.codeEvidence       ?? null,
             remediationExample: f.remediationExample ?? null,
             foundryPoC:         f.foundryPoC         ?? null,
+            source:             f.source             ?? null,
+            detector:           f.detector           ?? null,
+            referenceUrl:       f.referenceUrl       ?? null,
           })),
           checksRun: result.staticAnalysis.checksRun,
           coverage:  result.staticAnalysis.coverage,
@@ -146,7 +151,7 @@ export async function GET() {
       "Likelihood assessment per finding (High / Medium / Low)",
       "Code evidence extraction (exact snippet per finding)",
       "Remediation examples in Solidity",
-      "Runnable Foundry PoC for HIGH/CRITICAL findings",
+      "Foundry PoC templates for HIGH/CRITICAL findings (not executed)",
       "Economic attack analysis (flash loan, MEV, sandwich)",
       "Cross-chain security analysis",
       "Dependency scanning",
