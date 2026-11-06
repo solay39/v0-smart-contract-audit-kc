@@ -2,10 +2,10 @@ name: Slither worker
 
 on:
   pull_request:
-    paths: ["slither-worker/**"]
+    paths: ["slither-worker/**", ".github/workflows/slither-worker.yml"]
   push:
     branches: [main]
-    paths: ["slither-worker/**"]
+    paths: ["slither-worker/**", ".github/workflows/slither-worker.yml"]
 
 permissions:
   contents: read

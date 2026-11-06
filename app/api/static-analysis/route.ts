@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { runSlither, slitherWorkerConfigured, type SlitherRunResult } from "@/lib/slither-client"
 
 export const runtime = "nodejs"
-export const maxDuration = 60
+export const maxDuration = 300 // Slither on GitHub Actions takes ~1 min
 
 /**
  * Static Analysis API - Runs real Slither and Mythril analysis

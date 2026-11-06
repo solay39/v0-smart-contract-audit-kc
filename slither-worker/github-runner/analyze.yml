@@ -1,0 +1,72 @@
+# Solay39 Slither runner — lives in a PRIVATE repository (see slither-worker/README.md).
+# Triggered by the app via the workflow_dispatch API; the result is uploaded as an artifact
+# that the app downloads and then deletes together with the run.
+name: slither-analyze
+run-name: slither ${{ inputs.job_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: Solay39 job id
+        required: true
+      payload:
+        description: base64(gzip(JSON request))
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: slither-${{ inputs.job_id }}
+
+jobs:
+  analyze:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      VIRTUAL_ENV: /home/runner/slither-venv
+      SLITHER_LIBS_DIR: /home/runner/solidity-libs
+      SLITHER_TIMEOUT_SECONDS: "180"
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: py
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            /home/runner/slither-venv
+            /home/runner/solidity-libs
+          key: slither-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-${{ hashFiles('requirements.txt', '.github/workflows/analyze.yml') }}
+
+      - name: Install toolchain (cache miss only)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          python -m venv "$VIRTUAL_ENV"
+          "$VIRTUAL_ENV/bin/pip" install --quiet -r requirements.txt
+          "$VIRTUAL_ENV/bin/solc-select" install 0.8.30 0.8.28 0.8.26 0.8.24 0.8.20 0.8.19 0.8.17 0.8.13 0.8.9 0.8.4 0.7.6 0.6.12 0.5.17 0.4.26
+          for v in oz5:5.4.0 oz4:4.9.6; do
+            d="$SLITHER_LIBS_DIR/${v%%:*}"; mkdir -p "$d"
+            (cd "$d" && npm init -y >/dev/null && npm install --omit=dev --no-audit --no-fund \
+              "@openzeppelin/contracts@${v##*:}" "@openzeppelin/contracts-upgradeable@${v##*:}" >/dev/null)
+          done
+
+      - name: Run Slither
+        env:
+          SLITHER_JOB_ID: ${{ inputs.job_id }}
+          SLITHER_JOB_PAYLOAD: ${{ inputs.payload }}
+        run: |
+          export PATH="$VIRTUAL_ENV/bin:$PATH"
+          python run_job.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: slither-result
+          path: result.json
+          retention-days: 1
+          if-no-files-found: error

@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { runAuditEngine } from "@/core/engine/auditEngine"
 
-export const maxDuration = 60
+export const maxDuration = 300 // Slither on GitHub Actions takes ~1 min
 
 async function fetchContractSource(address: string, network: string): Promise<string | null> {
   const apiKeys: Record<string, string> = {

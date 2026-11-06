@@ -3,7 +3,7 @@ import { slitherSeverity } from "@/core/engine/slitherMapper"
 import type { SlitherConfidence, SlitherImpact } from "@/lib/slither-client"
 import { getFounderKeyForServerCall, isFounderRequest } from "@/lib/founder-auth"
 import { detectProxy } from "@/lib/proxy-detect"
-export const maxDuration = 60
+export const maxDuration = 300 // Slither on GitHub Actions takes ~1 min
 
 import { generateText } from "ai"
 import {

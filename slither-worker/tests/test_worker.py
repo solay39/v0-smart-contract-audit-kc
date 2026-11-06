@@ -160,3 +160,27 @@ def test_semver_matcher():
     assert worker._satisfies(v("0.6.12"), "~0.6.2")
     assert worker._satisfies(v("0.4.24"), "0.4.24")
     assert worker._satisfies(v("0.8.1"), "^0.7.0 || ^0.8.0")
+
+
+def test_run_job_cli(tmp_path, monkeypatch):
+    """GitHub Actions entrypoint: base64(gzip(json)) in, result.json out."""
+    import base64, gzip, json, subprocess, sys
+    from pathlib import Path
+    payload = base64.b64encode(gzip.compress(json.dumps({"code": REENTRANT, "contractName": "Bank"}).encode())).decode()
+    out = tmp_path / "result.json"
+    env = {**os.environ, "SLITHER_JOB_PAYLOAD": payload, "SLITHER_JOB_ID": "job-1", "SLITHER_RESULT_PATH": str(out)}
+    proc = subprocess.run([sys.executable, "run_job.py"], cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True)
+    assert proc.returncode == 0, proc.stderr
+    assert "contract" not in proc.stdout.lower()  # no source code in the public log
+    result = json.loads(out.read_text())
+    assert result["status"] == "ok" and result["jobId"] == "job-1"
+    assert any(f["check"] == "reentrancy-eth" for f in result["findings"])
+
+
+def test_run_job_cli_bad_payload(tmp_path):
+    import json, subprocess, sys
+    from pathlib import Path
+    out = tmp_path / "result.json"
+    env = {**os.environ, "SLITHER_JOB_PAYLOAD": "not-base64!", "SLITHER_RESULT_PATH": str(out)}
+    subprocess.run([sys.executable, "run_job.py"], cwd=Path(__file__).resolve().parents[1], env=env, check=True, capture_output=True)
+    assert json.loads(out.read_text())["status"] == "error"
