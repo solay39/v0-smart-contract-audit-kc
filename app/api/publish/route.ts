@@ -12,6 +12,7 @@ import { evaluateAuditGate, type AuditGateInput, type AuditGateResult } from "@/
 import { evaluatePublish } from "@/src/security/publish-gate"
 import { canonicalJson } from "@/core/audit-core/report.mjs"
 import { validateAuditReport } from "@/lib/security/audit-report-validator"
+import { publicPublicationReceipt } from "@/lib/published-audit-lookup"
 
 const GITHUB_REPO = process.env.GITHUB_REPO || "solay39/Solay39-audit"
 
@@ -216,8 +217,11 @@ export async function POST(req: Request) {
       }
     }
 
+    const receipt = publicPublicationReceipt(supabaseSaved, githubUrl)
     return Response.json({
-      success: !!githubUrl || supabaseSaved,
+      success: receipt.success,
+      publicationStatus: receipt.publicationStatus,
+      error: receipt.success ? undefined : "Public audit persistence failed. GitHub artifacts alone do not create a public audit page.",
       githubUrl: githubUrl || undefined,
       githubError: githubError || undefined,
       supabaseSaved,
@@ -232,12 +236,12 @@ export async function POST(req: Request) {
         errors: publishDecision.errors,
       },
       filesUploaded: files.length,
-      message: githubUrl 
-        ? `Published ${files.length} files with SHA256: ${auditHash.slice(0, 16)}...`
-        : supabaseSaved 
-          ? `Saved to Supabase. GitHub: ${githubError}`
-          : "Publish failed",
-    })
+      message: !receipt.success
+        ? "The public audit was not published. Check Supabase persistence before sharing its URL."
+        : githubUrl
+          ? `Public audit saved; artifacts uploaded with SHA256: ${auditHash.slice(0, 16)}...`
+          : `Public audit saved to Supabase. GitHub: ${githubError}`,
+    }, { status: receipt.httpStatus })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error("[publish] Fatal error:", msg)
