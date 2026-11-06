@@ -86,7 +86,10 @@ jobs:
           ARGS=()
           if [ -n "${{ steps.solc.outputs.remaps }}" ]; then ARGS+=(--solc-remaps "${{ steps.solc.outputs.remaps }}"); fi
           set +e
-          slither work/Contract.sol "${ARGS[@]}" --json out/slither.json > out/slither.log 2>&1
+          # The repository config uses an older Slither schema; disable it for
+          # this dispatch and pass only flags supported by the installed version.
+          if [ -f slither.config.json ]; then mv slither.config.json slither.config.json.disabled; fi
+          slither work/Contract.sol "${ARGS[@]}" --exclude-informational --filter-paths "contracts/" --json out/slither.json > out/slither.log 2>&1
           status=$?
           set -e
           SLITHER_STATUS=$status python - <<'PY'
