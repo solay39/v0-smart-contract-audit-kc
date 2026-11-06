@@ -163,14 +163,26 @@ jobs:
           status=$?
           set -e
           if [ "$status" -ne 0 ]; then
-            printf '{"success":false,"tool":"foundry","mode":"submitted-contract-compilation","tests_executed":false,"fuzzing_executed":false,"error":"forge_build_failed"}' > out/foundry.json
+            python - "$status" <<'PY'
+          import json, pathlib, sys
+          json.dump({
+              'success': False,
+              'tool': 'foundry',
+              'mode': 'submitted-contract-compilation',
+              'tests_executed': False,
+              'fuzzing_executed': False,
+              'error': 'forge_build_failed',
+              'exit_code': int(sys.argv[1]),
+              'stderr': pathlib.Path('out/foundry.log').read_text(errors='replace')[-8000:],
+          }, open('out/foundry.json', 'w'), indent=2)
+          PY
             cat out/foundry.log
-            exit "$status"
-          fi
+          else
           python - <<'PY'
           import json
           json.dump({'success': True, 'tool': 'foundry', 'mode': 'submitted-contract-compilation', 'tests_executed': False, 'fuzzing_executed': False, 'invariants': 0, 'note': 'Protocol-specific fuzzing and invariants require reviewer-supplied tests; no synthetic tests are claimed.'}, open('out/foundry.json', 'w'))
           PY
+          fi
 
       - name: Create evidence manifest
         run: |
@@ -184,7 +196,8 @@ jobs:
           source_hash = hashlib.sha256(source).hexdigest()
           slither = json.loads(Path('out/slither.json').read_text()).get('success', True)
           mythril = json.loads(Path('out/mythril.json').read_text()).get('success', True)
-          manifest = {'job_id': '${{ inputs.job_id }}', 'contract_name': '${{ inputs.contract_name }}', 'source_sha256': source_hash, 'analyzed_path': 'work/Contract.sol', 'artifacts': files, 'claims': {'slither': slither, 'mythril': mythril, 'custom_regression': True, 'foundry_compile': True, 'protocol_fuzzing': False, 'invariants': False, 'manual_review': False}}
+          foundry = json.loads(Path('out/foundry.json').read_text()).get('success', True)
+          manifest = {'job_id': '${{ inputs.job_id }}', 'contract_name': '${{ inputs.contract_name }}', 'source_sha256': source_hash, 'analyzed_path': 'work/Contract.sol', 'artifacts': files, 'claims': {'slither': slither, 'mythril': mythril, 'custom_regression': True, 'foundry_compile': foundry, 'protocol_fuzzing': False, 'invariants': False, 'manual_review': False}}
           Path('out/evidence-manifest.json').write_text(json.dumps(manifest, indent=2))
           PY
 
