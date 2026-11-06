@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
       audit: {
         metadata: result.metadata,
         summary: result.summary,
+        toolchain: result.toolchain,
         staticAnalysis: {
           findings: result.staticAnalysis.findings.map(f => ({
             id:                 f.id,
@@ -91,6 +92,9 @@ export async function POST(req: NextRequest) {
             codeEvidence:       f.codeEvidence       ?? null,
             remediationExample: f.remediationExample ?? null,
             foundryPoC:         f.foundryPoC         ?? null,
+            source:             f.source             ?? null,
+            detector:           f.detector           ?? null,
+            referenceUrl:       f.referenceUrl       ?? null,
           })),
           checksRun: result.staticAnalysis.checksRun,
           coverage:  result.staticAnalysis.coverage,

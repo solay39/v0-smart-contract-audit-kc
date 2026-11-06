@@ -1,6 +1,7 @@
 import { getStaticBackendUrl } from "@/lib/static-backend"
 import { detectProxy } from "@/lib/proxy-detect"
 import { NextRequest, NextResponse } from "next/server"
+import { runSlither, slitherWorkerConfigured, type SlitherRunResult } from "@/lib/slither-client"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -26,6 +27,11 @@ interface SlitherFinding {
     filename: string
     lines: number[]
   }>
+  // Present when produced by the Slither worker
+  title?: string
+  recommendation?: string | null
+  wikiUrl?: string | null
+  snippet?: string
 }
 
 interface MythrilFinding {
@@ -93,10 +99,55 @@ async function runRealAnalysis(code: string, contractName: string, includeHalmos
       return null
     }
     
-    return await response.json()
+    return normalizeBackendResult(await response.json())
   } catch (error) {
     console.error("[StaticAnalysis] API call failed:", error)
     return null
+  }
+}
+
+/**
+ * The legacy backend answers /api/analyze with `{ tools: { slither, mythril } }`,
+ * while this route and its callers expect `{ slither, mythril }` at top level.
+ * Without this, scanner results never reached the report.
+ */
+function normalizeBackendResult(body: unknown): AnalysisResult | null {
+  if (!body || typeof body !== "object") return null
+  const b = body as Partial<AnalysisResult> & { tools?: Partial<AnalysisResult> }
+  const slither = b.slither ?? b.tools?.slither
+  const mythril = b.mythril ?? b.tools?.mythril
+  if (!slither && !mythril) return null
+  const emptyMythril = { tool: "mythril" as const, version: "not run", success: false, findings: [], error: "not run" }
+  const emptySlither = { tool: "slither" as const, version: "not run", success: false, findings: [], detectors_run: 0, error: "not run" }
+  return { ...(b as object), slither: slither ?? emptySlither, mythril: mythril ?? emptyMythril } as AnalysisResult
+}
+
+/** Converts a Slither worker run into the legacy shape consumed by /api/skynet and the UI. */
+function workerToLegacySlither(run: SlitherRunResult): AnalysisResult["slither"] {
+  return {
+    tool: "slither",
+    version: run.slitherVersion ? `${run.slitherVersion} (solc ${run.solcVersion})` : "unknown",
+    success: run.status === "ok",
+    findings: run.findings.map((f) => ({
+      check: f.check,
+      impact: f.impact.toUpperCase(),
+      confidence: f.confidence.toUpperCase(),
+      description: f.description,
+      title: f.title,
+      recommendation: f.recommendation,
+      wikiUrl: f.wikiUrl,
+      snippet: f.snippet,
+      elements: [
+        {
+          type: f.function ? "function" : "node",
+          name: f.function ?? f.contract ?? "",
+          filename: f.file,
+          lines: f.lines,
+        },
+      ],
+    })),
+    detectors_run: run.detectorsRun ?? 0,
+    error: run.status === "ok" ? null : `${run.status}: ${run.error ?? "unknown error"}`,
   }
 }
 
@@ -306,8 +357,20 @@ export async function POST(req: NextRequest) {
       }, { status: 400 })
     }
     
-    // Try real analysis first (includes Halmos if requested)
-    let result = await runRealAnalysis(code, contractName, includeHalmos)
+    // Slither runs on the dedicated worker when configured (primary engine);
+    // Mythril/Foundry/Halmos keep using the legacy backend.
+    const useWorker = slitherWorkerConfigured()
+    const [legacy, worker] = await Promise.all([
+      runRealAnalysis(code, contractName, includeHalmos),
+      useWorker ? runSlither({ code, contractName }) : Promise.resolve(null),
+    ])
+    let result = legacy
+    if (worker) {
+      const slither = workerToLegacySlither(worker)
+      result = result
+        ? { ...result, slither }
+        : { slither, mythril: { tool: "mythril", version: "not run", success: false, findings: [], error: "Mythril backend not configured" } }
+    }
     
     // Fallback to pattern analysis
     const analysisComplete = Boolean(result)
@@ -327,9 +390,20 @@ export async function POST(req: NextRequest) {
       success: analysisComplete,
       analysisComplete,
       analysisMode,
+      slitherWorker: worker
+        ? {
+            status: worker.status,
+            slitherVersion: worker.slitherVersion,
+            solcVersion: worker.solcVersion,
+            sourceSha256: worker.sourceSha256,
+            detectorsRun: worker.detectorsRun,
+            durationMs: worker.durationMs,
+            error: worker.error,
+          }
+        : null,
       scannerExecution: {
-        slither: analysisComplete ? "executed" : "not-run",
-        mythril: analysisComplete ? "executed" : "not-run",
+        slither: worker ? (worker.status === "ok" ? "executed" : worker.status) : analysisComplete ? "executed" : "not-run",
+        mythril: legacy?.mythril?.success ? "executed" : "not-run",
       },
       ...result
     })

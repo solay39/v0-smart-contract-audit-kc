@@ -1,0 +1,5 @@
+slither-analyzer==0.11.6
+crytic-compile==0.4.2
+solc-select==1.2.0
+fastapi==0.162.0
+uvicorn[standard]==0.54.0

@@ -1,0 +1,49 @@
+name: Slither worker
+
+on:
+  pull_request:
+    paths: ["slither-worker/**"]
+  push:
+    branches: [main]
+    paths: ["slither-worker/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: slither-worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: pip install -r requirements-dev.txt
+      - run: solc-select install 0.8.26 0.8.20 0.7.6
+      - name: Bundle OpenZeppelin (same versions as the Dockerfile)
+        run: |
+          mkdir -p /tmp/solidity-libs/oz5 /tmp/solidity-libs/oz4
+          (cd /tmp/solidity-libs/oz5 && npm init -y >/dev/null && npm i --no-audit --no-fund @openzeppelin/contracts@5.4.0 @openzeppelin/contracts-upgradeable@5.4.0)
+          (cd /tmp/solidity-libs/oz4 && npm init -y >/dev/null && npm i --no-audit --no-fund @openzeppelin/contracts@4.9.6 @openzeppelin/contracts-upgradeable@4.9.6)
+      - run: pytest -q tests
+        env:
+          SLITHER_LIBS_DIR: /tmp/solidity-libs
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t solay39-slither-worker slither-worker
+      - name: Smoke test
+        run: |
+          docker run -d --name w -p 8080:8080 -e SLITHER_WORKER_API_KEY=ci-key solay39-slither-worker
+          for i in $(seq 1 30); do curl -sf localhost:8080/health && break; sleep 2; done
+          curl -sf -X POST localhost:8080/v1/analyze -H 'x-api-key: ci-key' -H 'content-type: application/json' \
+            -d '{"code":"// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\ncontract B { mapping(address=>uint) b; function w() external { uint a=b[msg.sender]; (bool ok,)=msg.sender.call{value:a}(\"\"); require(ok); b[msg.sender]=0; } }","contractName":"B"}' \
+            | tee /tmp/out.json | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['status']=='ok', d; assert any(f['check']=='reentrancy-eth' for f in d['findings']), d"

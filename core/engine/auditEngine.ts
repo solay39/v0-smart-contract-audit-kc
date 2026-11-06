@@ -17,6 +17,8 @@ import { computeCVSS, type CVSSVector } from "../severity/cvssEngine"
 import { MLVulnDetector, type MLVulnerability } from "../ai/mlVulnDetector"
 import { VulnSignatureDB, type VulnMatch } from "../db/vulnSignatureDB"
 import { ChainRegistry, type ChainConfig, type ChainSpecificPattern } from "../multichain/chainRegistry"
+import { runSlither, type SlitherRunResult } from "../../lib/slither-client"
+import { isCoveredBySlither, slitherToFindings } from "./slitherMapper"
 
 export interface AuditEngineResult {
   metadata: {
@@ -45,6 +47,13 @@ export interface AuditEngineResult {
   }
   signatureMatches: SignatureMatchSummary[]
   chainSpecificVulns: ChainSpecificPattern[]
+  /** Which engines produced the findings, with tool versions for reproducibility. */
+  toolchain: {
+    mode: "slither" | "heuristic-only"
+    slither: Omit<SlitherRunResult, "findings"> & { findingsCount: number }
+    /** Heuristic findings discarded because Slither analysed the same class precisely */
+    heuristicFindingsDropped: number
+  }
   // Standard analysis
   economic: EconomicAnalysisResult
   crossChain: CrossChainAnalysisResult
@@ -81,6 +90,11 @@ export interface StaticFinding {
   codeEvidence?: string
   remediationExample?: string
   foundryPoC?: string
+  /** Engine that produced the finding. Heuristic and signature findings need manual confirmation. */
+  source?: "slither" | "heuristic" | "signature"
+  /** Slither detector name, when source = "slither" */
+  detector?: string
+  referenceUrl?: string
 }
 
 export interface ThreatModel {
@@ -271,8 +285,20 @@ export async function runAuditEngine(
     chainId?: number
     includeAttackSimulation?: boolean
     includeMLAnalysis?: boolean
+    /** Multi-file sources (path -> content). When omitted, `code` is analysed as a single file. */
+    sources?: Record<string, string>
+    /** Pre-computed Slither result (tests, cached runs), or false to skip Slither. */
+    slither?: SlitherRunResult | false
   } = {}
 ): Promise<AuditEngineResult> {
+  // Primary engine: Slither (runs remotely on the Slither worker, in parallel with the heuristics)
+  const slitherPromise: Promise<SlitherRunResult> =
+    options.slither === false
+      ? Promise.resolve({ tool: "slither", status: "unavailable", findings: [], error: "Disabled for this run" })
+      : options.slither
+        ? Promise.resolve(options.slither)
+        : runSlither({ code: options.sources ? undefined : code, sources: options.sources, contractName: options.contractName })
+
   const parsing = parseContract(code)
   const mainContract = parsing.contracts[0]
   const dependencies = scanDependencies(code, mainContract?.imports || [])
@@ -280,9 +306,6 @@ export async function runAuditEngine(
   const economic = analyzeEconomicAttacks(code)
   const crossChain = analyzeCrossChain(code)
   const threatModel = buildThreatModel(code, parsing, dependencies)
-  const attackSimulations = options.includeAttackSimulation !== false
-    ? buildAttackSimulations(economic, staticFindings)
-    : []
 
   // Signature database (regex signatures of known vulnerability classes)
   const rawSignatureMatches = vulnDB.scanCode(code)
@@ -341,13 +364,37 @@ export async function runAuditEngine(
       foundryPoC: v.foundryPoC,
     }))
 
+  const heuristicFindings: StaticFinding[] = [
+    ...staticFindings.map((f) => ({ ...f, source: "heuristic" as const })),
+    ...sigFindings.map((f) => ({ ...f, source: "signature" as const })),
+    ...mlFindings.map((f) => ({ ...f, source: "heuristic" as const })),
+  ]
+
+  const slither = await slitherPromise
+  const slitherOk = slither.status === "ok"
+  const slitherFindings = slitherToFindings(slither)
+  const keptHeuristics = slitherOk ? heuristicFindings.filter((f) => !isCoveredBySlither(f)) : heuristicFindings
+
   const allFindings = deduplicateFindings(
-    [...staticFindings, ...sigFindings, ...mlFindings].sort(
-      (a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity]
+    [...slitherFindings, ...keptHeuristics].sort(
+      (a, b) =>
+        SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity] ||
+        Number(b.source === "slither") - Number(a.source === "slither")
     )
   )
+  // Attack simulations follow the final findings (Slither-confirmed when available)
+  const attackSimulations = options.includeAttackSimulation !== false
+    ? buildAttackSimulations(economic, allFindings)
+    : []
+  const { findings: _slitherRaw, ...slitherMeta } = slither
+  const toolchain: AuditEngineResult["toolchain"] = {
+    mode: slitherOk ? "slither" : "heuristic-only",
+    slither: { ...slitherMeta, findingsCount: slitherFindings.length },
+    heuristicFindingsDropped: heuristicFindings.length - keptHeuristics.length,
+  }
 
-  const checksRun = STATIC_RULE_FAMILIES + vulnDB.getStats().totalSignatures + chainSpecificVulns.length
+  const checksRun =
+    STATIC_RULE_FAMILIES + vulnDB.getStats().totalSignatures + chainSpecificVulns.length + (slitherOk ? slither.detectorsRun ?? 0 : 0)
   const triggeredChecks = new Set(allFindings.map((f) => f.id.replace(/-\d+$/, ""))).size
 
   const summary = calculateSummary(
@@ -380,6 +427,7 @@ export async function runAuditEngine(
     mlAnalysis,
     signatureMatches,
     chainSpecificVulns,
+    toolchain,
     economic,
     crossChain,
     threatModel,
@@ -957,11 +1005,12 @@ function transferOwnership(address newOwner) external onlyOwner {
   }
 
   // [NEW-10] Front-Running — missing deadline / slippage
-  if (/(swap|addLiquidity|removeLiquidity|deposit|withdraw)\s*\(/.test(code)) {
+  // Only AMM-style operations need a deadline and a minimum output; plain vault deposits/withdrawals do not.
+  if (/\b(swap\w*|addLiquidity\w*|removeLiquidity\w*)\s*\(/.test(code)) {
     const hasDeadline = /deadline|expiry|expiration/.test(code)
     const hasSlippage = /minAmount|minOut|amountOutMin|slippage/.test(code)
     if (!hasDeadline || !hasSlippage) {
-      const ln = lines.findIndex((l) => /(swap|addLiquidity|deposit)/.test(l)) + 1
+      const ln = lines.findIndex((l) => /\b(swap\w*|addLiquidity\w*|removeLiquidity\w*)\s*\(/.test(l)) + 1
       findings.push({
         id: "FRONTRUN-001",
         title: `DeFi Operation Missing ${!hasDeadline ? "Deadline" : ""}${!hasDeadline && !hasSlippage ? " + " : ""}${!hasSlippage ? "Slippage Protection" : ""}`,
@@ -1148,7 +1197,7 @@ function buildAttackSimulations(economic: EconomicAnalysisResult, staticFindings
       mitigation: "Replace spot price with Chainlink or Uniswap V3 TWAP (>=30 min window)",
     })
   }
-  const reentrant = staticFindings.find(f => f.id.startsWith("REENTRANCY"))
+  const reentrant = staticFindings.find(f => f.id.startsWith("REENTRANCY") || f.detector === "reentrancy-eth" || f.detector === "reentrancy-no-eth")
   if (reentrant) {
     sims.push({
       name: "Reentrancy — Recursive ETH Drain",

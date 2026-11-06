@@ -1,4 +1,6 @@
 import { getStaticBackendUrl } from "@/lib/static-backend"
+import { slitherSeverity } from "@/core/engine/slitherMapper"
+import type { SlitherConfidence, SlitherImpact } from "@/lib/slither-client"
 import { getFounderKeyForServerCall, isFounderRequest } from "@/lib/founder-auth"
 import { detectProxy } from "@/lib/proxy-detect"
 export const maxDuration = 60
@@ -48,6 +50,17 @@ function backendSeverity(raw: string): EngineHit["severity"] {
   return "INFO"
 }
 
+const titleCase = (v: string) => v.charAt(0).toUpperCase() + v.slice(1).toLowerCase()
+
+/** Same severity matrix as the core engine (CRITICAL for fund-draining detectors). */
+function slitherLegacySeverity(f: { check: string; impact: string; confidence: string }): "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO" {
+  return slitherSeverity({
+    check: f.check,
+    impact: titleCase(f.impact) as SlitherImpact,
+    confidence: titleCase(f.confidence || "Medium") as SlitherConfidence,
+  })
+}
+
 function staticResultsToEngineHits(res: StaticAnalysisResult | null): EngineHit[] {
   if (!res) return []
   const hits: EngineHit[] = []
@@ -57,7 +70,7 @@ function staticResultsToEngineHits(res: StaticAnalysisResult | null): EngineHit[
       id: `SLITHER-${f.check}`,
       name: f.check,
       category: backendCategory(f.check),
-      severity: backendSeverity(f.impact),
+      severity: slitherLegacySeverity(f),
       confidence: f.confidence?.toLowerCase() === "high" ? 0.9 : f.confidence?.toLowerCase() === "medium" ? 0.7 : 0.5,
       line: f.elements?.[0]?.lines?.[0],
     })
@@ -86,6 +99,10 @@ interface SlitherFinding {
   confidence: string
   description: string
   elements: Array<{ type: string; name: string; filename: string; lines: number[] }>
+  title?: string
+  recommendation?: string | null
+  wikiUrl?: string | null
+  snippet?: string
 }
 
 interface MythrilFinding {
@@ -145,18 +162,21 @@ function convertStaticAnalysisToFindings(analysis: StaticAnalysisResult): Findin
   
   // Convert Slither findings
   for (const f of analysis.slither.findings) {
-    if (f.impact === "INFORMATIONAL") continue // Skip info-level
-    
-    const severity = f.impact === "HIGH" ? "HIGH" : f.impact === "MEDIUM" ? "MEDIUM" : "LOW"
-    const lines = f.elements?.[0]?.lines?.slice(0, 3) || []
-    
+    if (f.impact === "INFORMATIONAL" || f.impact === "OPTIMIZATION") continue // Skip info-level
+
+    const severity = slitherLegacySeverity(f)
+    if (severity === "INFO") continue
+    const lines = f.elements?.[0]?.lines || []
+    const fn = f.elements?.[0]?.type === "function" && f.elements[0].name ? `${f.elements[0].name}() ` : ""
+    const lineLabel = lines.length ? (lines.length > 1 ? `L${Math.min(...lines)}-L${Math.max(...lines)}` : `L${lines[0]}`) : ""
+
     findings.push({
-      title: `[Slither] ${f.check.replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase())}`,
+      title: `[Slither] ${f.title || f.check.replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase())}`,
       severity,
-      location: lines.length ? `Lines ${lines.join(", ")}` : "Contract.sol",
+      location: `${fn}${lineLabel}`.trim() || "Contract.sol",
       description: f.description,
-      impact: `Detected by Slither detector: ${f.check} (confidence: ${f.confidence})`,
-      recommendation: `Review and fix the ${f.check} issue as flagged by Slither static analysis.`,
+      impact: `Detected by Slither detector ${f.check} (impact ${f.impact}, confidence ${f.confidence})${f.wikiUrl ? ` — ${f.wikiUrl}` : ""}`,
+      recommendation: f.recommendation || `Review and fix the ${f.check} issue as flagged by Slither static analysis.`,
     })
   }
   
