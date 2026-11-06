@@ -1,7 +1,7 @@
 import { getStaticBackendUrl } from "@/lib/static-backend"
 import { slitherSeverity } from "@/core/engine/slitherMapper"
 import type { SlitherConfidence, SlitherImpact } from "@/lib/slither-client"
-import { getFounderKeyForServerCall, isFounderRequest } from "@/lib/founder-auth"
+import { getFounderKeyForServerCall, internalAuthHeaders, isFounderRequest } from "@/lib/founder-auth"
 import { detectProxy } from "@/lib/proxy-detect"
 export const maxDuration = 300 // Slither on GitHub Actions takes ~1 min
 
@@ -143,7 +143,7 @@ async function runStaticAnalysis(code: string, contractName: string): Promise<St
     
     const response = await fetch(`${baseUrl}/api/static-analysis`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...internalAuthHeaders() },
       body: JSON.stringify({ code, contractName }),
     })
     
@@ -1819,7 +1819,7 @@ ${truncatedCode}`
             try {
               const res = await fetch(`${baseUrl}/api/fuzz`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...internalAuthHeaders() },
                 body: JSON.stringify({ code, contractName: meta.contractName || "Contract", runs: 10000 }),
               })
               return res.ok ? await res.json() : null
@@ -1831,7 +1831,7 @@ ${truncatedCode}`
             try {
               const res = await fetch(`${baseUrl}/api/formal-verify`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...internalAuthHeaders() },
                 body: JSON.stringify({ code, contractName: meta.contractName || "Contract" }),
               })
               return res.ok ? await res.json() : null
@@ -1843,7 +1843,7 @@ ${truncatedCode}`
             try {
               const res = await fetch(`${baseUrl}/api/cross-contract`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...internalAuthHeaders() },
                 body: JSON.stringify({ 
                   code,
                   contractName: meta.contractName || "Contract",
