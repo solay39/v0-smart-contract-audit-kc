@@ -16,3 +16,7 @@ cache/
 lib/forge-std/
 lib/openzeppelin-contracts/
 security-artifacts*/
+
+*.tsbuildinfo
+__pycache__/
+.pytest_cache/
