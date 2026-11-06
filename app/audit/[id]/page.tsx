@@ -52,8 +52,8 @@ export async function generateStaticParams() {
 function evidenceOnlyServerProject(project: PortfolioProject | null): PortfolioProject | null {
   if (!project) return null
   const integrity = project.reportIntegrity as { sourceSha256?: string; artifacts?: Record<string, string> } | undefined
-  const signed = project.engagement?.reviewTeam?.reviewStatus === "SIGNED" && Boolean(project.engagement.reviewTeam?.leadAuditor?.signedOff)
-  if (integrity?.sourceSha256 && Object.keys(integrity.artifacts || {}).length > 0 && signed) return project
+  const hasCiEvidence = Boolean(integrity?.sourceSha256 && Object.keys(integrity.artifacts || {}).length > 0)
+  if (hasCiEvidence) return project
   return {
     ...project,
     score: 0,

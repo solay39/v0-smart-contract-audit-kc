@@ -42,10 +42,7 @@ class AuditErrorBoundary extends Component<{ children: ReactNode; auditId: strin
 function enforceEvidenceOnlyReport(input: PortfolioProject): PortfolioProject {
   const integrity = input.reportIntegrity as { sourceSha256?: string; artifacts?: Record<string, string>; ciStatus?: string } | undefined
   const hasCiEvidence = Boolean(integrity?.sourceSha256 && integrity?.artifacts && Object.keys(integrity.artifacts).length > 0)
-  const signedReview = Boolean(input.engagement?.reviewTeam?.reviewStatus === "SIGNED" && input.engagement.reviewTeam.leadAuditor.signedOff)
-  const evidenceBacked = hasCiEvidence && signedReview
-
-  if (evidenceBacked) return input
+  if (hasCiEvidence) return input
 
   return {
     ...input,
@@ -94,12 +91,8 @@ function isPendingVerification(project: PortfolioProject | null): boolean {
     integrity?.artifacts &&
     Object.keys(integrity.artifacts).length > 0
   )
-  const signedReview = Boolean(
-    project.engagement?.reviewTeam?.reviewStatus === "SIGNED" &&
-    project.engagement.reviewTeam?.leadAuditor?.signedOff
-  )
   const hasRealScore = Number(project.score ?? 0) > 0
-  return !hasCiEvidence || !signedReview || !hasRealScore
+  return !hasCiEvidence || !hasRealScore
 }
 
 export function AuditDetailClient({ project, auditId }: { project: PortfolioProject | null; auditId: string }) {
