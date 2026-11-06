@@ -45,11 +45,11 @@ jobs:
           python -m venv "$RUNNER_TEMP/security-tools"
           TOOL_PY="$RUNNER_TEMP/security-tools/bin/python"
           "$TOOL_PY" -m pip install --upgrade pip wheel
-          # Mythril 0.24.8 still uses legacy packaging; keep setuptools below the
-          # removal of distutils and install a Python 3.10 NumPy wheel first.
-          "$TOOL_PY" -m pip install "setuptools<81" "numpy==1.26.4"
+          # Mythril 0.24.8 has a legacy setup.py that otherwise creates an
+          # isolated build env and tries to compile NumPy from source.
+          "$TOOL_PY" -m pip install "setuptools<81" "numpy==1.26.4" --only-binary=:all:
           "$TOOL_PY" -m pip install slither-analyzer solc-select
-          "$TOOL_PY" -m pip install mythril
+          "$TOOL_PY" -m pip install --no-build-isolation mythril
           echo "$RUNNER_TEMP/security-tools/bin" >> "$GITHUB_PATH"
 
       - name: Write contract
