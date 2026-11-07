@@ -26,7 +26,7 @@ export function PreliminaryAuditReport({ project, declaredRecord = project, decl
     a.href = url; a.download = `${project.id}-technical-report.md`; a.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
-  return <main className="s39-report">
+  return <main className="s39-report" data-report-appearance="classic">
     <style>{PRELIMINARY_REPORT_STYLE}</style>
     <div className="r-shell">
       <div className="r-top">
@@ -40,7 +40,10 @@ export function PreliminaryAuditReport({ project, declaredRecord = project, decl
         <article className="r-content">
           <header id="overview">
             <div className="r-kicker">SOLAY39 / PRELIMINARY REPORT</div>
-            <h1>{project.name || "Smart contract"}<span className="r-muted">{project.ticker ? ` / ${project.ticker}` : ""}</span></h1>
+            <div className="r-project-heading">
+              <h1>{project.name || "Smart contract"}</h1>
+              {project.ticker && <span className="r-ticker">{project.ticker}</span>}
+            </div>
             <p className="r-muted">Smart contract security assessment · {project.network || "Network not supplied"}</p>
             <p className="r-lead">Technical findings, proposed fixes and review context in one report. Submitted declarations are preserved; execution evidence and founder approval are tracked separately.</p>
             <div className="r-actions">
@@ -95,7 +98,7 @@ export function PreliminaryAuditReport({ project, declaredRecord = project, decl
               <button className="r-filter" type="button" aria-pressed={filter === "ALL"} onClick={() => setFilter("ALL")}>All ({m.findings.length})</button>
               {REPORT_SEVERITIES.filter(s => m.counts[s] > 0).map(s => <button className="r-filter" type="button" key={s} aria-pressed={filter === s} onClick={() => setFilter(s)}>{s} ({m.counts[s]})</button>)}
             </div>
-            <p className="r-muted" style={{ fontSize: 11 }} role="status">Showing {visible.length} of {m.findings.length} submitted findings.</p>
+            <p className="r-muted r-caption" role="status">Showing {visible.length} of {m.findings.length} submitted findings.</p>
             {m.findings.length === 0 && <div className="r-panel" style={{ marginTop: 16 }}>No findings supplied. This is not proof of security.</div>}
             {visible.map(({ finding: f, index }) => <article className="r-finding" key={index} id={`finding-${index + 1}`}>
               <div className="r-finding-head"><div><span className="r-label">F-{String(index + 1).padStart(2, "0")} · {f.severity === "INFO" ? "Informational observation" : "Code finding submission"}</span><h3>{f.title}</h3></div><span className="r-severity" data-level={f.severity}>{f.severity} / SUBMITTED</span></div>
@@ -107,8 +110,8 @@ export function PreliminaryAuditReport({ project, declaredRecord = project, decl
               </div>
               {f.cvss?.vectorString && <p className="r-location" style={{ marginTop: 8 }}>{reportText(f.cvss.vectorString, 300)}</p>}
               <div className="r-review-question"><strong>Founder review question</strong><p>{findingReviewQuestion(f.title)}</p></div>
-              {f.remediationExample && <details><summary>Review remediation example</summary><p className="r-muted" style={{ fontSize: 11 }}>Submitted example. Not compiled or validated here; adapt it to the actual source and storage layout.</p><pre><code>{reportText(f.remediationExample, 50000)}</code></pre></details>}
-              {(f.foundryPoC || f.proofOfConcept) && <details><summary>Inspect submitted PoC code</summary><p className="r-muted" style={{ fontSize: 11 }}>Code submission only. No successful reproduction is established; a privileged caller in a test is not evidence of an unprivileged exploit.</p><pre><code>{reportText(f.foundryPoC || f.proofOfConcept, 50000)}</code></pre></details>}
+              {f.remediationExample && <details><summary>Review remediation example</summary><p className="r-muted r-caption">Submitted example. Not compiled or validated here; adapt it to the actual source and storage layout.</p><pre><code>{reportText(f.remediationExample, 50000)}</code></pre></details>}
+              {(f.foundryPoC || f.proofOfConcept) && <details><summary>Inspect submitted PoC code</summary><p className="r-muted r-caption">Code submission only. No successful reproduction is established; a privileged caller in a test is not evidence of an unprivileged exploit.</p><pre><code>{reportText(f.foundryPoC || f.proofOfConcept, 50000)}</code></pre></details>}
               {f.clientResponse && <details><summary>Read submitted response</summary><p className="r-prose">{reportText(f.clientResponse)}</p>{f.fixVerification && <p className="r-prose">Declared fix verification: {reportText(f.fixVerification)}. Independent validation pending.</p>}</details>}
             </article>)}
           </section>

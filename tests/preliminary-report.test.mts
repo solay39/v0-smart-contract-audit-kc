@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { PreliminaryAuditReport } from "../components/preliminary-audit-report"
 import { findingReviewQuestion, preliminaryMarkdown, preliminaryModel, recordIssues, safeReportUrl } from "../lib/preliminary-report"
 import type { PortfolioProject } from "../lib/solay39-constants"
+import { PRELIMINARY_REPORT_STYLE } from "../lib/preliminary-report-style"
 
 const record = {
   id: "tagger-fixture", name: "Tagger", ticker: "TAG", network: "BSC",
@@ -53,6 +54,19 @@ test("rich report retains technical details but never promotes legacy metrics or
   for (const text of ["Executive overview", "Submitted architecture", "Tagger.sol", "Conflicting supply claims", "vm.prank(proxyAdmin)", "require(approved[target])", "Founder review question", "Declared CVSS", "Download technical report"]) assert.ok(html.includes(text), text)
   for (const text of ["AAA", "98765", "88888", "FAKE_EXECUTION_LOG_SENTINEL"]) assert.ok(!html.includes(text), text)
   assert.ok(html.includes("SUBMITTED, NOT VALIDATED"))
+})
+test("classic presentation restores the original palette and single-column report without dropping evidence controls", () => {
+  const html = renderToStaticMarkup(React.createElement(PreliminaryAuditReport, { project: record }))
+  assert.ok(html.includes('data-report-appearance="classic"'))
+  assert.ok(html.includes('class="r-ticker">TAG</span>'))
+  assert.ok(html.includes('aria-label="Report sections"'))
+  for (const text of ["Execution &amp; evidence", "Awaiting founder review", "Conflicting test execution claims", "Founder review question", "Inspect submitted PoC code", "Download technical report"]) assert.ok(html.includes(text), text)
+  assert.ok(PRELIMINARY_REPORT_STYLE.includes("--s39-bg0,#030608"))
+  assert.ok(PRELIMINARY_REPORT_STYLE.includes("--s39-green,#00ff88"))
+  assert.ok(PRELIMINARY_REPORT_STYLE.includes("--s39-cyan,#00e5ff"))
+  assert.ok(PRELIMINARY_REPORT_STYLE.includes("max-width:1060px"))
+  assert.ok(PRELIMINARY_REPORT_STYLE.includes(".r-layout{display:block}"))
+  assert.ok(!PRELIMINARY_REPORT_STYLE.includes("grid-template-columns:190px"))
 })
 test("unmodified saved declarations are checked even when execution claims were sanitized", () => {
   const sanitized = { ...record, testingMethodology: { ...record.testingMethodology!, fuzzingApplied: false } }
