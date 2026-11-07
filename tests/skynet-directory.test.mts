@@ -129,5 +129,16 @@ test("display fields are bounded and HTML is plain text, not executed", () => {
     },
   ])[0]
   assert.equal(p.name.length, 200)
-  assert.equal(p.network, "Non dichiarata")
+  assert.equal(p.network, "Not disclosed")
+})
+test("English fallbacks preserve original project names and preliminary status", () => {
+  const missing = normalizeDirectory([{ id: "missing" }])[0]
+  assert.equal(missing.name, "Unnamed project")
+  assert.equal(missing.network, "Not disclosed")
+  assert.equal(missing.status, "preliminary")
+  const original = normalizeDirectory([
+    { ...raw, name: "Progetto originale" },
+  ])[0]
+  assert.equal(original.name, "Progetto originale")
+  assert.throws(() => normalizeDirectory(null), /Invalid public directory/)
 })

@@ -34,11 +34,11 @@ import styles from "./skynet-discovery.module.css"
 
 type View = "overview" | "directory" | "recent" | "networks" | "methodology"
 const navigation = [
-  { id: "overview", label: "Panoramica", icon: Compass },
-  { id: "directory", label: "Tutti i report", icon: LayoutGrid },
-  { id: "recent", label: "Ultimi report", icon: FileSearch },
-  { id: "networks", label: "Reti", icon: Globe2 },
-  { id: "methodology", label: "Metodologia", icon: BookOpen },
+  { id: "overview", label: "Overview", icon: Compass },
+  { id: "directory", label: "All reports", icon: LayoutGrid },
+  { id: "recent", label: "Latest reports", icon: FileSearch },
+  { id: "networks", label: "Networks", icon: Globe2 },
+  { id: "methodology", label: "Methodology", icon: BookOpen },
 ] as const
 function Logo({ project }: { project: DirectoryProject }) {
   const [failed, setFailed] = useState(false)
@@ -59,7 +59,7 @@ function Logo({ project }: { project: DirectoryProject }) {
     <span
       className={styles.monogram}
       role="img"
-      aria-label={`${project.name}: logo non disponibile`}
+      aria-label={`${project.name}: logo unavailable`}
     >
       {project.name.slice(0, 2).toUpperCase()}
     </span>
@@ -118,7 +118,7 @@ export function SkynetDiscovery({
       )
       .catch(() => {
         if (!controller.signal.aborted || !disposed)
-          setError("Catalogo non raggiungibile. Nessun dato è stato stimato.")
+          setError("Directory unavailable. No data has been estimated.")
       })
       .finally(() => {
         clearTimeout(timer)
@@ -211,13 +211,13 @@ export function SkynetDiscovery({
     `${preview ? "https://www.solay39.eu" : ""}/audit/${encodeURIComponent(id)}`
   const date = (value: string | null) =>
     value
-      ? new Intl.DateTimeFormat("it-IT", {
+      ? new Intl.DateTimeFormat("en-GB", {
           day: "2-digit",
           month: "short",
           year: "numeric",
           timeZone: "UTC",
         }).format(new Date(value))
-      : "Non dichiarata"
+      : "Not disclosed"
   const reportLink = (p: DirectoryProject) => (
     <a
       href={reportHref(p.id)}
@@ -243,12 +243,12 @@ export function SkynetDiscovery({
       data-testid="skynet-discovery"
     >
       <a className={styles.skip} href="#skynet-main">
-        Vai al contenuto
+        Skip to content
       </a>
       {mobileNav && (
         <button
           className={styles.backdrop}
-          aria-label="Chiudi navigazione"
+          aria-label="Close navigation"
           onClick={() => {
             setMobileNav(false)
             mobileToggle.current?.focus()
@@ -258,7 +258,7 @@ export function SkynetDiscovery({
       <aside
         ref={nav}
         className={`${styles.sidebar} ${mobileNav ? styles.mobileOpen : ""}`}
-        aria-label="Navigazione Skynet"
+        aria-label="Skynet navigation"
         {...(mobileNav ? { role: "dialog", "aria-modal": true } : {})}
       >
         <div className={styles.brand}>
@@ -268,7 +268,7 @@ export function SkynetDiscovery({
           </span>
           <button
             className={styles.mobileClose}
-            aria-label="Chiudi menu"
+            aria-label="Close menu"
             onClick={() => {
               setMobileNav(false)
               mobileToggle.current?.focus()
@@ -277,7 +277,7 @@ export function SkynetDiscovery({
             <X size={20} />
           </button>
         </div>
-        <div className={styles.navLabel}>ESPLORA</div>
+        <div className={styles.navLabel}>EXPLORE</div>
         <nav>
           {navigation.map((item) => (
             <button
@@ -299,8 +299,8 @@ export function SkynetDiscovery({
           <div className={styles.reviewNote}>
             <ShieldQuestion size={18} />
             <span>
-              Evidenze prima dei punteggi
-              <small>Un report non è una certificazione.</small>
+              Evidence before scores
+              <small>A report is not a certification.</small>
             </span>
           </div>
           <button
@@ -309,19 +309,17 @@ export function SkynetDiscovery({
             data-testid="classic-view"
           >
             <Layers3 size={17} />
-            <span>{onClassic ? "Vista classica" : "Sito Solay39"}</span>
+            <span>{onClassic ? "Classic view" : "Solay39 website"}</span>
             <ArrowRight size={15} />
           </button>
           <button
             className={styles.collapseButton}
-            aria-label={
-              collapsed ? "Espandi barra laterale" : "Riduci barra laterale"
-            }
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-expanded={!collapsed}
             onClick={() => setCollapsed(!collapsed)}
           >
             <ChevronLeft size={18} />
-            <span>Riduci menu</span>
+            <span>Collapse menu</span>
           </button>
         </div>
       </aside>
@@ -329,7 +327,7 @@ export function SkynetDiscovery({
         <button
           ref={mobileToggle}
           className={styles.mobileToggle}
-          aria-label="Apri menu"
+          aria-label="Open menu"
           aria-expanded={mobileNav}
           onClick={() => setMobileNav(!mobileNav)}
         >
@@ -340,11 +338,11 @@ export function SkynetDiscovery({
         </span>
         <label className={styles.globalSearch}>
           <Search size={17} />
-          <span className={styles.srOnly}>Cerca progetti</span>
+          <span className={styles.srOnly}>Search projects</span>
           <input
             ref={search}
             value={query}
-            placeholder="Cerca progetto, token o indirizzo"
+            placeholder="Search project, token or address"
             onChange={(e) => {
               setQuery(e.target.value)
               if (!["overview", "directory", "recent"].includes(view))
@@ -368,42 +366,40 @@ export function SkynetDiscovery({
           <div>
             <div className={styles.eyebrow}>SOLAY39 / PUBLIC INTELLIGENCE</div>
             <h1>{navigation.find((n) => n.id === view)?.label}</h1>
-            <p>Esplora i report. Verifica le evidenze.</p>
+            <p>Explore reports. Check the evidence.</p>
           </div>
           <div className={styles.capture}>
             <span className={styles.dot} />
-            {preview ? "Snapshot pubblico" : "Catalogo pubblico"}
+            {preview ? "Public snapshot" : "Public directory"}
             <small>
               {snapshot
-                ? `Caricato ${new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(snapshot.observedAt))}`
-                : "In caricamento"}
-              {error && snapshot ? " · non aggiornato" : ""}
+                ? `Loaded ${new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(snapshot.observedAt))}`
+                : "Loading"}
+              {error && snapshot ? " · out of date" : ""}
             </small>
           </div>
         </div>
         <div className={styles.disclosure}>
           <ShieldQuestion size={18} />
           <p>
-            <strong>Report preliminari, non certificazioni.</strong> Score e
-            firme legacy non sono approvazioni verificate.
+            <strong>Preliminary reports, not certifications.</strong> Legacy
+            scores and signatures are not verified approvals.
           </p>
           <button onClick={() => go("methodology")}>
-            Come leggere i dati <ArrowRight size={14} />
+            How to read the data <ArrowRight size={14} />
           </button>
         </div>
         {error && (
           <div role="alert" className={styles.error}>
             <span>
               {error}
-              {snapshot
-                ? " Restano visibili i dati caricati in precedenza."
-                : ""}
+              {snapshot ? " Previously loaded data remains visible." : ""}
             </span>
             <button
               onClick={() => setRevision((n) => n + 1)}
               disabled={loading}
             >
-              Riprova
+              Retry
             </button>
           </div>
         )}
@@ -411,13 +407,13 @@ export function SkynetDiscovery({
           <div
             className={styles.loading}
             role="status"
-            aria-label="Caricamento catalogo"
+            aria-label="Loading directory"
           >
             <div />
             <div />
             <div />
             <div />
-            <span>Caricamento dei report pubblici…</span>
+            <span>Loading public reports…</span>
           </div>
         ) : (
           <>
@@ -425,59 +421,59 @@ export function SkynetDiscovery({
               <section className={styles.methodology}>
                 <div>
                   <BookOpen size={24} />
-                  <h2>Cosa significa questo catalogo</h2>
+                  <h2>What this directory means</h2>
                   <p>
-                    La presenza di un report indica che esiste una scheda
-                    pubblica. Non dimostra che il contratto sia sicuro, che i
-                    finding siano confermati o che la revisione sia conclusa.
+                    A report in this directory means a public record exists. It
+                    does not prove that the contract is safe, that findings are
+                    confirmed, or that the review is complete.
                   </p>
                 </div>
                 <dl>
                   <div>
-                    <dt>Stato preliminare</dt>
+                    <dt>Preliminary status</dt>
                     <dd>
-                      Tutti i record sono trattati come preliminari in questa
-                      vista. Una firma salvata nel vecchio formato non viene
-                      considerata una verifica indipendente.
+                      All records are treated as preliminary in this view. A
+                      signature stored in a legacy format is not considered
+                      independent verification.
                     </dd>
                   </div>
                   <div>
-                    <dt>Security score: N/D</dt>
+                    <dt>Security score: N/A</dt>
                     <dd>
-                      I punteggi legacy non vengono ripubblicati come rating
-                      verificati. Nessuna classifica di sicurezza è calcolata
-                      senza prove e una metodologia validata.
+                      Legacy scores are not republished as verified ratings. No
+                      security ranking is calculated without evidence and a
+                      validated methodology.
                     </dd>
                   </div>
                   <div>
-                    <dt>Finding dichiarati</dt>
+                    <dt>Submitted findings</dt>
                     <dd>
-                      Il conteggio riporta gli elementi presenti nel record, non
-                      vulnerabilità accertate. Un conteggio pari a zero non
-                      significa assenza di rischio.
+                      The count reflects entries in the record, not confirmed
+                      vulnerabilities. A zero count does not mean there is no
+                      risk.
                     </dd>
                   </div>
                   <div>
-                    <dt>Data e rete</dt>
+                    <dt>Date and network</dt>
                     <dd>
-                      Sono dichiarazioni del record originale. La data di
-                      caricamento del catalogo non è la data dell’audit e non
-                      attesta la freschezza delle evidenze.
+                      These are declarations from the original record. The
+                      directory loading date is not the audit date and does not
+                      establish that the evidence is current.
                     </dd>
                   </div>
                   <div>
-                    <dt>Mercato e monitoraggio</dt>
+                    <dt>Market data and monitoring</dt>
                     <dd>
-                      Prezzi, trending per visite e monitoraggio continuo non
-                      sono disponibili in questa vista. Non vengono simulati.
+                      Prices, visit-based trending and continuous monitoring are
+                      not available in this view. They are not simulated.
                     </dd>
                   </div>
                   <div>
-                    <dt>Approvazioni private</dt>
+                    <dt>Private approvals</dt>
                     <dd>
-                      Le revisioni founder rimangono separate. Anche
-                      un’approvazione privata non equivale a una pubblicazione o
-                      a una garanzia sul contratto.
+                      Founder reviews remain separate. Even a private approval
+                      does not constitute publication or a guarantee about the
+                      contract.
                     </dd>
                   </div>
                 </dl>
@@ -485,8 +481,8 @@ export function SkynetDiscovery({
             ) : view === "networks" ? (
               <section>
                 <div className={styles.sectionHeading}>
-                  <h2>Esplora per rete dichiarata</h2>
-                  <span>{networks.length} reti</span>
+                  <h2>Explore by declared network</h2>
+                  <span>{networks.length} networks</span>
                 </div>
                 <div className={styles.networkGrid}>
                   {networks.map((n) => (
@@ -497,14 +493,14 @@ export function SkynetDiscovery({
                     >
                       <Globe2 size={24} />
                       <strong>{n.network}</strong>
-                      <span>{n.count} report pubblici</span>
+                      <span>{n.count} public reports</span>
                       <ArrowRight size={18} />
                     </button>
                   ))}
                 </div>
                 {!networks.length && (
                   <p className={styles.empty}>
-                    Nessuna rete disponibile nel catalogo caricato.
+                    No networks are available in the loaded directory.
                   </p>
                 )}
               </section>
@@ -518,9 +514,11 @@ export function SkynetDiscovery({
                       <section className={styles.featured}>
                         <div className={styles.sectionHeading}>
                           <h2>
-                            <Compass size={17} /> Progetti nel catalogo
+                            <Compass size={17} /> Projects in the directory
                           </h2>
-                          <span>Ordine alfabetico, non per sicurezza</span>
+                          <span>
+                            Alphabetical order, not a security ranking
+                          </span>
                         </div>
                         <div className={styles.projectStrip}>
                           {highlighted.map((p) => (
@@ -528,7 +526,7 @@ export function SkynetDiscovery({
                               {reportLink(p)}
                               <div>
                                 <span className={styles.badge}>
-                                  Preliminare
+                                  Preliminary
                                 </span>
                                 <small>{p.network}</small>
                               </div>
@@ -538,9 +536,9 @@ export function SkynetDiscovery({
                       </section>
                       <section className={styles.boards}>
                         <div className={styles.sectionHeading}>
-                          <h2>Esplora le reti</h2>
+                          <h2>Explore networks</h2>
                           <button onClick={() => go("networks")}>
-                            Tutte le reti <ArrowRight size={14} />
+                            All networks <ArrowRight size={14} />
                           </button>
                         </div>
                         <div className={styles.boardGrid}>
@@ -552,11 +550,11 @@ export function SkynetDiscovery({
                               data-testid={`board-${n.network}`}
                             >
                               <span className={styles.boardCaption}>
-                                CATALOGO / {String(i + 1).padStart(2, "0")}
+                                DIRECTORY / {String(i + 1).padStart(2, "0")}
                               </span>
                               <strong>{n.network}</strong>
                               <span>
-                                {n.count} report da esplorare{" "}
+                                {n.count} reports to explore{" "}
                                 <ArrowRight size={16} />
                               </span>
                               <div className={styles.boardLogos}>
@@ -574,13 +572,13 @@ export function SkynetDiscovery({
                       <section className={styles.summaryGrid}>
                         <article>
                           <div className={styles.sectionHeading}>
-                            <h2>Ultimi report dichiarati</h2>
+                            <h2>Latest declared reports</h2>
                             <button
                               onClick={() => {
                                 setOrder("recent")
                                 go("recent")
                               }}
-                              aria-label="Apri ultimi report"
+                              aria-label="Open latest reports"
                             >
                               <ArrowRight size={17} />
                             </button>
@@ -594,32 +592,32 @@ export function SkynetDiscovery({
                             ))
                           ) : (
                             <p className={styles.muted}>
-                              Nessuna data dichiarata disponibile.
+                              No declared dates are available.
                             </p>
                           )}
                         </article>
                         <article>
                           <div className={styles.sectionHeading}>
-                            <h2>Stato delle revisioni</h2>
+                            <h2>Review status</h2>
                             <ShieldQuestion size={18} />
                           </div>
                           <div className={styles.reviewSummary}>
                             <strong>{projects.length}</strong>
                             <span>
-                              record pubblici
+                              public records
                               <br />
-                              <b>Da validare manualmente</b>
+                              <b>Awaiting manual validation</b>
                             </span>
                           </div>
                           <p className={styles.muted}>
-                            Nessuna approvazione viene dedotta da score o badge
-                            storici.
+                            No approval is inferred from legacy scores or
+                            badges.
                           </p>
                           <button
                             className={styles.textButton}
                             onClick={() => go("methodology")}
                           >
-                            Consulta la metodologia <ArrowRight size={15} />
+                            Read the methodology <ArrowRight size={15} />
                           </button>
                         </article>
                       </section>
@@ -629,23 +627,23 @@ export function SkynetDiscovery({
                   <div className={styles.sectionHeading}>
                     <h2>
                       {view === "recent"
-                        ? "Report per data dichiarata"
-                        : "Directory dei report"}
+                        ? "Reports by declared date"
+                        : "Report directory"}
                     </h2>
                     <span data-testid="result-count">
-                      {filtered.length} di {projects.length} record
+                      {filtered.length} of {projects.length} records
                     </span>
                   </div>
                   <div className={styles.filters}>
                     <label>
                       <ListFilter size={16} />
-                      <span className={styles.srOnly}>Filtra per rete</span>
+                      <span className={styles.srOnly}>Filter by network</span>
                       <select
-                        aria-label="Filtra per rete"
+                        aria-label="Filter by network"
                         value={network}
                         onChange={(e) => setNetwork(e.target.value)}
                       >
-                        <option value="all">Tutte le reti</option>
+                        <option value="all">All networks</option>
                         {networks.map((n) => (
                           <option key={n.network} value={n.network}>
                             {n.network}
@@ -655,18 +653,18 @@ export function SkynetDiscovery({
                     </label>
                     <label>
                       <ArrowDownUp size={16} />
-                      <span className={styles.srOnly}>Ordina report</span>
+                      <span className={styles.srOnly}>Sort reports</span>
                       <select
-                        aria-label="Ordina report"
+                        aria-label="Sort reports"
                         value={effectiveOrder}
                         disabled={view === "recent"}
                         onChange={(e) =>
                           setOrder(e.target.value as DirectoryOrder)
                         }
                       >
-                        <option value="name">Nome A–Z</option>
-                        <option value="recent">Data dichiarata</option>
-                        <option value="findings">Finding dichiarati</option>
+                        <option value="name">Name A–Z</option>
+                        <option value="recent">Declared date</option>
+                        <option value="findings">Submitted findings</option>
                       </select>
                     </label>
                     {(query || network !== "all") && (
@@ -676,7 +674,7 @@ export function SkynetDiscovery({
                           setNetwork("all")
                         }}
                       >
-                        Azzera filtri <X size={14} />
+                        Clear filters <X size={14} />
                       </button>
                     )}
                     <button
@@ -685,12 +683,12 @@ export function SkynetDiscovery({
                       disabled={loading || preview}
                       aria-label={
                         preview
-                          ? "Snapshot di anteprima, aggiornamento disabilitato"
-                          : "Aggiorna catalogo"
+                          ? "Preview snapshot, refresh disabled"
+                          : "Refresh directory"
                       }
                     >
                       <RefreshCw size={16} />
-                      {loading ? "Caricamento" : "Aggiorna"}
+                      {loading ? "Loading" : "Refresh"}
                     </button>
                   </div>
                   {filtered.length ? (
@@ -698,18 +696,18 @@ export function SkynetDiscovery({
                       <div className={styles.tableWrap}>
                         <table>
                           <caption className={styles.srOnly}>
-                            Report pubblici Solay39. Finding e reti dichiarati,
-                            nessun punteggio verificato.
+                            Public Solay39 reports. Submitted findings and
+                            declared networks, with no verified scores.
                           </caption>
                           <thead>
                             <tr>
                               <th scope="col">#</th>
-                              <th scope="col">Progetto</th>
+                              <th scope="col">Project</th>
                               <th scope="col">Security score</th>
-                              <th scope="col">Stato revisione</th>
-                              <th scope="col">Finding dichiarati</th>
-                              <th scope="col">Rete</th>
-                              <th scope="col">Data dichiarata</th>
+                              <th scope="col">Review status</th>
+                              <th scope="col">Submitted findings</th>
+                              <th scope="col">Network</th>
+                              <th scope="col">Declared date</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -730,15 +728,15 @@ export function SkynetDiscovery({
                                   )}
                                 </td>
                                 <td>
-                                  <span className={styles.noScore}>N/D</span>
+                                  <span className={styles.noScore}>N/A</span>
                                 </td>
                                 <td>
                                   <span className={styles.badge}>
-                                    Preliminare
+                                    Preliminary
                                   </span>
                                 </td>
                                 <td>
-                                  <strong>{p.findings ?? "N/D"}</strong>
+                                  <strong>{p.findings ?? "N/A"}</strong>
                                   {p.highFindings ? (
                                     <small className={styles.findingNote}>
                                       {p.highFindings} HIGH / CRITICAL
@@ -760,18 +758,18 @@ export function SkynetDiscovery({
                       </div>
                       <div className={styles.pagination}>
                         <span>
-                          Pagina {currentPage + 1} di {pages}
+                          Page {currentPage + 1} of {pages}
                         </span>
                         <div>
                           <button
-                            aria-label="Pagina precedente"
+                            aria-label="Previous page"
                             disabled={!currentPage}
                             onClick={() => setPage((n) => Math.max(0, n - 1))}
                           >
                             <ChevronLeft size={17} />
                           </button>
                           <button
-                            aria-label="Pagina successiva"
+                            aria-label="Next page"
                             disabled={currentPage + 1 >= pages}
                             onClick={() => setPage((n) => n + 1)}
                           >
@@ -785,15 +783,15 @@ export function SkynetDiscovery({
                       <Search size={28} />
                       <h3>
                         {projects.length
-                          ? "Nessun report corrisponde alla ricerca"
+                          ? "No reports match your search"
                           : error
-                            ? "Catalogo non disponibile"
-                            : "Nessun report pubblico disponibile"}
+                            ? "Directory unavailable"
+                            : "No public reports available"}
                       </h3>
                       <p>
                         {projects.length
-                          ? "Prova un altro nome, indirizzo o rete."
-                          : "I report appariranno qui quando saranno disponibili."}
+                          ? "Try another name, address or network."
+                          : "Reports will appear here when available."}
                       </p>
                       {projects.length > 0 && (
                         <button
@@ -803,7 +801,7 @@ export function SkynetDiscovery({
                             search.current?.focus()
                           }}
                         >
-                          Azzera ricerca
+                          Clear search
                         </button>
                       )}
                     </div>
@@ -815,8 +813,8 @@ export function SkynetDiscovery({
         )}
         <footer className={styles.footer}>
           <span>© {new Date().getFullYear()} Solay39</span>
-          <span>Report pubblici. Evidenze consultabili.</span>
-          <button onClick={() => go("methodology")}>Metodologia</button>
+          <span>Public reports. Evidence you can inspect.</span>
+          <button onClick={() => go("methodology")}>Methodology</button>
           <a
             href="https://www.perplexity.ai"
             target="_blank"

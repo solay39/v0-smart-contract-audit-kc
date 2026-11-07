@@ -1123,16 +1123,16 @@
     content: "Security score";
   }
   .tableWrap td:nth-child(4)::before {
-    content: "Stato revisione";
+    content: "Review status";
   }
   .tableWrap td:nth-child(5)::before {
-    content: "Finding dichiarati";
+    content: "Submitted findings";
   }
   .tableWrap td:nth-child(6)::before {
-    content: "Rete";
+    content: "Network";
   }
   .tableWrap td:nth-child(7)::before {
-    content: "Data dichiarata";
+    content: "Declared date";
   }
   .networkGrid {
     grid-template-columns: 1fr;

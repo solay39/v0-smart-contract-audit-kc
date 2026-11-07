@@ -4,7 +4,7 @@ Interfaccia pubblica ispirata alla struttura di [CertiK Skynet](https://skynet.c
 
 ## Entrate e compatibilità
 
-- Home: `View Ratings` apre la nuova interfaccia; `Vista classica` mantiene il portfolio esistente e il suo comportamento.
+- Home: `View Ratings` apre la nuova interfaccia; `Classic view` mantiene il portfolio esistente e il suo comportamento.
 - `/skynet`: ingresso diretto alla nuova interfaccia.
 - `/leaderboard`: conserva l'indirizzo precedente, sostituendo la graduatoria di score legacy con la directory senza rating non verificati.
 - `/audit/[id]`: route, contenuto tecnico, logo, finding, evidenze e download non modificati.
@@ -23,7 +23,7 @@ Il componente legge soltanto `GET /api/audits`, stessa origine, senza credenzial
 - Prezzi, TVL, variazioni e monitoraggio live non vengono simulati.
 - Record distinti restano distinti anche se hanno stesso nome o indirizzo. Ricerca anche per ID e indirizzo per distinguerli.
 
-Un errore di aggiornamento conserva il precedente snapshot in memoria e lo segnala come non aggiornato. Un errore iniziale mostra un messaggio con `Riprova`, senza sostituirlo con un catalogo simulato. Un timeout di 60 secondi limita l'attesa della lettura pubblica.
+Un errore di aggiornamento conserva il precedente snapshot in memoria e lo segnala come non aggiornato. Un errore iniziale mostra un messaggio con `Retry`, senza sostituirlo con un catalogo simulato. Un timeout di 60 secondi limita l'attesa della lettura pubblica.
 
 ## Interazioni
 
@@ -52,7 +52,9 @@ serve .local/skynet-preview -l 3030 --no-clipboard
 pnpm exec tsx tests/skynet-preview.browser.mts
 ```
 
-L'anteprima riporta `Snapshot pubblico`, non aggiorna i dati e apre i report sul sito pubblico. Il refresh è intenzionalmente disabilitato. Lo script rifiuta un catalogo vuoto o una risposta HTTP non riuscita, minimizza i record e non include segreti né backend. L'output e le evidenze rimangono sotto `.local/`, ignorata da Git.
+L'anteprima riporta `Public snapshot`, non aggiorna i dati e apre i report sul sito pubblico. Il refresh è intenzionalmente disabilitato. Lo script rifiuta un catalogo vuoto o una risposta HTTP non riuscita, minimizza i record e non include segreti né backend. L'output e le evidenze rimangono sotto `.local/`, ignorata da Git.
+
+L'interfaccia e i metadati sono in inglese, come il resto del sito: navigazione, messaggi, stati, aria-label, etichette mobile e fallback. Le date usano `en-GB`, la ricerca e l'ordinamento usano locale inglese e l'anteprima dichiara `lang="en"`. I nomi originali dei progetti, i record e i report tecnici non sono tradotti o riscritti.
 
 La verifica dello snapshot include il click al report Tagger, logo reale, quattro finding, filtro, disclosure e download Markdown con digest di regressione. Controlla inoltre 1440/375/320 px, ricerca, reti, metodologia e contrasto dei testi piccoli.
 

@@ -17,10 +17,14 @@ page.on("pageerror", (e) => errors.push(e.message))
 page.setDefaultTimeout(30000)
 try {
   await page.goto(origin, { waitUntil: "domcontentloaded" })
-  await page.getByRole("heading", { name: "Panoramica", exact: true }).waitFor()
+  assert.equal(await page.locator("html").getAttribute("lang"), "en")
+  await page.getByRole("heading", { name: "Overview", exact: true }).waitFor()
+  await page
+    .getByText("Preliminary reports, not certifications.", { exact: true })
+    .waitFor()
   await page.getByTestId("result-count").waitFor()
   const loaded = await page.getByTestId("result-count").innerText()
-  assert.ok(/\d+ di \d+ record/.test(loaded))
+  assert.ok(/\d+ of \d+ records/.test(loaded))
   await page.screenshot({ path: out + "/Solay39-Skynet-desktop.png" })
   checks.push(
     "Real public catalog snapshot loads, overview and actual project logos"
@@ -28,7 +32,7 @@ try {
   await page.getByTestId("nav-networks").click()
   await page.screenshot({ path: out + "/networks-desktop.png" })
   await page.getByTestId("network-card-BSC").click()
-  await page.getByRole("button", { name: "Azzera filtri" }).click()
+  await page.getByRole("button", { name: "Clear filters" }).click()
   await page.getByTestId("search-projects").fill("Tagger")
   const popup = page.waitForEvent("popup")
   await page.getByTestId("report-tagger-1793148483876").first().click()
@@ -78,7 +82,7 @@ try {
     "Real report link click, Tagger logo, four findings, filter/disclosure cycle and byte-identical Markdown export"
   )
   await report.close()
-  await page.getByRole("button", { name: "Azzera filtri" }).click()
+  await page.getByRole("button", { name: "Clear filters" }).click()
   await page.getByTestId("nav-overview").click()
   for (const width of [375, 320]) {
     await page.setViewportSize({ width, height: 900 })
@@ -89,16 +93,16 @@ try {
       )
     )
     await page.screenshot({ path: `${out}/Solay39-Skynet-mobile-${width}.png` })
-    await page.getByRole("button", { name: "Apri menu" }).click()
+    await page.getByRole("button", { name: "Open menu" }).click()
     await page.getByTestId("nav-directory").click()
     await page.getByTestId("search-projects").fill("tagger-1793148483876")
-    await page.getByTestId("result-count").filter({ hasText: "1 di" }).waitFor()
+    await page.getByTestId("result-count").filter({ hasText: "1 of" }).waitFor()
     await page.screenshot({ path: `${out}/directory-${width}.png` })
-    await page.getByRole("button", { name: "Azzera filtri" }).click()
-    await page.getByRole("button", { name: "Apri menu" }).click()
+    await page.getByRole("button", { name: "Clear filters" }).click()
+    await page.getByRole("button", { name: "Open menu" }).click()
     await page.getByTestId("nav-methodology").click()
     await page.screenshot({ path: `${out}/methodology-${width}.png` })
-    await page.getByRole("button", { name: "Apri menu" }).click()
+    await page.getByRole("button", { name: "Open menu" }).click()
     await page.getByTestId("nav-overview").click()
   }
   checks.push(

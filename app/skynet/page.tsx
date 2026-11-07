@@ -4,7 +4,7 @@ import { SkynetDiscovery } from "@/components/skynet-discovery"
 export const metadata: Metadata = {
   title: "Skynet Explorer | Solay39",
   description:
-    "Esplora i report pubblici Solay39 per progetto e rete. Evidenze, limiti e stato preliminare senza rating non verificati.",
+    "Explore public Solay39 reports by project and network. Evidence, limitations and preliminary status without unverified ratings.",
   alternates: { canonical: "https://www.solay39.eu/skynet" },
 }
 export default function SkynetPage() {

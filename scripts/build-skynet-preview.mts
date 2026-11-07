@@ -46,7 +46,7 @@ createRoot(document.getElementById("root")!).render(<SkynetDiscovery initialSnap
   })
   await writeFile(
     `${out}/index.html`,
-    `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Solay39 Skynet: anteprima PR</title><link rel="stylesheet" href="./app.css"><style>body{margin:0}</style></head><body><div id="root"></div><script type="module" src="./app.js"></script></body></html>`
+    `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Solay39 Skynet: PR preview</title><link rel="stylesheet" href="./app.css"><style>body{margin:0}</style></head><body><div id="root"></div><script type="module" src="./app.js"></script></body></html>`
   )
   console.log(
     JSON.stringify({

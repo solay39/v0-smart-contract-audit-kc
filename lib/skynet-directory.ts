@@ -39,7 +39,7 @@ export function directoryLogo(value: unknown): string | null {
   }
 }
 export function normalizeDirectory(value: unknown): DirectoryProject[] {
-  if (!Array.isArray(value)) throw new Error("Catalogo pubblico non valido.")
+  if (!Array.isArray(value)) throw new Error("Invalid public directory.")
   const seen = new Set<string>()
   const projects: DirectoryProject[] = []
   for (const raw of value.slice(0, 1000)) {
@@ -61,9 +61,9 @@ export function normalizeDirectory(value: unknown): DirectoryProject[] {
         : NaN
     projects.push({
       id,
-      name: text(p.name, 200) || "Progetto senza nome",
+      name: text(p.name, 200) || "Unnamed project",
       ticker: text(p.ticker || p.symbol, 24),
-      network: text(p.network || p.chain, 60) || "Non dichiarata",
+      network: text(p.network || p.chain, 60) || "Not disclosed",
       address: text(p.contractAddress || p.address, 160),
       logoUrl: directoryLogo(p.logoUrl),
       reportedAt: Number.isFinite(date) ? new Date(date).toISOString() : null,
@@ -88,18 +88,18 @@ export function selectDirectory(
   network: string,
   order: DirectoryOrder
 ) {
-  const q = query.trim().toLocaleLowerCase("it")
+  const q = query.trim().toLocaleLowerCase("en")
   return projects
     .filter(
       (p) =>
         (network === "all" || p.network === network) &&
         [p.name, p.ticker, p.id, p.address].some((v) =>
-          v.toLocaleLowerCase("it").includes(q)
+          v.toLocaleLowerCase("en").includes(q)
         )
     )
     .sort((a, b) => {
       const secondary =
-        a.name.localeCompare(b.name, "it") || a.id.localeCompare(b.id)
+        a.name.localeCompare(b.name, "en") || a.id.localeCompare(b.id)
       if (order === "recent")
         return (
           (Date.parse(b.reportedAt || "") || 0) -
@@ -116,5 +116,7 @@ export function networkCounts(projects: DirectoryProject[]) {
     counts.set(p.network, (counts.get(p.network) || 0) + 1)
   return [...counts]
     .map(([network, count]) => ({ network, count }))
-    .sort((a, b) => b.count - a.count || a.network.localeCompare(b.network))
+    .sort(
+      (a, b) => b.count - a.count || a.network.localeCompare(b.network, "en")
+    )
 }

@@ -31,6 +31,24 @@ const checks: string[] = [],
   errors: string[] = []
 page.on("pageerror", (e) => errors.push(e.message))
 page.setDefaultTimeout(20000)
+async function assertEnglish() {
+  const ui = page.getByTestId("skynet-discovery")
+  const labels = await ui
+    .locator("[aria-label], input[placeholder]")
+    .evaluateAll((elements) =>
+      elements
+        .flatMap((el) => [
+          el.getAttribute("aria-label"),
+          el.getAttribute("placeholder"),
+        ])
+        .filter(Boolean)
+        .join(" ")
+    )
+  assert.doesNotMatch(
+    (await ui.innerText()) + labels,
+    /Panoramica|Tutti i report|Ultimi report|Metodologia|Preliminare|dichiarat|Azzera|Riprova|Caricamento|Cerca progetti|Apri menu|Chiudi menu|Pagina|Filtra per rete|Ordina report/
+  )
+}
 await page.route(
   "https://coin-images.coingecko.com/missing-fixture.png",
   (route) => route.abort()
@@ -54,23 +72,22 @@ await page.route("**/api/audits", async (route) => {
 })
 try {
   await page.goto(origin + "/skynet", { waitUntil: "domcontentloaded" })
-  await page.getByRole("status", { name: "Caricamento catalogo" }).waitFor()
+  await page.getByRole("status", { name: "Loading directory" }).waitFor()
   await page.screenshot({ path: `${out}/loading.png` })
   release?.()
   held = null
   await page
     .getByTestId("result-count")
-    .filter({ hasText: "26 di 26" })
+    .filter({ hasText: "26 of 26" })
     .waitFor()
   assert.equal(await page.locator("tbody tr").count(), 12)
-  await page
-    .getByRole("button", { name: "Pagina successiva", exact: true })
-    .click()
-  await page.getByText("Pagina 2 di 3", { exact: true }).waitFor()
-  await page
-    .getByRole("button", { name: "Pagina precedente", exact: true })
-    .click()
-  await page.getByText("Pagina 1 di 3", { exact: true }).waitFor()
+  await assertEnglish()
+  await page.getByText("Preliminary", { exact: true }).first().waitFor()
+  await page.getByPlaceholder("Search project, token or address").waitFor()
+  await page.getByRole("button", { name: "Next page", exact: true }).click()
+  await page.getByText("Page 2 of 3", { exact: true }).waitFor()
+  await page.getByRole("button", { name: "Previous page", exact: true }).click()
+  await page.getByText("Page 1 of 3", { exact: true }).waitFor()
   checks.push(
     "Loading skeleton, pagination forward/back and disabled boundaries"
   )
@@ -84,45 +101,43 @@ try {
   await page.keyboard.type("TAG")
   await page
     .getByTestId("result-count")
-    .filter({ hasText: "1 di 26" })
+    .filter({ hasText: "1 of 26" })
     .waitFor()
   assert.ok(
     (await page.locator("tbody").innerText()).includes("Tagger fixture")
   )
   await page
     .getByRole("img", {
-      name: "Tagger fixture: logo non disponibile",
+      name: "Tagger fixture: logo unavailable",
       exact: true,
     })
     .first()
     .waitFor()
   assert.ok(!(await page.locator("tbody").innerText()).includes("AAA"))
   await page
-    .getByRole("combobox", { name: "Filtra per rete" })
+    .getByRole("combobox", { name: "Filter by network" })
     .selectOption("Ethereum")
   await page
-    .getByRole("heading", { name: "Nessun report corrisponde alla ricerca" })
+    .getByRole("heading", { name: "No reports match your search" })
     .waitFor()
-  await page
-    .getByRole("button", { name: "Azzera ricerca", exact: true })
-    .click()
+  await page.getByRole("button", { name: "Clear search", exact: true }).click()
   await page
     .getByTestId("result-count")
-    .filter({ hasText: "26 di 26" })
+    .filter({ hasText: "26 of 26" })
     .waitFor()
   await page
-    .getByRole("combobox", { name: "Filtra per rete" })
+    .getByRole("combobox", { name: "Filter by network" })
     .selectOption("BSC")
   await page
     .getByTestId("result-count")
-    .filter({ hasText: "13 di 26" })
+    .filter({ hasText: "13 of 26" })
     .waitFor()
-  await page.getByRole("button", { name: "Azzera filtri" }).click()
+  await page.getByRole("button", { name: "Clear filters" }).click()
   await page
-    .getByRole("combobox", { name: "Ordina report" })
+    .getByRole("combobox", { name: "Sort reports" })
     .selectOption("findings")
   await page
-    .getByRole("combobox", { name: "Ordina report" })
+    .getByRole("combobox", { name: "Sort reports" })
     .selectOption("name")
   checks.push(
     "Keyboard search, name/ticker lookup, combined filter/empty/reset and sort cycle"
@@ -131,19 +146,19 @@ try {
   await page.getByTestId("network-card-Ethereum").click()
   await page
     .getByTestId("result-count")
-    .filter({ hasText: "13 di 26" })
+    .filter({ hasText: "13 of 26" })
     .waitFor()
-  await page.getByRole("button", { name: "Azzera filtri" }).click()
+  await page.getByRole("button", { name: "Clear filters" }).click()
   await page.getByTestId("nav-overview").click()
   await page.getByTestId("board-BSC").click()
   await page
     .getByTestId("result-count")
-    .filter({ hasText: "13 di 26" })
+    .filter({ hasText: "13 of 26" })
     .waitFor()
-  await page.getByRole("button", { name: "Azzera filtri" }).click()
+  await page.getByRole("button", { name: "Clear filters" }).click()
   await page.getByTestId("nav-recent").click()
   assert.equal(
-    await page.getByRole("combobox", { name: "Ordina report" }).isDisabled(),
+    await page.getByRole("combobox", { name: "Sort reports" }).isDisabled(),
     true
   )
   assert.ok(
@@ -151,12 +166,13 @@ try {
   )
   await page.getByTestId("nav-methodology").click()
   await page
-    .getByRole("heading", { name: "Cosa significa questo catalogo" })
+    .getByRole("heading", { name: "What this directory means" })
     .waitFor()
+  await assertEnglish()
   await page.getByTestId("search-projects").fill("0xfixture0")
   await page
     .getByTestId("result-count")
-    .filter({ hasText: "1 di 26" })
+    .filter({ hasText: "1 of 26" })
     .waitFor()
   assert.ok(
     (await page.locator("tbody tr").innerText()).includes("Tagger fixture")
@@ -164,16 +180,16 @@ try {
   checks.push(
     "All navigation views, network boards, recent ordering and address search from methodology"
   )
-  await page.getByRole("button", { name: "Riduci barra laterale" }).click()
+  await page.getByRole("button", { name: "Collapse sidebar" }).click()
   assert.equal(
     await page
-      .getByRole("button", { name: "Espandi barra laterale" })
+      .getByRole("button", { name: "Expand sidebar" })
       .getAttribute("aria-expanded"),
     "false"
   )
-  await page.getByRole("button", { name: "Espandi barra laterale" }).click()
+  await page.getByRole("button", { name: "Expand sidebar" }).click()
   await page.setViewportSize({ width: 375, height: 900 })
-  await page.getByRole("button", { name: "Apri menu" }).click()
+  await page.getByRole("button", { name: "Open menu" }).click()
   await page.getByRole("dialog").waitFor()
   await page.keyboard.press("Shift+Tab")
   assert.equal(
@@ -185,57 +201,54 @@ try {
   await page.keyboard.press("Tab")
   assert.equal(
     await page
-      .getByRole("button", { name: "Chiudi menu", exact: true })
+      .getByRole("button", { name: "Close menu", exact: true })
       .evaluate((el) => el === document.activeElement),
     true
   )
   await page.keyboard.press("Escape")
   assert.equal(
     await page
-      .getByRole("button", { name: "Apri menu" })
+      .getByRole("button", { name: "Open menu" })
       .getAttribute("aria-expanded"),
     "false"
   )
-  await page.getByRole("button", { name: "Apri menu" }).click()
+  await page.getByRole("button", { name: "Open menu" }).click()
   await page.getByTestId("nav-networks").click()
-  await page.getByRole("button", { name: "Apri menu" }).click()
+  await page.getByRole("button", { name: "Open menu" }).click()
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.getByRole("dialog").waitFor({ state: "detached" })
   checks.push(
     "Sidebar collapse cycle, mobile drawer/Escape/focus and mobile-to-desktop recovery"
   )
   await page.getByTestId("nav-directory").click()
-  await page.getByRole("button", { name: "Azzera filtri" }).click()
+  await page.getByRole("button", { name: "Clear filters" }).click()
   response = "error"
-  await page.getByRole("button", { name: "Aggiorna catalogo" }).click()
+  await page.getByRole("button", { name: "Refresh directory" }).click()
   await page.getByTestId("skynet-discovery").getByRole("alert").waitFor()
+  await assertEnglish()
   assert.equal(await page.locator("tbody tr").count(), 12)
   response = "ok"
-  await page.getByRole("button", { name: "Riprova", exact: true }).click()
+  await page.getByRole("button", { name: "Retry", exact: true }).click()
   await page
     .getByTestId("skynet-discovery")
     .getByRole("alert")
     .waitFor({ state: "detached" })
   response = "error"
   await page.reload()
-  await page
-    .getByRole("heading", { name: "Catalogo non disponibile" })
-    .waitFor()
+  await page.getByRole("heading", { name: "Directory unavailable" }).waitFor()
   response = "invalid"
-  await page.getByRole("button", { name: "Riprova", exact: true }).click()
-  await page
-    .getByRole("heading", { name: "Catalogo non disponibile" })
-    .waitFor()
+  await page.getByRole("button", { name: "Retry", exact: true }).click()
+  await page.getByRole("heading", { name: "Directory unavailable" }).waitFor()
   response = "empty"
-  await page.getByRole("button", { name: "Riprova", exact: true }).click()
+  await page.getByRole("button", { name: "Retry", exact: true }).click()
   await page
-    .getByRole("heading", { name: "Nessun report pubblico disponibile" })
+    .getByRole("heading", { name: "No public reports available" })
     .waitFor()
   response = "ok"
-  await page.getByRole("button", { name: "Aggiorna catalogo" }).click()
+  await page.getByRole("button", { name: "Refresh directory" }).click()
   await page
     .getByTestId("result-count")
-    .filter({ hasText: "26 di 26" })
+    .filter({ hasText: "26 of 26" })
     .waitFor()
   checks.push(
     "Failed refresh preserves stale data, retry, first-load error, malformed payload and empty catalog"
@@ -250,7 +263,7 @@ try {
     )
     await page.screenshot({ path: `${out}/directory-${width}.png` })
     if (width <= 375) {
-      await page.getByRole("button", { name: "Apri menu" }).click()
+      await page.getByRole("button", { name: "Open menu" }).click()
       await page.getByTestId("nav-methodology").click()
       await page.screenshot({ path: `${out}/methodology-${width}.png` })
     }
