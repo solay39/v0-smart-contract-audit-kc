@@ -1,4 +1,4 @@
-import { requireFounder } from "./founder-auth"
+import { requireFounder, hasPrivateFounderPassword } from "./founder-auth"
 import { allowedWallets, ReviewError, reviewKey, verifyStoredState } from "./historical-review-core"
 import { loadReviewCatalog } from "./historical-review-catalog"
 import { configuredStore } from "./historical-review-store"
@@ -8,8 +8,8 @@ import type { ReviewQueueItem } from "./historical-review-types"
 export function reviewConfiguration(req: Request) {
   if (process.env.SOLAY39_HISTORICAL_REVIEWS !== "enabled") throw new ReviewError("FEATURE_DISABLED", "Flusso privato non attivato.", 404)
   // No legacy public password fingerprint or derived session secret in this high-assurance flow.
-  if (!/^[a-fA-F0-9]{64}$/.test(process.env.SOLAY39_FOUNDER_PASSWORD_SHA256 || "")
-      || (process.env.SOLAY39_SESSION_SECRET?.length ?? 0) < 32) {
+  if (!hasPrivateFounderPassword()
+      || (process.env.SOLAY39_SESSION_SECRET?.trim().length ?? 0) < 32) {
     throw new ReviewError("FOUNDER_CONFIGURATION", "Richiesti password founder privata e segreto sessione espliciti.", 503)
   }
   const raw = process.env.SOLAY39_REVIEW_ORIGIN

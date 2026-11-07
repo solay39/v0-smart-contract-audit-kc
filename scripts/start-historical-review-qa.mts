@@ -4,7 +4,7 @@
  */
 import { promises as fs } from "node:fs"
 import path from "node:path"
-import { randomUUID } from "node:crypto"
+import { randomUUID, randomBytes } from "node:crypto"
 import { spawn, execFileSync } from "node:child_process"
 import { Wallet } from "ethers"
 import { digest, canonical } from "../lib/historical-review-core"
@@ -17,7 +17,9 @@ if (!/^\d{4,5}$/.test(port)) throw new Error("Invalid local port")
 await fs.mkdir(".local", { recursive: true, mode: 0o700 })
 const root = await fs.mkdtemp(path.resolve(".local/historical-review-qa-"))
 const wallet = Wallet.createRandom()
-const password = "synthetic-qa-" + randomUUID()
+// Authenticate QA with the existing founder API-key path, using 256 random bits.
+// Do not create a fast password hash, even for isolated synthetic credentials.
+const password = randomBytes(32).toString("hex")
 // Exercise the actual Secure/SameSite=None founder cookie over local TLS.
 const keyFile = path.join(root, "localhost-key.pem")
 const certFile = path.join(root, "localhost-cert.pem")
@@ -52,20 +54,17 @@ Object.assign(env, {
   NODE_ENV: "development", NEXT_TELEMETRY_DISABLED: "1",
   // Explicit empty values also override any existing dotenv production credentials.
   NEXT_PUBLIC_SUPABASE_URL: "", NEXT_PUBLIC_SUPABASE_ANON_KEY: "", SUPABASE_SERVICE_ROLE_KEY: "",
-  BLOB_READ_WRITE_TOKEN: "", SOLAY39_FOUNDER_KEY: "",
+  BLOB_READ_WRITE_TOKEN: "", SOLAY39_FOUNDER_KEY: password,
   SOLAY39_HISTORICAL_REVIEWS: "enabled", SOLAY39_FOUNDER_EMAIL: "synthetic-founder@example.invalid",
-  SOLAY39_FOUNDER_PASSWORD_SHA256: digestPassword(password), SOLAY39_SESSION_SECRET: randomUUID() + randomUUID(),
+  // An independent, unmatchable fingerprint disables password-based QA login.
+  // The login endpoint accepts the ephemeral founder key and issues a real cookie.
+  SOLAY39_FOUNDER_PASSWORD_SHA256: randomBytes(32).toString("hex"), SOLAY39_SESSION_SECRET: randomUUID() + randomUUID(),
   SOLAY39_REVIEW_STORE: "local", SOLAY39_REVIEW_LOCAL_DIR: path.join(root, "states"),
   SOLAY39_REVIEW_ORIGIN: `https://127.0.0.1:${port}`,
   SOLAY39_REVIEW_CATALOG_FILE: path.join(root, "catalog.json"), SOLAY39_REVIEW_CATALOG_SHA256: digest(catalog),
   SOLAY39_AUDITOR_WALLETS: wallet.address,
   SOLAY39_REVIEW_READ_ONLY: readOnlyCatalog ? "yes" : "",
 })
-function digestPassword(value: string) {
-  // Password fingerprint is bytes SHA-256, not the canonical JSON content digest.
-  return createHash("sha256").update(value).digest("hex")
-}
-import { createHash } from "node:crypto"
 console.log(`SYNTHETIC_QA_ROOT=${root}`)
 console.log(readOnlyCatalog ? "LOCAL READ-ONLY CATALOG QA. Writes disabled. No historical approvals." : "LOCAL SYNTHETIC QA ONLY. No historical approvals.")
 const child = spawn(process.execPath, [path.resolve("node_modules/next/dist/bin/next"), "dev", "--hostname", "127.0.0.1", "--port", port,

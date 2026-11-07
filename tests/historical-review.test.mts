@@ -257,7 +257,12 @@ test("feature/configuration fail closed and missing/cross origin writes rejected
     process.env.SOLAY39_HISTORICAL_REVIEWS = "enabled"
     delete process.env.SOLAY39_FOUNDER_PASSWORD_SHA256
     throwsCode(() => reviewConfiguration(new Request(domain)), "FOUNDER_CONFIGURATION")
+    process.env.SOLAY39_FOUNDER_PASSWORD_SHA256 = "dc3960ab2247a0196a2d2af0390d36fb8fa8acb57c828ec16642d63a0c247cb8"
+    process.env.SOLAY39_SESSION_SECRET = "SYNTHETIC TEST SECRET ONLY".repeat(3)
+    throwsCode(() => reviewConfiguration(new Request(domain)), "FOUNDER_CONFIGURATION")
     process.env.SOLAY39_FOUNDER_PASSWORD_SHA256 = digest("synthetic private test password")
+    process.env.SOLAY39_SESSION_SECRET = " ".repeat(64)
+    throwsCode(() => reviewConfiguration(new Request(domain)), "FOUNDER_CONFIGURATION")
     process.env.SOLAY39_SESSION_SECRET = "SYNTHETIC TEST SECRET ONLY".repeat(3)
     process.env.SOLAY39_REVIEW_ORIGIN = domain
     process.env.SOLAY39_AUDITOR_WALLETS = wallet.address
