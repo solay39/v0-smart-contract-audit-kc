@@ -322,6 +322,11 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
   })
   const [aiCode, setAiCode] = useState("")
   const [ciEvidence, setCiEvidence] = useState<(CiCompletedJob & { code: string }) | null>(null)
+  useEffect(() => {
+    setCiEvidence(null)
+    // Automated findings belong to the analyzed source, not its next revision.
+    setFindings(previous => previous.filter(f => f.category !== "CI automated"))
+  }, [aiCode])
   const [savedDraftId, setSavedDraftId] = useState<{ name: string; id: string } | null>(null)
   const [contractSource, setContractSource] = useState("")
   const [aiRes, setAiRes] = useState<Omit<Finding, "id" | "category" | "status">[]>([])
