@@ -5,6 +5,7 @@ import type { PortfolioProject, SeverityLevel } from "../lib/solay39-constants"
 import { findingReviewQuestion, preliminaryMarkdown, preliminaryModel, reportText, REPORT_SEVERITIES, safeReportUrl } from "../lib/preliminary-report"
 import { PRELIMINARY_REPORT_STYLE } from "../lib/preliminary-report-style"
 import type { RecordIssue } from "../lib/preliminary-report"
+import { ReportTokenLogo } from "./report-token-logo"
 
 /** Full technical detail and conservative assurance are independent concerns. */
 export function PreliminaryAuditReport({ project, declaredRecord = project, declarationIssues }: {
@@ -41,8 +42,11 @@ export function PreliminaryAuditReport({ project, declaredRecord = project, decl
           <header id="overview">
             <div className="r-kicker">SOLAY39 / PRELIMINARY REPORT</div>
             <div className="r-project-heading">
-              <h1>{project.name || "Smart contract"}</h1>
-              {project.ticker && <span className="r-ticker">{project.ticker}</span>}
+              <ReportTokenLogo name={project.name || "Smart contract"} logoUrl={project.logoUrl} />
+              <div className="r-project-identity">
+                <h1>{project.name || "Smart contract"}</h1>
+                {project.ticker && <span className="r-ticker">{project.ticker}</span>}
+              </div>
             </div>
             <p className="r-muted">Smart contract security assessment · {project.network || "Network not supplied"}</p>
             <p className="r-lead">Technical findings, proposed fixes and review context in one report. Submitted declarations are preserved; execution evidence and founder approval are tracked separately.</p>

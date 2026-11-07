@@ -15,7 +15,10 @@ export const PRELIMINARY_REPORT_STYLE = `
 .s39-report .r-nav a{display:flex;align-items:center;justify-content:center;min-height:44px;padding:8px 12px;color:var(--r-muted);border:1px solid transparent;font-size:var(--r-xs);white-space:nowrap}
 .s39-report .r-nav a:hover,.s39-report .r-nav a:focus-visible{color:var(--r-green);border-color:#00ff8840;background:#00ff8808;text-decoration:none}
 .s39-report .r-content{min-width:0;padding:28px 0 44px}.s39-report h1,.s39-report h2,.s39-report h3,.s39-report p{margin:0}
-.s39-report .r-project-heading{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0 8px}
+.s39-report .r-project-heading{display:flex;align-items:center;gap:12px;margin:12px 0 8px}
+.s39-report .r-project-identity{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+.s39-report .r-token-logo{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;flex:0 0 48px;border-radius:8px;overflow:hidden;border:1px solid var(--r-line);background:var(--r-raised);color:var(--r-muted);font-size:24px;font-weight:700}
+.s39-report .r-token-logo img{display:block;width:100%;height:100%;object-fit:contain}
 .s39-report h1{font-size:var(--r-title);line-height:1.25;letter-spacing:-.025em;font-weight:800;color:var(--r-white)}
 .s39-report .r-ticker{display:inline-block;padding:3px 8px;border:1px solid var(--r-line);background:var(--r-raised);font-size:var(--r-xs);color:var(--r-muted)}
 .s39-report h2{display:flex;align-items:center;gap:14px;font-size:var(--r-heading);line-height:1.5;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:var(--r-cyan)}

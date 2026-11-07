@@ -2,10 +2,10 @@ name: Audit engine tests
 
 on:
   pull_request:
-    paths: ["core/**", "lib/slither-*.ts", "lib/*published-audit*.ts", "lib/audit-draft*.ts", "lib/ci-workspace.ts", "lib/preliminary-report*.ts", "lib/github-analysis-runner.ts", "components/audit-workspace.tsx", "components/audit-draft-recovery.tsx", "components/ci-static-analysis-card.tsx", "components/preliminary-audit-report.tsx", "app/audit/**", "app/api/audit/**", "app/api/audits/**", "app/api/publish/**", "tests/**", "app/api/ai-audit/**", "package.json", "pnpm-lock.yaml", ".github/audit/**", ".github/workflows/static-analysis-dispatch.yml", ".github/workflows/engine-tests.yml"]
+    paths: ["core/**", "lib/slither-*.ts", "lib/*published-audit*.ts", "lib/audit-draft*.ts", "lib/ci-workspace.ts", "lib/preliminary-report*.ts", "lib/github-analysis-runner.ts", "components/audit-workspace.tsx", "components/audit-draft-recovery.tsx", "components/ci-static-analysis-card.tsx", "components/preliminary-audit-report.tsx", "components/report-token-logo.tsx", "app/audit/**", "app/api/audit/**", "app/api/audits/**", "app/api/publish/**", "tests/**", "app/api/ai-audit/**", "package.json", "pnpm-lock.yaml", ".github/audit/**", ".github/workflows/static-analysis-dispatch.yml", ".github/workflows/engine-tests.yml"]
   push:
     branches: [main]
-    paths: ["core/**", "lib/slither-*.ts", "lib/*published-audit*.ts", "lib/audit-draft*.ts", "lib/ci-workspace.ts", "lib/preliminary-report*.ts", "lib/github-analysis-runner.ts", "components/audit-workspace.tsx", "components/audit-draft-recovery.tsx", "components/ci-static-analysis-card.tsx", "components/preliminary-audit-report.tsx", "app/audit/**", "app/api/audit/**", "app/api/audits/**", "app/api/publish/**", "tests/**", "app/api/ai-audit/**", "package.json", "pnpm-lock.yaml", ".github/audit/**", ".github/workflows/static-analysis-dispatch.yml", ".github/workflows/engine-tests.yml"]
+    paths: ["core/**", "lib/slither-*.ts", "lib/*published-audit*.ts", "lib/audit-draft*.ts", "lib/ci-workspace.ts", "lib/preliminary-report*.ts", "lib/github-analysis-runner.ts", "components/audit-workspace.tsx", "components/audit-draft-recovery.tsx", "components/ci-static-analysis-card.tsx", "components/preliminary-audit-report.tsx", "components/report-token-logo.tsx", "app/audit/**", "app/api/audit/**", "app/api/audits/**", "app/api/publish/**", "tests/**", "app/api/ai-audit/**", "package.json", "pnpm-lock.yaml", ".github/audit/**", ".github/workflows/static-analysis-dispatch.yml", ".github/workflows/engine-tests.yml"]
 
 permissions:
   contents: read
