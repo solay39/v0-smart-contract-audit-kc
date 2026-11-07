@@ -40,6 +40,7 @@ export function recordIssues(record: PortfolioProject): RecordIssue[] {
   return issues
 }
 export function findingReviewQuestion(title: string): string {
+  if (/mint/i.test(title)) return "Inspect the implemented mint function, not an interface or modifier name. Check entry guards such as if (msg.sender != minter) revert NotMinter(), inherited authorization and every overload. Distinguish authorized uncapped minting from a public bypass; reproduce unauthorized and authorized calls separately."
   if (/delegatecall/i.test(title)) return "Which reachable call path lets an unprivileged actor choose the target or implementation? Check target control, upgrade authorization and storage layout before confirming exploitability."
   if (/pragma/i.test(title)) return "Record the exact deployed compiler, optimizer settings and reproducible build. Determine whether the declared version range creates a concrete deployment risk."
   if (/fixed supply|constructor.only/i.test(title)) return "Confirm every reachable mint path, including inherited code and any proxy implementation. Reconcile this claim with the rest of the report."

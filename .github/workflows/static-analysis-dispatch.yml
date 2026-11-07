@@ -17,11 +17,69 @@ on:
         description: "Solidity source, gzip + base64"
         required: true
         type: string
+      benchmark:
+        description: "Optional trusted harness for the exact pinned public Aero snapshot"
+        required: false
+        default: none
+        type: choice
+        options: [none, aero-authorization-v1]
 
 permissions:
   contents: read
 
 jobs:
+  aero-benchmark:
+    if: ${{ inputs.benchmark == 'aero-authorization-v1' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Decode and enforce the one permitted source snapshot
+        env:
+          SRC: ${{ inputs.source_gz_b64 }}
+        run: |
+          python3 .github/audit/decode_source.py
+          echo "52e494f011e5966f6d1f67045f89ca60843a48a00082c0032dd0ae77da3fe682  work/Contract.sol" | sha256sum --check
+          mkdir -p benchmark/src benchmark/test benchmark-evidence
+          cp work/Contract.sol benchmark/src/Aero.sol
+          cp work/Contract.sol benchmark-evidence/Aero.sol
+          cp tests/security/AeroSourceAuthorization.t.sol benchmark/test/
+          cp tests/security/AeroSourceAuthorization.t.sol benchmark-evidence/
+          cp .github/audit/aero-benchmark.toml benchmark/foundry.toml
+          cp .github/audit/aero-benchmark.toml benchmark-evidence/
+      - name: Install pinned Foundry
+        run: |
+          set -euo pipefail
+          curl -L --fail --silent --show-error https://foundry.paradigm.xyz | bash
+          for dir in "$HOME/.foundry/bin" "$HOME/.config/.foundry/bin" "$HOME/.config/foundry/bin"; do
+            if [ -d "$dir" ]; then
+              export PATH="$dir:$PATH"
+              echo "$dir" >> "$GITHUB_PATH"
+            fi
+          done
+          foundryup --install v1.9.0
+          forge --version > benchmark-evidence/foundry-version.txt
+      - name: Execute trusted source authorization assertions
+        run: |
+          set +e
+          forge test --root benchmark --match-contract AeroSourceAuthorizationTest --json > benchmark-evidence/forge-results.json 2> benchmark-evidence/forge-stderr.log
+          status=$?
+          printf '%s\n' "$status" > benchmark-evidence/forge-exit-code.txt
+          exit "$status"
+      - name: Summarize observed results without approval claims
+        if: always()
+        run: |
+          mkdir -p benchmark-evidence
+          python3 .github/audit/finalize_aero_benchmark.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: aero-source-benchmark-${{ inputs.job_id }}-attempt-${{ github.run_attempt }}
+          path: benchmark-evidence
+          retention-days: 30
+
   analyze:
     runs-on: ubuntu-24.04
     timeout-minutes: 25

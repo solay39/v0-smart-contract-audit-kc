@@ -12,6 +12,117 @@ import { preliminaryAutomatedAssessment } from "../lib/automated-assessment.ts"
 import { readFileSync } from "node:fs"
 import { exportPDF, exportMarkdown } from "../lib/export-pdf.ts"
 import { normalizeAuditDraft } from "../lib/audit-draft.ts"
+import { reconcileMintFinding, reviewMintAccess, sourceFunctions } from "../lib/solidity-access-review.ts"
+import { runAuditEngine } from "../core/engine/auditEngine.ts"
+
+// Exact authorization idiom published for Aero on BaseScan and quoted in the
+// June 2024 EtherAuthority report. This small fixture is NOT a deployed fork.
+const AERO_ACCESS = `pragma solidity 0.8.19;
+interface IAero { function mint(address account, uint256 amount) external returns (bool); }
+contract Aero {
+ address public minter;
+ error NotMinter();
+ function setMinter(address _minter) external {
+   if (msg.sender != minter) revert NotMinter();
+   minter = _minter;
+ }
+ function mint(address account, uint256 amount) external returns (bool) {
+   if (msg.sender != minter) revert NotMinter();
+   _mint(account, amount);
+   return true;
+ }
+ function _mint(address account, uint256 amount) internal {}
+}`
+
+test("Aero inline NotMinter guard is observed on the implementation, not its interface", async () => {
+  const review = reviewMintAccess(AERO_ACCESS)
+  assert.equal(review.hasMint, true)
+  assert.equal(review.isProtected, true)
+  assert.equal(review.assessment, "GUARD_OBSERVED")
+  assert.equal(review.observations.length, 1)
+  assert.match(review.observations[0].evidence!, /msg.sender != minter/)
+  const result = await runAuditEngine(AERO_ACCESS, { contractName: "Aero", network: "base" })
+  assert.equal(result.staticAnalysis.findings.filter(f => f.id.startsWith("MINT-ACCESS")).length, 0)
+})
+
+test("both operand orders, braced revert and equality require are function-local observations", () => {
+  for (const guard of [
+    "if (msg.sender != minter) revert NotMinter();",
+    "if (minter != msg.sender) { revert NotMinter(); }",
+    "require(msg.sender == minter, 'authorized');",
+    "require(minter == _msgSender());",
+  ]) {
+    const source = `contract C { address minter; function mint(address to, uint amount) external { ${guard} _mint(to,amount); } }`
+    assert.equal(reviewMintAccess(source).isProtected, true, guard)
+  }
+})
+
+test("comments, strings, unrelated checks and late/nested checks do not prove mint protection", () => {
+  for (const body of [
+    "// if (msg.sender != minter) revert NotMinter();\n_mint(to,amount);",
+    'string memory note = "require(msg.sender == minter)"; _mint(to,amount);',
+    "if (amount == 0) { require(msg.sender == minter); } _mint(to,amount);",
+    "_mint(to,amount); if (msg.sender != minter) revert NotMinter();",
+    "if (msg.sender != minter && amount == 0) revert NotMinter(); _mint(to,amount);",
+    "require(msg.sender == minter || open); _mint(to,amount);",
+    "require(msg.sender == _msgSender()); _mint(to,amount);",
+  ]) {
+    const source = `contract C { function unrelated() external { require(msg.sender == owner); }
+      function mint(address to, uint amount) external { ${body} } }`
+    assert.equal(reviewMintAccess(source).isProtected, false, body)
+  }
+})
+
+test("modifier names, empty custom modifiers and caller-supplied authorities remain unresolved", () => {
+  for (const source of [
+    "contract C { modifier onlyOwner(){_;} function mint() external onlyOwner { _mint(msg.sender,1); } }",
+    "contract C { function mint() external onlyRole(MINTER_ROLE) { _mint(msg.sender,1); } }",
+    "contract C { function mint(address minter) external { require(msg.sender == minter); _mint(minter,1); } }",
+  ]) {
+    const review = reviewMintAccess(source)
+    assert.equal(review.isProtected, false)
+    assert.equal(review.assessment, "REVIEW_REQUIRED")
+  }
+})
+
+test("every overload is checked and interface/comments do not swallow the first implementation", () => {
+  const source = AERO_ACCESS + `contract Other {
+    function mint(address to) external { _mint(to,1); }
+  }`
+  const review = reviewMintAccess(source)
+  assert.equal(review.observations.length, 2)
+  assert.equal(review.isProtected, false)
+  assert.equal(review.observations[1].status, "NO_ENTRY_GUARD_OBSERVED")
+  assert.equal(sourceFunctions("// function mint() external {}\n" + AERO_ACCESS).filter(f => f.name === "mint").length, 1)
+})
+
+test("main mint implementation after a 40000-character dependency prefix is still analyzed", () => {
+  const source = "/*" + "dependency documentation ".repeat(2100) + "*/\n" + AERO_ACCESS
+  assert.ok(source.indexOf("function mint") > 40000)
+  assert.equal(reviewMintAccess(source).isProtected, true)
+})
+
+test("contradicted mint exploit claims lose inherited PoCs and numeric risk assertions", () => {
+  const candidate = { title: "Unrestricted Minting Function", severity: "HIGH", cvss: { baseScore: 9.8 },
+    foundryPoC: "assert(unrestricted)", proofOfConcept: "unexecuted exploit", remediationExample: "add onlyOwner" }
+  const result = reconcileMintFinding(candidate, AERO_ACCESS)
+  assert.equal(result.severity, "INFO")
+  assert.match(result.title, /Guard Observed/)
+  assert.equal(result.cvss, undefined)
+  assert.equal(result.foundryPoC, undefined)
+  assert.equal(result.proofOfConcept, undefined)
+  assert.equal(result.remediationExample, undefined)
+  assert.equal(reconcileMintFinding({ ...result, cvss: { baseScore: 9.8 } }, AERO_ACCESS).cvss, undefined)
+  assert.equal(reconcileMintFinding(candidate, "contract C { function mint() external { _mint(msg.sender,1); } }"), candidate)
+})
+
+test("permissionless self-burn is not automatically reported as arbitrary token destruction", async () => {
+  const result = await runAuditEngine(`pragma solidity 0.8.20; contract C {
+    function burn(uint amount) external { _burn(msg.sender, amount); }
+    function _burn(address account, uint amount) internal {}
+  }`, { contractName: "C" })
+  assert.equal(result.staticAnalysis.findings.filter(f => f.id.startsWith("MINT-ACCESS")).length, 0)
+})
 
 test("draft storage and printable exports cannot resurrect fabricated logs or ratings", () => {
   const data = {
