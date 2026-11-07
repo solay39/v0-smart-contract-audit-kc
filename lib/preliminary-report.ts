@@ -1,4 +1,5 @@
 import type { PortfolioProject, SeverityLevel } from "./solay39-constants"
+import { technicalReviewMarkdown } from "./technical-review"
 
 export const REPORT_SEVERITIES: SeverityLevel[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
 export const reportText = (value: unknown, limit = 12000): string =>
@@ -77,6 +78,7 @@ export function preliminaryMarkdown(project: PortfolioProject, declaredRecord = 
     project.architectureOverview ? `## Submitted architecture\n\n${reportText(project.architectureOverview)}` : "",
     m.scope.length ? `## Submitted source inventory\n\n${m.scope.map(s => `- ${s.contract}: ${reportText(s.language)}, declared LOC ${Number.isFinite(s.linesOfCode) ? s.linesOfCode : "not supplied"}; source revision ${/^[a-f0-9]{7,40}$/i.test(reportText(s.commit)) ? s.commit : "not established"}.`).join("\n")}` : "",
     m.trust.length ? `## Declared trust boundaries\n\n${m.trust.map(t => `- ${t.component}: ${reportText(t.trustRequired)} trust declared. ${reportText(t.riskIfCompromised)} Proposed control: ${reportText(t.mitigation) || "not supplied"}`).join("\n")}` : "",
+    technicalReviewMarkdown(project.technicalReview),
     `## Record consistency\n\n${m.issues.length ? m.issues.map(x => `- ${x.title}: ${x.detail}`).join("\n") : "No supported consistency rule detected a conflict. This does not validate the report."}`,
     `## Evidence status\n\nSource-bound CI: ${m.ciLinked ? "Linked to declared digest; founder review pending" : "Not established"}\n\nFounder approval: pending\n\nReproduction: submitted code is not proof of successful execution.`,
     ...m.findings.map((f, i) => {

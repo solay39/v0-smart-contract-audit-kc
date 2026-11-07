@@ -3,7 +3,9 @@ import { slitherSeverity } from "@/core/engine/slitherMapper"
 import type { SlitherConfidence, SlitherImpact } from "@/lib/slither-client"
 import { internalAuthHeaders } from "@/lib/founder-auth"
 import { preliminaryAutomatedAssessment } from "@/lib/automated-assessment"
-import { reconcileMintFinding, reviewMintAccess } from "@/lib/solidity-access-review"
+import { maskSolidity, reconcileMintFinding, reviewMintAccess } from "@/lib/solidity-access-review"
+import { buildTechnicalReview } from "@/lib/technical-review"
+import { createHash } from "node:crypto"
 import { detectProxy } from "@/lib/proxy-detect"
 export const maxDuration = 300 // Slither on GitHub Actions takes ~1 min
 
@@ -321,6 +323,10 @@ function extractContractMeta(code: string, network: string): ContractMeta {
   }
 
   // ── EVM: existing Solidity analysis ──
+  // Library documentation can mention unrelated token standards or protocols.
+  // Attribution remains a declaration; comments/strings are not capabilities.
+  const declaredOZ = /import.*@openzeppelin|OpenZeppelin/.test(code)
+  code = maskSolidity(code)
   const isERC20 = /is\s+(ERC20|IERC20|BEP20)|function\s+transfer\s*\(.*address.*uint/.test(code)
     && /function\s+approve\s*\(/.test(code)
     && /balances|_balances|balanceOf/.test(code)
@@ -358,7 +364,7 @@ function extractContractMeta(code: string, network: string): ContractMeta {
 
   const hasOZPausable = /ERC20Pausable|PausableUpgradeable|import.*Pausable/.test(code)
   const hasOZAccessControl = /Ownable|AccessControl|Roles\s*for|MinterRole|PauserRole/.test(code)
-  const usesOZ = hasOZPausable || hasOZAccessControl || /import.*@openzeppelin|OpenZeppelin/.test(code)
+  const usesOZ = hasOZPausable || hasOZAccessControl || declaredOZ
 
   const hasOwner = /onlyOwner|Ownable|owner\(\)|_owner|AccessControl|onlyRole|onlyAdmin/.test(code)
   const ownerRenounced = /renounceOwnership|ownership.*renounced/.test(code)
@@ -377,6 +383,7 @@ function extractContractMeta(code: string, network: string): ContractMeta {
 
   let contractType: ContractMeta["contractType"] = "generic"
   if (hasProxy) contractType = "proxy"
+  else if (isERC721 && isERC20) contractType = "generic" // multi-standard source scope remains unresolved
   else if (isERC721) contractType = "erc721"
   else if (isERC20 && !hasDeFiLogic) contractType = "erc20"
   else if (hasDeFiLogic) contractType = "defi-protocol"
@@ -2450,6 +2457,7 @@ return Response.json(preliminaryAutomatedAssessment({
   // Analysis Mode (real vs pattern-based)
   analysisMode: "automated-candidates-pending-source-bound-evidence-and-founder-review",
   analysisScope: { sourceCharacters: code.length, analyzedCharacters: truncatedCode.length, truncated: code.length > truncatedCode.length },
+  technicalReview: meta.isNonEVM ? null : buildTechnicalReview(code, createHash("sha256").update(code).digest("hex")),
   // Tier-1 sections
   privilegedRoles,
         trustAssumptions,
@@ -2665,6 +2673,7 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
         findings: finalStaticFindings,
         source: "static",
         analysisScope: { sourceCharacters: code.length, analyzedCharacters: truncatedCode.length, truncated: code.length > truncatedCode.length },
+        technicalReview: meta.isNonEVM ? null : buildTechnicalReview(code, createHash("sha256").update(code).digest("hex")),
         note: "Analysis performed using Solay39 pattern-based static analyzer (AI model unavailable).",
         contractMeta: meta,
         scoreBreakdown,

@@ -265,6 +265,7 @@ export interface AuditProject {
 }
 
 export interface PortfolioProject {
+  technicalReview?: unknown
   ciAnalysis?: {
     jobId: string
     runUrl: string

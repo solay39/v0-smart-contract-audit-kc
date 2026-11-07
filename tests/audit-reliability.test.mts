@@ -12,8 +12,9 @@ import { preliminaryAutomatedAssessment } from "../lib/automated-assessment.ts"
 import { readFileSync } from "node:fs"
 import { exportPDF, exportMarkdown } from "../lib/export-pdf.ts"
 import { normalizeAuditDraft } from "../lib/audit-draft.ts"
-import { reconcileMintFinding, reviewMintAccess, sourceFunctions } from "../lib/solidity-access-review.ts"
+import { maskSolidity, reconcileMintFinding, reviewMintAccess, sourceFunctions } from "../lib/solidity-access-review.ts"
 import { runAuditEngine } from "../core/engine/auditEngine.ts"
+import { buildTechnicalReview, technicalReviewModel, technicalReviewMarkdown } from "../lib/technical-review.ts"
 
 // Exact authorization idiom published for Aero on BaseScan and quoted in the
 // June 2024 EtherAuthority report. This small fixture is NOT a deployed fork.
@@ -122,6 +123,28 @@ test("permissionless self-burn is not automatically reported as arbitrary token 
     function _burn(address account, uint amount) internal {}
   }`, { contractName: "C" })
   assert.equal(result.staticAnalysis.findings.filter(f => f.id.startsWith("MINT-ACCESS")).length, 0)
+})
+
+test("source inventory and verification matrix never infer executed checks from source code", () => {
+  const inventory = buildTechnicalReview(AERO_ACCESS, "a".repeat(64))
+  assert.ok(inventory.functions.some(row => row.name.includes("function mint") && row.observation.includes("revert branch")))
+  assert.ok(inventory.checks.every(row => row.status !== "PASSED" && row.status !== "RECORDED_TEST"))
+  const markdown = technicalReviewMarkdown(inventory)
+  assert.match(markdown, /not validated findings/)
+  assert.match(markdown, /Source function inventory/)
+  assert.match(markdown, /OUT_OF_SCOPE/)
+  assert.equal(technicalReviewModel({ checks: [{ area: "All secure", status: "PASSED", evidence: "unsupported" }] })!.checks[0].status, "NOT_RUN")
+  assert.equal(technicalReviewModel({ sourceSha256: "<script>", functions: ["not a row", null] })!.functions.length, 0)
+})
+
+test("library comments and quoted text are not executable token-standard or protocol signals", () => {
+  const masked = maskSolidity(`// Counter examples: ERC721 ids, staking pool and oracle
+    contract Token {
+      string constant DOC = "ERC721 swap liquidity";
+      function transfer(address to, uint256 amount) external {}
+    }`)
+  assert.doesNotMatch(masked, /ERC721|stake|oracle|liquidity/)
+  assert.match(masked, /function transfer/)
 })
 
 test("draft storage and printable exports cannot resurrect fabricated logs or ratings", () => {

@@ -48,6 +48,7 @@ export const PRELIMINARY_REPORT_STYLE = `
 .s39-report .r-label{color:var(--r-muted);font-size:var(--r-xs);letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:4px}
 .s39-report .r-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:0}.s39-report .r-fields dd{margin:0;font-size:var(--r-xs)}
 .s39-report .r-table-wrap{overflow-x:auto;margin-top:16px;border:1px solid var(--r-line)}.s39-report table{width:100%;border-collapse:collapse;text-align:left;font-size:var(--r-xs)}
+.s39-report table.r-technical-table{min-width:720px}.s39-report .r-technical-table th:nth-child(2){min-width:150px}.s39-report .r-technical-table th:nth-child(3){min-width:110px}
 .s39-report caption{padding:10px 12px;background:var(--r-panel)}.s39-report th,.s39-report td{padding:11px 12px;border-bottom:1px solid var(--r-line);vertical-align:top}
 .s39-report th{font-weight:400;font-size:var(--r-xs);color:var(--r-muted);text-transform:uppercase;background:var(--r-raised)}
 .s39-report .r-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
