@@ -1,0 +1,88 @@
+name: Source-bound AERO verification
+
+on:
+  pull_request:
+    paths:
+      - "scripts/verify-aero-source.py"
+      - "tests/security/AeroSourceVerification.t.sol"
+      - "tests/fixtures/aero/**"
+      - "tests/test_source_verification.py"
+      - "tests/check_source_verification_bundle.py"
+      - ".github/audit/aero-verification.toml"
+      - ".github/workflows/aero-source-verification.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/verify-aero-source.py"
+      - "tests/security/AeroSourceVerification.t.sol"
+      - "tests/fixtures/aero/**"
+      - "tests/test_source_verification.py"
+      - "tests/check_source_verification_bundle.py"
+      - ".github/audit/aero-verification.toml"
+      - ".github/workflows/aero-source-verification.yml"
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      source_gz_b64:
+        description: Optional submitted source; must match the one permitted SHA-256
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  verify-source-properties:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Test the fail-closed evidence reader
+        run: python3 -m unittest discover -s tests -p test_source_verification.py -v
+      - name: Install SHA-256-pinned Linux amd64 tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source-verification-tools"
+          cd "$RUNNER_TEMP/source-verification-tools"
+          curl --fail --location --retry 3 --silent --show-error \
+            https://github.com/foundry-rs/foundry/releases/download/v1.9.0/foundry_v1.9.0_linux_amd64.tar.gz \
+            -o foundry.tar.gz
+          echo "8d17599b42e3139f1a9c171be3798c4ed8e743ae17b84cc3435e57bf2a51ae99  foundry.tar.gz" | sha256sum --check
+          tar -xzf foundry.tar.gz forge
+          curl --fail --location --retry 3 --silent --show-error \
+            https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.19+commit.7dd6d404 \
+            -o solc
+          echo "7a5c1d3dc9a8eba62bb2ec37192c9178ae5fe8a54a56e5573fd3c9c17cd9eb48  solc" | sha256sum --check
+          echo "26fc0c5ef0574f543acf496674160fe9a2175922ae44fd32f46ee2d09fdff4bc  forge" | sha256sum --check
+          chmod +x solc forge
+      - name: Decode the optional submitted snapshot
+        if: ${{ inputs.source_gz_b64 != '' }}
+        env:
+          SRC: ${{ inputs.source_gz_b64 }}
+        run: python3 .github/audit/decode_source.py
+      - name: Execute clean builds, properties, invariants and negative controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_ARGS=()
+          if [ -f work/Contract.sol ]; then SOURCE_ARGS+=(--source work/Contract.sol); fi
+          python3 scripts/verify-aero-source.py \
+            --forge "$RUNNER_TEMP/source-verification-tools/forge" \
+            --solc "$RUNNER_TEMP/source-verification-tools/solc" \
+            --out source-verification-evidence "${SOURCE_ARGS[@]}"
+      - name: Independently reread the captured bundle
+        run: python3 scripts/verify-aero-source.py --verify-bundle source-verification-evidence
+      - name: Reject adversarial modifications even with recomputed hashes
+        run: python3 tests/check_source_verification_bundle.py source-verification-evidence
+      - name: Preserve raw evidence, including failures
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: aero-source-verification-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: source-verification-evidence/
+          if-no-files-found: warn
+          retention-days: 30
