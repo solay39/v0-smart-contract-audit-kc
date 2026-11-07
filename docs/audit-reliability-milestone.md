@@ -31,6 +31,27 @@ Le evidenze v1 richiedono una nuova esecuzione, non un cambio di etichetta. Repo
 - Browser locale con dati sintetici e Supabase simulato in memoria. Nessun audit sintetico o nuova approvazione in produzione.
 - Gli eventuali run GitHub di collaudo usano solo sorgenti sintetici non riservati. I conteggi dei test dell'app non misurano copertura delle vulnerabilità o sicurezza dei token.
 
+### Esito del collaudo
+
+Sul commit `bce5f8497d08daa3a0e450f2f5380d06de493c9d`, entrambi i run reali hanno completato Slither, Mythril, controlli custom e compilazione Foundry. I manifest riepilogativi nei log legano ciascun risultato al digest del sorgente e al run:
+
+| Fixture sintetica | Slither: candidati | Mythril: candidati | Custom: candidati | Run |
+| --- | ---: | ---: | ---: | --- |
+| Autorizzazione con `tx.origin` | 3 | 1 | 1 | [42333080815](https://github.com/solay39/v0-smart-contract-audit-kc/actions/runs/42333080815) |
+| Variante con `msg.sender` | 1 | 0 | 0 | [42333082991](https://github.com/solay39/v0-smart-contract-audit-kc/actions/runs/42333082991) |
+
+I conteggi di strumenti diversi possono sovrapporsi: non sono vulnerabilità distinte o validate. La seconda fixture corregge soltanto il caso di autorizzazione usato nel collaudo; non costituisce un contratto certificato sicuro. Foundry ha compilato, senza eseguire test, fuzzing o invarianti. Le relative dichiarazioni e la revisione manuale restano false/pending nei riepiloghi.
+
+- **Digest vulnerabile:** `f0508b88cb64d7beb7c25490dfd7f63f0a5593e250f8f761274c6170b9288c81`.
+- **Digest variante corretta:** `8196e9f352147d09925c1c3e3c14cd9c02e10f726ea176c3fd8ec1c3dc8af68b`.
+- **Errori precedenti conservati:** i primi [run vulnerabile](https://github.com/solay39/v0-smart-contract-audit-kc/actions/runs/42332512233) e [run corretto](https://github.com/solay39/v0-smart-contract-audit-kc/actions/runs/42332514336) sono falliti per il toolchain. Correzione: ambienti Python separati e aggiornamento fissato di solc-select; nessun gate disabilitato.
+- **Regressioni locali:** 63 test JS/TS e 10 Python superati; build di produzione riuscita. Il type-check completo conserva 95 diagnostiche, nessuna nei file di implementazione modificati: non è un type-check verde.
+- **API locale reale:** senza modello configurato, il fallback ha restituito HTTP 200, bozza preliminare, nessuna firma/IPFS/prova formale e controlli non eseguiti espliciti. Il salvataggio e la rilettura su Supabase simulato hanno mantenuto `PENDING`, eliminando firma, falsa revisione e log sintetici inviati nel payload.
+- **Browser locale:** consenso e reset al cambio sorgente, errori/parzialità, rifiuto di digest diverso, import candidati custom, stampa preliminare e accesso anonimo alle API protette verificati. Controllati report Tagger, logo, filtri, PoC, navigazione dal portfolio e mobile senza errori di pagina. Il Markdown pubblico scaricato coincide byte per byte con il precedente export.
+- **Limite di integrazione:** metadati e log GitHub sono stati letti, ma il download ZIP tramite il CLI disponibile ha risposto HTTP 401. Il server locale non ha un token GitHub configurato. La verifica ZIP è coperta da test avversari con fixture, non da un download/import end-to-end di questi due artefatti reali. Questo passaggio resta da verificare nell'ambiente autorizzato.
+
+Nessuna nuova bozza sintetica, firma o approvazione è stata scritta in produzione. Questi risultati non approvano retroattivamente Tagger, AKE o ZIG.
+
 ## Blocchi ancora aperti
 
 - **Firma:** il vecchio sign-off non lega ancora l'approvazione al digest canonico di report e sorgente con challenge monouso e controllo delle modifiche concorrenti.
