@@ -123,6 +123,7 @@ export type CiJobStatus =
   | { state: "running"; jobId: string; runUrl: string; startedAt: string }
   | { state: "failed"; jobId: string; runUrl: string; error: string }
   | { state: "completed"; jobId: string; runUrl: string; result: CiAnalysisResult }
+export type CiCompletedJob = Extract<CiJobStatus, { state: "completed" }>
 
 interface WorkflowRun {
   id: number
@@ -146,7 +147,7 @@ function firstLine(text: string | undefined): string {
   return (text || "").split("\n").map((l) => l.trim()).find(Boolean) || "unknown"
 }
 
-function parseArtifact(files: Record<string, Uint8Array>): CiAnalysisResult {
+export function parseArtifact(files: Record<string, Uint8Array>): CiAnalysisResult {
   const read = (name: string) => {
     const key = Object.keys(files).find((k) => k === name || k.endsWith(`/${name}`))
     return key ? strFromU8(files[key]) : undefined
@@ -178,7 +179,7 @@ function parseArtifact(files: Record<string, Uint8Array>): CiAnalysisResult {
       lines: e.source_mapping?.lines || [],
     })),
   }))
-  const slitherOk = slitherRaw.success !== false || slitherFindings.length > 0
+  const slitherOk = slitherRaw.success === true
 
   type RawMythril = {
     success?: boolean
@@ -207,7 +208,7 @@ function parseArtifact(files: Record<string, Uint8Array>): CiAnalysisResult {
   }))
 
   const slitherError = slitherOk ? null : slitherRaw.error || firstLine(slitherLog.split("\n").slice(-5).join("\n"))
-  const mythrilError = mythrilRaw.success === false ? mythrilRaw.error || firstLine(read("mythril.log")) : null
+  const mythrilError = mythrilRaw.success !== true ? mythrilRaw.error || firstLine(read("mythril.log")) : null
 
   const customRaw = safeJson<{ success?: boolean; tool?: string; version?: string; checks?: Record<string, boolean>; findings?: CiCustomFinding[]; error?: string }>(read("custom.json"), { success: false, error: "custom_report_unavailable" })
   const foundryRaw = safeJson<{ success?: boolean; tool?: string; mode?: string; invariants?: number; tests_executed?: boolean; fuzzing_executed?: boolean; error?: string }>(read("foundry.json"), { success: false, error: "foundry_report_unavailable" })
@@ -225,7 +226,7 @@ function parseArtifact(files: Record<string, Uint8Array>): CiAnalysisResult {
     mythril: {
       tool: "mythril",
       version: firstLine(read("mythril-version.txt")).replace(/^Mythril version\s*/i, ""),
-      success: mythrilRaw.success !== false,
+      success: mythrilRaw.success === true,
       findings: mythrilFindings,
       error: mythrilError,
     },

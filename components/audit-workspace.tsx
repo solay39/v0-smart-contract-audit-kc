@@ -43,6 +43,9 @@ import { useAuditValidator, ValidationPanel } from "@/components/validation-pane
 import ManualReviewWorkspace from "@/components/manual-review-workspace"
 import { Tier1AnalysisPanel } from "@/components/tier1-analysis-panel"
 import { CiStaticAnalysisCard } from "@/components/ci-static-analysis-card"
+import { assertDraftSaved, normalizeAuditDraft } from "@/lib/audit-draft"
+import type { CiCompletedJob } from "@/lib/github-analysis-runner"
+import { ciFindingsForWorkspace } from "@/lib/ci-workspace"
 import { AuditAssurancePanel, type ConsensusData, type ConfirmedPoC, type MonitoringData } from "@/components/audit-assurance-panel"
 
 // ════════════════════════════════════════════════════════════════
@@ -318,6 +321,8 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     status: "OPEN",
   })
   const [aiCode, setAiCode] = useState("")
+  const [ciEvidence, setCiEvidence] = useState<(CiCompletedJob & { code: string }) | null>(null)
+  const [savedDraftId, setSavedDraftId] = useState<{ name: string; id: string } | null>(null)
   const [contractSource, setContractSource] = useState("")
   const [aiRes, setAiRes] = useState<Omit<Finding, "id" | "category" | "status">[]>([])
   const [aiLoad, setAiLoad] = useState(false)
@@ -458,7 +463,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     memo: string
     timestamp: string
   } | null>(null)
-  
+
   // ── Manual Token Data (for presale tokens not yet on blockchain) ──
   const [manualTokenData, setManualTokenData] = useState<{
     enabled: boolean
@@ -471,7 +476,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     totalSupply?: string
     marketCap?: string
   }>({ enabled: false })
-  
+
   // ── Dedicated state for on-chain analysis data (independent of manualReviewSession) ──
   // This is populated immediately when the user clicks "SAVE TO AUDIT REPORT" in the on-chain panel
   // so that it survives even if the user doesn't complete the full manual review flow
@@ -564,7 +569,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
 
   // ── Publish to Portfolio + GitHub ─��
   const [publishing, setPublishing] = useState(false)
-  const [publishResult, setPublishResult] = useState<{ success?: boolean; githubUrl?: string; githubError?: string; error?: string } | null>(null)
+  const [publishResult, setPublishResult] = useState<{ success?: boolean; publicUrl?: string; error?: string } | null>(null)
 
   const handleValidateAndPublish = async () => {
     const currentNetwork = project.network || "Ethereum"
@@ -639,7 +644,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     }
     // Integrity guard: require actual code analysis before publishing
     const actualLOC = (aiEngagement?.linesOfCode as number) || contractMeta?.linesOfCode || 0
-    if (actualLOC === 0 && aiRes.length === 0) {
+    if (actualLOC === 0 && aiRes.length === 0 && ciEvidence?.code !== aiCode) {
       setPublishResult({ error: "Cannot publish: no source code was analyzed. Run Skynet AI analysis first with actual contract code." })
       return
     }
@@ -734,7 +739,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         // Token info fetch is non-critical — continue with manual data
       }
     }
-    
+
     // ── Step 1b: Override with MANUAL token data if enabled (for presale tokens) ──
     if (manualTokenData.enabled) {
       tokenMeta = {
@@ -754,10 +759,13 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     // Sanitize ID to only allow alphanumeric and hyphens (no special chars like ? ( ) etc)
     const sanitizedName = project.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "audit"
     const portfolioEntry: PortfolioProject = {
-      id: sanitizedName + "-" + Date.now(),
+      id: savedDraftId?.name === project.name ? savedDraftId.id : sanitizedName + "-" + Date.now(),
       name: project.name,
       ticker: tokenMeta.ticker,
       network: project.network || "Ethereum",
+      ciAnalysis: ciEvidence?.code === aiCode ? {
+        jobId: ciEvidence.jobId, runUrl: ciEvidence.runUrl, result: ciEvidence.result,
+      } : undefined,
       score,
       rating: ratingOf(score),
       price: tokenMeta.price,
@@ -1304,102 +1312,38 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
     const reportJson = JSON.stringify(portfolioEntry)
     const sha256 = await computeReportHash(reportJson)
     const reportIntegrity = buildReportIntegrity(portfolioEntry.id, sha256)
-    const enrichedEntry = { ...portfolioEntry, reportIntegrity }
+    const enrichedEntry = normalizeAuditDraft({
+      ...portfolioEntry,
+      reportIntegrity: {
+        ...reportIntegrity,
+        ...(ciEvidence?.code === aiCode ? {
+          sourceSha256: ciEvidence.result.evidenceManifest?.source_sha256,
+          artifacts: ciEvidence.result.evidenceManifest?.artifacts,
+        } : {}),
+      },
+    })
 
     // ── Step 3.1: Save to local portfolio store ──
-    savePublishedAudit(enrichedEntry)
+    try { savePublishedAudit(enrichedEntry) } catch {
+      // An unavailable browser backup must not prevent canonical server saving.
+    }
 
     // ── Step 3.5: Save to Vercel Blob for server-side persistence ──
     try {
-      await fetch("/api/audits", {
+      const res = await fetch("/api/audits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ audit: enrichedEntry }),
       })
-    } catch {
-      // Non-critical: localStorage is the primary fallback
-      console.warn("Failed to persist audit to server Blob")
-    }
-
-    // ── Step 4: Upload to GitHub ──
-    try {
-      const baseName = `SOLAY39-${project.name.replace(/\s+/g, "-")}-Audit-${project.date || new Date().toISOString().slice(0, 10)}`
-      
-      // Generate full HTML report using the exportPDF helper
-      const tier1Data = {
-        privilegedRoles: portfolioEntry.privilegedRoles,
-        trustAssumptions: portfolioEntry.trustAssumptions,
-        architectureOverview: portfolioEntry.architectureOverview,
-        attackSurface: portfolioEntry.attackSurface,
-        toolingUsed: portfolioEntry.toolingUsed,
-        onChainValidation: portfolioEntry.onChainValidation,
-        governanceSecurity: portfolioEntry.governanceSecurity,
-        upgradeabilityAnalysis: portfolioEntry.upgradeabilityAnalysis,
-        economicRisks: portfolioEntry.economicRisks,
-        integrationRisks: portfolioEntry.integrationRisks,
-        invariantsChecked: portfolioEntry.invariantsChecked,
-        testingMethodology: portfolioEntry.testingMethodology,
-        engagement: portfolioEntry.engagement,
-        scopeTable: portfolioEntry.scopeTable,
-        riskModel: portfolioEntry.riskModel,
-        auditorProfile: portfolioEntry.auditorProfile,
-        limitations: portfolioEntry.limitations,
-        manualReview: portfolioEntry.manualReview,
-        securityChecklist: portfolioEntry.securityChecklist,
-        onChainAnalysis: portfolioEntry.onChainAnalysis || {
-          tokenSymbol: onChainAnalysisData?.tokenSymbol || manualReviewSession?.onChainAnalysis?.tokenSymbol,
-          executiveSummary: onChainAnalysisData?.executiveSummary || manualReviewSession?.onChainAnalysis?.executiveSummary,
-          tokenEconomics: onChainAnalysisData?.tokenEconomics || manualReviewSession?.onChainAnalysis?.tokenEconomics,
-          whaleDistribution: onChainAnalysisData?.whaleDistribution || manualReviewSession?.onChainAnalysis?.whaleDistribution,
-          liquidityAnalysis: onChainAnalysisData?.liquidityAnalysis || manualReviewSession?.onChainAnalysis?.liquidityAnalysis,
-        },
-      }
-      
-      const reportHtml = exportPDF(project, score, findings, tier1Data)
-      const reportMd = exportMarkdown(project, score, findings, tier1Data, "sanettanammurata-max/Solay39-")
-
-      // Prepare files for GitHub upload (JSON for data, HTML for viewing, Markdown summary)
-      const files = [
-        {
-          path: `audits/${baseName}.json`,
-          content: btoa(unescape(encodeURIComponent(JSON.stringify(enrichedEntry, null, 2)))),
-          message: `[Solay39 Audit] ${project.name} - Full JSON Data`,
-        },
-        {
-          path: `audits/${baseName}.html`,
-          content: btoa(unescape(encodeURIComponent(reportHtml))),
-          message: `[Solay39 Audit] ${project.name} - Full HTML Report`,
-        },
-        {
-          path: `audits/${baseName}.md`,
-          content: btoa(unescape(encodeURIComponent(reportMd))),
-          message: `[Solay39 Audit] ${project.name} - Professional Markdown Report`,
-        }
-      ]
-
-      const res = await fetch("/api/publish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          project: portfolioEntry,
-          files,
-          portfolioData: portfolioEntry,
-        }),
-      })
       const data = await res.json()
-      setPublishResult({
-        success: true,
-        githubUrl: data.githubUrl || undefined,
-        githubError: data.githubError || undefined,
-      })
+      const publicUrl = assertDraftSaved(res.ok, data)
+      setSavedDraftId({ name: project.name, id: enrichedEntry.id })
+      setPublishResult({ success: true, publicUrl })
     } catch (err) {
-      setPublishResult({
-        success: true,
-        githubError: `GitHub upload failed: ${err instanceof Error ? err.message : String(err)}`,
-      })
+      setPublishResult({ error: err instanceof Error ? err.message : "Server save failed. The report is not public." })
+    } finally {
+      setPublishing(false)
     }
-
-    setPublishing(false)
   }
 
   const [aiNote, setAiNote] = useState("")
@@ -1898,11 +1842,11 @@ const TABS: [TabId, string][] = [
                 </div>
                 <S39Btn
                   small
-                  onClick={handleValidateAndPublish}
+                  onClick={publishAudit}
                   disabled={publishing || isValidating || !project.name}
                   className="w-full !text-s39-green !border-s39-green/40 hover:!bg-s39-green/10"
                 >
-                  {isValidating ? "Validating..." : publishing ? "Publishing..." : "Validate & Publish"}
+                  {publishing ? "Saving to server..." : "Save preliminary report"}
                 </S39Btn>
                 {publishResult && (
                   <div className={`text-[9px] p-2.5 w-full ${
@@ -1912,21 +1856,16 @@ const TABS: [TabId, string][] = [
                   }`}>
                     {publishResult.error
                       ? publishResult.error
-                      : "Published to portfolio!"}
-                    {publishResult.githubUrl && (
+                      : "Preliminary report saved on the server. Not a signed final audit."}
+                    {publishResult.publicUrl && (
                       <a
-                        href={publishResult.githubUrl}
+                        href={publishResult.publicUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="block mt-1 text-s39-cyan underline"
                       >
-                        View on GitHub
+                        Open saved preliminary report
                       </a>
-                    )}
-                    {publishResult.githubError && (
-                      <div className="mt-1 text-s39-orange text-[8px]">
-                        {publishResult.githubError}
-                      </div>
                     )}
                   </div>
                 )}
@@ -1993,7 +1932,7 @@ const TABS: [TabId, string][] = [
                     type="date"
                   />
                 </div>
-                
+
                 {/* PRESALE / MANUAL TOKEN DATA */}
                 <div className="bg-s39-bg2 border border-s39-border p-4 mt-4">
                   <div className="flex items-center gap-3 mb-3">
@@ -2011,7 +1950,7 @@ const TABS: [TabId, string][] = [
                       (Use when token is not yet on blockchain)
                     </span>
                   </div>
-                  
+
                   {manualTokenData.enabled && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 animate-[fadeUp_0.2s_ease]">
                       <S39Input
@@ -2109,8 +2048,8 @@ const TABS: [TabId, string][] = [
                           setSourceInfo(toVerifiedSourceInfo(data))
                           setContractSource(data.source)
                           setAiCode(data.source)
-                          setProject((p) => ({ 
-                            ...p, 
+                          setProject((p) => ({
+                            ...p,
                             name: data.contractName || p.name,
                             commit: addr,
                           }))
@@ -2127,9 +2066,9 @@ const TABS: [TabId, string][] = [
                     }}
                     disabled={aiLoad}
                     className="px-3 py-2 text-[10px] font-bold tracking-wider border shrink-0"
-                    style={{ 
-                      background: "#00ff8815", 
-                      borderColor: "#00ff8830", 
+                    style={{
+                      background: "#00ff8815",
+                      borderColor: "#00ff8830",
                       color: "#00ff88",
                       cursor: aiLoad ? "wait" : "pointer",
                       opacity: aiLoad ? 0.6 : 1,
@@ -2653,7 +2592,21 @@ const TABS: [TabId, string][] = [
 
             {aiCode.trim() && (
               <div className="mb-5">
-                <CiStaticAnalysisCard code={aiCode} contractName={project.name || "Contract"} />
+                <CiStaticAnalysisCard code={aiCode} contractName={project.name || "Contract"}
+                  onResult={(job) => {
+                    setCiEvidence({ ...job, code: aiCode })
+                    const imported = ciFindingsForWorkspace(job.result)
+                    setFindings(previous => {
+                      const next = [...previous]
+                      for (const finding of imported) {
+                        if (!next.some(f => f.title === finding.title && f.location === finding.location)) {
+                          next.push({ ...finding, id: Date.now() + next.length, status: "OPEN", category: "CI automated" })
+                        }
+                      }
+                      return next
+                    })
+                  }}
+                />
               </div>
             )}
 
@@ -2808,7 +2761,7 @@ const TABS: [TabId, string][] = [
         // Aggiungi i finding confermati ai findings del workspace
         const confirmedCount = session.aiFindings.filter(f => f.decision === "confirmed" || f.decision === "modified").length
         const rejectedCount = session.aiFindings.filter(f => f.decision === "false-positive").length
-        
+
         session.aiFindings
           .filter(f => f.decision === "confirmed" || f.decision === "modified")
           .forEach(f => {
@@ -2823,7 +2776,7 @@ const TABS: [TabId, string][] = [
               proofOfConcept: f.proofOfConcept,
             })
           })
-        
+
         // Aggiungi finding manuali
         session.manualFindings.forEach(f => {
           importFinding({
@@ -2841,7 +2794,7 @@ const TABS: [TabId, string][] = [
         if (session.onChainAnalysis?.tokenName) {
           setProject(p => ({ ...p, name: session.onChainAnalysis?.tokenName || p.name }))
         }
-        
+
         // Salva la sessione di review per includerla nel report
         setManualReviewSession({
           completedAt: session.completedAt,

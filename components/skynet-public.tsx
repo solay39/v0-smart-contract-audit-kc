@@ -34,10 +34,7 @@ export function getPublishedAudits(): PortfolioProject[] {
 
 export function savePublishedAudit(project: PortfolioProject) {
   const existing = getPublishedAudits()
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
-  const idx = existing.findIndex(
-    (p) => p.id === project.id || norm(p.name) === norm(project.name)
-  )
+  const idx = existing.findIndex(p => p.id === project.id)
   
   let finalProject = project
   if (idx >= 0) {
@@ -63,37 +60,7 @@ export function savePublishedAudit(project: PortfolioProject) {
   // Save to localStorage
   localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(existing))
   
-  // CRITICAL: Also save to Vercel Blob for external access (social sharing, other devices)
-  saveToBlobAsync(finalProject)
-}
-
-// Save audit to Vercel Blob with retry logic
-async function saveToBlobAsync(project: PortfolioProject): Promise<boolean> {
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const res = await fetch("/api/audits", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audit: project }),
-      })
-      
-      if (res.ok) {
-        const data = await res.json()
-        if (data.success) {
-          return true
-        }
-      }
-    } catch {
-      // Network error, retry
-    }
-    
-    // Wait before retry (1s, 2s, 3s)
-    if (attempt < 3) {
-      await new Promise(r => setTimeout(r, 1000 * attempt))
-    }
-  }
-  
-  return false
+  // Browser backup only. The workspace explicitly awaits canonical persistence.
 }
 
 // ── Network Icon ─────────────────────────────────────────────────
@@ -5642,17 +5609,8 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
     const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
 
     async function loadAllAudits() {
-      // 1. Load from localStorage
-      const published = getPublishedAudits()
-      const cleaned = published.filter((pub) => {
-        const defaultMatch = DEFAULT_PROJECTS.find((dp) => norm(dp.name) === norm(pub.name))
-        return !defaultMatch
-      })
-      if (cleaned.length !== published.length) {
-        localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(cleaned))
-      }
-
-      // 2. Load from Vercel Blob (server-persisted audits)
+      // Public portfolio uses persisted records only; browser backups stay private.
+      // Never delete a local recovery candidate while loading a public portfolio.
       let blobAudits: PortfolioProject[] = []
       try {
         const res = await fetch("/api/audits")
@@ -5662,13 +5620,11 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
         }
       } catch { /* non-critical */ }
 
-      // 3. Merge: defaults + blob + localStorage (deduplicate by id/name)
+      // Merge persisted records with bundled defaults.
       //    Blob data takes priority (has full enterprise audit: PoC, CVSS, signatures, etc.)
       //    Default fills in cosmetic fields the blob is missing
       const merged = [...DEFAULT_PROJECTS.map(dp => {
-        const blobMatch = [...blobAudits, ...cleaned].find(
-          pub => pub.id === dp.id || norm(pub.name) === norm(dp.name)
-        )
+        const blobMatch = blobAudits.find(pub => pub.id === dp.id)
         if (!blobMatch) return dp
         return {
           ...dp,           // defaults as base (hardcoded tags, socials, etc.)
@@ -5677,9 +5633,9 @@ export function SkynetPublic({ onBack }: { onBack: () => void }) {
           tags: blobMatch.tags || dp.tags,
         }
       })]
-      const allExtras = [...blobAudits, ...cleaned]
+      const allExtras = blobAudits
       for (const pub of allExtras) {
-        if (!merged.some((m) => m.id === pub.id || norm(m.name) === norm(pub.name))) {
+        if (!merged.some(m => m.id === pub.id)) {
           merged.push(pub)
         }
       }

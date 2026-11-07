@@ -53,11 +53,14 @@ jobs:
           echo "$RUNNER_TEMP/security-tools/bin" >> "$GITHUB_PATH"
 
       - name: Write contract
+        id: sources
         env:
           SRC: ${{ inputs.source_gz_b64 }}
+          CONTRACT_NAME: ${{ inputs.contract_name }}
         run: |
           mkdir -p work out
           printf '%s' "$SRC" | base64 -d | gunzip > work/Contract.sol
+          python .github/audit/materialize_sources.py work/Contract.sol work/sources "$CONTRACT_NAME" >> "$GITHUB_OUTPUT"
           wc -l work/Contract.sol
 
       - name: Select solc and dependencies
@@ -71,25 +74,29 @@ jobs:
           minor=$(echo "$ver" | cut -d. -f3)
           major=$(echo "$ver" | cut -d. -f2)
           REMAPS=""
-          if grep -q '@openzeppelin/' work/Contract.sol; then
-            if [ "$major" -ge 8 ] && [ "$minor" -ge 20 ]; then oz=5; else oz=4.9.6; fi
-            (cd work && npm init -y >/dev/null && npm i --silent "@openzeppelin/contracts@$oz" "@openzeppelin/contracts-upgradeable@$oz")
-            REMAPS="@openzeppelin/=$(pwd)/work/node_modules/@openzeppelin/"
+          if grep -q '@openzeppelin/' work/Contract.sol && [ ! -d work/sources/@openzeppelin ]; then
+            if [ "$major" -ge 8 ] && [ "$minor" -ge 20 ]; then oz=5.0.2; else oz=4.9.6; fi
+            (cd work/sources && npm init -y >/dev/null && npm i --silent "@openzeppelin/contracts@$oz" "@openzeppelin/contracts-upgradeable@$oz")
+            REMAPS="@openzeppelin/=$(pwd)/work/sources/node_modules/@openzeppelin/"
           fi
           echo "remaps=$REMAPS" >> "$GITHUB_OUTPUT"
           printf '{"solc":"%s"}' "$ver" > out/meta.json
 
       - name: Run Slither
+        env:
+          ENTRY: ${{ steps.sources.outputs.entry }}
+          REMAPS: ${{ steps.solc.outputs.remaps }}
         run: |
           set -euo pipefail
           slither --version > out/slither-version.txt 2>&1
           ARGS=()
-          if [ -n "${{ steps.solc.outputs.remaps }}" ]; then ARGS+=(--solc-remaps "${{ steps.solc.outputs.remaps }}"); fi
+          if [ -n "$REMAPS" ]; then ARGS+=(--solc-remaps "$REMAPS"); fi
           set +e
           # The repository config uses an older Slither schema; disable it for
           # this dispatch and pass only flags supported by the installed version.
           if [ -f slither.config.json ]; then mv slither.config.json slither.config.json.disabled; fi
-          slither work/Contract.sol "${ARGS[@]}" --exclude-informational --filter-paths "contracts/" --json out/slither.json > out/slither.log 2>&1
+          # Force solc: repository-level foundry.toml must not trigger forge here.
+          (cd work/sources && slither "$ENTRY" "${ARGS[@]}" --compile-force-framework solc --exclude-informational --json "$GITHUB_WORKSPACE/out/slither.json") > out/slither.log 2>&1
           status=$?
           set -e
           SLITHER_STATUS=$status python - <<'PY'
@@ -113,16 +120,19 @@ jobs:
           PY
 
       - name: Run Mythril
+        env:
+          ENTRY: ${{ steps.sources.outputs.entry }}
+          REMAPS: ${{ steps.solc.outputs.remaps }}
         run: |
           set -euo pipefail
           myth version > out/mythril-version.txt 2>&1
-          REMAP_JSON=""
-          if [ -n "${{ steps.solc.outputs.remaps }}" ]; then
-            printf '{"remappings":["%s"]}' "${{ steps.solc.outputs.remaps }}" > work/solc.json
-            REMAP_JSON="--solc-json work/solc.json"
+          ARGS=()
+          if [ -n "$REMAPS" ]; then
+            printf '{"remappings":["%s"]}' "$REMAPS" > work/solc.json
+            ARGS+=(--solc-json "$GITHUB_WORKSPACE/work/solc.json")
           fi
           set +e
-          timeout 900 myth analyze work/Contract.sol $REMAP_JSON -o json --execution-timeout 300 > out/mythril.json 2> out/mythril.log
+          (cd work/sources && timeout 900 myth analyze "$ENTRY" "${ARGS[@]}" -o json --execution-timeout 300) > out/mythril.json 2> out/mythril.log
           status=$?
           set -e
           MYTHRIL_STATUS=$status python - <<'PY'
@@ -141,6 +151,10 @@ jobs:
           python .github/audit/custom_analysis.py work/Contract.sol > out/custom.json
 
       - name: Compile submitted contract with Foundry
+        env:
+          ENTRY: ${{ steps.sources.outputs.entry }}
+          REMAPS: ${{ steps.solc.outputs.remaps }}
+          SOLC_VERSION: ${{ steps.solc.outputs.version }}
         run: |
           set -euo pipefail
           curl -L --fail --silent --show-error https://foundry.paradigm.xyz | bash
@@ -152,7 +166,7 @@ jobs:
           done
           foundryup
           mkdir -p submitted/src submitted/test
-          cp work/Contract.sol submitted/src/Contract.sol
+          cp -R work/sources/. submitted/src/
           cat > submitted/foundry.toml <<'EOF'
           [profile.default]
           src = 'src'
@@ -161,8 +175,9 @@ jobs:
           libs = ['lib']
           bytecode_hash = 'none'
           EOF
+          if [ -n "$REMAPS" ]; then printf '%s\n' '@openzeppelin/=src/node_modules/@openzeppelin/' > submitted/remappings.txt; fi
           set +e
-          (cd submitted && forge build --json) > out/foundry-build.json 2> out/foundry.log
+          (cd submitted && forge build "src/$ENTRY" --use "$SOLC_VERSION" --json) > out/foundry-build.json 2> out/foundry.log
           status=$?
           set -e
           if [ "$status" -ne 0 ]; then
@@ -188,9 +203,12 @@ jobs:
           fi
 
       - name: Create evidence manifest
+        env:
+          JOB_ID: ${{ inputs.job_id }}
+          CONTRACT_NAME: ${{ inputs.contract_name }}
         run: |
           python - <<'PY'
-          import hashlib, json
+          import hashlib, json, os
           from pathlib import Path
           files = {}
           for p in sorted(Path('out').glob('*')):
@@ -200,13 +218,26 @@ jobs:
           slither = json.loads(Path('out/slither.json').read_text()).get('success', True)
           mythril = json.loads(Path('out/mythril.json').read_text()).get('success', True)
           foundry = json.loads(Path('out/foundry.json').read_text()).get('success', True)
-          manifest = {'job_id': '${{ inputs.job_id }}', 'contract_name': '${{ inputs.contract_name }}', 'source_sha256': source_hash, 'analyzed_path': 'work/Contract.sol', 'artifacts': files, 'claims': {'slither': slither, 'mythril': mythril, 'custom_regression': True, 'foundry_compile': foundry, 'protocol_fuzzing': False, 'invariants': False, 'manual_review': False}}
+          layout = json.loads(Path('work/source-layout.json').read_text())
+          manifest = {'job_id': os.environ['JOB_ID'], 'contract_name': os.environ['CONTRACT_NAME'], 'source_sha256': source_hash, 'sources': layout['sources'], 'analyzed_path': 'work/sources/' + layout['entry'], 'artifacts': files, 'claims': {'slither': slither is True, 'mythril': mythril is True, 'custom_regression': True, 'foundry_compile': foundry is True, 'protocol_fuzzing': False, 'invariants': False, 'manual_review': False}}
           Path('out/evidence-manifest.json').write_text(json.dumps(manifest, indent=2))
           PY
 
       - name: Upload results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: static-analysis-${{ inputs.job_id }}
           path: out/
           retention-days: 30
+
+      - name: Fail when contract analysis is incomplete
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path('out/evidence-manifest.json').read_text())
+          failed = [name for name in ('slither', 'mythril', 'foundry_compile') if not manifest['claims'].get(name)]
+          if failed:
+              raise SystemExit('Analysis incomplete: ' + ', '.join(failed) + '. Evidence was uploaded; this is not a successful audit.')
+          PY

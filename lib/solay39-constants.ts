@@ -265,6 +265,11 @@ export interface AuditProject {
 }
 
 export interface PortfolioProject {
+  ciAnalysis?: {
+    jobId: string
+    runUrl: string
+    result: import("./github-analysis-runner").CiAnalysisResult
+  }
   id: string
   name: string
   ticker?: string
