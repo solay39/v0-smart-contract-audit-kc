@@ -1,5 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "review/historical-approval-flow": false
+    }
+  },
   "crons": [
     { "path": "/api/skynet-realtime?action=poll", "schedule": "0 6 * * *" }
   ]

@@ -1562,6 +1562,7 @@ const TABS: [TabId, string][] = [
             <span className="text-[9px] text-s39-dim hidden sm:inline">
               {project.name || "New Audit"}
             </span>
+            <a href="/founder/historical-reviews" className="text-xs text-s39-green py-3 px-2">Audit storici</a>
             <S39Btn small onClick={onLogout}>
               Logout
             </S39Btn>
