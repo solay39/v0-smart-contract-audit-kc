@@ -91,12 +91,12 @@ jobs:
           slither --version > out/slither-version.txt 2>&1
           ARGS=()
           if [ -n "$REMAPS" ]; then ARGS+=(--solc-remaps "$REMAPS"); fi
+          # crytic-compile discovers parent project configuration before honoring
+          # the forced framework. An isolated tree prevents repo Foundry detection.
+          SOURCE_ROOT=$(mktemp -d "$RUNNER_TEMP/solay39-slither.XXXXXX")
+          cp -a work/sources/. "$SOURCE_ROOT/"
           set +e
-          # The repository config uses an older Slither schema; disable it for
-          # this dispatch and pass only flags supported by the installed version.
-          if [ -f slither.config.json ]; then mv slither.config.json slither.config.json.disabled; fi
-          # Force solc: repository-level foundry.toml must not trigger forge here.
-          (cd work/sources && slither "$ENTRY" "${ARGS[@]}" --compile-force-framework solc --exclude-informational --json "$GITHUB_WORKSPACE/out/slither.json") > out/slither.log 2>&1
+          (cd "$SOURCE_ROOT" && slither "$ENTRY" "${ARGS[@]}" --compile-force-framework solc --exclude-informational --json "$GITHUB_WORKSPACE/out/slither.json") > out/slither.log 2>&1
           status=$?
           set -e
           SLITHER_STATUS=$status python - <<'PY'
@@ -215,9 +215,9 @@ jobs:
               if p.is_file(): files[p.name] = hashlib.sha256(p.read_bytes()).hexdigest()
           source = Path('work/Contract.sol').read_bytes()
           source_hash = hashlib.sha256(source).hexdigest()
-          slither = json.loads(Path('out/slither.json').read_text()).get('success', True)
-          mythril = json.loads(Path('out/mythril.json').read_text()).get('success', True)
-          foundry = json.loads(Path('out/foundry.json').read_text()).get('success', True)
+          slither = json.loads(Path('out/slither.json').read_text()).get('success', False)
+          mythril = json.loads(Path('out/mythril.json').read_text()).get('success', False)
+          foundry = json.loads(Path('out/foundry.json').read_text()).get('success', False)
           layout = json.loads(Path('work/source-layout.json').read_text())
           manifest = {'job_id': os.environ['JOB_ID'], 'contract_name': os.environ['CONTRACT_NAME'], 'source_sha256': source_hash, 'sources': layout['sources'], 'analyzed_path': 'work/sources/' + layout['entry'], 'artifacts': files, 'claims': {'slither': slither is True, 'mythril': mythril is True, 'custom_regression': True, 'foundry_compile': foundry is True, 'protocol_fuzzing': False, 'invariants': False, 'manual_review': False}}
           Path('out/evidence-manifest.json').write_text(json.dumps(manifest, indent=2))

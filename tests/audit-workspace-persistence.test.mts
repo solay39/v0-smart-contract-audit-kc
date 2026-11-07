@@ -2,7 +2,8 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 import { strToU8 } from "fflate"
 import { normalizeAuditDraft, assertDraftSaved } from "../lib/audit-draft.ts"
-import { parseArtifact } from "../lib/github-analysis-runner.ts"
+import { parseArtifact, verifyCiArtifact } from "../lib/github-analysis-runner.ts"
+import { createHash } from "node:crypto"
 import { ciFindingsForWorkspace } from "../lib/ci-workspace.ts"
 import { GET } from "../app/api/audits/route.ts"
 import { storeAuditDraft } from "../lib/audit-draft-storage.ts"
@@ -56,6 +57,20 @@ test("workflow artifacts with missing or failed tool output stay unsuccessful", 
   assert.equal(failed.slither.success, false)
   assert.equal(failed.mythril.success, false)
   assert.equal(failed.mythril.error, "import not found")
+})
+
+test("CI evidence must match both its job ID and every artifact hash", () => {
+  const file = strToU8('{"success":true,"issues":[]}')
+  const files = {
+    "mythril.json": file,
+    "evidence-manifest.json": strToU8(JSON.stringify({
+      job_id: "test-job", source_sha256: "a".repeat(64),
+      artifacts: { "mythril.json": createHash("sha256").update(file).digest("hex") },
+    })),
+  }
+  assert.doesNotThrow(() => verifyCiArtifact(files, "test-job"))
+  assert.throws(() => verifyCiArtifact(files, "wrong-job"), /not bound/)
+  assert.throws(() => verifyCiArtifact({ ...files, "mythril.json": strToU8("changed") }, "test-job"), /integrity failed/)
 })
 
 test("real CI findings map into normal workspace findings with locations", () => {

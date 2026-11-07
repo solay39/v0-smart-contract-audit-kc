@@ -19,11 +19,18 @@ export function normalizeAuditDraft(value: unknown): PortfolioProject {
     manualReview: undefined, auditorSignatures: undefined, formalVerification: undefined,
     engagement: audit.engagement ? {
       ...audit.engagement,
+      numberOfAuditors: 0, engineeringHours: 0, securityEngineersInvolved: 0,
       reviewTeam: audit.engagement.reviewTeam ? {
         ...audit.engagement.reviewTeam,
         reviewStatus: "AUTOMATED_ANALYSIS_PENDING_MANUAL_REVIEW",
-        leadAuditor: { ...audit.engagement.reviewTeam.leadAuditor, signedOff: false },
+        leadAuditor: { ...audit.engagement.reviewTeam.leadAuditor, signedOff: false, signOffDate: undefined },
+        secondReviewer: audit.engagement.reviewTeam.secondReviewer ? {
+          ...audit.engagement.reviewTeam.secondReviewer, signedOff: false, signOffDate: undefined,
+        } : undefined,
       } : undefined,
+    } : undefined,
+    testingMethodology: audit.testingMethodology ? {
+      ...audit.testingMethodology, manualReviewHours: 0, fuzzingApplied: false, symbolicExecution: false,
     } : undefined,
   }
 }

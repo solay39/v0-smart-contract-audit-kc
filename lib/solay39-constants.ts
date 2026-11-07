@@ -362,6 +362,8 @@ export interface PortfolioProject {
   methodologySteps?: string[]       // 6-phase methodology steps
   // ── Enterprise Standards ──
   reportIntegrity?: {
+    sourceSha256?: string
+    artifacts?: Record<string, string>
     reportId: string
     sha256: string
     timestamp: string

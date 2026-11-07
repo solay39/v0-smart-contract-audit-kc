@@ -3,11 +3,22 @@ import { createClient } from "@supabase/supabase-js"
 import { getPublishedAudit } from "./get-published-audit"
 import { normalizeAuditDraft } from "./audit-draft"
 import { DEFAULT_PROJECTS, isVerifiedReport, type PortfolioProject } from "./solay39-constants"
+import { getStaticAnalysisJob, JOB_ID_PATTERN } from "./github-analysis-runner"
 
 type StoredDraft = PortfolioProject & { draftRevision: string }
 
 export async function storeAuditDraft(value: unknown) {
   const draft = normalizeAuditDraft(value)
+  if (draft.ciAnalysis) {
+    if (!JOB_ID_PATTERN.test(draft.ciAnalysis.jobId)) throw new Error("Invalid CI job identity")
+    const job = await getStaticAnalysisJob(draft.ciAnalysis.jobId)
+    const claimed = draft.reportIntegrity?.sourceSha256
+    if (job.state !== "completed" || !claimed || claimed !== job.result.evidenceManifest?.source_sha256) {
+      throw new Error("CI evidence does not match this draft source")
+    }
+    // Do not trust success flags, findings or run URLs supplied by the browser.
+    draft.ciAnalysis = { jobId: job.jobId, runUrl: job.runUrl, result: job.result }
+  }
   if (DEFAULT_PROJECTS.some(p => p.id === draft.id)) throw new Error("Bundled report IDs cannot be overwritten by a draft")
   const existing = await getPublishedAudit(draft.id)
   if (existing && isVerifiedReport(existing)) throw new Error("A verified report cannot be overwritten by a draft")

@@ -1,4 +1,5 @@
 import { gzipSync, unzipSync, strFromU8, strToU8 } from "fflate"
+import { createHash } from "node:crypto"
 
 // Runs real Slither + Mythril on GitHub Actions (same toolchain as the repo CI),
 // replacing the paid container backend. The app dispatches a workflow, then polls
@@ -252,6 +253,26 @@ export function parseArtifact(files: Record<string, Uint8Array>): CiAnalysisResu
   }
 }
 
+export function verifyCiArtifact(files: Record<string, Uint8Array>, jobId: string): void {
+  const entry = (name: string) => {
+    const key = Object.keys(files).find(key => key === name || key.endsWith(`/${name}`))
+    return key ? files[key] : undefined
+  }
+  const raw = entry("evidence-manifest.json")
+  const manifest = raw ? safeJson<{ job_id?: string; source_sha256?: string; artifacts?: Record<string, string> }>(strFromU8(raw), {}) : {}
+  if (manifest.job_id !== jobId || !/^[a-f0-9]{64}$/.test(manifest.source_sha256 || "") ||
+    !manifest.artifacts || typeof manifest.artifacts !== "object" || Array.isArray(manifest.artifacts) ||
+    Object.keys(manifest.artifacts).length === 0) {
+    throw new GithubAnalysisError("CI evidence manifest missing or not bound to this job.", 422)
+  }
+  for (const [name, digest] of Object.entries(manifest.artifacts)) {
+    const file = entry(name)
+    if (!file || createHash("sha256").update(file).digest("hex") !== digest) {
+      throw new GithubAnalysisError(`CI evidence integrity failed for ${name}.`, 422)
+    }
+  }
+}
+
 export async function getStaticAnalysisJob(jobId: string): Promise<CiJobStatus> {
   const runsRes = await gh(`/repos/${repo()}/actions/workflows/${WORKFLOW_FILE}/runs?event=workflow_dispatch&per_page=50`)
   if (!runsRes.ok) throw new GithubAnalysisError(explain(runsRes.status, await runsRes.text()), runsRes.status)
@@ -276,5 +297,6 @@ export async function getStaticAnalysisJob(jobId: string): Promise<CiJobStatus> 
   const zipRes = await gh(new URL(artifact.archive_download_url).pathname)
   if (!zipRes.ok) throw new GithubAnalysisError(explain(zipRes.status, await zipRes.text()), zipRes.status)
   const files = unzipSync(new Uint8Array(await zipRes.arrayBuffer()))
+  verifyCiArtifact(files, jobId)
   return { state: "completed", jobId, runUrl: run.html_url, result: parseArtifact(files) }
 }
