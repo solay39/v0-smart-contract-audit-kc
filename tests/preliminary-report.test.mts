@@ -1,0 +1,82 @@
+import { test } from "node:test"
+import assert from "node:assert/strict"
+import React from "react"
+import { renderToStaticMarkup } from "react-dom/server"
+import { PreliminaryAuditReport } from "../components/preliminary-audit-report"
+import { findingReviewQuestion, preliminaryMarkdown, preliminaryModel, recordIssues, safeReportUrl } from "../lib/preliminary-report"
+import type { PortfolioProject } from "../lib/solay39-constants"
+
+const record = {
+  id: "tagger-fixture", name: "Tagger", ticker: "TAG", network: "BSC",
+  score: 100, rating: "AAA", date: "2026-10-28",
+  architectureOverview: "Declared proxy architecture",
+  scopeTable: [{ contract: "Tagger.sol", language: "Solidity", linesOfCode: 961, commit: `0x${"1".repeat(40)}` }],
+  engagement: { engineeringHours: 98765, securityEngineersInvolved: 88888, repositoryUrl: "https://bscscan.com/address/0x1#code" },
+  codeMetrics: { upgradeabilityPattern: "Proxy (detected in code)" },
+  contractUncertainty: [{ label: "Mint Function", value: true }],
+  exploitSimulation: { vectors: [{ description: "Contract is immutable (no proxy/upgrade pattern)" }] },
+  testingMethodology: { fuzzingApplied: true, unitTestReview: { output: "FAKE_EXECUTION_LOG_SENTINEL" } },
+  testCoverage: { fuzzTesting: { status: "NOT_RUN" } },
+  findings: [
+    { title: "Delegatecall Usage", severity: "HIGH", description: "Submitted issue", location: "Proxy.sol",
+      foundryPoC: "vm.prank(proxyAdmin);", remediationExample: "require(approved[target]);", cvss: { baseScore: 8.5 } },
+    { title: "Fixed Supply (Constructor-Only Mint)", severity: "INFO", description: "Fixed supply" },
+    { title: "Initial Supply Concentration", severity: "INFO", description: "Economic observation" },
+  ],
+} as unknown as PortfolioProject
+
+test("saved declaration contradictions are visible without auditing the contract", () => {
+  assert.deepEqual(recordIssues(record).map(x => x.id), ["supply-conflict", "proxy-conflict", "test-conflict", "commit-conflict"])
+  assert.equal(recordIssues({ id: "minimal" } as PortfolioProject).length, 0)
+})
+test("counts derive from submitted findings, never stale summary fields or scores", () => {
+  const m = preliminaryModel({ ...record, highs: 99, criticals: 99 })
+  assert.equal(m.counts.HIGH, 1)
+  assert.equal(m.counts.INFO, 2)
+  assert.equal(m.counts.CRITICAL, 0)
+  assert.equal(m.pocCount, 1)
+  assert.match(findingReviewQuestion("Delegatecall Usage"), /unprivileged actor/)
+})
+test("report hash and run links cannot substitute for source-bound evidence", () => {
+  const project = { ...record, reportIntegrity: { sha256: "a".repeat(64) } } as PortfolioProject
+  assert.equal(preliminaryModel(project).sourceHash, undefined)
+  const ci = { jobId: "7eece949-1e36-4a37-9cec-034f14011999",
+    runUrl: "https://github.com/owner/repo/actions/runs/33",
+    result: { evidenceManifest: { source_sha256: "a".repeat(64) } } } as PortfolioProject["ciAnalysis"]
+  assert.equal(preliminaryModel({ ...project, ciAnalysis: ci }).ciLinked, false)
+  const matching = { ...project, ciAnalysis: ci, reportIntegrity: { ...project.reportIntegrity!, sourceSha256: "a".repeat(64) } }
+  assert.equal(preliminaryModel(matching).ciLinked, true)
+  assert.equal(preliminaryModel({ ...matching, reportIntegrity: { ...matching.reportIntegrity, sourceSha256: "b".repeat(64) } }).ciLinked, false)
+})
+test("rich report retains technical details but never promotes legacy metrics or logs", () => {
+  const html = renderToStaticMarkup(React.createElement(PreliminaryAuditReport, { project: record }))
+  for (const text of ["Executive overview", "Submitted architecture", "Tagger.sol", "Conflicting supply claims", "vm.prank(proxyAdmin)", "require(approved[target])", "Founder review question", "Declared CVSS", "Download technical report"]) assert.ok(html.includes(text), text)
+  for (const text of ["AAA", "98765", "88888", "FAKE_EXECUTION_LOG_SENTINEL"]) assert.ok(!html.includes(text), text)
+  assert.ok(html.includes("SUBMITTED, NOT VALIDATED"))
+})
+test("unmodified saved declarations are checked even when execution claims were sanitized", () => {
+  const sanitized = { ...record, testingMethodology: { ...record.testingMethodology!, fuzzingApplied: false } }
+  const html = renderToStaticMarkup(React.createElement(PreliminaryAuditReport, { project: sanitized, declaredRecord: record }))
+  assert.ok(html.includes("Conflicting test execution claims"))
+})
+test("untrusted markup and active URL schemes cannot become live report content", () => {
+  for (const url of ["javascript:alert(1)", "data:text/html,bad", "http://unsafe.test", "https://user:password@example.test"]) assert.equal(safeReportUrl(url), undefined)
+  const unsafe = { ...record, name: "<script>alert(1)</script>", engagement: { repositoryUrl: "javascript:alert(1)" },
+    findings: [{ title: "Unsafe", severity: "HIGH", description: "<img src=x onerror=alert(1)>", cwe: { id: "fake", url: "https://evil.test" } }],
+  } as unknown as PortfolioProject
+  const html = renderToStaticMarkup(React.createElement(PreliminaryAuditReport, { project: unsafe }))
+  assert.ok(!html.includes("<script>"))
+  assert.ok(!html.includes("<img"))
+  assert.ok(!html.includes('href="javascript:'))
+  assert.ok(!html.includes('href="https://evil.test'))
+})
+test("Markdown download preserves remediation and code, not unverifiable executions", () => {
+  const markdown = preliminaryMarkdown(record)
+  for (const text of ["Tagger", "awaiting founder review", "Conflicting supply claims", "vm.prank(proxyAdmin)", "require(approved[target])", "Founder approval: pending"]) assert.ok(markdown.includes(text))
+  for (const text of ["AAA", "98765", "88888", "FAKE_EXECUTION_LOG_SENTINEL"]) assert.ok(!markdown.includes(text))
+})
+test("malformed optional legacy collections do not crash the public report", () => {
+  const malformed = { ...record, contractUncertainty: "bad", attackSurface: {}, scopeTable: [null],
+    trustModel: "bad", exploitSimulation: { vectors: "bad" } } as unknown as PortfolioProject
+  assert.doesNotThrow(() => renderToStaticMarkup(React.createElement(PreliminaryAuditReport, { project: malformed })))
+})

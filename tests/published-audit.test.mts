@@ -78,7 +78,7 @@ test("pending report renders findings without promoting unverified template clai
     project: {
       id: "pending", name: "Pending contract", network: "Ethereum",
       score: 100, rating: "AAA",
-      engagement: { engineeringHours: 900 },
+      engagement: { engineeringHours: 98765 },
       findings: [{ id: 1, title: "Review this issue", severity: "HIGH", description: "Submitted description", location: "Vault.sol:12" }],
     } as unknown as PortfolioProject,
   }))
@@ -87,5 +87,5 @@ test("pending report renders findings without promoting unverified template clai
   assert.match(html, /SUBMITTED, NOT VALIDATED/)
   assert.ok(!html.includes("AAA"))
   assert.ok(!html.includes("TIER-1"))
-  assert.ok(!html.includes("900"))
+  assert.ok(!html.includes("98765"))
 })
