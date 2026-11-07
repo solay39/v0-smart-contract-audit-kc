@@ -19,8 +19,36 @@ export interface SourceFunction {
 }
 
 export function maskSolidity(code: string): string {
-  return code.replace(/\/\*[\s\S]*?(?:\*\/|$)|\/\/[^\r\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g,
-    token => token.replace(/[^\r\n]/g, " "))
+  // One forward scan, including malformed/unterminated literals. A backtracking
+  // string regex can become quadratic on attacker-controlled escaped quotes.
+  const masked = code.split("")
+  let state: "code" | "line" | "block" | "string" = "code"
+  let quote = ""
+  const blank = (index: number) => {
+    if (code[index] !== "\r" && code[index] !== "\n") masked[index] = " "
+  }
+  for (let i = 0; i < code.length; i++) {
+    const char = code[i], next = code[i + 1]
+    if (state === "code") {
+      if (char === "/" && (next === "/" || next === "*")) {
+        state = next === "/" ? "line" : "block"
+        blank(i); blank(++i)
+      } else if (char === '"' || char === "'") {
+        quote = char; state = "string"; blank(i)
+      }
+    } else if (state === "line") {
+      if (char === "\r" || char === "\n") state = "code"
+      else blank(i)
+    } else if (state === "block") {
+      blank(i)
+      if (char === "*" && next === "/") { blank(++i); state = "code" }
+    } else {
+      blank(i)
+      if (char === "\\" && i + 1 < code.length) blank(++i)
+      else if (char === quote) state = "code"
+    }
+  }
+  return masked.join("")
 }
 
 function closing(text: string, start: number, left: string, right: string): number {
@@ -40,13 +68,13 @@ export function sourceFunctions(code: string): SourceFunction[] {
   while ((match = pattern.exec(masked))) {
     const parameterStart = masked.indexOf("(", match.index)
     const parameterEnd = closing(masked, parameterStart, "(", ")")
-    if (parameterEnd < 0) continue
+    if (parameterEnd < 0) break // malformed suffix cannot establish later definitions
     const tail = masked.slice(parameterEnd + 1).search(/[;{]/)
     if (tail < 0) continue
     const bodyStart = parameterEnd + 1 + tail
     if (masked[bodyStart] === ";") { pattern.lastIndex = bodyStart + 1; continue }
     const end = closing(masked, bodyStart, "{", "}")
-    if (end < 0) continue
+    if (end < 0) break
     const header = masked.slice(parameterEnd + 1, bodyStart)
     functions.push({
       name: match[1], signature: code.slice(match.index, bodyStart).trim(),

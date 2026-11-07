@@ -147,6 +147,22 @@ test("library comments and quoted text are not executable token-standard or prot
   assert.match(masked, /function transfer/)
 })
 
+test("masking handles hostile escaped literals and unterminated comments in one scan", () => {
+  const input = '"' + '\\\\"'.repeat(30000) + "\n";
+  const masked = maskSolidity(input)
+  assert.equal(masked.length, input.length)
+  assert.equal(masked.split("\n").length, input.split("\n").length)
+  assert.doesNotMatch(maskSolidity('contract A {} /* unterminated mint(address) external'), /mint/)
+  assert.equal(maskSolidity('contract A {\n string s = "unterminated // mint'), 'contract A {\n string s = ' + " ".repeat('"unterminated // mint'.length))
+  assert.match(maskSolidity('// a\r\ncontract A { string s="a\\\\\\"b"; function f() external {} }'), /function f/)
+  assert.deepEqual(sourceFunctions("function broken(" + "function nested() external {".repeat(5000)), [])
+})
+
+test("Markdown table escaping handles pre-existing backslashes before pipes", () => {
+  const output = technicalReviewMarkdown({ functions: [{ name: "a\\|b\nc" }] })
+  assert.ok(output.includes("a" + "\\".repeat(3) + "|b c"))
+})
+
 test("draft storage and printable exports cannot resurrect fabricated logs or ratings", () => {
   const data = {
     engagement: { engineeringHours: 1200, numberOfAuditors: 24, securityEngineersInvolved: 108 },

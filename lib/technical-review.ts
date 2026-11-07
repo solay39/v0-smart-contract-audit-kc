@@ -62,7 +62,7 @@ export function technicalReviewModel(input: unknown): TechnicalReview | undefine
 export function technicalReviewMarkdown(input: unknown): string {
   const model = technicalReviewModel(input)
   if (!model) return ""
-  const cell = (value: string) => value.replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ")
+  const cell = (value: string) => value.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ")
   return [
     "## Function inventory and verification matrix",
     "Submitted source observations, not validated findings, successful security checks or founder approval.",
