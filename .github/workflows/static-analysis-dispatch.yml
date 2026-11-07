@@ -114,9 +114,11 @@ jobs:
                   'results': {'detectors': []},
               }, indent=2))
           data = json.loads(p.read_text())
-          if not isinstance(data.get('results', {}).get('detectors'), list):
+          # Slither emits results={} for a successful run with zero findings.
+          detectors = (data.get('results') or {}).get('detectors', [])
+          if not isinstance(detectors, list):
               raise SystemExit('Slither artifact has no detector list')
-          print(f'Slither completed with {len(data["results"]["detectors"])} findings; exit={os.environ["SLITHER_STATUS"]}')
+          print(f'Slither completed with {len(detectors)} findings; exit={os.environ["SLITHER_STATUS"]}')
           PY
 
       - name: Run Mythril

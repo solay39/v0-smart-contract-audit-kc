@@ -57,6 +57,11 @@ test("workflow artifacts with missing or failed tool output stay unsuccessful", 
   assert.equal(failed.slither.success, false)
   assert.equal(failed.mythril.success, false)
   assert.equal(failed.mythril.error, "import not found")
+  const clean = parseArtifact({
+    "slither.json": strToU8(JSON.stringify({ success: true, error: null, results: {} })),
+  })
+  assert.equal(clean.slither.success, true)
+  assert.equal(clean.slither.findings.length, 0)
 })
 
 test("CI evidence must match both its job ID and every artifact hash", () => {
