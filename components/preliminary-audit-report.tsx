@@ -3,6 +3,7 @@
 import React, { useState } from "react"
 import type { PortfolioProject, SeverityLevel } from "../lib/solay39-constants"
 import { findingReviewQuestion, preliminaryMarkdown, preliminaryModel, reportText, REPORT_SEVERITIES, safeReportUrl } from "../lib/preliminary-report"
+import { technicalReviewModel } from "../lib/technical-review"
 import { PRELIMINARY_REPORT_STYLE } from "../lib/preliminary-report-style"
 import type { RecordIssue } from "../lib/preliminary-report"
 import { ReportTokenLogo } from "./report-token-logo"
@@ -13,6 +14,7 @@ export function PreliminaryAuditReport({ project, declaredRecord = project, decl
 }) {
   const [filter, setFilter] = useState<"ALL" | SeverityLevel>("ALL")
   const model = preliminaryModel(project, declaredRecord)
+  const technical = technicalReviewModel(project.technicalReview)
   const m = { ...model, issues: declarationIssues ?? model.issues }
   const visible = m.findings.map((finding, index) => ({ finding, index })).filter(x => filter === "ALL" || x.finding.severity === filter)
   const navigation = [["overview", "Overview"], ["scope", "Scope & architecture"], ["findings", "Findings"], ["evidence", "Execution & evidence"], ["review", "Founder review"]]
@@ -96,6 +98,22 @@ export function PreliminaryAuditReport({ project, declaredRecord = project, decl
               {m.trust.map((entry, i) => <div key={i} style={{ marginTop: 14 }}><span className="r-label">{entry.component} · {reportText(entry.trustRequired)} trust declared</span><p>{reportText(entry.riskIfCompromised)}</p>{entry.mitigation && <p className="r-muted">Proposed control: {reportText(entry.mitigation)}</p>}</div>)}
             </div>}
           </section>
+          {technical && <section id="function-review" className="r-section" aria-labelledby="function-review-title">
+            <div className="r-section-head"><div><h2 id="function-review-title">Function inventory &amp; verification matrix</h2>
+              <p>Submitted observations and evidence categories, not validated checks or founder approval. An observation test passing does not establish safety.</p></div></div>
+            <p className="r-muted">{technical.method}</p>
+            <p className="r-location">Inventory source SHA-256 (declared): {technical.sourceSha256}</p>
+            {technical.functions.length > 0 && <details><summary>Inspect implemented source definitions ({technical.functions.length})</summary>
+              <p className="r-muted">Includes library and base-contract definitions. This is not a resolved list of deployed entrypoints.</p>
+              <div className="r-table-wrap" tabIndex={0} role="region" aria-label="Function inventory table; scroll horizontally on narrow screens"><table className="r-technical-table"><thead><tr><th>Function</th><th>Visibility</th><th>Location</th><th>Source observation</th></tr></thead>
+                <tbody>{technical.functions.map((row, index) => <tr key={index}><td>{row.name}</td><td>{row.visibility}</td><td>{row.location}</td><td>{row.observation}</td></tr>)}</tbody>
+              </table></div></details>}
+            {technical.checks.length > 0 && <div className="r-table-wrap" tabIndex={0} role="region" aria-label="Verification matrix table; scroll horizontally on narrow screens"><table className="r-technical-table"><thead><tr><th>Area</th><th>Declared category</th><th>Evidence or missing work</th></tr></thead>
+              <tbody>{technical.checks.map((row, index) => <tr key={index}><td>{row.area}</td><td>{row.status}</td><td>{row.evidence}</td></tr>)}</tbody>
+            </table></div>}
+            {technical.callFlow && <details><summary>Inspect submitted call flow</summary><pre>{technical.callFlow}</pre></details>}
+            {technical.dependencies.length > 0 && <div className="r-panel"><h3>Dependencies and exclusions</h3><ul>{technical.dependencies.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
+          </section>}
           <section id="findings" className="r-section" aria-labelledby="findings-title">
             <div className="r-section-head"><div><h2 id="findings-title">Technical findings</h2><p>SUBMITTED, NOT VALIDATED. Severity and disposition are declarations, not founder approval.</p></div></div>
             <div className="r-filters" role="group" aria-label="Filter findings by severity">

@@ -4,55 +4,13 @@
  * Shared functions used by both static analysis and simulator
  * to ensure consistent results across the platform.
  */
+import { reviewMintAccess } from "./solidity-access-review"
 
 // ═══════════════════════════════════════════════════════════════
 // Shared mint protection checker (used by both static and simulator)
 // ═══════════════════════════════════════════════════════════════
 
-export function checkMintProtection(code: string): {
-  hasMint: boolean
-  isProtected: boolean
-  protectionType: string | null
-  severity: "CRITICAL" | "MEDIUM" | "NONE"
-} {
-  const hasMint = /function\s+mint\s*\(/.test(code)
-  if (!hasMint) return { hasMint: false, isProtected: true, protectionType: null, severity: "NONE" }
-
-  // Extract mint function signature (including modifiers)
-  const mintSignatureMatch = code.match(/function\s+mint\s*\([^)]*\)[^{]*/)
-  const mintSignature = mintSignatureMatch?.[0] ?? ""
-
-  // Extract mint function body
-  const mintFuncIdx = code.search(/function\s+mint\s*\(/)
-  let braceCount = 0
-  let bodyStart = -1
-  let bodyEnd = -1
-  for (let i = mintFuncIdx; i < code.length; i++) {
-    if (code[i] === "{") { braceCount++; if (bodyStart === -1) bodyStart = i }
-    else if (code[i] === "}") { braceCount--; if (braceCount === 0) { bodyEnd = i; break } }
-  }
-  const mintBody = bodyStart > -1 ? code.substring(bodyStart, bodyEnd) : ""
-
-  // Check protection in signature (modifiers)
-  const hasModifierProtection = /onlyOwner|onlyRole|onlyMinter|onlyAdmin|restricted/.test(mintSignature)
-  // Check protection in body (require)
-  const hasRequireProtection = /require\s*\(\s*msg\.sender\s*==/.test(mintBody)
-    || /require\s*\(\s*hasRole/.test(mintBody)
-    || /_checkRole\(|AccessControl/.test(mintBody)
-
-  const isProtected = hasModifierProtection || hasRequireProtection
-  const protectionType = hasModifierProtection
-    ? mintSignature.match(/onlyOwner|onlyRole|onlyMinter|onlyAdmin/)?.[0] ?? "modifier"
-    : hasRequireProtection ? "require(msg.sender)" : null
-
-  return {
-    hasMint,
-    isProtected,
-    protectionType,
-    // If protected = MEDIUM (centralization), if not protected = CRITICAL
-    severity: isProtected ? "MEDIUM" : "CRITICAL",
-  }
-}
+export const checkMintProtection = reviewMintAccess
 
 // ═══════════════════════════════════════════════════════════════
 // Engagement Metrics Calculator

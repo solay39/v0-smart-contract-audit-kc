@@ -768,6 +768,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       name: project.name,
       ticker: tokenMeta.ticker,
       network: project.network || "Ethereum",
+      technicalReview: aiEngagement?.analyzedSource === aiCode ? aiEngagement?.technicalReview : undefined,
       ciAnalysis: ciEvidence?.code === aiCode ? {
         jobId: ciEvidence.jobId, runUrl: ciEvidence.runUrl, result: ciEvidence.result,
       } : undefined,
@@ -1429,7 +1430,7 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
       if (data.integrationRisks) setIntegrationRisks(data.integrationRisks)
       if (data.invariantsChecked) setInvariantsChecked(data.invariantsChecked)
       if (data.testingMethodology) setTestingMethodology(data.testingMethodology)
-      if (data.aiEngagement) setAiEngagement(data.aiEngagement)
+      if (data.aiEngagement || data.technicalReview) setAiEngagement({ ...data.aiEngagement, technicalReview: data.technicalReview, analyzedSource: aiCode })
       if (data.aiScopeTable) setAiScopeTable(data.aiScopeTable)
       // Enterprise Standards
       if (data.economicAttackVectors) setEconomicAttackVectors(data.economicAttackVectors)

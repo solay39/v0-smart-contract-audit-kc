@@ -3,6 +3,9 @@ import { slitherSeverity } from "@/core/engine/slitherMapper"
 import type { SlitherConfidence, SlitherImpact } from "@/lib/slither-client"
 import { internalAuthHeaders } from "@/lib/founder-auth"
 import { preliminaryAutomatedAssessment } from "@/lib/automated-assessment"
+import { maskSolidity, reconcileMintFinding, reviewMintAccess } from "@/lib/solidity-access-review"
+import { buildTechnicalReview } from "@/lib/technical-review"
+import { createHash } from "node:crypto"
 import { detectProxy } from "@/lib/proxy-detect"
 export const maxDuration = 300 // Slither on GitHub Actions takes ~1 min
 
@@ -320,6 +323,10 @@ function extractContractMeta(code: string, network: string): ContractMeta {
   }
 
   // ── EVM: existing Solidity analysis ──
+  // Library documentation can mention unrelated token standards or protocols.
+  // Attribution remains a declaration; comments/strings are not capabilities.
+  const declaredOZ = /import.*@openzeppelin|OpenZeppelin/.test(code)
+  code = maskSolidity(code)
   const isERC20 = /is\s+(ERC20|IERC20|BEP20)|function\s+transfer\s*\(.*address.*uint/.test(code)
     && /function\s+approve\s*\(/.test(code)
     && /balances|_balances|balanceOf/.test(code)
@@ -357,7 +364,7 @@ function extractContractMeta(code: string, network: string): ContractMeta {
 
   const hasOZPausable = /ERC20Pausable|PausableUpgradeable|import.*Pausable/.test(code)
   const hasOZAccessControl = /Ownable|AccessControl|Roles\s*for|MinterRole|PauserRole/.test(code)
-  const usesOZ = hasOZPausable || hasOZAccessControl || /import.*@openzeppelin|OpenZeppelin/.test(code)
+  const usesOZ = hasOZPausable || hasOZAccessControl || declaredOZ
 
   const hasOwner = /onlyOwner|Ownable|owner\(\)|_owner|AccessControl|onlyRole|onlyAdmin/.test(code)
   const ownerRenounced = /renounceOwnership|ownership.*renounced/.test(code)
@@ -369,13 +376,14 @@ function extractContractMeta(code: string, network: string): ContractMeta {
   const hasSelfDestruct = /selfdestruct|suicide/.test(code)
   const hasDelegatecall = /delegatecall/.test(code)
   const hasExternalCalls = /\.call\{value|\.call\(|\.transfer\(|\.send\(/.test(code)
-  const mintGuarded = hasMintOutsideConstructor && (hasOZAccessControl || /onlyOwner|onlyMinter|onlyRole|require\s*\(.*msg\.sender/.test(code))
+  const mintGuarded = hasMintOutsideConstructor && reviewMintAccess(code).isProtected
 
   const pragmaMatch = code.match(/pragma solidity\s+[\^~>=<]*\s*(0\.\d+\.\d+)/)
   const solidityVersion = pragmaMatch ? pragmaMatch[1] : "unknown"
 
   let contractType: ContractMeta["contractType"] = "generic"
   if (hasProxy) contractType = "proxy"
+  else if (isERC721 && isERC20) contractType = "generic" // multi-standard source scope remains unresolved
   else if (isERC721) contractType = "erc721"
   else if (isERC20 && !hasDeFiLogic) contractType = "erc20"
   else if (hasDeFiLogic) contractType = "defi-protocol"
@@ -820,10 +828,17 @@ function staticAnalysis(code: string, meta: ContractMeta): Finding[] {
       // There IS an exposed mint function — use comprehensive guard detection
       // Check for: modifiers (onlyOwner, onlyRole, onlyMinter), require(msg.sender == X),
       // MinterRole system, AccessControl, and inline role checks
-      const hasMintGuardComprehensive =
-        meta.mintGuarded ||  // pre-computed at meta level (covers require(msg.sender == minter))
-        /onlyOwner|onlyRole|onlyMinter|MINTER_ROLE|AccessControl/.test(code) &&
-        /function\s+\w*[Mm]int/.test(code)
+      const mintReview = reviewMintAccess(code)
+      const hasMintGuardComprehensive = mintReview.isProtected
+      if (mintReview.assessment === "REVIEW_REQUIRED" || !mintReview.hasMint) {
+        findings.push({
+          title: "Mint Authorization Requires Review", severity: "INFO",
+          location: "Mint capability and inherited/custom authorization paths",
+          description: "The limited source analysis cannot resolve every mint path or authorization rule. Modifier names and unrelated owner checks do not establish protection or a bypass.",
+          impact: "Unprivileged exploitability and the effective supply policy are not established.",
+          recommendation: "Resolve the full inheritance and call graph; test unauthorized and authorized callers against the exact source.",
+        })
+      } else
       if (!hasMintGuardComprehensive) {
         findings.push({
           title: "Unrestricted Minting Function",
@@ -835,10 +850,10 @@ function staticAnalysis(code: string, meta: ContractMeta): Finding[] {
         })
       } else {
         findings.push({
-          title: "Centralized Minting Authority",
-          severity: "MEDIUM",
+          title: "Mint Entry Guard Observed: Supply Policy Requires Review",
+          severity: "INFO",
           location: "Mint function with access control",
-          description: "The contract has a mint function restricted by access control (e.g. onlyMinter, require(msg.sender == minter)). While not exploitable by the public, a compromised owner/minter can inflate supply.",
+          description: "A function-local entry guard was observed in the submitted source. This contradicts an unrestricted-mint claim for that path, but does not prove complete authorization or supply-policy correctness.",
           impact: "A compromised or malicious owner could mint additional tokens, diluting existing holders.",
           recommendation: "Consider implementing a supply cap, timelocks, or multi-sig requirements for minting operations.",
         })
@@ -1596,7 +1611,14 @@ export async function POST(req: Request) {
       return Response.json({ error: "No code provided" }, { status: 400 })
     }
 
-    const truncatedCode = code.slice(0, 40000)
+    // Never silently omit the main contract at the end of a flattened source.
+    // Larger scopes belong in the source-bound GitHub workflow/repository review.
+    if (code.length > 200000) {
+      return Response.json({
+        error: "Source exceeds the complete-analysis limit of 200000 characters. Use the source-bound GitHub workflow or split the review into explicit source scopes; no prefix-only audit was generated.",
+      }, { status: 413 })
+    }
+    const truncatedCode = code
 
     // Extract contract metadata FIRST -- this drives everything (now network-aware)
     const meta = extractContractMeta(truncatedCode, chainNetwork)
@@ -2119,24 +2141,7 @@ ${truncatedCode}`
       // ── ENTERPRISE: Validate AI findings — downgrade false positive "Unrestricted Mint" ──
       // If AI generates "Unrestricted Mint" but static analysis detected a guard (require(msg.sender == minter),
       // onlyMinter modifier, MINTER_ROLE, etc.), downgrade to "Centralized Minting Authority" at MEDIUM
-      const validatedFindings = findings.map((f: { title: string; severity: string; location: string; description: string; impact: string; recommendation: string; likelihood?: string; proofOfConcept?: string }) => {
-        const tl = f.title.toLowerCase()
-        if (
-          tl.includes("unrestricted") && tl.includes("mint") &&
-          meta.mintGuarded === true
-        ) {
-          return {
-            ...f,
-            title: "Centralized Minting Authority",
-            severity: "MEDIUM",
-            location: "Mint function with role-based access control",
-            description: "The contract has a mint function restricted by access control (e.g. require(msg.sender == minter), onlyMinter modifier). While not exploitable by the public, a compromised owner/minter can inflate supply.",
-            impact: "A compromised or malicious minter key could mint additional tokens, diluting existing holders.",
-            recommendation: "Consider implementing a supply cap, timelocks, or multi-sig requirements for minting operations.",
-          }
-        }
-        return f
-      })
+      const validatedFindings = findings.map((f: { title: string; severity: string; location: string; description: string; impact: string; recommendation: string; likelihood?: string; proofOfConcept?: string }) => reconcileMintFinding(f, code))
 
       // ── ENTERPRISE: Enrich findings with CVSS + CWE + SWC ──
       const enrichedFindings = validatedFindings.map((f: { title: string; severity: string; location: string; description: string; impact: string; recommendation: string; likelihood?: string; proofOfConcept?: string }) => ({
@@ -2184,32 +2189,7 @@ ${truncatedCode}`
       })
 
       // Downgrade remaining false positives
-      const finalFindings = filteredFindings.map((f: Record<string, unknown>) => {
-        const tl = String(f.title || "").toLowerCase()
-        if (
-          tl.includes("unrestricted") && tl.includes("mint") &&
-          f.severity === "CRITICAL"
-        ) {
-          const mintIsActuallyGuarded =
-            meta.mintGuarded === true ||
-            /require\s*\(\s*msg\.sender\s*==\s*(minter|_minter|owner|_owner)/.test(truncatedCode) ||
-            /onlyMinter|isMinter|MINTER_ROLE/.test(truncatedCode)
-
-          if (mintIsActuallyGuarded) {
-            return {
-              ...f,
-              title: "Centralized Mint Authority",
-              severity: "MEDIUM",
-              location: "Mint function with role-based access control",
-              description: "The mint() function is restricted to an authorized minter address or role. While centralized, this does not represent an open vulnerability — it requires the minter key to be compromised to inflate supply.",
-              impact: "A compromised or malicious minter key could mint additional tokens, diluting existing holders.",
-              recommendation: "Consider implementing a supply cap, timelocks, or multi-sig requirements for minting operations.",
-              cvss: { vectorString: "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:N/I:L/A:N", baseScore: 2.7, severity: "LOW" },
-            }
-          }
-        }
-        return f
-      })
+      const finalFindings = filteredFindings.map((f: Record<string, unknown>) => reconcileMintFinding(f, code))
   
       const backendHits = staticResultsToEngineHits(staticAnalysisResults)
       const consensus = isEVM
@@ -2477,6 +2457,7 @@ return Response.json(preliminaryAutomatedAssessment({
   // Analysis Mode (real vs pattern-based)
   analysisMode: "automated-candidates-pending-source-bound-evidence-and-founder-review",
   analysisScope: { sourceCharacters: code.length, analyzedCharacters: truncatedCode.length, truncated: code.length > truncatedCode.length },
+  technicalReview: meta.isNonEVM ? null : buildTechnicalReview(code, createHash("sha256").update(code).digest("hex")),
   // Tier-1 sections
   privilegedRoles,
         trustAssumptions,
@@ -2581,26 +2562,7 @@ return Response.json(preliminaryAutomatedAssessment({
       }))
 
       // ── ANTI FALSE-POSITIVE: same validation for static path ──
-      const finalStaticFindings = enrichedStaticFindings.map((f: Record<string, unknown>) => {
-        const tl = String(f.title || "").toLowerCase()
-        if (tl.includes("unrestricted") && tl.includes("mint") && f.severity === "CRITICAL") {
-          const mintIsActuallyGuarded =
-            meta.mintGuarded === true ||
-            /require\s*\(\s*msg\.sender\s*==\s*(minter|_minter|owner|_owner)/.test(truncatedCode) ||
-            /onlyMinter|isMinter|MINTER_ROLE/.test(truncatedCode)
-          if (mintIsActuallyGuarded) {
-            return {
-              ...f,
-              title: "Centralized Mint Authority",
-              severity: "MEDIUM",
-              location: "Mint function with role-based access control",
-              description: "The mint() function is restricted to an authorized minter address or role. While centralized, this does not represent an open vulnerability \u2014 it requires the minter key to be compromised to inflate supply.",
-              cvss: { vectorString: "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:N/I:L/A:N", baseScore: 2.7, severity: "LOW" },
-            }
-          }
-        }
-        return f
-      })
+      const finalStaticFindings = enrichedStaticFindings.map((f: Record<string, unknown>) => reconcileMintFinding(f, code))
   
 const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
   hasProxy:         meta.hasProxy,
@@ -2711,6 +2673,7 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
         findings: finalStaticFindings,
         source: "static",
         analysisScope: { sourceCharacters: code.length, analyzedCharacters: truncatedCode.length, truncated: code.length > truncatedCode.length },
+        technicalReview: meta.isNonEVM ? null : buildTechnicalReview(code, createHash("sha256").update(code).digest("hex")),
         note: "Analysis performed using Solay39 pattern-based static analyzer (AI model unavailable).",
         contractMeta: meta,
         scoreBreakdown,

@@ -19,6 +19,7 @@ import { VulnSignatureDB, type VulnMatch } from "../db/vulnSignatureDB"
 import { ChainRegistry, type ChainConfig, type ChainSpecificPattern } from "../multichain/chainRegistry"
 import { runSlither, type SlitherRunResult } from "../../lib/slither-client"
 import { isCoveredBySlither, slitherToFindings } from "./slitherMapper"
+import { sourceFunctions, observeEntryGuard } from "../../lib/solidity-access-review"
 
 export interface AuditEngineResult {
   metadata: {
@@ -960,21 +961,21 @@ function transferOwnership(address newOwner) external onlyOwner {
   }
 
   // [NEW-07] Missing Access Control on mint/burn
-  const mintBurnRx = /function\s+(mint|_mint|burn|_burn)\s*\([^)]*\)\s*(public|external)/g
-  while ((m = mintBurnRx.exec(code)) !== null) {
-    const ln = code.substring(0, m.index).split("\n").length
-    const funcBody = code.substring(m.index, code.indexOf("}", m.index) + 1)
-    if (!/onlyOwner|onlyMinter|onlyRole|hasRole|require.*msg\.sender/.test(funcBody)) {
+  for (const fn of sourceFunctions(code).filter(fn => /^_?mint$/i.test(fn.name) && /^(public|external)$/.test(fn.visibility))) {
+    const ln = fn.line
+    const access = observeEntryGuard(fn)
+    // burn(amount) commonly burns the caller's own balance; never infer theft from its name.
+    if (access.status === "NO_ENTRY_GUARD_OBSERVED") {
       findings.push({
-        id: `MINT-ACCESS-${m[1].toUpperCase()}-001`,
-        title: `Unprotected ${m[1]}() — Anyone Can Mint/Burn`,
+        id: `MINT-ACCESS-${fn.name.toUpperCase()}-${ln}`,
+        title: `Potential mint authorization gap in ${fn.name}()`,
         severity: "CRITICAL",
         category: "Access Control",
-        description: `${m[1]}() at line ${ln} is publicly callable with no access control. Anyone can inflate supply or burn others' tokens.`,
+        description: `${fn.name}() at line ${ln} has no recognized function-local entry guard. This is a source-pattern candidate, not proof of an unprivileged mint or effective supply increase.`,
         location: `Line ${ln}`,
         lineNumber: ln,
         impact: "Unlimited token minting destroys economic value. Unrestricted burn enables targeted fund destruction.",
-        recommendation: `Restrict with onlyOwner or a dedicated MINTER_ROLE. Use OpenZeppelin AccessControl.`,
+        recommendation: `Resolve inherited/helper authorization and reproduce an unauthorized supply increase before confirming. If confirmed, restrict the mint path.`,
         cweId: "CWE-284",
         cvss: { score: 9.8, severity: "CRITICAL", vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H", vectorString: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H" },
         likelihood: "High",

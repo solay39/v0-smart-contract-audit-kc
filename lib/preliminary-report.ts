@@ -1,4 +1,5 @@
 import type { PortfolioProject, SeverityLevel } from "./solay39-constants"
+import { technicalReviewMarkdown } from "./technical-review"
 
 export const REPORT_SEVERITIES: SeverityLevel[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
 export const reportText = (value: unknown, limit = 12000): string =>
@@ -40,6 +41,7 @@ export function recordIssues(record: PortfolioProject): RecordIssue[] {
   return issues
 }
 export function findingReviewQuestion(title: string): string {
+  if (/mint/i.test(title)) return "Inspect the implemented mint function, not an interface or modifier name. Check entry guards such as if (msg.sender != minter) revert NotMinter(), inherited authorization and every overload. Distinguish authorized uncapped minting from a public bypass; reproduce unauthorized and authorized calls separately."
   if (/delegatecall/i.test(title)) return "Which reachable call path lets an unprivileged actor choose the target or implementation? Check target control, upgrade authorization and storage layout before confirming exploitability."
   if (/pragma/i.test(title)) return "Record the exact deployed compiler, optimizer settings and reproducible build. Determine whether the declared version range creates a concrete deployment risk."
   if (/fixed supply|constructor.only/i.test(title)) return "Confirm every reachable mint path, including inherited code and any proxy implementation. Reconcile this claim with the rest of the report."
@@ -76,6 +78,7 @@ export function preliminaryMarkdown(project: PortfolioProject, declaredRecord = 
     project.architectureOverview ? `## Submitted architecture\n\n${reportText(project.architectureOverview)}` : "",
     m.scope.length ? `## Submitted source inventory\n\n${m.scope.map(s => `- ${s.contract}: ${reportText(s.language)}, declared LOC ${Number.isFinite(s.linesOfCode) ? s.linesOfCode : "not supplied"}; source revision ${/^[a-f0-9]{7,40}$/i.test(reportText(s.commit)) ? s.commit : "not established"}.`).join("\n")}` : "",
     m.trust.length ? `## Declared trust boundaries\n\n${m.trust.map(t => `- ${t.component}: ${reportText(t.trustRequired)} trust declared. ${reportText(t.riskIfCompromised)} Proposed control: ${reportText(t.mitigation) || "not supplied"}`).join("\n")}` : "",
+    technicalReviewMarkdown(project.technicalReview),
     `## Record consistency\n\n${m.issues.length ? m.issues.map(x => `- ${x.title}: ${x.detail}`).join("\n") : "No supported consistency rule detected a conflict. This does not validate the report."}`,
     `## Evidence status\n\nSource-bound CI: ${m.ciLinked ? "Linked to declared digest; founder review pending" : "Not established"}\n\nFounder approval: pending\n\nReproduction: submitted code is not proof of successful execution.`,
     ...m.findings.map((f, i) => {
