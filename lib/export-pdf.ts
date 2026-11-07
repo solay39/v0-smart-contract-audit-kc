@@ -1,5 +1,7 @@
 import type { AuditProject, Finding, PortfolioProject, PrivilegedRole, TrustAssumption, AttackScenario, GovernanceSecurity, UpgradeabilityAnalysis, EconomicRisk, IntegrationRisk, InvariantCheck, TestingMethodology, AuditEngagement, ScopeEntry, RiskModelConfig, AuditorProfile, AuditLimitations } from "@/lib/solay39-constants"
 import { ratingOf, SEV_RAW_COLORS } from "@/lib/solay39-constants"
+import { preliminaryMarkdown, safeReportUrl } from "./preliminary-report"
+import { normalizeAuditDraft } from "./audit-draft"
 
 type EnterpriseSections = Partial<Pick<PortfolioProject,
   | "economicAttackVectors" | "reviewRecord" | "attackerProfiles" | "assetsAtRisk"
@@ -88,7 +90,22 @@ interface Tier1Data extends EnterpriseSections {
   }
 }
 
-export function exportMarkdown(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data, repoPath?: string) {
+/** Until a source-bound approval protocol exists, all workspace exports are drafts. */
+export function exportMarkdown(project: AuditProject, _rawScore: number, findings: Finding[], tier1?: Tier1Data, _repoPath?: string) {
+  const record = normalizeAuditDraft({
+    ...(tier1 || {}), id: "workspace-draft", name: project.name || "Untitled",
+    network: project.network || "Not supplied",
+    contractAddress: /^0x[a-f0-9]{40}$/i.test(project.scope || "") ? project.scope : undefined,
+    findings,
+  })
+  return preliminaryMarkdown(record).replace(
+    /^This draft reproduces submitted material from the .*?\n\n/m,
+    "This is a local preliminary export, not proof of a saved or public audit.\n\n",
+  )
+}
+
+// Legacy rated renderer is intentionally not exported or used for drafts.
+function legacyExportMarkdown(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data, repoPath?: string) {
   const score = Math.min(rawScore, 98)
   const rat = ratingOf(score)
   const today = project.date || new Date().toISOString().slice(0, 10)
@@ -250,6 +267,24 @@ export function openPrintableReport(html: string, fileName = "solay39-audit-repo
  * For client-side print, open the returned HTML in a new window.
  */
 export function exportPDF(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data): string {
+  const escape = (value: string) => value.replace(/[&<>"']/g, character => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[character]!))
+  const markdown = exportMarkdown(project, rawScore, findings, tier1)
+  const logo = safeReportUrl((project as AuditProject & { logoUrl?: string }).logoUrl)
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escape(project.name || "Untitled")} | Solay39 preliminary technical report</title>
+<style>body{margin:0;background:#080b0e;color:#d9e1e8;font:13px/1.65 ui-monospace,monospace}
+main{max-width:1000px;margin:auto;padding:32px 24px}.brand{color:#00ff88;letter-spacing:.12em}
+h1{font:600 28px/1.2 system-ui,sans-serif}.notice{padding:16px;border:1px solid #1d5663;color:#9dd7df}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit} @media print{body{background:white;color:#17202a}main{padding:0}.brand{color:#126044}.notice{color:#17202a}}</style></head>
+<body><main><div class="brand">SOLAY39 / PRELIMINARY REPORT</div>${logo ? `<img src="${escape(logo)}" alt="" width="48" height="48" referrerpolicy="no-referrer" style="float:right;object-fit:contain">` : ""}<h1>${escape(project.name || "Untitled")}</h1>
+<p class="notice">Founder review and source-bound execution evidence are pending. This is not a completed security audit, certification or deployment recommendation. No verified security score is issued.</p>
+<pre>${escape(markdown)}</pre></main></body></html>`
+}
+
+// Retained for design migration only. No public entry point can select this renderer.
+function legacyExportPDF(project: AuditProject, rawScore: number, findings: Finding[], tier1?: Tier1Data): string {
   const score = Math.min(rawScore, 98) // Never 100 — security is risk reduction, not perfection
   const rat = ratingOf(score)
   const sc = score >= 90 ? "#00ff88" : score >= 70 ? "#ffd600" : "#ff6b00"

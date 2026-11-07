@@ -23,13 +23,14 @@ permissions:
 
 jobs:
   analyze:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - name: Checkout analysis toolchain
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:
@@ -40,17 +41,33 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install isolated Slither, Mythril, solc-select
+      - name: Install isolated Slither and solc-select
+        id: security_tools
+        continue-on-error: true
         run: |
           python -m venv "$RUNNER_TEMP/security-tools"
           TOOL_PY="$RUNNER_TEMP/security-tools/bin/python"
           "$TOOL_PY" -m pip install --upgrade pip wheel
-          # Mythril 0.24.8 has a legacy setup.py that otherwise creates an
-          # isolated build env and tries to compile NumPy from source.
-          "$TOOL_PY" -m pip install "setuptools<81" "numpy==1.26.4" --only-binary=:all:
-          "$TOOL_PY" -m pip install slither-analyzer solc-select
-          "$TOOL_PY" -m pip install --no-build-isolation mythril
+          "$TOOL_PY" -m pip install "slither-analyzer==0.11.6" "solc-select==1.2.0"
+          "$TOOL_PY" -m pip check
+          mkdir -p out
+          "$TOOL_PY" -m pip freeze > out/pip-freeze.txt
           echo "$RUNNER_TEMP/security-tools/bin" >> "$GITHUB_PATH"
+
+      - name: Install isolated Mythril
+        id: mythril_tools
+        continue-on-error: true
+        run: |
+          # Mythril's legacy Ethereum dependencies must not overwrite Slither's.
+          python -m venv "$RUNNER_TEMP/mythril-tools"
+          TOOL_PY="$RUNNER_TEMP/mythril-tools/bin/python"
+          "$TOOL_PY" -m pip install --upgrade pip wheel
+          "$TOOL_PY" -m pip install "setuptools<81" "numpy==1.26.4" --only-binary=:all:
+          "$TOOL_PY" -m pip install --no-build-isolation "mythril==0.24.8"
+          "$TOOL_PY" -m pip check
+          mkdir -p out
+          "$TOOL_PY" -m pip freeze > out/mythril-pip-freeze.txt
+          echo "$RUNNER_TEMP/mythril-tools/bin" >> "$GITHUB_PATH"
 
       - name: Write contract
         id: sources
@@ -58,18 +75,19 @@ jobs:
           SRC: ${{ inputs.source_gz_b64 }}
           CONTRACT_NAME: ${{ inputs.contract_name }}
         run: |
-          mkdir -p work out
-          printf '%s' "$SRC" | base64 -d | gunzip > work/Contract.sol
+          python .github/audit/decode_source.py
           python .github/audit/materialize_sources.py work/Contract.sol work/sources "$CONTRACT_NAME" >> "$GITHUB_OUTPUT"
           wc -l work/Contract.sol
 
       - name: Select solc and dependencies
         id: solc
+        continue-on-error: true
         run: |
           ver=$(grep -oE 'pragma solidity[^;]+' work/Contract.sol | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
           ver=${ver:-0.8.24}
           solc-select install "$ver"
           solc-select use "$ver"
+          solc --version > out/solc-version.txt 2>&1
           echo "version=$ver" >> "$GITHUB_OUTPUT"
           minor=$(echo "$ver" | cut -d. -f3)
           major=$(echo "$ver" | cut -d. -f2)
@@ -83,6 +101,9 @@ jobs:
           printf '{"solc":"%s"}' "$ver" > out/meta.json
 
       - name: Run Slither
+        id: slither
+        continue-on-error: true
+        if: ${{ !cancelled() && steps.sources.outcome == 'success' && steps.solc.outcome == 'success' && steps.security_tools.outcome == 'success' }}
         env:
           ENTRY: ${{ steps.sources.outputs.entry }}
           REMAPS: ${{ steps.solc.outputs.remaps }}
@@ -101,6 +122,7 @@ jobs:
           set -e
           SLITHER_STATUS=$status python - <<'PY'
           import json, os, pathlib
+          pathlib.Path('out/slither-execution.json').write_text(json.dumps({'exit_code': int(os.environ['SLITHER_STATUS'])}))
           p = pathlib.Path('out/slither.json')
           log = pathlib.Path('out/slither.log').read_text(errors='replace')
           if not p.exists() or p.stat().st_size == 0:
@@ -122,6 +144,9 @@ jobs:
           PY
 
       - name: Run Mythril
+        id: mythril
+        continue-on-error: true
+        if: ${{ !cancelled() && steps.sources.outcome == 'success' && steps.solc.outcome == 'success' && steps.mythril_tools.outcome == 'success' }}
         env:
           ENTRY: ${{ steps.sources.outputs.entry }}
           REMAPS: ${{ steps.solc.outputs.remaps }}
@@ -139,6 +164,7 @@ jobs:
           set -e
           MYTHRIL_STATUS=$status python - <<'PY'
           import json, os, pathlib
+          pathlib.Path('out/mythril-execution.json').write_text(json.dumps({'exit_code': int(os.environ['MYTHRIL_STATUS']), 'timed_out': os.environ['MYTHRIL_STATUS'] == '124'}))
           p = pathlib.Path('out/mythril.json')
           if not p.exists() or p.stat().st_size == 0:
               raise SystemExit('Mythril did not produce a JSON artifact')
@@ -149,10 +175,16 @@ jobs:
           PY
 
       - name: Run custom regression checks
+        id: custom
+        continue-on-error: true
+        if: ${{ !cancelled() && steps.sources.outcome == 'success' }}
         run: |
           python .github/audit/custom_analysis.py work/Contract.sol > out/custom.json
 
       - name: Compile submitted contract with Foundry
+        id: foundry
+        continue-on-error: true
+        if: ${{ !cancelled() && steps.sources.outcome == 'success' && steps.solc.outcome == 'success' }}
         env:
           ENTRY: ${{ steps.sources.outputs.entry }}
           REMAPS: ${{ steps.solc.outputs.remaps }}
@@ -166,7 +198,8 @@ jobs:
               echo "$dir" >> "$GITHUB_PATH"
             fi
           done
-          foundryup
+          foundryup --install v1.9.0
+          forge --version > out/foundry-version.txt 2>&1
           mkdir -p submitted/src submitted/test
           cp -R work/sources/. submitted/src/
           cat > submitted/foundry.toml <<'EOF'
@@ -182,6 +215,7 @@ jobs:
           (cd submitted && forge build "src/$ENTRY" --use "$SOLC_VERSION" --json) > out/foundry-build.json 2> out/foundry.log
           status=$?
           set -e
+          printf '{"exit_code":%s}' "$status" > out/foundry-execution.json
           if [ "$status" -ne 0 ]; then
             python - "$status" <<'PY'
           import json, pathlib, sys
@@ -205,41 +239,33 @@ jobs:
           fi
 
       - name: Create evidence manifest
+        if: always()
         env:
           JOB_ID: ${{ inputs.job_id }}
           CONTRACT_NAME: ${{ inputs.contract_name }}
+          SLITHER_OUTCOME: ${{ steps.slither.outcome }}
+          MYTHRIL_OUTCOME: ${{ steps.mythril.outcome }}
+          CUSTOM_OUTCOME: ${{ steps.custom.outcome }}
+          FOUNDRY_OUTCOME: ${{ steps.foundry.outcome }}
         run: |
-          python - <<'PY'
-          import hashlib, json, os
-          from pathlib import Path
-          files = {}
-          for p in sorted(Path('out').glob('*')):
-              if p.is_file(): files[p.name] = hashlib.sha256(p.read_bytes()).hexdigest()
-          source = Path('work/Contract.sol').read_bytes()
-          source_hash = hashlib.sha256(source).hexdigest()
-          slither = json.loads(Path('out/slither.json').read_text()).get('success', False)
-          mythril = json.loads(Path('out/mythril.json').read_text()).get('success', False)
-          foundry = json.loads(Path('out/foundry.json').read_text()).get('success', False)
-          layout = json.loads(Path('work/source-layout.json').read_text())
-          manifest = {'job_id': os.environ['JOB_ID'], 'contract_name': os.environ['CONTRACT_NAME'], 'source_sha256': source_hash, 'sources': layout['sources'], 'analyzed_path': 'work/sources/' + layout['entry'], 'artifacts': files, 'claims': {'slither': slither is True, 'mythril': mythril is True, 'custom_regression': True, 'foundry_compile': foundry is True, 'protocol_fuzzing': False, 'invariants': False, 'manual_review': False}}
-          Path('out/evidence-manifest.json').write_text(json.dumps(manifest, indent=2))
-          PY
+          python .github/audit/finalize_evidence.py
 
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: static-analysis-${{ inputs.job_id }}
+          name: static-analysis-${{ inputs.job_id }}-attempt-${{ github.run_attempt }}
           path: out/
           retention-days: 30
 
       - name: Fail when contract analysis is incomplete
+        if: always()
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           manifest = json.loads(Path('out/evidence-manifest.json').read_text())
-          failed = [name for name in ('slither', 'mythril', 'foundry_compile') if not manifest['claims'].get(name)]
+          failed = [name for name in ('slither', 'mythril', 'custom_regression', 'foundry_compile') if not manifest['claims'].get(name)]
           if failed:
               raise SystemExit('Analysis incomplete: ' + ', '.join(failed) + '. Evidence was uploaded; this is not a successful audit.')
           PY

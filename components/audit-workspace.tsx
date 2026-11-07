@@ -1065,15 +1065,8 @@ export function AuditWorkspace({ onLogout }: { onLogout: () => void }) {
         auditDurationDays: realDays,
       numberOfAuditors: manualReviewSession?.signed ? 1 : 0,
       manualReviewHours: manualReviewSession?.signed ? 0 : 0,
-      engineeringHours: (() => {
-          if (loc <= 50) return 80
-          if (loc <= 150) return 160
-          if (loc <= 300) return 320
-          if (loc <= 600) return 480
-          if (loc <= 1000) return 800
-          return 1200
-        })(),
-        securityEngineersInvolved: 108,
+      engineeringHours: 0,
+        securityEngineersInvolved: 0,
         leadAuditor: "Solay39 Founder",
         compilerVersionUsed: (aiEngagement?.compilerVersionUsed as string) || contractMeta?.codeLanguage || contractMeta?.solidityVersion || "N/A",
         contractsReviewed: 1,
@@ -1650,16 +1643,9 @@ const TABS: [TabId, string][] = [
       auditDate,
       deliveryDate,
       auditDurationDays: realDays,
-      numberOfAuditors: 24,
-      engineeringHours: (() => {
-        if (loc <= 50) return 80
-        if (loc <= 150) return 160
-        if (loc <= 300) return 320
-        if (loc <= 600) return 480
-        if (loc <= 1000) return 800
-        return 1200
-      })(),
-      securityEngineersInvolved: 108,
+      numberOfAuditors: 0,
+      engineeringHours: 0,
+      securityEngineersInvolved: 0,
       leadAuditor: "Solay39 Lead Auditor",
       compilerVersionUsed: (aiEngagement.compilerVersionUsed as string) || "N/A",
       contractsReviewed: 1,

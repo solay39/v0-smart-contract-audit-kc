@@ -7,6 +7,7 @@ import { createHash } from "node:crypto"
 import { ciFindingsForWorkspace } from "../lib/ci-workspace.ts"
 import { GET } from "../app/api/audits/route.ts"
 import { storeAuditDraft } from "../lib/audit-draft-storage.ts"
+import { ciEvidenceFixture, evidenceSourceHash } from "./fixtures/ci-evidence.ts"
 
 const draft = {
   id: "test-draft-1794012604049", name: "Test draft", network: "Ethereum",
@@ -65,14 +66,7 @@ test("workflow artifacts with missing or failed tool output stay unsuccessful", 
 })
 
 test("CI evidence must match both its job ID and every artifact hash", () => {
-  const file = strToU8('{"success":true,"issues":[]}')
-  const files = {
-    "mythril.json": file,
-    "evidence-manifest.json": strToU8(JSON.stringify({
-      job_id: "test-job", source_sha256: "a".repeat(64),
-      artifacts: { "mythril.json": createHash("sha256").update(file).digest("hex") },
-    })),
-  }
+  const { files } = ciEvidenceFixture("test-job")
   assert.doesNotThrow(() => verifyCiArtifact(files, "test-job"))
   assert.throws(() => verifyCiArtifact(files, "wrong-job"), /not bound/)
   assert.throws(() => verifyCiArtifact({ ...files, "mythril.json": strToU8("changed") }, "test-job"), /integrity failed/)
@@ -106,23 +100,15 @@ test("storage -> canonical GET -> portfolio listing uses one persisted draft, an
     process.env.SOLAY39_FOUNDER_KEY = "test-founder-key-not-a-real-credential"
     process.env.GITHUB_TOKEN = "test-github-key-not-a-real-credential"
     const jobId = "6eece949-1e36-4a37-9cec-034f14011999"
-    const sourceHash = "b".repeat(64)
-    const artifactFiles: Record<string, Uint8Array> = {
-      "slither.json": strToU8(JSON.stringify({ success: false, error: "fixture compilation failed", results: {} })),
-      "mythril.json": strToU8(JSON.stringify({ success: true, issues: [] })),
-    }
-    artifactFiles["evidence-manifest.json"] = strToU8(JSON.stringify({
-      job_id: jobId, source_sha256: sourceHash,
-      artifacts: Object.fromEntries(Object.entries(artifactFiles).map(([name, bytes]) => [
-        name, createHash("sha256").update(bytes).digest("hex"),
-      ])),
-    }))
+    const sourceHash = evidenceSourceHash
+    const { files: artifactFiles } = ciEvidenceFixture(jobId, true)
     const archive = zipSync(artifactFiles)
     globalThis.fetch = async (input, init) => {
       const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url)
       if (url.hostname === "api.github.com") {
         if (url.pathname.endsWith("/runs")) return Response.json({ workflow_runs: [{
           id: 33, name: `static-analysis ${jobId}`, status: "completed", conclusion: "failure",
+          head_sha: "d".repeat(40), run_attempt: 1,
           html_url: "https://github.com/solay39/v0-smart-contract-audit-kc/actions/runs/33",
         }] })
         if (url.pathname.endsWith("/artifacts")) return Response.json({ artifacts: [{
