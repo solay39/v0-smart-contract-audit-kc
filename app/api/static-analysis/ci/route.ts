@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     if (!isGithubAnalysisConfigured()) {
       return NextResponse.json({ error: "GITHUB_TOKEN non configurato" }, { status: 500 })
     }
-    const jobId = await dispatchStaticAnalysis(code, contractName)
+    const jobId = await dispatchStaticAnalysis(code, contractName, body?.allowPublicSource === true)
     return NextResponse.json({ jobId, state: "queued" }, { status: 202 })
   } catch (error) {
     return errorResponse(error)

@@ -26,9 +26,12 @@ export function CiStaticAnalysisCard({ code, contractName, onResult }: {
   const [jobId, setJobId] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
+  const [sourceSharingConsent, setSourceSharingConsent] = useState(false)
   const submittedCode = useRef("")
+  const currentCode = useRef(code)
+  currentCode.current = code
   const deliveredJob = useRef<string | null>(null)
-  useEffect(() => { setJobId(null); setStartError(null); deliveredJob.current = null }, [code])
+  useEffect(() => { setJobId(null); setStartError(null); setSourceSharingConsent(false); deliveredJob.current = null }, [code])
 
   const { data, error } = useSWR(jobId ? `/api/static-analysis/ci?jobId=${jobId}` : null, fetcher, {
     refreshInterval: (latest) => (latest?.state === "completed" || latest?.state === "failed" ? 0 : 10_000),
@@ -61,10 +64,14 @@ export function CiStaticAnalysisCard({ code, contractName, onResult }: {
       const res = await fetch("/api/static-analysis/ci", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, contractName }),
+        body: JSON.stringify({ code, contractName, allowPublicSource: sourceSharingConsent }),
       })
       const body = await res.json()
       if (!res.ok) throw new Error(body?.error || `HTTP ${res.status}`)
+      if (currentCode.current !== code) {
+        setStartError("Sorgente cambiato durante l'avvio. Il run precedente non verrà importato.")
+        return
+      }
       submittedCode.current = code
       deliveredJob.current = null
       setJobId(body.jobId)
@@ -97,7 +104,7 @@ export function CiStaticAnalysisCard({ code, contractName, onResult }: {
         <button
           type="button"
           onClick={start}
-          disabled={!canRun || busy}
+          disabled={!canRun || !sourceSharingConsent || busy}
           className="flex items-center gap-2 rounded border border-cyan-700 px-3 py-1.5 font-mono text-xs text-cyan-300 hover:bg-cyan-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {busy ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> : <Play className="w-4 h-4" aria-hidden />}
@@ -105,6 +112,12 @@ export function CiStaticAnalysisCard({ code, contractName, onResult }: {
         </button>
       </div>
 
+      <label className="flex items-start gap-2 text-xs text-gray-400 leading-relaxed">
+        <input type="checkbox" className="mt-0.5 accent-cyan-400" checked={sourceSharingConsent}
+          disabled={busy} onChange={event => setSourceSharingConsent(event.target.checked)} />
+        <span>Autorizzo l&apos;invio di questo sorgente al repository GitHub configurato, anche se pubblico.
+          Gli artefatti includeranno il codice: non inviare sorgenti riservati a un repository pubblico.</span>
+      </label>
       {!canRun && <p className="text-xs text-gray-500">Inserisci codice Solidity con pragma per avviare.</p>}
 
       {stateLabel && !shownError && (
@@ -121,7 +134,7 @@ export function CiStaticAnalysisCard({ code, contractName, onResult }: {
 
       {result && (
         <div className="flex flex-col gap-3">
-          {(!result.slither.success || !result.mythril.success) && (
+          {(!result.slither.success || !result.mythril.success || !result.custom.success || !result.foundry.success) && (
             <p role="status" className="text-sm text-amber-300">Analisi incompleta: uno o più strumenti non hanno analizzato il contratto. Nessuna conferma di sicurezza.</p>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -141,6 +154,11 @@ export function CiStaticAnalysisCard({ code, contractName, onResult }: {
             />
           </div>
 
+          <p className="text-xs text-gray-400 leading-relaxed">
+            Controlli sorgente: {result.custom.success ? `${result.custom.findings.length} candidati` : "incompleti"}.
+            {" "}Foundry: {result.foundry.success ? "sola compilazione" : "compilazione non confermata"}.
+            {" "}Nessun test di exploit, fuzzing, prova formale o revisione manuale attestato da questo run.
+          </p>
           {result.slither.findings.length + result.mythril.findings.length > 0 && (
             <ul className="flex flex-col gap-2 max-h-80 overflow-y-auto">
               {result.slither.findings.map((f, i) => (

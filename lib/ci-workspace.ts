@@ -2,7 +2,7 @@ import type { CiAnalysisResult } from "./github-analysis-runner"
 import type { Finding, SeverityLevel } from "./solay39-constants"
 
 const severity = (raw: string): SeverityLevel => {
-  const value = raw.toUpperCase()
+  const value = typeof raw === "string" ? raw.toUpperCase() : "INFO"
   return ["CRITICAL", "HIGH", "MEDIUM", "LOW"].includes(value) ? value as SeverityLevel : "INFO"
 }
 
@@ -18,6 +18,13 @@ export function ciFindingsForWorkspace(result: CiAnalysisResult): Omit<Finding, 
       title: `Mythril: ${f.swc_id} ${f.swc_title}`, severity: severity(f.severity),
       location: `${f.contract}:${f.function}:${f.lineno}`, description: f.description,
       impact: f.severity, recommendation: "Reproduce this symbolic-execution finding before approval.",
+    })),
+    ...result.custom.findings.map(f => ({
+      title: `Source check: ${f.title || f.check}`, severity: severity(f.severity),
+      location: `${f.file || "Contract.sol"}:${f.line || 0}`,
+      description: `${f.proof_of_concept || ""}\nPattern match only; not an executed exploit.`,
+      impact: "Automated source-pattern candidate; applicability and exploitability are unvalidated.",
+      recommendation: f.recommendation || "Validate context and reproduce before founder approval.",
     })),
   ]
 }

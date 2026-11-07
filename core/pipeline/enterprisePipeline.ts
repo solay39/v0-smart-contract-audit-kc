@@ -9,8 +9,8 @@
 //  4. Generate Exploit PoC
 //  5. Run Foundry Test
 //  6. Generate JSON
-//  7. Dual Signatures Required
-//  8. Validate Dual Review
+//  7. Founder Approval Required (not performed here)
+//  8. Validate Founder Review (not performed here)
 //  9. Publish On-Chain
 // 10. Export Signed PDF
 // ═══════════════════════════════════════════════════════════════
@@ -18,8 +18,8 @@
 import { computeCVSS } from "../severity/cvssEngine"
 import { classifyFromTitle } from "../severity/classificationEngine"
 import { generateExploitForFinding } from "../poc/exploitGenerator"
-import { simulateExploitTest } from "../poc/foundryRunner"
-import { validateDualReview, type AuditorSignature } from "../review/dualReviewGate"
+import { simulateExploitTest, type ExploitTestResult } from "../poc/foundryRunner"
+import { type AuditorSignature } from "../review/dualReviewGate"
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -56,13 +56,7 @@ export interface EnrichedFinding extends PipelineFinding {
     file: string
     exploitType: string
   }
-  exploitResult: {
-    finding_id: string
-    poc_generated: boolean
-    exploit_result: string
-    poc_file: string
-    output?: string
-  }
+  exploitResult: ExploitTestResult
 }
 
 export interface PipelineOutput {
@@ -81,17 +75,8 @@ export interface PipelineOutput {
 // ─── Pipeline Execution ─────────────────────────────────────────
 
 /**
- * Execute the full 10-step enterprise audit pipeline.
- *
- * Steps 1-2 (static scan + manual review) are pre-completed by the auditor
- * and provided as the `findings` input.
- *
- * Steps 3-6 are fully automated: CVSS scoring, CWE/SWC classification,
- * PoC generation, and Foundry test execution.
- *
- * Steps 7-8 require auditor signatures (provided or simulated).
- *
- * Steps 9-10 (on-chain publish + PDF export) are handled by external callers.
+ * Prepare candidate findings and templates. This function has no tool execution,
+ * manual-review evidence or cryptographic approval authority.
  */
 export function runEnterprisePipeline(
   projectName: string,
@@ -103,15 +88,15 @@ export function runEnterprisePipeline(
   // ── Step 1: Static Scan (pre-completed) ──
   steps.push({
     step: "1. Static Scan",
-    status: "pass",
-    details: `${findings.length} findings from static analysis tools (Slither, Mythril, custom detectors)`,
+    status: "warn",
+    details: `${findings.length} submitted findings. Tool provenance is not supplied to this function.`,
   })
 
   // ── Step 2: Manual Review (pre-completed) ──
   steps.push({
     step: "2. Manual Review",
-    status: "pass",
-    details: `Manual adversarial review completed. ${findings.length} findings cataloged.`,
+    status: "skip",
+    details: "Founder review is pending. Submitted findings do not prove manual review.",
   })
 
   // ── Step 3: Assign CVSS + CWE + SWC ──
@@ -155,8 +140,8 @@ export function runEnterprisePipeline(
 
   steps.push({
     step: "3. Assign CVSS + CWE + SWC",
-    status: "pass",
-    details: `${enrichedFindings.length} findings scored with CVSS v3.1, mapped to CWE/SWC`,
+    status: "warn",
+    details: `${enrichedFindings.length} provisional severity-based CVSS vectors and title-based classifications; founder validation required`,
     data: enrichedFindings.map((f) => ({
       id: f.id,
       cvss: f.cvss.score,
@@ -171,16 +156,15 @@ export function runEnterprisePipeline(
   steps.push({
     step: "4. Generate Exploit PoC",
     status: pocsGenerated > 0 ? "pass" : "skip",
-    details: `${pocsGenerated}/${enrichedFindings.length} PoC exploits generated`,
+    details: `${pocsGenerated}/${enrichedFindings.length} uncompiled PoC templates generated; none executed or validated`,
   })
 
   // ── Step 5: Run Foundry Test ──
   const exploitResults = enrichedFindings.map((f) => f.exploitResult)
-  const vulnerable = exploitResults.filter((r) => r.exploit_result === "SUCCESS").length
   steps.push({
     step: "5. Run Foundry Test",
-    status: vulnerable > 0 ? "warn" : "pass",
-    details: `${vulnerable} exploits succeeded (vulnerable), ${exploitResults.length - vulnerable} blocked (secure)`,
+    status: "skip",
+    details: "NOT RUN. No exploit execution, blocked exploit or contract safety is established.",
     data: exploitResults,
   })
 
@@ -193,21 +177,22 @@ export function runEnterprisePipeline(
 
   // ── Step 7: Dual Signatures Required ──
   steps.push({
-    step: "7. Dual Signatures Required",
-    status: signatures.length >= 2 ? "pass" : "warn",
-    details: signatures.length >= 2
-      ? `${signatures.length} signatures collected from ${new Set(signatures.map(s => s.auditor.toLowerCase())).size} auditors`
-      : `Only ${signatures.length} signature(s). Enterprise requires 2+ independent auditors.`,
+    step: "7. Founder Approval Required",
+    status: "warn",
+    details: "Only the founder can approve. Submitted signature strings are not verified approval.",
   })
 
   // ── Step 8: Validate Dual Review ──
-  const reviewResult = validateDualReview(signatures)
+  // Retain the legacy output field without accepting signature counts as proof.
+  const reviewResult = {
+    valid: false,
+    uniqueAuditors: new Set(signatures.map(s => s.auditor.toLowerCase())).size,
+    errors: ["Server-verified founder approval bound to the exact source and report is required."],
+  }
   steps.push({
-    step: "8. Validate Dual Review",
-    status: reviewResult.valid ? "pass" : "warn",
-    details: reviewResult.valid
-      ? `Dual review validated: ${reviewResult.uniqueAuditors} unique auditors, lead + reviewer confirmed`
-      : `Dual review incomplete: ${reviewResult.errors.join("; ")}`,
+    step: "8. Validate Founder Review",
+    status: "skip",
+    details: reviewResult.errors.join("; "),
     data: reviewResult,
   })
 
@@ -215,14 +200,14 @@ export function runEnterprisePipeline(
   steps.push({
     step: "9. Publish On-Chain",
     status: "skip",
-    details: "Handled by registry API route (/api/registry). Call POST with auditors array.",
+    details: "Not published. Separate verified founder approval is required.",
   })
 
   // ── Step 10: Export Signed PDF (handled by caller via export-pdf) ──
   steps.push({
     step: "10. Export Signed PDF",
     status: "skip",
-    details: "Handled by PDF export module. Call exportPDF() after pipeline completion.",
+    details: "Not signed. Export must preserve preliminary status until verified founder approval.",
   })
 
   return {
@@ -249,6 +234,8 @@ export function generateFindingJSON(finding: EnrichedFinding): object {
     swc: finding.classification.swc,
     poc_generated: finding.poc.generated,
     exploit_result: finding.exploitResult.exploit_result,
+    execution_status: finding.exploitResult.execution_status,
+    tests_executed: finding.exploitResult.tests_executed,
     poc_file: finding.poc.file,
     status: finding.status,
   }

@@ -14,6 +14,8 @@ import {
   STANDARD_INVARIANTS,
   DEFI_INVARIANTS,
   extractInvariantsFromCode,
+  evaluateInvariants,
+  type InvariantEvaluation,
 } from "../formal/invariantEngine"
 import {
   AttackGraph,
@@ -50,6 +52,7 @@ export interface SuperAuditResult {
   }
   fuzzTesting?: {
     enabled: boolean
+    executionStatus: "NOT_RUN"
     results?: FuzzResult[]
     generatedTest?: string
     error?: string
@@ -62,6 +65,9 @@ export interface SuperAuditResult {
   formalVerification: {
     invariantViolations: InvariantViolation[]
     extractedInvariants: number
+    formalProofExecuted: false
+    method: "heuristic-source-state-snapshot"
+    checks: InvariantEvaluation[]
   }
   attackSimulation?: {
     flashLoan?: FlashLoanResult
@@ -110,20 +116,19 @@ export async function runSuperAudit(
   const extractedInvariants = extractInvariantsFromCode(contract.source)
   const isDeFi = detectDeFiContract(contract.source)
   const allInvariants = [
-    ...STANDARD_INVARIANTS,
     ...(isDeFi ? DEFI_INVARIANTS : []),
     ...extractedInvariants,
   ]
 
   // Simulate state for invariant checking
   const simulatedState = extractStateFromSource(contract.source)
-  const invariantViolations = checkInvariants(simulatedState, extractedInvariants)
-  toolsUsed.push("Formal Invariant Checker")
+  const invariantViolations = checkInvariants(simulatedState, allInvariants)
+  const invariantChecks = evaluateInvariants(simulatedState, allInvariants)
+  toolsUsed.push("Heuristic source-state snapshot checks (not formal verification)")
 
   // 3. Fuzz Testing (optional - requires Foundry)
   let fuzzTesting: SuperAuditResult["fuzzTesting"]
   if (options.enableFuzzing) {
-    toolsUsed.push("Foundry Fuzzer")
     try {
       const functions = extractFunctions(contract.source)
       const invariants = extractedInvariants.map((i) => i.name)
@@ -131,6 +136,7 @@ export async function runSuperAudit(
 
       fuzzTesting = {
         enabled: true,
+        executionStatus: "NOT_RUN",
         generatedTest,
         // Note: Actual fuzzing requires Foundry installed on backend
         // results: await runFoundryFuzz(`test/${contract.name}Fuzz.t.sol`, options.fuzzRuns)
@@ -138,11 +144,12 @@ export async function runSuperAudit(
     } catch (err) {
       fuzzTesting = {
         enabled: true,
+        executionStatus: "NOT_RUN",
         error: err instanceof Error ? err.message : "Fuzzing failed",
       }
     }
   } else {
-    fuzzTesting = { enabled: false }
+    fuzzTesting = { enabled: false, executionStatus: "NOT_RUN" }
   }
 
   // 4. Symbolic Execution (optional - requires Mythril)
@@ -217,6 +224,9 @@ export async function runSuperAudit(
     formalVerification: {
       invariantViolations,
       extractedInvariants: extractedInvariants.length,
+      formalProofExecuted: false,
+      method: "heuristic-source-state-snapshot",
+      checks: invariantChecks,
     },
     attackSimulation,
     attackGraph,

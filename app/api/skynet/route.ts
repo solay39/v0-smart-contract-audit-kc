@@ -1,7 +1,8 @@
 import { getStaticBackendUrl } from "@/lib/static-backend"
 import { slitherSeverity } from "@/core/engine/slitherMapper"
 import type { SlitherConfidence, SlitherImpact } from "@/lib/slither-client"
-import { getFounderKeyForServerCall, internalAuthHeaders, isFounderRequest } from "@/lib/founder-auth"
+import { internalAuthHeaders } from "@/lib/founder-auth"
+import { preliminaryAutomatedAssessment } from "@/lib/automated-assessment"
 import { detectProxy } from "@/lib/proxy-detect"
 export const maxDuration = 300 // Slither on GitHub Actions takes ~1 min
 
@@ -17,9 +18,7 @@ import {
   computeReportHash,
   buildReportIntegrity,
 } from "@/lib/enterprise-standards"
-import { signReport } from "@/lib/report-signing"
 import { runAttackSimulation } from "@/core/simulator/attackSimulator"
-import { pinReportToIPFS } from "@/lib/ipfs-pinning"
 import { generatePoCScripts, generateHardhatPoC } from "@/core/poc/pocGenerator"
 import { analyzeTestCoverage } from "@/core/analyzer/testCoverageAnalyzer"
 import { runMultiEngineConsensus, type EngineHit } from "@/core/consensus/multiEngineConsensus"
@@ -1392,10 +1391,9 @@ You MUST generate ALL of these sections with full depth:
        upgradeSafety: number, operationalMaturity: number, dependencyHealth: number,
        overall: number, deductions: [{category, reason, points}] }
 
-§18. ENGAGEMENT METRICS (REALISTIC):
-     - numberOfAuditors: 1 for <500 LOC, 2 for 500-2000, 3 for >2000. MAX 4.
-     - engineeringHours: (LOC/12) + 4 (tools) + 2 (report). Typical 15-100h.
-     - auditDurationDays: engineeringHours/8 rounded up.
+§18. ENGAGEMENT METRICS (EVIDENCE ONLY):
+     - numberOfAuditors, engineeringHours and auditDurationDays: 0 for an automated draft.
+     - Never infer human staffing, review time or completed tests from LOC.
      - compilerVersionUsed: MUST match actual language.
      - linesOfCode: MUST match metadata. NEVER 0.
 
@@ -2049,9 +2047,8 @@ ${truncatedCode}`
 
       // These are automated-analysis metrics, not claimed human engagement time.
       // Manual review and auditor count stay zero until a reviewer explicitly signs off.
-      const reportWritingHours = findings.length > 0 ? Math.ceil(findings.length * 0.5) : 0
-      const totalEngHours = reportWritingHours
-      const realisticDays = totalEngHours > 0 ? Math.max(1, Math.ceil(totalEngHours / 8)) : 0
+      const totalEngHours = 0
+      const realisticDays = 0
       const realisticAuditors = 0
 
       const aiEngagement = {
@@ -2067,7 +2064,7 @@ ${truncatedCode}`
         auditDurationDays: realisticDays,
         numberOfAuditors: realisticAuditors,
         engineeringHours: totalEngHours,
-        commitHash: contractAddr !== "0x_VERIFY_ON_EXPLORER" ? `Verified on ${chainNetwork} explorer` : "N/A",
+        commitHash: "NOT_PROVIDED",
         repositoryUrl: contractAddr !== "0x_VERIFY_ON_EXPLORER" 
           ? `https://etherscan.io/address/${contractAddr}#code` 
           : "N/A",
@@ -2326,47 +2323,15 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
 
       // ── ENTERPRISE: Formal Verification ──
       const formalVerification = {
-        invariantsTested: [
-          {
-            invariant: "Total supply conservation",
-            result: "PASS",
-            method: "Echidna property test",
-          },
-          {
-            invariant: "Transfer balance consistency (sum of balances == totalSupply)",
-            result: "PASS",
-            method: "Echidna + Foundry",
-          },
-          {
-            invariant: meta.hasMintOutsideConstructor
-              ? "Mint access control \u2014 only authorized roles can mint"
-              : "No unauthorized mint \u2014 totalSupply immutable post-deployment",
-            result: meta.hasMintOutsideConstructor
-              ? "PASS \u2014 access control verified"
-              : "PASS \u2014 no mint function detected",
-            method: "Slither + manual review",
-          },
-          {
-            invariant: "No integer overflow/underflow",
-            result: (meta.solidityVersion && parseFloat(String(meta.solidityVersion).replace(/[^0-9.]/g, "")) >= 0.8)
-              ? "PASS \u2014 compiler-enforced (Solidity >= 0.8)"
-              : "REVIEW \u2014 pre-0.8 compiler detected",
-            method: "Compiler analysis",
-          },
-          {
-            invariant: "Reentrancy on state-changing functions (CEI pattern)",
-            result: "PASS \u2014 no external calls before state update detected",
-            method: "Slither CEI pattern analysis",
-          },
-          ...(meta.hasProxy ? [{
-            invariant: "Proxy storage layout \u2014 no collision between proxy and implementation",
-            result: "PASS \u2014 EIP-1967 standard slots verified",
-            method: "Manual storage layout review",
-          }] : []),
-        ],
-        allPassed: true,
-        verificationMethod:
-          "Foundry Forge property-based fuzzing (10,000 runs/function) + Echidna invariant testing (50,000 sequences)",
+        invariants: [
+          "Supply conservation and balance consistency",
+          "Mint authorization and supply-cap enforcement",
+          "Overflow, underflow and unchecked arithmetic",
+          "Reentrancy across state-changing entry points",
+          ...(meta.hasProxy ? ["Proxy storage compatibility and upgrade authorization"] : []),
+        ].map(property => ({ property, status: "NOT_RUN" })),
+        allPassed: false,
+        verificationMethod: "Proposed checks only; no execution evidence",
       }
 
       // ── ENTERPRISE: Residual Risk ──
@@ -2433,43 +2398,10 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
         hasGovernance: meta.hasGovernance,
       })
 
-      // ── ENTERPRISE: Firma crittografica ECDSA ──────────────
-      const reportJsonToSign = JSON.stringify({
-        auditId,
-        projectName: meta.scopeLabel,
-        findings: finalFindings,
-        score: scoreBreakdown.finalScore,
-        timestamp: new Date().toISOString(),
-      })
-
-      const signedReport = await signReport(reportJsonToSign, auditId)
-
-      // ── ENTERPRISE: Registrazione on-chain (opzionale) ────
-      let onChainRecord = null
-      const serverFounderKey = getFounderKeyForServerCall()
-      if (
-        process.env.AUDIT_REGISTRY_ADDRESS &&
-        process.env.AUDITOR_PRIVATE_KEY &&
-        serverFounderKey &&
-        (await isFounderRequest(req))
-      ) {
-        try {
-          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.solay39.eu"
-          const registryRes = await fetch(baseUrl + "/api/registry", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${serverFounderKey}` },
-            body: JSON.stringify({
-              projectName: meta.scopeLabel || "Unknown",
-              reportHash: signedReport.reportHash,
-              commitHash: contractAddr || "0x0",
-              auditId,
-            }),
-          })
-          onChainRecord = await registryRes.json()
-        } catch (e) {
-          console.warn("[Skynet] On-chain registration failed:", e)
-        }
-      }
+      // Analysis is not approval. Signing/registration require a separate
+      // explicit, source-bound founder review; never use a server key here.
+      const signedReport = null
+      const onChainRecord = null
 
       // ── ENTERPRISE: PoC Exploit Scripts ──────────────────────────
       const vulnerableVectorIds = exploitSimulation.vectors
@@ -2492,26 +2424,15 @@ const economicAttackVectors = analyzeEconomicAttacks(truncatedCode, {
       // ── ENTERPRISE: Test Coverage Analysis ─────────────────────
       const testCoverage = analyzeTestCoverage(truncatedCode, meta, finalFindings)
 
-      // ── ENTERPRISE: IPFS Pinning ──────────────────────────────
-      const ipfsReportData = {
-        version: "2.1.0",
-        platform: "Solay39",
-        auditId,
-        timestamp: new Date().toISOString(),
-        contractMeta: meta,
-        findings: finalFindings,
-        scoreBreakdown,
-        signedReport,
-        exploitSimulation: exploitSimulation.summary,
-      }
-      const ipfsRecord = await pinReportToIPFS(ipfsReportData, auditId)
+      // No irreversible publication of unreviewed analysis.
+      const ipfsRecord = null
 
       // ── ENTERPRISE: Solana On-Chain Attestation ──�����──────────────
       // Rimosso dal flusso principale per evitare timeout 504
       // L'utente puo' attestare manualmente dal tab Blockchain
       const solanaAttestation = null
 
-return Response.json({
+return Response.json(preliminaryAutomatedAssessment({
   findings: finalFindings,
   source: "ai",
   contractMeta: meta,
@@ -2554,7 +2475,7 @@ return Response.json({
     externalDependencies: crossContractResults.risks?.map(r => r.type) || [],
   } : null,
   // Analysis Mode (real vs pattern-based)
-  analysisMode: getStaticBackendUrl() ? "tier1-real" : "pattern-assisted-pending-tool-execution",
+  analysisMode: "automated-candidates-pending-source-bound-evidence-and-founder-review",
   // Tier-1 sections
   privilegedRoles,
         trustAssumptions,
@@ -2638,7 +2559,7 @@ return Response.json({
         testCoverage,
         // Enterprise: Solana Attestation
         solanaAttestation,
-      })
+      }))
     } catch (aiError: unknown) {
       // AI failed -- fall back to static analysis (which is now context-aware)
       const aiMsg = aiError instanceof Error ? aiError.message : String(aiError)
@@ -2722,14 +2643,12 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
         "OpenZeppelin library contracts have not been modified",
       ]
       const staticFormalVerification = {
-        invariantsTested: [
-          { invariant: "Total supply conservation", result: "PASS", method: "Echidna property test" },
-          { invariant: "Transfer balance consistency", result: "PASS", method: "Echidna + Foundry" },
-          { invariant: "No integer overflow/underflow", result: "PASS", method: "Compiler analysis (Solidity >= 0.8)" },
-          { invariant: "Reentrancy on state-changing functions", result: "PASS", method: "Slither CEI pattern analysis" },
-        ],
-        allPassed: true,
-        verificationMethod: "Foundry Forge property-based fuzzing (10,000 runs) + Echidna invariant testing (50,000 sequences)",
+        invariants: [
+          "Supply conservation", "Transfer balance consistency",
+          "Overflow and underflow", "Reentrancy on state-changing functions",
+        ].map(property => ({ property, status: "NOT_RUN" })),
+        allPassed: false,
+        verificationMethod: "Proposed checks only; no execution evidence",
       }
       const staticResidualRisk = {
         items: [
@@ -2758,15 +2677,7 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
         hasGovernance: meta.hasGovernance,
       })
 
-      // ECDSA Signature for static path too
-      const staticReportJsonToSign = JSON.stringify({
-        auditId: staticAuditId,
-        projectName: meta.scopeLabel,
-        findings: finalStaticFindings,
-        score: scoreBreakdown.finalScore,
-        timestamp: new Date().toISOString(),
-      })
-      const staticSignedReport = await signReport(staticReportJsonToSign, staticAuditId)
+      const staticSignedReport = null
 
       // PoC Scripts for static path
       const staticVulnerableVectorIds = staticExploitSimulation.vectors
@@ -2789,25 +2700,13 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
       // Test Coverage for static path
       const staticTestCoverage = analyzeTestCoverage(truncatedCode, meta, finalStaticFindings.map((finding) => ({ severity: String(finding.severity ?? "INFO") })))
 
-      // IPFS Pinning for static path
-      const staticIpfsReportData = {
-        version: "2.1.0",
-        platform: "Solay39",
-        auditId: staticAuditId,
-        timestamp: new Date().toISOString(),
-        contractMeta: meta,
-        findings: finalStaticFindings,
-        scoreBreakdown,
-        signedReport: staticSignedReport,
-        exploitSimulation: staticExploitSimulation.summary,
-      }
-      const staticIpfsRecord = await pinReportToIPFS(staticIpfsReportData, staticAuditId)
+      const staticIpfsRecord = null
 
       // Solana Attestation - rimosso per evitare timeout
       // L'utente puo' attestare manualmente dal tab Blockchain
       const staticSolanaAttestation = null
 
-      return Response.json({
+      return Response.json(preliminaryAutomatedAssessment({
         findings: finalStaticFindings,
         source: "static",
         note: "Analysis performed using Solay39 pattern-based static analyzer (AI model unavailable).",
@@ -2827,7 +2726,7 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
         pocScripts: staticPocScripts,
         testCoverage: staticTestCoverage,
         solanaAttestation: staticSolanaAttestation,
-      })
+      }))
     }
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error)

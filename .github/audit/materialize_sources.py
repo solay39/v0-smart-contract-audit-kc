@@ -32,7 +32,7 @@ def split_sources(code: str) -> dict[str, str]:
 
 
 def materialize(input_path: Path, root: Path, contract_name: str):
-    code = input_path.read_text()
+    code = input_path.read_bytes().decode("utf-8")
     sources = split_sources(code)
     root.mkdir(parents=True, exist_ok=True)
     for name, content in sources.items():

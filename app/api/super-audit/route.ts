@@ -71,8 +71,8 @@ export async function GET() {
     version: "1.0.0",
     capabilities: [
       "Static Analysis (pattern-based)",
-      "Formal Verification (invariant checking)",
-      "Fuzz Testing (Foundry - requires backend setup)",
+      "Heuristic state-snapshot checks (not formal verification)",
+      "Unexecuted fuzz-test templates (not evidence of fuzzing)",
       "Symbolic Execution (Mythril - requires backend setup)",
       "DeFi Attack Simulation (flash loan, oracle manipulation)",
       "Attack Graph Generation",
