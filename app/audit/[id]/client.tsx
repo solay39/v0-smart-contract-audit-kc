@@ -3,7 +3,7 @@
 import { useState, useEffect, Component, type ReactNode } from "react"
 import { ProjectDetail } from "@/components/skynet-public"
 import { isVerifiedReport, type PortfolioProject } from "@/lib/solay39-constants"
-import { PreliminaryAuditReport } from "@/components/preliminary-audit-report"
+import { ProjectSecurityProfile } from "@/components/project-security-profile"
 import { AuditDraftRecovery } from "@/components/audit-draft-recovery"
 import { recordIssues, type RecordIssue } from "@/lib/preliminary-report"
 
@@ -201,7 +201,7 @@ export function AuditDetailClient({ project, auditId, declarationIssues }: { pro
   const pendingVerification = isPendingVerification(liveProject)
 
   if (pendingVerification || !isVerifiedReport(liveProject)) {
-    return <PreliminaryAuditReport project={liveProject} declarationIssues={issues} />
+    return <ProjectSecurityProfile project={liveProject} declarationIssues={issues} />
   }
 
   return (

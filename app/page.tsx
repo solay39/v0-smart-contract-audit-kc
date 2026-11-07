@@ -3,9 +3,10 @@
 import { useState } from "react"
 import { LoginScreen } from "@/components/login-screen"
 import { SkynetPublic } from "@/components/skynet-public"
+import { SkynetDiscovery } from "@/components/skynet-discovery"
 import { AuditWorkspace } from "@/components/audit-workspace"
 
-type Screen = "login" | "skynet" | "workspace"
+type Screen = "login" | "skynet" | "classic" | "workspace"
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("login")
@@ -19,7 +20,10 @@ export default function Home() {
         />
       )}
       {screen === "skynet" && (
-        <SkynetPublic onBack={() => setScreen("login")} />
+        <SkynetDiscovery onBack={() => setScreen("login")} onClassic={() => setScreen("classic")} />
+      )}
+      {screen === "classic" && (
+        <SkynetPublic onBack={() => setScreen("skynet")} />
       )}
       {screen === "workspace" && (
         <AuditWorkspace
