@@ -7,10 +7,21 @@ Interfaccia pubblica ispirata alla struttura di [CertiK Skynet](https://skynet.c
 - Home: `View Ratings` apre la nuova interfaccia; `Classic view` mantiene il portfolio esistente e il suo comportamento.
 - `/skynet`: ingresso diretto alla nuova interfaccia.
 - `/leaderboard`: conserva l'indirizzo precedente, sostituendo la graduatoria di score legacy con la directory senza rating non verificati.
-- `/audit/[id]`: route, contenuto tecnico, logo, finding, evidenze e download non modificati.
+- `/audit/[id]`: nuova scheda progetto per i report preliminari; URL, dati tecnici, logo, finding, qualifiche delle evidenze e download preservati. `Full technical report` e `Original technical view` aprono il report tecnico originale, con ritorno alla scheda.
 - Accesso founder, revisioni storiche private, runner GitHub e API di scrittura non modificati.
 
-## Dati e limiti
+## Scheda progetto
+
+I riferimenti visivi sono le schede [PowerXone](https://skynet.certik.com/projects/powerxone), [Chiliz](https://skynet.certik.com/projects/chiliz), [Aria](https://skynet.certik.com/projects/aria), [ARK DeFAI](https://skynet.certik.com/projects/ark-defai) e [MyNeighborAlice](https://skynet.certik.com/projects/myneighboralice). La struttura riprende navigazione orizzontale, rail compatta, pannello progetto laterale e distribuzione dei finding, senza riutilizzare asset o risultati CertiK.
+
+- `Code Security`: conteggi ricavati dai finding effettivi, distribuzione per severità, filtri e dettagli espandibili con impatto, remediation, PoC sottoposti e domande di verifica.
+- `Evidence`: hash e compilatore dichiarati, source inventory, collegamento CI, conflitti del record e feed limitato alla data dichiarata e all'approvazione ancora pendente. Nessun evento inventato.
+- `Fundamental`, `Operational`, `Governance`, `Community`, `Market`: revisione founder e disponibilità esplicita delle integrazioni. KYC, bounty, incident monitoring, controlli di centralizzazione e dati finanziari non vengono dedotti da narrazioni legacy.
+- Pannello progetto: logo, rete e contratto dichiarati, copia indirizzo con feedback, esportazione e vista tecnica originale. Su mobile informazioni e download aggiuntivi sono apribili a richiesta.
+- Nessun rating derivato da firme serializzate, stati privati o label `RESOLVED`. Un collegamento CI con hash corrispondente resta una dichiarazione, non autenticazione degli artifact.
+- L'anteprima usa gli stessi componenti React della produzione proposta, con snapshot allowlisted dei soli record già pubblici, routing tramite query, reload dei deep link e ritorno alla directory conservando ricerca/filtri. Il link `Open published version` distingue la versione effettivamente pubblicata.
+
+## Directory pubblica
 
 Il componente legge soltanto `GET /api/audits`, stessa origine, senza credenziali, senza localStorage o cataloghi privati. La directory è una vista dei record restituiti da questa API, non una prova di completezza dello storage sottostante.
 
@@ -43,20 +54,23 @@ SKYNET_QA_ORIGIN=http://127.0.0.1:3021 pnpm test:skynet-browser
 
 La suite browser con fixture è limitata a localhost. Verifica loading, vuoto, payload malformato, errori/retry, dati obsoleti, ricerca e filtri, tutti i controlli, menu responsive, accessibilità di base, founder login e protezioni anonime. Eseguirla sul server di produzione locale evita che il pannello di sviluppo Next intercetti i click.
 
-Per costruire un'anteprima statica del medesimo componente con soli metadati pubblici:
+Per costruire un'anteprima statica degli stessi componenti con snapshot allowlisted dei record già pubblici:
 
 ```sh
 pnpm exec tsx scripts/build-skynet-preview.mts
 serve .local/skynet-preview -l 3030 --no-clipboard
 # In un altro terminale:
 pnpm exec tsx tests/skynet-preview.browser.mts
+pnpm test:project-profile-browser
 ```
 
-L'anteprima riporta `Public snapshot`, non aggiorna i dati e apre i report sul sito pubblico. Il refresh è intenzionalmente disabilitato. Lo script rifiuta un catalogo vuoto o una risposta HTTP non riuscita, minimizza i record e non include segreti né backend. L'output e le evidenze rimangono sotto `.local/`, ignorata da Git.
+L'anteprima riporta `Public snapshot`, non aggiorna i dati e apre internamente le nuove schede progetto. `Open published version` apre separatamente il sito pubblico, che non viene modificato. Il refresh è intenzionalmente disabilitato. Lo script rifiuta un catalogo vuoto o una risposta HTTP non riuscita, minimizza i record, esclude firme/stati di approvazione e non include backend o cataloghi privati. L'output e le evidenze rimangono sotto `.local/`, ignorata da Git.
 
 L'interfaccia e i metadati sono in inglese, come il resto del sito: navigazione, messaggi, stati, aria-label, etichette mobile e fallback. Le date usano `en-GB`, la ricerca e l'ordinamento usano locale inglese e l'anteprima dichiara `lang="en"`. I nomi originali dei progetti, i record e i report tecnici non sono tradotti o riscritti.
 
 La verifica dello snapshot include il click al report Tagger, logo reale, quattro finding, filtro, disclosure e download Markdown con digest di regressione. Controlla inoltre 1440/375/320 px, ricerca, reti, metodologia e contrasto dei testi piccoli.
+
+La suite delle schede verifica anche tutti i link di sezione, copia indirizzo, doppia esportazione identica, ritorno alla vista originale con ripristino del focus, ritorno alla directory conservando la ricerca, browser Back/reload, apertura dei dati su mobile e recupero di ID assenti. Sei record pubblici, incluso quello meno popolato, sono controllati nel browser; tutti i record dello snapshot passano il controllo di coerenza del modello. I test non attestano la validità tecnica dei finding.
 
 ## Rilascio
 

@@ -3,6 +3,8 @@ import { chromium } from "playwright"
 import { mkdir, writeFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import { normalizeDirectory } from "../lib/skynet-directory"
+import { publicProfileSnapshot } from "../lib/project-profile"
+import type { PortfolioProject } from "../lib/solay39-constants"
 const require = createRequire(import.meta.url)
 const { build } = createRequire(require.resolve("tsx/cli"))("esbuild")
 const out = ".local/skynet-preview"
@@ -24,14 +26,20 @@ try {
   if (!snapshot.projects.length)
     throw new Error("Refusing to build a misleading empty preview")
   await writeFile(".local/skynet-snapshot.json", JSON.stringify(snapshot))
+  const ids = new Set(snapshot.projects.map((p) => p.id))
+  const reports = (data.audits as PortfolioProject[])
+    .filter((p) => p && ids.has(p.id))
+    .map(publicProfileSnapshot)
+  await writeFile(".local/skynet-reports.json", JSON.stringify(reports))
   await writeFile(
     ".local/skynet-preview-entry.tsx",
     `
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { SkynetDiscovery } from "../components/skynet-discovery";
+import { SkynetPreviewApp } from "../components/skynet-preview-app";
 import snapshot from "./skynet-snapshot.json";
-createRoot(document.getElementById("root")!).render(<SkynetDiscovery initialSnapshot={snapshot as any} preview />);
+import reports from "./skynet-reports.json";
+createRoot(document.getElementById("root")!).render(<SkynetPreviewApp snapshot={snapshot as any} reports={reports as any} />);
 `
   )
   await build({

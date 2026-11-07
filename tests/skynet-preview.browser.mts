@@ -34,8 +34,11 @@ try {
   await page.getByTestId("network-card-BSC").click()
   await page.getByRole("button", { name: "Clear filters" }).click()
   await page.getByTestId("search-projects").fill("Tagger")
-  const popup = page.waitForEvent("popup")
   await page.getByTestId("report-tagger-1793148483876").first().click()
+  await page.getByTestId("project-profile").waitFor()
+  await page.getByRole("heading", { name: "Tagger", exact: true }).waitFor()
+  const popup = page.waitForEvent("popup")
+  await page.getByRole("link", { name: "Open published version" }).click()
   const report = await popup
   await report.waitForLoadState("domcontentloaded")
   assert.equal(new URL(report.url()).pathname, "/audit/tagger-1793148483876")
@@ -82,6 +85,7 @@ try {
     "Real report link click, Tagger logo, four findings, filter/disclosure cycle and byte-identical Markdown export"
   )
   await report.close()
+  await page.getByRole("button", { name: "All projects", exact: true }).click()
   await page.getByRole("button", { name: "Clear filters" }).click()
   await page.getByTestId("nav-overview").click()
   for (const width of [375, 320]) {

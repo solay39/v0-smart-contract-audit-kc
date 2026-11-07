@@ -308,6 +308,21 @@ try {
   checks.push(
     "Existing leaderboard entry, return home, founder login and anonymous historical access protection"
   )
+  await page.goto(origin + "/audit/chz-token")
+  await page.getByTestId("project-profile").waitFor()
+  await page.getByRole("heading", { name: "chiliZ", exact: true }).waitFor()
+  await page
+    .getByRole("button", { name: "Full technical report", exact: true })
+    .click()
+  await page.locator('.s39-report[data-report-appearance="classic"]').waitFor()
+  await page
+    .getByRole("button", { name: "Back to project profile", exact: true })
+    .click()
+  await page.getByRole("link", { name: "All projects", exact: true }).click()
+  await page.getByTestId("skynet-discovery").waitFor()
+  checks.push(
+    "Canonical /audit/chz-token uses project profile, classic report switch and return to real directory"
+  )
   assert.deepEqual(errors, [])
   await writeFile(
     `${out}/results.json`,
@@ -318,6 +333,17 @@ try {
     )
   )
   console.log(JSON.stringify({ checks, pageErrors: errors }, null, 2))
+} catch (error) {
+  await page.screenshot({ path: `${out}/failure.png`, fullPage: true })
+  await writeFile(
+    `${out}/failure.json`,
+    JSON.stringify(
+      { url: page.url(), pageErrors: errors, error: String(error) },
+      null,
+      2
+    )
+  )
+  throw error
 } finally {
   await browser.close()
 }

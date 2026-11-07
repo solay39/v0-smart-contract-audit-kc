@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
 .shell {
   --ink: #202b27;
   --muted: #616d67;
@@ -10,7 +12,7 @@
   min-height: 100dvh;
   background: var(--canvas);
   color: var(--ink);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Inter", Arial, Helvetica, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   font-variant-numeric: tabular-nums;

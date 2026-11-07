@@ -4,10 +4,15 @@
   "include": [
     "next-env.d.ts",
     "components/skynet-discovery.tsx",
+    "components/project-security-profile.tsx",
+    "components/skynet-preview-app.tsx",
+    "lib/project-profile.ts",
     "lib/skynet-directory.ts",
     "app/skynet/page.tsx",
     "app/leaderboard/page.tsx",
     "tests/skynet-directory.test.mts",
+    "tests/project-profile.test.mts",
+    "tests/project-profile.browser.mts",
     "tests/skynet-discovery.browser.mts",
     "tests/skynet-preview.browser.mts"
   ],

@@ -70,11 +70,13 @@ export function SkynetDiscovery({
   onClassic,
   initialSnapshot,
   preview = false,
+  onOpenReport,
 }: {
   onBack?: () => void
   onClassic?: () => void
   initialSnapshot?: DirectorySnapshot
   preview?: boolean
+  onOpenReport?: (id: string) => void
 }) {
   const [view, setView] = useState<View>("overview")
   const [query, setQuery] = useState("")
@@ -223,8 +225,16 @@ export function SkynetDiscovery({
       href={reportHref(p.id)}
       className={styles.projectLink}
       data-testid={`report-${p.id}`}
-      target={preview ? "_blank" : undefined}
-      rel={preview ? "noopener noreferrer" : undefined}
+      target={preview && !onOpenReport ? "_blank" : undefined}
+      rel={preview && !onOpenReport ? "noopener noreferrer" : undefined}
+      onClick={
+        onOpenReport
+          ? (event) => {
+              event.preventDefault()
+              onOpenReport(p.id)
+            }
+          : undefined
+      }
     >
       <Logo project={p} />
       <span>
