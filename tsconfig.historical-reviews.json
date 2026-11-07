@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "target": "ES2022", "incremental": false },
+  "include": [
+    "next-env.d.ts",
+    "lib/historical-review-*.ts",
+    "components/historical-reviews.tsx",
+    "app/api/founder/historical-reviews/**/*.ts",
+    "app/founder/historical-reviews/page.tsx",
+    "scripts/prepare-historical-review-catalog.mts",
+    "scripts/start-historical-review-qa.mts",
+    "tests/historical-review.test.mts",
+    "tests/historical-review.browser.mts",
+    "tests/historical-review-catalog.browser.mts",
+    "tests/historical-review.sql.mts"
+  ],
+  "exclude": ["node_modules", ".next"]
+}

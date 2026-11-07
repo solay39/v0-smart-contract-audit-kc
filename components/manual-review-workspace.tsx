@@ -289,8 +289,6 @@ export default function ManualReviewWorkspace({
     }
   }, [contractAddress, network, aiFindings, contractSource, deepReviewLoading, deepReviewDone])
   const [codeSearch, setCodeSearch] = useState("")
-  const [signing, setSigning] = useState(false)
-  const [signError, setSignError] = useState("")
 
   // ── Auto-run deep review on mount ─────────────────────────────
   useEffect(() => {
@@ -349,84 +347,7 @@ export default function ManualReviewWorkspace({
     setAddingManual(false)
   }
 
-  // ── Firma la review con MetaMask + Phantom ──────────────────────────────
-
-  async function signReview() {
-    setSigning(true)
-    setSignError("")
-    try {
-      // Step 1: MetaMask (Ethereum)
-      const ethereumWindow = window as Window & { ethereum?: { request: (a: { method: string; params?: unknown[] }) => Promise<unknown>; providers?: Array<{ isMetaMask?: boolean; request: (a: { method: string; params?: unknown[] }) => Promise<unknown> }> } }
-      const ethereum = ethereumWindow.ethereum?.providers?.find((provider) => provider.isMetaMask) || ethereumWindow.ethereum
-      if (!ethereum) throw new Error("MetaMask non è disponibile in questo browser. Apri questa pagina nell'app MetaMask Mobile o usa un browser con l'estensione MetaMask.")
-
-      const accounts = await ethereum.request({ method: "eth_requestAccounts" }) as string[]
-      const ethAddress = accounts[0]
-      if (!ethAddress) throw new Error("MetaMask non ha restituito un account. Sblocca il wallet e riprova.")
-
-      const confirmedFindings = session.aiFindings.filter(f => f.decision === "confirmed" || f.decision === "modified").length
-      const reviewedAt = new Date().toISOString()
-      const message = [
-        "Solay39 Manual Review Signature",
-        `Contract: ${contractName} (${contractAddress})`,
-        `Network: ${network}`,
-        `Checks completed: ${session.checks.filter(c => c.status !== "pending").length}/${session.checks.length}`,
-        `AI findings reviewed: ${session.aiFindings.filter(f => f.decision !== "pending").length}/${session.aiFindings.length}`,
-        `Confirmed findings: ${confirmedFindings}`,
-        `Manual findings added: ${session.manualFindings.length}`,
-        `Reviewed at: ${reviewedAt}`,
-        "I confirm I have manually reviewed this smart contract using the AI-guided checklist.",
-      ].join("\n")
-
-      const ethSignature = await ethereum.request({
-        method: "personal_sign",
-        params: [message, ethAddress],
-      }) as string
-
-      // Step 2: Phantom (Solana)
-      let solAddress: string | undefined
-      let solSignature: string | undefined
-      
-      const phantom = (window as Window & { solana?: { isPhantom?: boolean; connect: () => Promise<{ publicKey: { toString: () => string } }>; signMessage: (msg: Uint8Array, encoding: string) => Promise<{ signature: Uint8Array }> } }).solana
-      
-      if (phantom?.isPhantom) {
-        try {
-          const resp = await phantom.connect()
-          solAddress = resp.publicKey.toString()
-          
-          const solMessage = new TextEncoder().encode(message)
-          const { signature: solSig } = await phantom.signMessage(solMessage, "utf8")
-          solSignature = Buffer.from(solSig).toString("base64")
-        } catch (phantomErr) {
-          console.log("[Solay39] Phantom signature skipped:", phantomErr)
-          // Non blocchiamo se Phantom fallisce, la firma MetaMask e' sufficiente
-        }
-      }
-
-      const completedSession: ReviewSession = {
-        ...session,
-        completedAt: reviewedAt,
-        auditorWallet: ethAddress,
-        solanaWallet: solAddress,
-        signed: true,
-        signature: ethSignature,
-        solanaSignature: solSignature,
-      }
-      
-      setSession(completedSession)
-      if (auditId) {
-        const persist = await fetch("/api/audit/review-signoff", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ auditId, session: completedSession }),
-        })
-        if (!persist.ok) throw new Error((await persist.json()).error || "Could not persist signed review")
-      }
-      onReviewComplete(completedSession)
-    } catch (err: unknown) {
-      setSignError(err instanceof Error ? err.message : "Signing failed")
-    }
-    setSigning(false)
-  }
+  // Legacy count-only signing removed. Private historical review owns approval.
 
   // ── Computed stats ────────────────────────────────────────────
 
@@ -1390,23 +1311,18 @@ export default function ManualReviewWorkspace({
                   <div>
                     {!canSign && (
                       <div style={{ fontSize: 10, color: "#ff8800", marginBottom: 10, padding: "8px 12px", background: "#ff880010", border: "1px solid #ff880030" }}>
-                        Complete all checks ({checksDone}/{checksTotal}) and review all AI findings ({findingsReviewed}/{findingsTotal}) before signing.
+                        Bozza tecnica: controlli {checksDone}/{checksTotal}, finding revisionati {findingsReviewed}/{findingsTotal}.
+                        La checklist non costituisce un’approvazione.
                       </div>
                     )}
-                    <button
-                      onClick={signReview}
-                      disabled={!canSign || signing}
-                      style={{
-                        background: canSign ? "#00ff88" : "#1a1a1a",
-                        border: "none", cursor: canSign ? "pointer" : "not-allowed",
-                        color: canSign ? "#000" : "#444",
-                        fontSize: 11, padding: "12px 24px", fontFamily: "inherit",
-                        fontWeight: 700, letterSpacing: "0.1em", width: "100%",
-                      }}
-                    >
-                      {signing ? "Signing with MetaMask + Phantom..." : "Sign Review (MetaMask + Phantom)"}
-                    </button>
-                    {signError && <div style={{ fontSize: 10, color: "#ff4444", marginTop: 8 }}>{signError}</div>}
+                    <a href="/founder/historical-reviews" style={{
+                      display: "block", background: "#00ff88", color: "#06100b",
+                      padding: "14px 20px", fontSize: 12, fontWeight: 700, textDecoration: "none",
+                    }}>Apri revisione storica sicura</a>
+                    <p style={{ fontSize: 11, color: "#b0bbb6", marginTop: 10 }}>
+                      Checklist non firmata. L’approvazione richiede lo snapshot delle evidenze,
+                      il wallet autorizzato e il salvataggio verificato dal server. Non pubblica l’audit.
+                    </p>
                   </div>
                 ) : (
                   <div style={{ background: "#00ff8810", border: "1px solid #00ff8840", padding: "16px 20px", textAlign: "center" }}>

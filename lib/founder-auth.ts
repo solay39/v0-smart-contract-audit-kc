@@ -34,6 +34,12 @@ export const founderCookieOptions = {
 // and rotate the password: this hash is public in the git history.
 const LEGACY_FOUNDER_PASSWORD_SHA256 = "dc3960ab2247a0196a2d2af0390d36fb8fa8acb57c828ec16642d63a0c247cb8"
 
+/** High-assurance routes must not accept the fingerprint published in git history. */
+export function hasPrivateFounderPassword(): boolean {
+  const configured = process.env.SOLAY39_FOUNDER_PASSWORD_SHA256?.trim().toLowerCase()
+  return !!configured && /^[0-9a-f]{64}$/.test(configured) && configured !== LEGACY_FOUNDER_PASSWORD_SHA256
+}
+
 function envFounderKey(): string | null {
   const key = process.env.SOLAY39_FOUNDER_KEY?.trim()
   return key && key.length >= 12 ? key : null
