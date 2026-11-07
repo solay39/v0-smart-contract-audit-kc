@@ -6,6 +6,7 @@ import { PreliminaryAuditReport } from "../components/preliminary-audit-report"
 import { findingReviewQuestion, preliminaryMarkdown, preliminaryModel, recordIssues, safeReportUrl } from "../lib/preliminary-report"
 import type { PortfolioProject } from "../lib/solay39-constants"
 import { PRELIMINARY_REPORT_STYLE } from "../lib/preliminary-report-style"
+import { ReportTokenLogo } from "../components/report-token-logo"
 
 const record = {
   id: "tagger-fixture", name: "Tagger", ticker: "TAG", network: "BSC",
@@ -37,6 +38,25 @@ test("counts derive from submitted findings, never stale summary fields or score
   assert.equal(m.counts.CRITICAL, 0)
   assert.equal(m.pocCount, 1)
   assert.match(findingReviewQuestion("Delegatecall Usage"), /unprivileged actor/)
+})
+test("the original token logo is restored from report metadata without a security rating", () => {
+  const logoUrl = "https://coin-images.coingecko.com/coins/images/53206/large/IMG_3196.png?1735664645"
+  const html = renderToStaticMarkup(React.createElement(PreliminaryAuditReport, { project: { ...record, logoUrl } }))
+  assert.ok(html.includes(`src="${logoUrl}"`))
+  assert.ok(html.includes('alt="Tagger logo"'))
+  assert.ok(html.includes('width="48" height="48"'))
+  assert.ok(html.includes('data-logo-state="image"'))
+  assert.ok(html.includes("Awaiting founder review"))
+  assert.ok(!html.includes("AAA"))
+})
+test("missing and unsafe token logos use a neutral identity fallback", () => {
+  for (const logoUrl of [undefined, "", "javascript:alert(1)", "data:image/svg+xml,bad", "https://user:password@example.test/logo.png"]) {
+    const html = renderToStaticMarkup(React.createElement(ReportTokenLogo, { name: "Tagger", logoUrl }))
+    assert.ok(html.includes('data-logo-state="fallback"'))
+    assert.ok(html.includes('aria-label="Tagger logo unavailable"'))
+    assert.ok(!html.includes("<img"))
+    assert.ok(!html.includes("score"))
+  }
 })
 test("report hash and run links cannot substitute for source-bound evidence", () => {
   const project = { ...record, reportIntegrity: { sha256: "a".repeat(64) } } as PortfolioProject
