@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "tsc --noEmit -p tsconfig.json",
-    "test:engine": "tsx --tsconfig tsconfig.json --test tests/audit-engine.test.mts tests/slither-engine.test.mts tests/slither-github.test.mts tests/published-audit.test.mts",
+    "test:engine": "tsx --tsconfig tsconfig.json --test tests/audit-engine.test.mts tests/slither-engine.test.mts tests/slither-github.test.mts tests/published-audit.test.mts tests/audit-workspace-persistence.test.mts",
     "benchmark": "node scripts/benchmark-security.mjs",
     "security:preflight": "node scripts/require-security-tools.mjs",
     "benchmark:test": "python -m unittest discover -s benchmarks -p 'test_*.py' -v",

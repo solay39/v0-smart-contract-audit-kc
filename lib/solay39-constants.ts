@@ -265,6 +265,11 @@ export interface AuditProject {
 }
 
 export interface PortfolioProject {
+  ciAnalysis?: {
+    jobId: string
+    runUrl: string
+    result: import("./github-analysis-runner").CiAnalysisResult
+  }
   id: string
   name: string
   ticker?: string
@@ -357,6 +362,8 @@ export interface PortfolioProject {
   methodologySteps?: string[]       // 6-phase methodology steps
   // ── Enterprise Standards ──
   reportIntegrity?: {
+    sourceSha256?: string
+    artifacts?: Record<string, string>
     reportId: string
     sha256: string
     timestamp: string

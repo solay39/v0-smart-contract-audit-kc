@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import useSWR from "swr"
 import { Play, Loader2, ExternalLink, CheckCircle2, XCircle, Clock } from "lucide-react"
-import type { CiJobStatus } from "@/lib/github-analysis-runner"
+import type { CiCompletedJob, CiJobStatus } from "@/lib/github-analysis-runner"
 
 const fetcher = async (url: string): Promise<CiJobStatus> => {
   const res = await fetch(url, { cache: "no-store" })
@@ -20,15 +20,36 @@ const IMPACT_COLOR: Record<string, string> = {
   Optimization: "text-gray-400",
 }
 
-export function CiStaticAnalysisCard({ code, contractName }: { code: string; contractName?: string }) {
+export function CiStaticAnalysisCard({ code, contractName, onResult }: {
+  code: string; contractName?: string; onResult?: (job: CiCompletedJob) => void
+}) {
   const [jobId, setJobId] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
+  const submittedCode = useRef("")
+  const deliveredJob = useRef<string | null>(null)
+  useEffect(() => { setJobId(null); setStartError(null); deliveredJob.current = null }, [code])
 
   const { data, error } = useSWR(jobId ? `/api/static-analysis/ci?jobId=${jobId}` : null, fetcher, {
     refreshInterval: (latest) => (latest?.state === "completed" || latest?.state === "failed" ? 0 : 10_000),
     revalidateOnFocus: false,
   })
+  useEffect(() => {
+    let cancelled = false
+    if (data?.state !== "completed" || submittedCode.current !== code || deliveredJob.current === data.jobId) return
+    const completed = data
+    crypto.subtle.digest("SHA-256", new TextEncoder().encode(code)).then(buffer => {
+      if (cancelled) return
+      const digest = Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, "0")).join("")
+      if (digest !== completed.result.evidenceManifest?.source_sha256) {
+        setStartError("Risultato non importato: l'hash del sorgente non corrisponde al codice corrente.")
+        return
+      }
+      deliveredJob.current = completed.jobId
+      onResult?.(completed)
+    }).catch(() => { if (!cancelled) setStartError("Impossibile verificare l'hash del sorgente CI.") })
+    return () => { cancelled = true }
+  }, [data, code, onResult])
 
   const canRun = /pragma\s+solidity/.test(code)
   const busy = starting || (jobId !== null && !error && data?.state !== "completed" && data?.state !== "failed")
@@ -44,6 +65,8 @@ export function CiStaticAnalysisCard({ code, contractName }: { code: string; con
       })
       const body = await res.json()
       if (!res.ok) throw new Error(body?.error || `HTTP ${res.status}`)
+      submittedCode.current = code
+      deliveredJob.current = null
       setJobId(body.jobId)
     } catch (err) {
       setStartError(err instanceof Error ? err.message : String(err))
@@ -69,7 +92,7 @@ export function CiStaticAnalysisCard({ code, contractName }: { code: string; con
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col gap-0.5">
           <h3 id="ci-analysis-title" className="font-mono text-sm text-cyan-300">SLITHER + MYTHRIL REALI</h3>
-          <p className="text-xs text-gray-400 leading-relaxed">Esecuzione su GitHub Actions, stessa toolchain della CI.</p>
+          <p className="text-xs text-gray-400 leading-relaxed">Gli esiti verificati per questo sorgente vengono importati nel workspace. Workflow completato non significa analisi riuscita.</p>
         </div>
         <button
           type="button"
@@ -98,6 +121,9 @@ export function CiStaticAnalysisCard({ code, contractName }: { code: string; con
 
       {result && (
         <div className="flex flex-col gap-3">
+          {(!result.slither.success || !result.mythril.success) && (
+            <p role="status" className="text-sm text-amber-300">Analisi incompleta: uno o più strumenti non hanno analizzato il contratto. Nessuna conferma di sicurezza.</p>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <ToolSummary
               name="Slither"

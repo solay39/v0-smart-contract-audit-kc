@@ -1,4 +1,5 @@
 import { gzipSync, unzipSync, strFromU8, strToU8 } from "fflate"
+import { createHash } from "node:crypto"
 
 // Runs real Slither + Mythril on GitHub Actions (same toolchain as the repo CI),
 // replacing the paid container backend. The app dispatches a workflow, then polls
@@ -123,6 +124,7 @@ export type CiJobStatus =
   | { state: "running"; jobId: string; runUrl: string; startedAt: string }
   | { state: "failed"; jobId: string; runUrl: string; error: string }
   | { state: "completed"; jobId: string; runUrl: string; result: CiAnalysisResult }
+export type CiCompletedJob = Extract<CiJobStatus, { state: "completed" }>
 
 interface WorkflowRun {
   id: number
@@ -146,7 +148,7 @@ function firstLine(text: string | undefined): string {
   return (text || "").split("\n").map((l) => l.trim()).find(Boolean) || "unknown"
 }
 
-function parseArtifact(files: Record<string, Uint8Array>): CiAnalysisResult {
+export function parseArtifact(files: Record<string, Uint8Array>): CiAnalysisResult {
   const read = (name: string) => {
     const key = Object.keys(files).find((k) => k === name || k.endsWith(`/${name}`))
     return key ? strFromU8(files[key]) : undefined
@@ -178,7 +180,7 @@ function parseArtifact(files: Record<string, Uint8Array>): CiAnalysisResult {
       lines: e.source_mapping?.lines || [],
     })),
   }))
-  const slitherOk = slitherRaw.success !== false || slitherFindings.length > 0
+  const slitherOk = slitherRaw.success === true
 
   type RawMythril = {
     success?: boolean
@@ -207,7 +209,7 @@ function parseArtifact(files: Record<string, Uint8Array>): CiAnalysisResult {
   }))
 
   const slitherError = slitherOk ? null : slitherRaw.error || firstLine(slitherLog.split("\n").slice(-5).join("\n"))
-  const mythrilError = mythrilRaw.success === false ? mythrilRaw.error || firstLine(read("mythril.log")) : null
+  const mythrilError = mythrilRaw.success !== true ? mythrilRaw.error || firstLine(read("mythril.log")) : null
 
   const customRaw = safeJson<{ success?: boolean; tool?: string; version?: string; checks?: Record<string, boolean>; findings?: CiCustomFinding[]; error?: string }>(read("custom.json"), { success: false, error: "custom_report_unavailable" })
   const foundryRaw = safeJson<{ success?: boolean; tool?: string; mode?: string; invariants?: number; tests_executed?: boolean; fuzzing_executed?: boolean; error?: string }>(read("foundry.json"), { success: false, error: "foundry_report_unavailable" })
@@ -225,7 +227,7 @@ function parseArtifact(files: Record<string, Uint8Array>): CiAnalysisResult {
     mythril: {
       tool: "mythril",
       version: firstLine(read("mythril-version.txt")).replace(/^Mythril version\s*/i, ""),
-      success: mythrilRaw.success !== false,
+      success: mythrilRaw.success === true,
       findings: mythrilFindings,
       error: mythrilError,
     },
@@ -248,6 +250,26 @@ function parseArtifact(files: Record<string, Uint8Array>): CiAnalysisResult {
     },
     evidenceManifest: evidenceManifest?.source_sha256 ? { source_sha256: evidenceManifest.source_sha256, artifacts: evidenceManifest.artifacts || {} } : null,
     solcVersion: safeJson<{ solc?: string }>(read("meta.json"), {}).solc || null,
+  }
+}
+
+export function verifyCiArtifact(files: Record<string, Uint8Array>, jobId: string): void {
+  const entry = (name: string) => {
+    const key = Object.keys(files).find(key => key === name || key.endsWith(`/${name}`))
+    return key ? files[key] : undefined
+  }
+  const raw = entry("evidence-manifest.json")
+  const manifest = raw ? safeJson<{ job_id?: string; source_sha256?: string; artifacts?: Record<string, string> }>(strFromU8(raw), {}) : {}
+  if (manifest.job_id !== jobId || !/^[a-f0-9]{64}$/.test(manifest.source_sha256 || "") ||
+    !manifest.artifacts || typeof manifest.artifacts !== "object" || Array.isArray(manifest.artifacts) ||
+    Object.keys(manifest.artifacts).length === 0) {
+    throw new GithubAnalysisError("CI evidence manifest missing or not bound to this job.", 422)
+  }
+  for (const [name, digest] of Object.entries(manifest.artifacts)) {
+    const file = entry(name)
+    if (!file || createHash("sha256").update(file).digest("hex") !== digest) {
+      throw new GithubAnalysisError(`CI evidence integrity failed for ${name}.`, 422)
+    }
   }
 }
 
@@ -275,5 +297,6 @@ export async function getStaticAnalysisJob(jobId: string): Promise<CiJobStatus> 
   const zipRes = await gh(new URL(artifact.archive_download_url).pathname)
   if (!zipRes.ok) throw new GithubAnalysisError(explain(zipRes.status, await zipRes.text()), zipRes.status)
   const files = unzipSync(new Uint8Array(await zipRes.arrayBuffer()))
+  verifyCiArtifact(files, jobId)
   return { state: "completed", jobId, runUrl: run.html_url, result: parseArtifact(files) }
 }

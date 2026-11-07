@@ -4,6 +4,7 @@ import { useState, useEffect, Component, type ReactNode } from "react"
 import { ProjectDetail } from "@/components/skynet-public"
 import { isVerifiedReport, type PortfolioProject } from "@/lib/solay39-constants"
 import { PreliminaryAuditReport } from "@/components/preliminary-audit-report"
+import { AuditDraftRecovery } from "@/components/audit-draft-recovery"
 
 // Error boundary to catch rendering crashes in ProjectDetail
 class AuditErrorBoundary extends Component<{ children: ReactNode; auditId: string }, { hasError: boolean }> {
@@ -157,7 +158,7 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
     return () => { mounted = false; clearInterval(interval) }
   }, [liveProject?.ticker, liveProject?.contractAddress])
 
-  // Loading state (checking localStorage)
+  // Loading state (checking canonical server storage)
   if (loading) {
     return (
       <div className="min-h-dvh bg-s39-bg0 flex items-center justify-center">
@@ -171,19 +172,20 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
   // Not found anywhere
   if (!liveProject) {
     return (
-      <div className="min-h-dvh bg-s39-bg0 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-[9px] text-s39-red tracking-[0.15em] mb-4">AUDIT NOT FOUND</div>
+      <div className="min-h-dvh bg-s39-bg0 flex items-center justify-center px-5 py-8">
+        <div className="text-center w-full max-w-lg">
+          <div className="text-sm text-red-300 tracking-[0.15em] mb-4">AUDIT NOT FOUND</div>
           <h1 className="text-xl font-bold text-s39-white mb-4 font-mono">Report does not exist</h1>
-          <p className="text-[10px] text-s39-dim mb-6 max-w-sm mx-auto leading-relaxed">
-            This audit report does not exist or may have been removed. Check the URL and try again.
+          <p className="text-sm text-s39-lite mb-6 max-w-sm mx-auto leading-relaxed">
+            No server-persisted report exists for this ID. A successful GitHub workflow alone does not publish an audit.
           </p>
           <a
             href="/"
-            className="text-[10px] text-s39-cyan border border-s39-cyan/30 px-4 py-2 tracking-widest hover:bg-s39-cyan/5 transition-colors no-underline font-mono"
+            className="inline-flex min-h-11 items-center text-sm text-s39-cyan border border-s39-cyan/30 px-4 py-2 tracking-widest hover:bg-s39-cyan/5 transition-colors no-underline font-mono"
           >
             {"<- BACK TO PORTFOLIO"}
           </a>
+          <AuditDraftRecovery auditId={auditId} />
         </div>
       </div>
     )

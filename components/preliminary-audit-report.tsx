@@ -36,6 +36,26 @@ export function PreliminaryAuditReport({ project }: { project: PortfolioProject 
             ))}
           </dl>
         </section>
+        {project.ciAnalysis && <section aria-labelledby="ci-execution-title" className="space-y-4">
+          <h2 id="ci-execution-title" className="text-lg font-semibold text-s39-white">Recorded CI execution</h2>
+          <p className="text-sm leading-relaxed">
+            Workflow completion is not audit approval. These submitted execution results still require founder validation.
+          </p>
+          {[
+            ["Slither", project.ciAnalysis.result.slither],
+            ["Mythril", project.ciAnalysis.result.mythril],
+          ].map(([name, value]) => {
+            const tool = value as { success: boolean; error: string | null; version: string }
+            return <div key={name as string} className="bg-s39-bg1 p-4 space-y-2 text-sm">
+              <p>{name as string}: {tool.success ? "Execution completed" : "INCOMPLETE / FAILED"} ({tool.version})</p>
+              {tool.error && <p className="whitespace-pre-wrap break-words text-amber-300">{tool.error}</p>}
+            </div>
+          })}
+          {/^[a-f0-9-]{36}$/.test(project.ciAnalysis.jobId) &&
+            /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/actions\/runs\/\d+$/.test(project.ciAnalysis.runUrl) &&
+            <a href={project.ciAnalysis.runUrl} className="inline-flex min-h-11 items-center text-sm text-s39-cyan underline"
+              target="_blank" rel="noopener noreferrer">View CI execution evidence on GitHub</a>}
+        </section>}
         <section aria-labelledby="evidence-title" className="space-y-3">
           <h2 id="evidence-title" className="text-lg font-semibold text-s39-white">Evidence required before final approval</h2>
           <ul className="list-disc pl-5 space-y-2 text-base leading-relaxed">
