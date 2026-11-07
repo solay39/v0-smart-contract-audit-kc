@@ -5,6 +5,7 @@ import { ProjectDetail } from "@/components/skynet-public"
 import { isVerifiedReport, type PortfolioProject } from "@/lib/solay39-constants"
 import { PreliminaryAuditReport } from "@/components/preliminary-audit-report"
 import { AuditDraftRecovery } from "@/components/audit-draft-recovery"
+import { recordIssues, type RecordIssue } from "@/lib/preliminary-report"
 
 // Error boundary to catch rendering crashes in ProjectDetail
 class AuditErrorBoundary extends Component<{ children: ReactNode; auditId: string }, { hasError: boolean }> {
@@ -97,7 +98,8 @@ function isPendingVerification(project: PortfolioProject | null): boolean {
   return !hasCiEvidence || !hasRealScore
 }
 
-export function AuditDetailClient({ project, auditId }: { project: PortfolioProject | null; auditId: string }) {
+export function AuditDetailClient({ project, auditId, declarationIssues }: { project: PortfolioProject | null; auditId: string; declarationIssues?: RecordIssue[] }) {
+  const [issues, setIssues] = useState<RecordIssue[]>(declarationIssues ?? (project ? recordIssues(project) : []))
   const [liveProject, setLiveProject] = useState<PortfolioProject | null>(project ? enforceEvidenceOnlyReport(project) : null)
   const [isLive, setIsLive] = useState(false)
   const [loading, setLoading] = useState(!project)
@@ -105,6 +107,7 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
   // Public report identity comes only from the server. A local draft is not a publication.
   useEffect(() => {
     if (project) {
+      setIssues(declarationIssues ?? recordIssues(project))
       setLiveProject(enforceEvidenceOnlyReport(project))
       setLoading(false)
       return
@@ -112,18 +115,22 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
     let cancelled = false
     const controller = new AbortController()
     setLiveProject(null)
+    setIssues([])
     setLoading(true)
     fetch(`/api/audits?id=${encodeURIComponent(auditId)}`, {
       cache: "no-store", signal: controller.signal,
     })
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
-        if (!cancelled && data?.audit) setLiveProject(enforceEvidenceOnlyReport(data.audit))
+        if (!cancelled && data?.audit) {
+          setIssues(recordIssues(data.audit))
+          setLiveProject(enforceEvidenceOnlyReport(data.audit))
+        }
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true; controller.abort() }
-  }, [project, auditId])
+  }, [project, auditId, declarationIssues])
 
   // Fetch live price
   useEffect(() => {
@@ -194,7 +201,7 @@ export function AuditDetailClient({ project, auditId }: { project: PortfolioProj
   const pendingVerification = isPendingVerification(liveProject)
 
   if (pendingVerification || !isVerifiedReport(liveProject)) {
-    return <PreliminaryAuditReport project={liveProject} />
+    return <PreliminaryAuditReport project={liveProject} declarationIssues={issues} />
   }
 
   return (

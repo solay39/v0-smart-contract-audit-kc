@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { DEFAULT_PROJECTS, ratingOf, getWeightedScore, isVerifiedReport, type PortfolioProject } from "@/lib/solay39-constants"
 import { getPublishedAudit } from "@/lib/get-published-audit"
 import { AuditDetailClient } from "./client"
+import { recordIssues } from "@/lib/preliminary-report"
 
 // Allow dynamic audit slugs not in generateStaticParams
 export const dynamicParams = true
@@ -25,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const wr = verified ? ratingOf(ws) : "PENDING"
     const desc = verified
       ? `Score: ${ws}/100 (${wr}) | ${p.criticals ?? 0} Critical, ${p.highs ?? 0} High, ${p.mediums ?? 0} Medium, ${p.lows ?? 0} Low findings. ${p.description ? p.description.slice(0, 120) : `Smart contract audit by Solay39 on ${p.network || "BSC"}.`}`
-      : `Verification pending: source hash, evidence artifacts, and independent reviewer sign-off are required before this report can be used.`
+      : `Verification pending: source-linked execution evidence and founder sign-off are required before final approval.`
     const url = `https://www.solay39.eu/audit/${id}`
 
     const ogImage = `https://www.solay39.eu/audit/${id}/og`
@@ -70,8 +71,9 @@ function evidenceOnlyServerProject(project: PortfolioProject | null): PortfolioP
 export default async function AuditPage({ params }: Props) {
   try {
     const { id } = await params
-    const project = evidenceOnlyServerProject(await getPublishedAudit(id))
-    return <AuditDetailClient project={project} auditId={id} />
+    const record = await getPublishedAudit(id)
+    const project = evidenceOnlyServerProject(record)
+    return <AuditDetailClient project={project} auditId={id} declarationIssues={record ? recordIssues(record) : []} />
   } catch {
     const { id } = await params
     return <AuditDetailClient project={null} auditId={id} />
