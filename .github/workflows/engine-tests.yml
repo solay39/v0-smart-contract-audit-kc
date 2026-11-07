@@ -2,10 +2,10 @@ name: Audit engine tests
 
 on:
   pull_request:
-    paths: ["core/**", "lib/**", "components/**", "app/audit/**", "app/api/**", "tests/**", "package.json", "pnpm-lock.yaml", ".github/audit/**", ".github/workflows/static-analysis-dispatch.yml", ".github/workflows/engine-tests.yml"]
+    paths: ["core/**", "lib/**", "components/**", "app/audit/**", "app/api/**", "app/verification-updates/**", "public/evidence/**", "scripts/export-public-executions.mjs", "tsconfig.execution-summary.json", "tests/**", "package.json", "pnpm-lock.yaml", ".github/audit/**", ".github/workflows/static-analysis-dispatch.yml", ".github/workflows/engine-tests.yml"]
   push:
     branches: [main]
-    paths: ["core/**", "lib/**", "components/**", "app/audit/**", "app/api/**", "tests/**", "package.json", "pnpm-lock.yaml", ".github/audit/**", ".github/workflows/static-analysis-dispatch.yml", ".github/workflows/engine-tests.yml"]
+    paths: ["core/**", "lib/**", "components/**", "app/audit/**", "app/api/**", "app/verification-updates/**", "public/evidence/**", "scripts/export-public-executions.mjs", "tsconfig.execution-summary.json", "tests/**", "package.json", "pnpm-lock.yaml", ".github/audit/**", ".github/workflows/static-analysis-dispatch.yml", ".github/workflows/engine-tests.yml"]
 
 permissions:
   contents: read
@@ -24,6 +24,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm test:engine
+      - run: pnpm test:execution-types
       - run: python3 -m unittest discover -s tests -p test_materialize_sources.py
       - run: python3 -m unittest discover -s tests -p test_ci_evidence.py
       - run: python3 -m unittest discover -s tests -p test_aero_benchmark.py

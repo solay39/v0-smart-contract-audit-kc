@@ -7,6 +7,8 @@ import { technicalReviewModel } from "../lib/technical-review"
 import { PRELIMINARY_REPORT_STYLE } from "../lib/preliminary-report-style"
 import type { RecordIssue } from "../lib/preliminary-report"
 import { ReportTokenLogo } from "./report-token-logo"
+import { HistoricalExecutionSummary } from "./historical-execution-summary"
+import { historicalExecutionFor } from "../lib/historical-execution"
 
 /** Full technical detail and conservative assurance are independent concerns. */
 export function PreliminaryAuditReport({ project, declaredRecord = project, declarationIssues }: {
@@ -15,9 +17,10 @@ export function PreliminaryAuditReport({ project, declaredRecord = project, decl
   const [filter, setFilter] = useState<"ALL" | SeverityLevel>("ALL")
   const model = preliminaryModel(project, declaredRecord)
   const technical = technicalReviewModel(project.technicalReview)
+  const historical = historicalExecutionFor(project)
   const m = { ...model, issues: declarationIssues ?? model.issues }
   const visible = m.findings.map((finding, index) => ({ finding, index })).filter(x => filter === "ALL" || x.finding.severity === filter)
-  const navigation = [["overview", "Overview"], ["scope", "Scope & architecture"], ["findings", "Findings"], ["evidence", "Execution & evidence"], ["review", "Founder review"]]
+  const navigation = [["overview", "Overview"], ["scope", "Scope & architecture"], ...(historical ? [["historical-tests", "Executed tests"]] : []), ["findings", "Findings"], ["evidence", "Execution & evidence"], ["review", "Founder review"]]
   const reference = (value: { id: string; url: string } | null | undefined, host: string) => {
     const url = safeReportUrl(value?.url)
     return value && url && new URL(url).hostname === host
@@ -55,6 +58,7 @@ export function PreliminaryAuditReport({ project, declaredRecord = project, decl
             <div className="r-actions">
               <button type="button" className="r-action r-action-primary" onClick={download}>Download technical report</button>
               {m.sourceUrl && <a className="r-action" href={m.sourceUrl} target="_blank" rel="noopener noreferrer">Open declared source</a>}
+              {historical && <a className="r-action" href="#historical-tests">View {historical.tests.length} executed properties</a>}
             </div>
             <div className="r-notice"><span className="r-status">Awaiting founder review</span><p style={{ marginTop: 9 }}>This is not a completed security audit or deployment recommendation. No verified security score is issued. Missing evidence does not establish safety or vulnerability.</p></div>
             <div className="r-stats">
@@ -98,6 +102,7 @@ export function PreliminaryAuditReport({ project, declaredRecord = project, decl
               {m.trust.map((entry, i) => <div key={i} style={{ marginTop: 14 }}><span className="r-label">{entry.component} · {reportText(entry.trustRequired)} trust declared</span><p>{reportText(entry.riskIfCompromised)}</p>{entry.mitigation && <p className="r-muted">Proposed control: {reportText(entry.mitigation)}</p>}</div>)}
             </div>}
           </section>
+          <HistoricalExecutionSummary project={project} />
           {technical && <section id="function-review" className="r-section" aria-labelledby="function-review-title">
             <div className="r-section-head"><div><h2 id="function-review-title">Function inventory &amp; verification matrix</h2>
               <p>Submitted observations and evidence categories, not validated checks or founder approval. An observation test passing does not establish safety.</p></div></div>

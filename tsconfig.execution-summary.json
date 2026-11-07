@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "target": "ES2022", "incremental": false },
+  "include": [
+    "next-env.d.ts",
+    "lib/historical-execution.ts",
+    "lib/preliminary-report.ts",
+    "components/historical-execution-summary.tsx",
+    "components/preliminary-audit-report.tsx",
+    "app/verification-updates/page.tsx",
+    "tests/historical-execution.test.mts"
+  ],
+  "exclude": ["node_modules", ".next"]
+}

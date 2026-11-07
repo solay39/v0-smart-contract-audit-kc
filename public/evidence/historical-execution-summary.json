@@ -1,0 +1,5027 @@
+{
+  "schema": "solay39-public-execution-summary-v1",
+  "capturedOn": "2026-11-07",
+  "assurance": "HISTORICAL_LOCAL_SOURCE_FIXTURES_ONLY",
+  "evidenceIndexSha256": "0b4d459f00c398702185418938551d97930249c9c221a887663ed0bd4bfe98c9",
+  "specificBatch": {
+    "targets": 91,
+    "testResults": 757,
+    "fuzzCases": 39936,
+    "invariantCampaigns": 65,
+    "statefulCalls": 133120
+  },
+  "targets": [
+    {
+      "chainId": 1,
+      "address": "0x0384e7a82b7a9cf1788a782fdccc775bfc8c8105",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "2aa8b4aaf21dac9f3d2164ba119a692bc8e38db03df439aae33a07602f3a6c37",
+      "executionOutputSha256": "921b3c7e85bd0c379c0f50ac89e44e655d0d67961d05887bbefe395455a44d42",
+      "tests": [
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializerReplayRejectedWithoutChangingSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x11eef04c884e24d9b7b4760e7476d06ddf797f36",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "e6a5f5dc6dfd74501de7529931762d9a51acbb23e97e08f46de2191780f3ab53",
+      "executionOutputSha256": "4907f17bcc3ec267f2ae3c3ac77e19c8114275a46c3af877f43004259ea42359",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x152649ea73beab28c5b49b26eb48f7ead6d4c898",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "13d291bbb463c17f9f65cf333ca6dc3758c49ed67c4750d8a9e57005a25eb3ad",
+      "executionOutputSha256": "0fc147c6be97b519ea700802826039bbbe3df8049a2134f467687ce159dea6da",
+      "tests": [
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x163f8c2467924be0ae7b5347228cabf260318753",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "a64844fbbc3296ac2bac0513d7d03f50767f2dcdf213503a1d3369219e888a3d",
+      "executionOutputSha256": "82f5ec074950f10ecde7d3b092b407a9531de331832b1cd8769ab411560e33cd",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x17205fab260a7a6383a81452ce6315a39370db97",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "171d918907d9c70e4cabd885090d13fd762a102a63d020f7ab65a3dd81f04efc",
+      "executionOutputSha256": "c2db010561607496b6a215c71ec42a345a3dfc9740dd1690bdedbec7a2ee02b9",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x198d14f2ad9ce69e76ea330b374de4957c3f850a",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "1759c817a6b11b9f9c2d4f82cc2637780e4b74e6e2d50bf6e5618bc0cecc7189",
+      "executionOutputSha256": "7593cfb0f78edd1837d0701ba35eb801c2fb65bafc36573259e51377bfb4ddcb",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x1a3496c18d558bd9c6c8f609e1b129f67ab08163",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "fcbca3ea4389c750e5d88ac2a9cc6a8f952e66e290accd4a685190e3834e58c5",
+      "executionOutputSha256": "5109039f2c1fb9bc6ceae2010c7a77153d8cbaebd091a2174ac82164290018cf",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x1b379a79c91a540b2bcd612b4d713f31de1b80cc",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "ef397606f95e0c79e1aca85431034a3903b98f29f1c079788dc2f7f77a1f1905",
+      "executionOutputSha256": "e82756cf411b771487c7120a5b5a1a5c61dc09f12e006311514894047ee4c28a",
+      "tests": [
+        {
+          "name": "testFuzz_DelegatedStoragePreservesReservedSlots(uint128)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_ConstructorDelegatesInitializationIntoProxyStorage()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ConstructorRejectsNonContractImplementationOrBeacon()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializationFailureRevertsProxyCreation()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x1da9ce35018135f1d5dab1331b058d50dfc7f6fa",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "e95e074a6e72669d752461c431e14445d8ad584e4dd7554620032454f3bf5cd6",
+      "executionOutputSha256": "3462145145213fbb8ad5120739b16bfc40c970b635c2261909212e11cc80ce1b",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializerReplayRejectedWithoutChangingSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonPauserCannotPauseOrUnpause()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PauseBlocksNonPrivilegedFundedTransferAndUnpauseRestoresIt()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "d1a4065e8224834b8db19e46d99237bb4f10d63c78675fa9753f9c93513a8287",
+      "executionOutputSha256": "016d8b96320d0957643cbef86bfdd61e5515b7e8f1c3225ca6a5da4f9d6bce3f",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x226bb599a12c826476e3a771454697ea52e9e220",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "dda6687ae70cbebcfc26a89a8c2b5db6302b39700adcc9e91625079f60e5c716",
+      "executionOutputSha256": "58b9f8aa00af49dd06a3bc550e79824b97d4795ca8cf1ff0e8dfbc4294bfe5b0",
+      "tests": [
+        {
+          "name": "testFuzz_SupplyGetterForwardsToBoundBackend(uint128)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DeclaredAssetOwnerCanChangeMetadata()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializationBindsBackendAndMetadata()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SecondInitializationCannotReplaceBackend()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x259338656198ec7a76c729514d3cb45dfbf768a1",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "20fc13b3f9c643bb973a9e2873de11cc0fdac817885ab321cf9c03895feec575",
+      "executionOutputSha256": "a422f2df4f3cd69225ffcf94119e83f6ece7204de4ff0a23c06e7b530beab203",
+      "tests": [
+        {
+          "name": "testFuzz_DelegatedStoragePreservesReservedSlots(uint128)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_ConstructorDelegatesInitializationIntoProxyStorage()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ConstructorRejectsNonContractImplementationOrBeacon()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializationFailureRevertsProxyCreation()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x3184f3165012753a9cff47df27776a1a8685a8ef",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "531a26c25317c18ea878de097a58bb934fdb5f597c7f9eb975d6938696d7e42b",
+      "executionOutputSha256": "8ce14a20d62b39d73572b0133957185f6536d8048513cac1e0a2c96a5fd63c25",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializerReplayRejectedWithoutChangingSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x320623b8e4ff03373931769a31fc52a4e78b5d70",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "e2750a341c4e0b8c99110025a87b461aab5a7025034b5abd0c913271b5cbb020",
+      "executionOutputSha256": "fb5f20e074ab38670da85d5d574191c119dc4de3cb69cca6c53dc01194482038",
+      "tests": [
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x3506424f91fd33084466f402d5d97f05f8e3b4af",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "22b8fedacbf779810e7fc745eb9a66d9b58ddae7d5040ac71de22e95b3de9c57",
+      "executionOutputSha256": "ea47fc72ff0d367764c3d1e813bad07051ca79ce43f93f5e943ee71b079476f1",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonPauserCannotPauseOrUnpause()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PauseBlocksNonPrivilegedFundedTransferAndUnpauseRestoresIt()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x3a63de3572c69a1307ff08394f3ee7702c16d25d",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "976b2fb74384040a15b5374bfea74b4637df2fe05b5e08e32c4444fe79e19b0c",
+      "executionOutputSha256": "ff2c6c64a3c4343cdd8524b1ee4cfb20e32d6c20dea7ec46e75fa214b566ac43",
+      "tests": [
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x3b50805453023a91a8bf641e279401a0b23fa6f9",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "15b4bd132ea737ad0f0f6f54e17aee033cdc3d69e970ef1709da05e44d4cfeb9",
+      "executionOutputSha256": "c97e15cb8c0f72b40dca6e0ee93acdfcdade16177a2cf017b8bade12e11ef3cb",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x455e53cbb86018ac2b8092fdcd39d8444affc3f6",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "ef65c288048eb3bf0903d1a2487e91021f804098e87b2cb133e6b9ada06f671b",
+      "executionOutputSha256": "4dcbbfd1d8c806f174c14f178387fb6b2019c0a0cefbf71dcc056609ac78f81c",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x514910771af9ca656af840dff83e8264ecf986ca",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "ac73c5f4b19d343f946f426bdb16f02eaf7ce084efadbab1ff5073d5e5af58a4",
+      "executionOutputSha256": "66e5ad1ea0d2d0fe8eea4410e7f821e60a06dcacb4e517a6969e9091dd535b88",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x515244b743dde07925d2d9e6478930528ae5e3fc",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "17fdeb51dd43ee51d47d1947f7b2b28975b30b0da1b3e19a25136c5fe4f913d7",
+      "executionOutputSha256": "6c3136c45b2ad4e5983dbb761660ea0b92acd9ba114e038dcad1a0cd0b47beec",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializerReplayRejectedWithoutChangingSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonPauserCannotPauseOrUnpause()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PauseBlocksNonPrivilegedFundedTransferAndUnpauseRestoresIt()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x57e114b691db790c35207b2e685d4a43181e6061",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "def40cca81376da6fe96c0b56c36e89660f7ece3852077db155c11f361132f4c",
+      "executionOutputSha256": "22a0131e1853a46c8816fca88ac8e43d4573d9e93d5346c6f929f8cbbe1b7b8e",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x5a98fcbea516cf06857215779fd812ca3bef1b32",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "f46995b570121a1de28c0921e12d1659854e4181759522a5f7b46212cdebfd1b",
+      "executionOutputSha256": "bc1c8948f96d5aa7ce093e73512365158d3b1e1ca2acdcf2830780cc4fe563c6",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x5ac0551f79d10f9f2a7ce74eeffad23336060b9a",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "45cff65c0e4ead8f3efdc85c1a57cddf5b2f074e60f3ba9dae7c68dfa07dd01a",
+      "executionOutputSha256": "837bc4a282434a38fa3d0c9b48e010c980d345fc940cb43cad06fb10b77524a7",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializerReplayRejectedWithoutChangingSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x607f4c5bb672230e8672085532f7e901544a7375",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "7c985addbdf1ba6a9f6d2e16b0829bd8a167ce5d612d52171780a31b7199b0b3",
+      "executionOutputSha256": "07e49337b9943bc7ade2a2f8226aebfd764ee4a35a9fb2cab3a9f47b96fa64fa",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x6944e1df6bf5972305f9ab25df47ef10de01bcc8",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "7082269d9bb489903665f299eae1ec7b268459344468b0de191e17a44f6dcba3",
+      "executionOutputSha256": "89fb1faeb7c07c698dc9ab63191cc7ad4d5b6978d63dd1457eb73f0e66d6ded1",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x6985884c4392d348587b19cb9eaaf157f13271cd",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "3ec90eb904367ba3d0ab825ae0ca517dc5343b24a6ffc67218f7f5945e85a2db",
+      "executionOutputSha256": "a0e819734a199b31193e585cdad8360b9dd3b91761c6209d7df9d306be991a38",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x699ccf919c1dfdfa4c374292f42cadc9899bf753",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "9e04336dafeeed6260ada2082951d41477dfa43f499ab16c0ffc8364adb86db8",
+      "executionOutputSha256": "540cad7dd2b228b9bc5cd7671ae4fa83a312e98f9a72c89302438222e80f636c",
+      "tests": [
+        {
+          "name": "testFuzz_DelegatedStoragePreservesReservedSlots(uint128)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_ConstructorDelegatesInitializationIntoProxyStorage()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ConstructorRejectsNonContractImplementationOrBeacon()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializationFailureRevertsProxyCreation()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x6c5ba91642f10282b576d91922ae6448c9d52f4e",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "87650aee98492a1fbfe82a30470fe1c4a8ecf3a2914fdfe80d5614a80f2585e8",
+      "executionOutputSha256": "1df2e8c15a93b5310b9bc9b74041811f02230f358b19022c6279565fce61ca43",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DeclaredOwnerTransferExemptionWhilePaused()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonPauserCannotPauseOrUnpause()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PauseBlocksNonPrivilegedFundedTransferAndUnpauseRestoresIt()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x73fe14ff5a25e4363a72828cccd8444f0748fde7",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "b336cb7979aebfa169c1297bbdbcf05807bac82349c4e7c9567f7273f6da695d",
+      "executionOutputSha256": "585402fbf27ba5b1992e3cb52d79dcba99824cebf96384eed2e1a6e44b90b2c4",
+      "tests": [
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializerReplayRejectedWithoutChangingSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UpgradeInitializerSetsSignerButRequiresLegacyOwnerBootstrap()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x761c06a46d3c85ecd87cf6917b3de329b95829be",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "bb5d6b10bce5982da26806419a922f551837613d6529deb3a30cb4e48e91885f",
+      "executionOutputSha256": "8100508314e41db38e622b013f5fed05317cfd701ac2293dc49cf83dbc1eb5f6",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializerReplayRejectedWithoutChangingSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x764a726d9ced0433a8d7643335919deb03a9a935",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "c6c908dc9376ed9f0c1b967d0ae8d33e836504cd514920e34af194ebfae29f24",
+      "executionOutputSha256": "1c4fb6dd5ac504f9177a94e956922b9bf86e8db33425d5a0bfe805ac93f8e795",
+      "tests": [
+        {
+          "name": "testFuzz_DelegatedStoragePreservesReservedSlots(uint128)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_ConstructorDelegatesInitializationIntoProxyStorage()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ConstructorRejectsNonContractImplementationOrBeacon()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializationFailureRevertsProxyCreation()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x82fd247d884e8b8195cacf329682b61639aa6a78",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "5a9e115dbf9a8954608472e3deca797fafaba10add40d6e9d6685b7123c4d85a",
+      "executionOutputSha256": "642c15ae5c67c5cbd6c130115bd0348066ca4d6f182edcb64667e945d6cc2224",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializerReplayRejectedWithoutChangingSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x868fced65edbf0056c4163515dd840e9f287a4c3",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "dca3b67f2fd81d502328b4491f21ff45490c8ebd017e1ae898489a7b72ee2529",
+      "executionOutputSha256": "077a19a7aa9cd4d3d287c5e04495566f05cc8d421149b204cdfc3db0cd396ac9",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x87acfa3fd7a6e0d48677d070644d76905c2bdc00",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "c7c8c755ed7cb8a7136844eb1ad21e3283c90d39424b6776ab86d39bee79f68b",
+      "executionOutputSha256": "f86a111ee771277a1f29dbab50b30e0b6f8839bbdddef4590213ccab0a025ede",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x8d92a6812b3da2346883f0631910c96cb9c5a5f9",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "21e770cb5df76b26cbb9688590f269e02f6fc9580d5042a3f507faecfa1525ca",
+      "executionOutputSha256": "ab01fec80b1a8bb5dfe4e1e1bdb4f6a5c3e011c9e38fecf6a325877c4f629a15",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializerReplayRejectedWithoutChangingSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonPauserCannotPauseOrUnpause()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PauseBlocksNonPrivilegedFundedTransferAndUnpauseRestoresIt()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x9658905b1a4106deef53181251bcddae7bcba7cf",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "f296523f7f1b0c533c3edfb70e6b331d40b40833ce7d6a28e2298d1104a80037",
+      "executionOutputSha256": "1e472d4b3d1c6c66c18fd8aa7f31fa7908396f60e081e2c873e98d8505357e82",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializerReplayRejectedWithoutChangingSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonPauserCannotPauseOrUnpause()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PauseBlocksNonPrivilegedFundedTransferAndUnpauseRestoresIt()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0x9ce84f6a69986a83d92c324df10bc8e64771030f",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "30f5dba9055aa31e1bc46c256d55ba553124f5a9a29dd76e6f5d35cc9748bdb4",
+      "executionOutputSha256": "ab9dfa5fba95c1f998153ac671fdb802977db20572cb42301fe4627410bafc04",
+      "tests": [
+        {
+          "name": "testFuzz_DelegatedStoragePreservesReservedSlots(uint128)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_ConstructorDelegatesInitializationIntoProxyStorage()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ConstructorRejectsNonContractImplementationOrBeacon()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializationFailureRevertsProxyCreation()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xa0b73e1ff0b80914ab6fe0444e65848c4c34450b",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "8a7c8ac5095541dfed2f86dd9e47353d25867ac31023ea17db7a8c48d535c912",
+      "executionOutputSha256": "c751b1423fcaad287855b758105375c4483f6513574fbb8cef9dbdaf18aacc81",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xa12cc123ba206d4031d1c7f6223d1c2ec249f4f3",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "6d6559762237912805faa0a1d269d54d932c9a715ddf9ed3af9b4e287ac6d396",
+      "executionOutputSha256": "ea059c0f7c4a3c450be64d7ce22ffd6a0966631dfeb0b6e70356654288b3afa9",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xaa7a9ca87d3694b5755f213b5d04094b8d0f0a6f",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "e096454d32f4a82033f0f35c741920b279b58149a80fce9962580f44eeee481d",
+      "executionOutputSha256": "8f4cb45d7537ffb1e05b68c7006e2bd46a00e10a805f8af41cf83b2086323757",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xac51066d7bec65dc4589368da368b212745d63e8",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "de1676bd1cdd1265f0baa7c28e6fbcaadcbd3beed0680008fba9c1a58ebaa0c3",
+      "executionOutputSha256": "08a37a16b2ff8e110acb8b7168867a0b6e7e715e5e331a26d21b18f99fffa867",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonMinterCannotBridgeMint()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xaea46a60368a7bd060eec7df8cba43b7ef41ad85",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "418f462660005dd1cd2ba87cd49eb0b537594953fc6cfb9bca3fd1f8c8de70e8",
+      "executionOutputSha256": "9f1161de41d7133a81ce49957d36f2b306a77da74860e6d567a3db2bee53cb75",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonPauserCannotPauseOrUnpause()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PauseBlocksNonPrivilegedFundedTransferAndUnpauseRestoresIt()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xb32e10022ffbedfe10bc818a1c7e67d9d87e0fa7",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "388c840b0c59ad086bdc45eef2ca322df64db0621629a7d86da3438e64a94264",
+      "executionOutputSha256": "004211d1f1b39b4fc0ff14c2925d89fc008657186e4794a43a91e0f23492eaa4",
+      "tests": [
+        {
+          "name": "testFuzz_DelegatedStoragePreservesReservedSlots(uint128)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_ConstructorDelegatesInitializationIntoProxyStorage()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ConstructorRejectsNonContractImplementationOrBeacon()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializationFailureRevertsProxyCreation()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xc07e1300dc138601fa6b0b59f8d0fa477e690589",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "dc0004d466e3c814ba8d9dd6f9b6ba67ebf9a9b230b9a8c7eb61a7fa16e46cea",
+      "executionOutputSha256": "3b45882cdaf3887c711d383d252ea877e2225d4e5fbabe6051ae07cbc18efe76",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xc477b6dfd26ec2460b3b92de18837fd476ea7549",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "ef397606f95e0c79e1aca85431034a3903b98f29f1c079788dc2f7f77a1f1905",
+      "executionOutputSha256": "e0aca8443c167e35cb565a693b4f1519b995b4b6deefbcf0c5101845338b4895",
+      "tests": [
+        {
+          "name": "testFuzz_DelegatedStoragePreservesReservedSlots(uint128)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_ConstructorDelegatesInitializationIntoProxyStorage()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ConstructorRejectsNonContractImplementationOrBeacon()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializationFailureRevertsProxyCreation()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xcf5104d094e3864cfcbda43b82e1cefd26a016eb",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "79ea916fea92da6fda1b452cb22d52db2908adc13126a42a6f4e631dee89a641",
+      "executionOutputSha256": "6c140f2715276019e419d03fc778dd3aed395b4a07c63861bfccd34aca2c6a76",
+      "tests": [
+        {
+          "name": "testFuzz_DelegatedStoragePreservesReservedSlots(uint128)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_ConstructorDelegatesInitializationIntoProxyStorage()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ConstructorRejectsNonContractImplementationOrBeacon()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializationFailureRevertsProxyCreation()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xd1d2eb1b1e90b638588728b4130137d262c87cae",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "fdd0c1086162e94cc2647bd43eb7cc393c95c36a4f53f99d009973912f168d21",
+      "executionOutputSha256": "d137c12042d3fc213ba0a8e1c64806385d32b1bc19656e60135371c91c551d59",
+      "tests": [
+        {
+          "name": "testFuzz_DelegatedStoragePreservesReservedSlots(uint128)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_ConstructorDelegatesInitializationIntoProxyStorage()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ConstructorRejectsNonContractImplementationOrBeacon()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializationFailureRevertsProxyCreation()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xda528dd3e7f2cd16e5f4175902c64f5993bc297c",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "610ca431538168bad5f1c3edca74d05b9f5980fcddb1d8d0212b14b90a913361",
+      "executionOutputSha256": "85cf98eb19ce35a2e43335945004dc316f9820e686a722b7cd1b32e6850663b4",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializerReplayRejectedWithoutChangingSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonPauserCannotPauseOrUnpause()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PauseBlocksNonPrivilegedFundedTransferAndUnpauseRestoresIt()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xda5e1988097297dcdc1f90d4dfe7909e847cbef6",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "20fc13b3f9c643bb973a9e2873de11cc0fdac817885ab321cf9c03895feec575",
+      "executionOutputSha256": "4313aea375ffbb62c05ed1d847a2fe54a7e0f9ee743bdd135b1953787d421971",
+      "tests": [
+        {
+          "name": "testFuzz_DelegatedStoragePreservesReservedSlots(uint128)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_ConstructorDelegatesInitializationIntoProxyStorage()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ConstructorRejectsNonContractImplementationOrBeacon()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializationFailureRevertsProxyCreation()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xda7ad9dea9397cffddae2f8a052b82f1484252b3",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "2354675bcc9c6079ea6938c5471a114c2c3a5b7975a7e3c1c853baf15f7d3b90",
+      "executionOutputSha256": "aad80907959b0593a362d0bcb9f8f2b77a8bb1cf1fe48f5ea2b907675e9cdb66",
+      "tests": [
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotInitializeNativeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xdbb5cf12408a3ac17d668037ce289f9ea75439d7",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "dfa0738c28a23ed49935c1f209e8fdcfb08b6b07d7ae7406c3e1f4e058b3071f",
+      "executionOutputSha256": "31370b705527c4139f6f9d5aa301f98d7ce44ef1145588750c9cfdfc2adfafee",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xe28b3b32b6c345a34ff64674606124dd5aceca30",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "e0d1bd482893162126eb63797ea8ae620c1fce56d808e034b0adf081b7b284a2",
+      "executionOutputSha256": "8639f4df426ab79254b35c02c32decd96313ea271bbe8e03bcaa8176fa74cf60",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xe66747a101bff2dba3697199dcce5b743b454759",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "535b41b8c06b438f9a993c340895e7d214dfb75bac467425df0010a3cda3c40f",
+      "executionOutputSha256": "e9b2f03a1505308184a964b4d10fed2785c93526083e958953b1d4277f83fd4f",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xf0db65d17e30a966c2ae6a21f6bba71cea6e9754",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "9ad2bebfac63fa29c2b854cb78428c47d4e0808cab248d9a3114d55fea6bce3c",
+      "executionOutputSha256": "69c42f90a2cd2e7d4922cc119715de0a837862515f853aaf17e343ad646978fd",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xfa1c09fc8b491b6a4d3ff53a10cad29381b3f949",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "c91a156f29a7e61693749f4a101b7dbc7fef5beefd07b199a3b152c90c66f1f7",
+      "executionOutputSha256": "3fce100f15796e4d217ea35b99479f4fe9dca2f6ab32799e3e8ae46560076518",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xfaba6f8e4a5e8ab82f62fe7c39859fa577269be3",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "a5638f9e64753d4f816bb453496c0b0909fef5400b140b7b40f9980c094031d1",
+      "executionOutputSha256": "105b4e7fa1bc9511e783fef226c151cb58924936c24a4ae3a1f827daac05b647",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xff20817765cb7f73d4bde2e66e067e58d11095c2",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "8df9ffbe25a230ce5242ad24f68630d3e98b950584f1f951a0d9d4e562825ac0",
+      "executionOutputSha256": "54dfff92ca73b95dc914272568740c7e33f7e773eee749ea655f6143f8e0a116",
+      "tests": [
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 1,
+      "address": "0xff7f8f301f7a706e3cfd3d2275f5dc0b9ee8009b",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "91277f4786c9810f69b0cd75c18f23bae66f5918a9514a1806f08844011a4a57",
+      "executionOutputSha256": "d91db0c025c553bb970229f5a37e8b0a364544035565c68ca0acbc681d6a37f7",
+      "tests": [
+        {
+          "name": "testFuzz_DelegatedStoragePreservesReservedSlots(uint128)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_ConstructorDelegatesInitializationIntoProxyStorage()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ConstructorRejectsNonContractImplementationOrBeacon()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializationFailureRevertsProxyCreation()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x000ae314e2a2172a039b26378814c252734f556a",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "29db7d5266475019ebb5d0a0293c8b5f385b1f86beffb32428c5aa1428881c1e",
+      "executionOutputSha256": "1ccac3e087def62c3d7326f3898ddc379bbc7100a83151bc9fc682e968ee7b0d",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x0a8d6c86e1bce73fe4d0bd531e1a567306836ea5",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "a729c9d1feac51e43f9bda4f31e298641949af51f85850a5533c171ff29c8c02",
+      "executionOutputSha256": "b5d668354e9be1713c6cc2c569ff9a7b300f2eec463031bdc041a9c161643c5f",
+      "tests": [
+        {
+          "name": "testFuzz_DelegatedStoragePreservesReservedSlots(uint128)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_ConstructorDelegatesInitializationIntoProxyStorage()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ConstructorRejectsNonContractImplementationOrBeacon()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializationFailureRevertsProxyCreation()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x0c69199c1562233640e0db5ce2c399a88eb507c7",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "82c6250d2639ad1c34b1d2dd3f70f0c0792ca029794236ef46a24b3fc248f73b",
+      "executionOutputSha256": "cf26705d9ea60df382814ddd3f98c4b476712be9c034c76f1f5d18a18beb2c73",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonPauserCannotPauseOrUnpause()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PauseBlocksNonPrivilegedFundedTransferAndUnpauseRestoresIt()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x0c7f3ebdd94784c2a32e0629c967d247bb705218",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "8c7059c37682611c19e9c4e218b5dcc644945915ae373b9fd3756e8daa720518",
+      "executionOutputSha256": "eaad4067bebe6c3e440c716195af642e01e012e2e3423c3782dc563425492fc8",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializerReplayRejectedWithoutChangingSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonPauserCannotPauseOrUnpause()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PauseBlocksNonPrivilegedFundedTransferAndUnpauseRestoresIt()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x0e63b9c287e32a05e6b9ab8ee8df88a2760225a9",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "8aa861e399af2230c8e61739ac6ad621cc9ac1caf60b068079c798b5e3677812",
+      "executionOutputSha256": "f7b612d523d770065c13e2315dd6f83c49bf8dbacb8d267fcdbe262d87c3d8ab",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x16939ef78684453bfdfb47825f8a5f714f12623a",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "32ebada7d46131b3cf00e9f277b6c650c029da928dedccda985330e157e03b69",
+      "executionOutputSha256": "244f6c62de1fc44edefa9b9edfda9d71fe813494b02ae563718994755bf1d676",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x30117e4bc17d7b044194b76a38365c53b72f7d49",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "0820bf64ef05575e0337c5da618820b341833d5e7b46f658aaef6e8eefc93a5d",
+      "executionOutputSha256": "ebb71f1ca521fd162cba63095d4e8e06cd9e987c8518da657bbf90f038e10596",
+      "tests": [
+        {
+          "name": "testFuzz_DelegatedStoragePreservesReservedSlots(uint128)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_ConstructorDelegatesInitializationIntoProxyStorage()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ConstructorRejectsNonContractImplementationOrBeacon()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializationFailureRevertsProxyCreation()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x302dfaf2cdbe51a18d97186a7384e87cf599877d",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "8bac932027352723921727d09ed2bb724e96ded844e70fac483ff314f2c402fa",
+      "executionOutputSha256": "2acaf7417cdd16a23888f89f07398c86676fcf0d81e808b802f7a78840e6bfb1",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x3203c9e46ca618c8c1ce5dc67e7e9d75f5da2377",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "3bfd0bbd834fe1f35680cdc2421d9bcf3b23ad89c6409952f5b2b120895d7c2c",
+      "executionOutputSha256": "5d58eb4da86888ec43c054b2a0d1199e6678ee2970a3c8025114e00ba65206f7",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x3e5d4f8aee0d9b3082d5f6da5d6e225d17ba9ea0",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "009eb372d3c1592c63b5baa51e9aa3e7d85de40fdc8027c958d74880b166270c",
+      "executionOutputSha256": "ca36e50f98de3e40c7fced06901ad1d09428997a0406cdf2d0cdbf80c9f7deb6",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x5d3a12c42e5372b2cc3264ab3cdcf660a1555238",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "0fa4172e551f81ef1271601ecd0f105b752c85a0701df6aa0d7ae2e90dfd1f7e",
+      "executionOutputSha256": "36a172aaedd4312d9d62aa2679e4b78718d5996e26ba90023140474762f258b6",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x5e0d6791edbeeba6a14d1d38e2b8233257118eb1",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "7c6874275af4edc64c17c4770c9476f7cc20e6913ec055fe9d68f42f853766aa",
+      "executionOutputSha256": "a14e1d77b97546fe0d747bb0efc040ce236a890263afab83f076553f091cd289",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x6261963ebe9ff014aad10ecc3b0238d4d04e8353",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "464322263cec2e7825c6ff446859ebaa60e9f54d36c6afbf4417d32cc8eb4f2a",
+      "executionOutputSha256": "65bed5a9e0325fc12c9557afac4f5837462a2b74f8fb47a62796b4b058724a64",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x6bf62ca91e397b5a7d1d6bce97d9092065d7a510",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "ba70dbca96097d2f4cb22847011a76d96f74a8d8665b50d1bf0759578008cab6",
+      "executionOutputSha256": "3115811368e438d238b1133e02d32ab2f5c29a5cd3faaf346fe3ae56792a811a",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x7b06b09f3482f7e0f68a1c6728bdd34f4137e880",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "bc4f0403e7ce25baea1633fb9c54767f3c3ea97354274f7edbe619dd9595b297",
+      "executionOutputSha256": "4f3a7e9a719d438872b0f070b81d19fbe97c5f148c704995c0fedd6548edeb52",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializerReplayRejectedWithoutChangingSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonPauserCannotPauseOrUnpause()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PauseBlocksNonPrivilegedFundedTransferAndUnpauseRestoresIt()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x7ec43cf65f1663f820427c62a5780b8f2e25593a",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "06def69b4594c4859e4758a3ba285f434d6690e607b7b4776ca4c258254fc8de",
+      "executionOutputSha256": "7c6fe9e50689a982ff2031ca19add370475f485eb2ef6a47db109a7066efc312",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x7f8c5e730121657e17e452c5a1ba3fa1ef96f22a",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "5ed2505e41ee19bdffa1a104a1f98abb425bc6fa8f51b134053bc49959640cff",
+      "executionOutputSha256": "7151a65df455f6eb514623e23cd015f8b4001f11f9a477943ba35bc88cef12dc",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializerReplayRejectedWithoutChangingSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x8105743e8a19c915a604d7d9e7aa3a060a4c2c32",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "ef397606f95e0c79e1aca85431034a3903b98f29f1c079788dc2f7f77a1f1905",
+      "executionOutputSha256": "fa14eb1f610d54fc9f4a3e862e6f7d72e3c7e1c6715ae0cfc71c4763ee0d5303",
+      "tests": [
+        {
+          "name": "testFuzz_DelegatedStoragePreservesReservedSlots(uint128)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_ConstructorDelegatesInitializationIntoProxyStorage()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ConstructorRejectsNonContractImplementationOrBeacon()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializationFailureRevertsProxyCreation()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x85375d3e9c4a39350f1140280a8b0de6890a40e7",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "39fea508b4a75dcfab6b2295f00bcf6f22e5c68b6c55aad0cc0309bbe1c4fe08",
+      "executionOutputSha256": "b6088525d5a90a561fa7709f3e55111b6eb2144a62e95221108712cec20e380b",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x8dedf84656fa932157e27c060d8613824e7979e3",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "ef397606f95e0c79e1aca85431034a3903b98f29f1c079788dc2f7f77a1f1905",
+      "executionOutputSha256": "4f77d9466548437f334e709f7bef55a97016c86387214d107f9c9a1bdda81c89",
+      "tests": [
+        {
+          "name": "testFuzz_DelegatedStoragePreservesReservedSlots(uint128)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_ConstructorDelegatesInitializationIntoProxyStorage()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ConstructorRejectsNonContractImplementationOrBeacon()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializationFailureRevertsProxyCreation()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x91152b4ef635403efbae860edd0f8c321d7c035d",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "3409fb2cf135a5f1454ca0a01ac34d083996b40cd28072d51c415acbf8909626",
+      "executionOutputSha256": "26855a028fbff8f6df2ab767064781a521f36be40df609aa09d4f984a0fa4720",
+      "tests": [
+        {
+          "name": "testFuzz_DelegatedStoragePreservesReservedSlots(uint128)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_ConstructorDelegatesInitializationIntoProxyStorage()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ConstructorRejectsNonContractImplementationOrBeacon()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializationFailureRevertsProxyCreation()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x92516e0ddf1ddbf7fab1b79cac26689fdc5ba8e6",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "f1ed0bf43a70fc8b8a76ce627f263d1003ed6fe981f4206e9d88d83af7273290",
+      "executionOutputSha256": "5797dd87370ff298d65f5e0534d5f2af3016791458b9b470e4b4f5a418bcfeb7",
+      "tests": [
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x96dd399f9c3afda1f194182f71600f1b65946501",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "ef7a269e2d55677abc5abd5652c7bc2b639e002349131f5b8a9f106c7b91d357",
+      "executionOutputSha256": "77f85a22a988aa6a66757085f40fc24ad046afd096260a3366cf175dd8d0bf33",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0xa9d0b1770ad65cbc4f5dffc0f24f42c57933a877",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "311b494f120853e67348a56fc7a03423761164fde29c7ad27aa0d2d6d63ca0bd",
+      "executionOutputSha256": "f47ebc28ff3a466268e686ea12307e0a22724d9e4f2526758bc393c46d329b8b",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializerReplayRejectedWithoutChangingSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0xc401796ec909f7774703528571c3590748ebc563",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "08e4256a5cb2484ead483d944d1bf4d355c1515607f115be8e48f07d1bee7128",
+      "executionOutputSha256": "01516425a359899182d8f718213c3b544b27ba553551c02f631a047725cf8f95",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_InitializerReplayRejectedWithoutChangingSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0xcae117ca6bc8a341d2e7207f30e180f0e5618b9d",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "4771c407b3a2d6aed09395e5cc50e3d11b31ee814d3107ad0da7db3db60b8335",
+      "executionOutputSha256": "f708bccd878c37136d2c209a587d98d5816e993b37809d13249f7e0193a41299",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0xcc1b8207853662c5cfabfb028806ec06ea1f6ac6",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "f98c374e1ace581855784343dfe752ab693aae6bde76ecfce2650ee13856ee54",
+      "executionOutputSha256": "1e71a1a80546dae9ce93509568f00055b9c1b8daeeede1619865d99b2010cbec",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0xce7de646e7208a4ef112cb6ed5038fa6cc6b12e3",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "1643cd21ee23baee60d75c67187528268111045dd20f57711cd4780a306864b2",
+      "executionOutputSha256": "535048d941263d5b03854d2b2e21bba4e8caed2803e3d41b820af6e56c2c651a",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0xcf3232b85b43bca90e51d38cc06cc8bb8c8a3e36",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "eb3d1fe95e84048c8d601211d89d0ff05c10b458e709cdcb90121175ec082f44",
+      "executionOutputSha256": "1c467a2552bb5f1fa6b7432c085700a5be05f7e724aad571d680f5db301ca051",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0xe3225e11cab122f1a126a28997788e5230838ab9",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "736f7696f1b21444a72a296d949838fa7a71059c85a2a071f95c886634b752b4",
+      "executionOutputSha256": "27d4d1f59d451f4e401ca5d3fc37d542d867f65d4a5106a1742024bdf038b001",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonPauserCannotPauseOrUnpause()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PauseBlocksNonPrivilegedFundedTransferAndUnpauseRestoresIt()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 8453,
+      "address": "0x9eadbe35f3ee3bf3e28180070c429298a1b02f93",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "dc33f5bf1c12b6a489318cf712a8b3e5d89d69492dc7d26640f86bf855f6ae91",
+      "executionOutputSha256": "91188459c8377c290fd0d755e8ecc5d618ca0d939cbfb92245a46a5023d8c953",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 8453,
+      "address": "0xacfe6019ed1a7dc6f7b508c02d1b04ec88cc21bf",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "091941f08c3effa10d12606d7e833eab205dfba52271d6e5d564c25d4bd85b02",
+      "executionOutputSha256": "0e088cb46b7dfea8019d497ef9ba57963de9cc7321d65734ebd8f5ebffb9652a",
+      "tests": [
+        {
+          "name": "invariant_TrackedBalancesAndGlobalSupplyMatchIndependentModel()",
+          "category": "invariant",
+          "status": "passed",
+          "runs": 64,
+          "calls": 2048
+        },
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "testFuzz_FundedTransferConservesBalancesAndSupply(uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_DelegatedFiniteAllowanceConsumedAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnapprovedSpenderCannotUseFundedAccount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnprivilegedMintCannotChangeSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 8453,
+      "address": "0xc0634090f2fe6c6d75e61be2b949464abb498973",
+      "batch": "historical-specific",
+      "sourceManifestSha256": "a854dfb397b5053e0b87041bd72d5b15769aec90223dedc90969a30921796749",
+      "executionOutputSha256": "64391709fa5db6344fb69361b8d91d880bfdfe90b378bfefc86f3b051cadef32",
+      "tests": [
+        {
+          "name": "testFuzz_AllowanceUpdateFollowsDeclaredPolicy(uint64,uint64)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_EmptyAccountCannotTransferPositiveAmount()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredPermitCannotConsumeNonce()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_NonOwnerCannotTransferOwnership()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_PermitCannotReplayAcrossChainId()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SourceRuntimeDeployedAndSupplyGetterCallable()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ValidPermitConsumesNonceAndCannotReplay()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 8453,
+      "address": "0x940181a94a35a4569e4529a3cdfb74e38fd98631",
+      "batch": "historical-authorization",
+      "sourceManifestSha256": "21009e48f30ee9b1e9c92462bda199442b36223f46fe83e9df51b205c88c8e59",
+      "sourceFileSha256": "552a43d10b27089cc1847a012217a103ee98896132cc9e128797eaff2dc4c01c",
+      "executionOutputSha256": "463d92d0675b240acb418f385f050cd0328406e6ad86be0ae2f9886379b4cac8",
+      "tests": [
+        {
+          "name": "testFuzz_UnauthorizedMintReverts(address,uint256)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_AuthorizedMintChangesSupply()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_DelegatedMinterOnly()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_Observation_AuthorizedLargeMintSample()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_Observation_DelegationCanRepeat()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_Observation_SetMinterAcceptsZero()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnauthorizedMintReverts()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnauthorizedSetMinterReverts()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "address": "0x208bf3e7da9639f1eaefa2de78c23396b0682025",
+      "batch": "historical-authorization",
+      "sourceManifestSha256": "ad682a0cd868a676c2be00d1e1e1b30ef9a19b40fee47721da8386005e262bf2",
+      "sourceFileSha256": "a986e195f98b68a206a95aa0b591c5b527a0186fb62d4a5238430fc30f20e0eb",
+      "executionOutputSha256": "6e25217e423aaf41f81e98dd19863afabb90fa9feafa32975f93e5ac124598d9",
+      "tests": [
+        {
+          "name": "testFuzz_WrongSignerCannotClaim(uint128)",
+          "category": "fuzz",
+          "status": "passed",
+          "runs": 256
+        },
+        {
+          "name": "test_ClaimBeforeLaunchReverts()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_ExpiredClaimReverts()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_MockedLaunchMintsDeclaredAllocations()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_Observation_AuthorizedClaimCanExceedMaxSupplyConstant()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_Observation_ConstructorDoesNotMint()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_Observation_RenouncingOwnerDoesNotRevokeDeployerRole()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_Observation_SignatureReusableAcrossTwoLocalDeployments()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_Observation_ZeroSignerBlocksFormerSignedClaims()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_SignedClaimMintsAndCannotRepeat()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnauthorizedLaunchReverts()",
+          "category": "unit",
+          "status": "passed"
+        },
+        {
+          "name": "test_UnauthorizedSetSignerReverts()",
+          "category": "unit",
+          "status": "passed"
+        }
+      ]
+    }
+  ]
+}
