@@ -2,7 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
     "deploymentEnabled": {
-      "review/historical-approval-flow": false
+      "review/historical-approval-flow": false,
+      "review/source-bound-verification": false
     }
   },
   "crons": [

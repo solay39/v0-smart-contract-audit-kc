@@ -22,12 +22,18 @@ on:
         required: false
         default: none
         type: choice
-        options: [none, aero-authorization-v1]
+        options: [none, aero-authorization-v1, aero-erc20-v2]
 
 permissions:
   contents: read
 
 jobs:
+  aero-source-verification:
+    if: ${{ inputs.benchmark == 'aero-erc20-v2' }}
+    uses: ./.github/workflows/aero-source-verification.yml
+    with:
+      source_gz_b64: ${{ inputs.source_gz_b64 }}
+
   aero-benchmark:
     if: ${{ inputs.benchmark == 'aero-authorization-v1' }}
     runs-on: ubuntu-24.04
