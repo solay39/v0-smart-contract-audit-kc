@@ -91,6 +91,13 @@ export function LoginScreen({
         </div>
       </nav>
 
+      <aside aria-label="Verification update" className="border-b border-s39-border bg-s39-green/5 px-4 py-3 text-center text-xs leading-relaxed">
+        <a href="/verification-updates" className="text-s39-green underline underline-offset-4">
+          Historical execution results are now available
+        </a>
+        <span className="text-s39-mid"> · Source-fixture tests, scope limits and pending review</span>
+      </aside>
+
       {/* ══════════════ HERO ══════════════ */}
       <section className="relative flex flex-col items-center justify-center text-center px-4 pt-20 pb-16 sm:pt-28 sm:pb-20 overflow-hidden">
         {/* Subtle grid background */}
