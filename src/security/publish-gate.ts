@@ -31,7 +31,7 @@ export function evaluatePublish({ auditReport, sourceText, artifacts = {} }: Pub
   const reportSha256 = auditReport.integrity.report_sha256 as string
   if (v.publishable) return { decision: "PUBLISH", errors: [], reportSha256, label: "REVIEWED" }
   if (auditReport.status === "AUTOMATED_SCAN_PENDING_REVIEW") {
-    return { decision: "PUBLISH_AS_UNREVIEWED_DRAFT", errors: [], reportSha256, label: "AUTOMATED SCAN - NOT MANUALLY REVIEWED" }
+    return block([{ code: "FOUNDER_REVIEW_REQUIRED", msg: "Tier 1 richiede approvazione founder persistita prima della pubblicazione." }])
   }
-  return block([{ code: "NOT_PUBLISHABLE", msg: "report non pubblicabile e non marcato come scansione automatica" }])
+  return block([{ code: "NOT_PUBLISHABLE", msg: "report non pubblicabile: completare la revisione founder Tier 1" }])
 }
