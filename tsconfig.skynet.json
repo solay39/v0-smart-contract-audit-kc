@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "target": "ES2022", "incremental": false },
+  "include": [
+    "next-env.d.ts",
+    "components/skynet-discovery.tsx",
+    "lib/skynet-directory.ts",
+    "app/skynet/page.tsx",
+    "app/leaderboard/page.tsx",
+    "tests/skynet-directory.test.mts",
+    "tests/skynet-discovery.browser.mts",
+    "tests/skynet-preview.browser.mts"
+  ],
+  "exclude": ["node_modules", ".next"]
+}
