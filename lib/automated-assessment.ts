@@ -31,11 +31,14 @@ export function preliminaryAutomatedAssessment(input: Record<string, unknown>): 
       }
     }) : [],
     formalVerification: null, formalVerificationResults: null, fuzzingResults: null,
-    exploitSimulation: null, confirmedPoCs: [],
+    exploitSimulation: null, confirmedPoCs: [], testCoverage: null,
     signedReport: null, onChainRecord: null, solanaAttestation: null, ipfsRecord: null,
+    toolingUsed: [], onChainValidation: [],
     testingMethodology: {
       ...methodology, manualReviewHours: 0, fuzzingApplied: false, symbolicExecution: false,
-      dynamicAnalysisTools: [], executionStatus: "NOT_RUN",
+      staticAnalysisTools: [], dynamicAnalysisTools: [], reviewPhases: [], executionStatus: "NOT_RUN",
+      fuzzingDetails: "No source-bound execution evidence supplied.",
+      symbolicDetails: "Refer to canonical tool artifacts; generated prose is not an execution log.",
     },
     aiEngagement: {
       ...engagement, numberOfAuditors: 0, engineeringHours: 0, securityEngineersInvolved: 0,

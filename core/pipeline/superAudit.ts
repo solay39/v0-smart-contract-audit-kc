@@ -320,7 +320,7 @@ function extractStateFromSource(source: string): Record<string, unknown> {
   // Extract state variables
   const matches = source.matchAll(/(?:uint|int)\d*\s+(?:public\s+)?(\w+)/g)
   for (const match of matches) {
-    state[match[1]] = 0n
+    state[match[1]] = BigInt(0)
   }
 
   return state

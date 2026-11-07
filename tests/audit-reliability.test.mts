@@ -10,6 +10,26 @@ import { ciFindingsForWorkspace } from "../lib/ci-workspace.ts"
 import { ciEvidenceFixture } from "./fixtures/ci-evidence.ts"
 import { preliminaryAutomatedAssessment } from "../lib/automated-assessment.ts"
 import { readFileSync } from "node:fs"
+import { exportPDF, exportMarkdown } from "../lib/export-pdf.ts"
+import { normalizeAuditDraft } from "../lib/audit-draft.ts"
+
+test("draft storage and printable exports cannot resurrect fabricated logs or ratings", () => {
+  const data = {
+    engagement: { engineeringHours: 1200, numberOfAuditors: 24, securityEngineersInvolved: 108 },
+    testingMethodology: { fuzzingApplied: true, staticAnalysisTools: [{ output: "FABRICATED LOG" }], dynamicAnalysisTools: [{ output: "10000 PASS" }] },
+    signedReport: { signature: "fake" }, formalVerification: { allPassed: true },
+  }
+  const normalized = normalizeAuditDraft({ ...data, id: "qa-export", name: "QA", findings: [] })
+  assert.equal(normalized.signedReport, undefined)
+  assert.equal(normalized.testingMethodology?.staticAnalysisTools?.length, 0)
+  const project = { name: "QA <script>alert(1)</script>", network: "BSC", scope: "0x" + "1".repeat(40) }
+  const html = exportPDF(project as never, 98, [], data as never)
+  const markdown = exportMarkdown(project as never, 98, [], data as never)
+  assert.match(html, /PRELIMINARY REPORT/)
+  assert.doesNotMatch(html, /<script>|FABRICATED LOG|10000 PASS|No Issues Found|98\/100/)
+  assert.match(markdown, /local preliminary export/)
+  assert.doesNotMatch(markdown, /canonical report record|FABRICATED LOG|10000 PASS/)
+})
 
 test("primary AI and fallback routes cannot sign, publish or assert synthetic formal proofs", () => {
   const output = preliminaryAutomatedAssessment({
@@ -17,7 +37,9 @@ test("primary AI and fallback routes cannot sign, publish or assert synthetic fo
       allPassed: true, invariantsTested: [{ invariant: "supply conservation", result: "PASS", method: "50,000 Echidna runs" }],
     }, signedReport: { signature: "fake" }, ipfsRecord: { cid: "fake" },
     aiEngagement: { engineeringHours: 100, numberOfAuditors: 4 },
-    testingMethodology: { manualReviewHours: 100, fuzzingApplied: true },
+    testingMethodology: {
+      manualReviewHours: 100, fuzzingApplied: true, staticAnalysisTools: [{ output: "fabricated pass" }],
+    },
     exploitSimulation: { vectors: [{ attackType: "reentrancy", gasUsed: 12345, confidence: 99, status: "SAFE" }] },
   })
   assert.equal(output.publicationStatus, "PRELIMINARY")
@@ -25,6 +47,7 @@ test("primary AI and fallback routes cannot sign, publish or assert synthetic fo
   assert.deepEqual(output.verificationSuggestions, [{ property: "supply conservation", status: "NOT_RUN" }])
   assert.equal((output.aiEngagement as { engineeringHours: number }).engineeringHours, 0)
   assert.equal((output.testingMethodology as { fuzzingApplied: boolean }).fuzzingApplied, false)
+  assert.deepEqual((output.testingMethodology as { staticAnalysisTools: unknown[] }).staticAnalysisTools, [])
   assert.equal((output.findings as unknown[]).length, 1)
   const route = readFileSync(new URL("../app/api/skynet/route.ts", import.meta.url), "utf8")
   assert.equal((route.match(/Response\.json\(preliminaryAutomatedAssessment\(/g) || []).length, 2)

@@ -22,6 +22,7 @@ export function ciEvidenceFixture(jobId: string, failedSlither = false) {
     "mythril-version.txt": strToU8("fixture"),
     "foundry-version.txt": strToU8("fixture"),
     "pip-freeze.txt": strToU8("fixture==1.0"),
+    "mythril-pip-freeze.txt": strToU8("fixture-legacy==1.0"),
   }
   const manifest = {
     schema_version: 2, job_id: jobId, source_sha256: evidenceSourceHash,

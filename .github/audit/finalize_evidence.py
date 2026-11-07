@@ -48,6 +48,12 @@ def finalize(root, environ=None):
             success = False
         status = "COMPLETED" if success else "NOT_RUN" if outcome == "skipped" else "TIMEOUT" if execution.get("timed_out") is True else "FAILED"
         tools[tool] = {"status": status, "step_outcome": outcome, **execution}
+        candidates = (
+            data.get("results", {}).get("detectors", []) if tool == "slither" and isinstance(data.get("results"), dict)
+            else data.get("issues", []) if tool == "mythril"
+            else data.get("findings", []) if tool == "custom" else []
+        )
+        tools[tool]["candidate_count"] = len(candidates) if isinstance(candidates, list) else 0
         if not data or not shape_ok or outcome != "success" or execution.get("timed_out") is True:
             # Preserve malformed/raw output for diagnosis; the consumed report
             # must be an explicit failure rather than an absent/ambiguous result.
@@ -61,7 +67,7 @@ def finalize(root, environ=None):
                          "fuzzing_executed": False, "invariants": 0})
             path.write_text(json.dumps(data, indent=2))
 
-    for name in ("slither-version.txt", "mythril-version.txt", "foundry-version.txt", "pip-freeze.txt"):
+    for name in ("slither-version.txt", "mythril-version.txt", "foundry-version.txt", "pip-freeze.txt", "mythril-pip-freeze.txt"):
         if not (out / name).exists():
             (out / name).write_text("unavailable\n")
     for source, target in (
@@ -112,4 +118,9 @@ def finalize(root, environ=None):
 
 
 if __name__ == "__main__":
-    finalize(Path.cwd())
+    manifest = finalize(Path.cwd())
+    # Metadata only, not source text or secrets. Keeps failures inspectable even
+    # when an artifact-download client cannot authenticate.
+    print("EVIDENCE_SUMMARY " + json.dumps({
+        key: manifest[key] for key in ("job_id", "source_sha256", "github", "tools", "claims")
+    }, sort_keys=True))

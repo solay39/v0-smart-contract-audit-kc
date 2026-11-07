@@ -75,6 +75,16 @@ class EvidenceTests(unittest.TestCase):
             self.assertFalse(manifest["claims"]["mythril"])
             self.assertFalse(json.loads((root / "out/mythril.json").read_text())["success"])
 
+    def test_timeout_cannot_be_reported_as_successful_analysis(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "out").mkdir()
+            (root / "out/mythril.json").write_text('{"success":true,"issues":[]}')
+            (root / "out/mythril-execution.json").write_text('{"exit_code":124,"timed_out":true}')
+            manifest = finalizer.finalize(root, {"MYTHRIL_OUTCOME": "success"})
+            self.assertEqual(manifest["tools"]["mythril"]["status"], "TIMEOUT")
+            self.assertFalse(manifest["claims"]["mythril"])
+            self.assertFalse(json.loads((root / "out/mythril.json").read_text())["success"])
 
 if __name__ == "__main__":
     unittest.main()

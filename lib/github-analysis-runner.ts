@@ -302,7 +302,7 @@ export function verifyCiArtifact(files: Record<string, Uint8Array>, jobId: strin
   }
   if (manifest.schema_version !== 2) throw new GithubAnalysisError("Legacy CI evidence is incomplete. Rerun analysis to obtain source-bound v2 evidence.", 422)
   const required = ["source.sol", "source-layout.json", "meta.json", "slither.json", "mythril.json",
-    "custom.json", "foundry.json", "slither-version.txt", "mythril-version.txt", "foundry-version.txt", "pip-freeze.txt"]
+    "custom.json", "foundry.json", "slither-version.txt", "mythril-version.txt", "foundry-version.txt", "pip-freeze.txt", "mythril-pip-freeze.txt"]
   if (required.some(name => !manifest.artifacts?.[name])) throw new GithubAnalysisError("CI evidence is missing a required artifact hash.", 422)
   if (Object.keys(files).some(name => name !== "evidence-manifest.json" &&
     !Object.prototype.hasOwnProperty.call(manifest.artifacts!, name))) {

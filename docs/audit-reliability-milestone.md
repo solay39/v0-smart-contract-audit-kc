@@ -13,6 +13,7 @@ Questa modifica elimina conferme tecniche non sostenute da esecuzioni e rafforza
 - **Errori:** uno strumento fallito non impedisce agli altri controlli applicabili di produrre risultati. Il finalizzatore conserva gli errori. Un job cancellato senza artefatti non è un audit riuscito.
 - **Versioni:** fissate quelle dirette di Slither, Mythril, solc-select e Foundry; registrati ambiente Python, configurazione Foundry e dipendenze sorgente. Transitive e immagine host non sono ancora completamente bloccate.
 - **Workspace:** controlli custom importati come candidati; errori custom o Foundry rendono visibile l'incompletezza. Compilazione non significa test o fuzzing.
+- **Export:** stampe HTML/PDF e Markdown del workspace restano preliminari, senza rating, log sintetici o conteggi umani inventati. I renderer legacy con rating non sono più raggiungibili dagli export pubblici; servirà un percorso distinto dopo l'approvazione verificata.
 - **Condivisione:** gli artefatti includono il sorgente. Il server impedisce dispatch a repository pubblici senza consenso esplicito; cambiare codice azzera il consenso.
 
 ## Esecuzioni reali e limiti

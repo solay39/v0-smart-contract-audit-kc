@@ -225,6 +225,8 @@ export function runEnterprisePipeline(
  */
 export function generateFindingJSON(finding: EnrichedFinding): object {
   return {
+    assessment_status: "UNVALIDATED_CANDIDATE",
+    cvss_status: "PROVISIONAL",
     finding_id: finding.id,
     title: finding.title,
     severity: finding.severity,

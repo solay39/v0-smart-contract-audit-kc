@@ -2476,6 +2476,7 @@ return Response.json(preliminaryAutomatedAssessment({
   } : null,
   // Analysis Mode (real vs pattern-based)
   analysisMode: "automated-candidates-pending-source-bound-evidence-and-founder-review",
+  analysisScope: { sourceCharacters: code.length, analyzedCharacters: truncatedCode.length, truncated: code.length > truncatedCode.length },
   // Tier-1 sections
   privilegedRoles,
         trustAssumptions,
@@ -2709,6 +2710,7 @@ const staticEconomicAttacks = analyzeEconomicAttacks(truncatedCode, {
       return Response.json(preliminaryAutomatedAssessment({
         findings: finalStaticFindings,
         source: "static",
+        analysisScope: { sourceCharacters: code.length, analyzedCharacters: truncatedCode.length, truncated: code.length > truncatedCode.length },
         note: "Analysis performed using Solay39 pattern-based static analyzer (AI model unavailable).",
         contractMeta: meta,
         scoreBreakdown,

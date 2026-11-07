@@ -17,9 +17,14 @@ export function normalizeAuditDraft(value: unknown): PortfolioProject {
     ...audit, name: audit.name.trim(), score: 0, rating: "PENDING",
     // Prevent this draft-only endpoint from promoting supplied signatures to approval.
     manualReview: undefined, auditorSignatures: undefined, formalVerification: undefined,
+    signedReport: undefined, onChainRecord: undefined, solanaAttestation: undefined,
+    exploitSimulation: undefined, invariantsChecked: undefined, onChainValidation: undefined,
+    // Tool evidence is read from canonical ciAnalysis, not narrative log strings.
+    toolingUsed: [],
     engagement: audit.engagement ? {
       ...audit.engagement,
       numberOfAuditors: 0, engineeringHours: 0, securityEngineersInvolved: 0,
+      auditDurationDays: 0,
       reviewTeam: audit.engagement.reviewTeam ? {
         ...audit.engagement.reviewTeam,
         reviewStatus: "AUTOMATED_ANALYSIS_PENDING_MANUAL_REVIEW",
@@ -31,6 +36,9 @@ export function normalizeAuditDraft(value: unknown): PortfolioProject {
     } : undefined,
     testingMethodology: audit.testingMethodology ? {
       ...audit.testingMethodology, manualReviewHours: 0, fuzzingApplied: false, symbolicExecution: false,
+      staticAnalysisTools: [], dynamicAnalysisTools: [],
+      fuzzingDetails: "No source-bound fuzzing evidence supplied.",
+      symbolicDetails: "Refer to canonical tool artifacts; narrative strings are not execution evidence.",
     } : undefined,
   }
 }
