@@ -157,6 +157,7 @@ jobs:
             "https://github.com/ethereum/solidity/releases/download/v${ver}/solc-static-linux" \
             --output "$SOLC_DIR/solc"
           chmod +x "$SOLC_DIR/solc"
+          export PATH="$SOLC_DIR:$PATH"
           echo "$SOLC_DIR" >> "$GITHUB_PATH"
           solc --version > out/solc-version.txt 2>&1
           echo "version=$ver" >> "$GITHUB_OUTPUT"
