@@ -27,7 +27,29 @@ on:
   workflow_dispatch:
 
 jobs:
+  fortify-config:
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    env:
+      FOD_USER: ${{ secrets.FOD_USER }}
+      FOD_PAT: ${{ secrets.FOD_PAT }}
+      FOD_CLIENT_ID: ${{ secrets.FOD_CLIENT_ID }}
+      FOD_CLIENT_SECRET: ${{ secrets.FOD_CLIENT_SECRET }}
+    steps:
+      - id: check
+        shell: bash
+        run: |
+          if { [ -n "$FOD_USER" ] && [ -n "$FOD_PAT" ]; } || { [ -n "$FOD_CLIENT_ID" ] && [ -n "$FOD_CLIENT_SECRET" ]; }; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Fortify scan skipped: configure FOD_USER/FOD_PAT or FOD_CLIENT_ID/FOD_CLIENT_SECRET in GitHub Actions secrets."
+          fi
+
   Fortify-AST-Scan:
+    needs: fortify-config
+    if: needs.fortify-config.outputs.configured == 'true'
     # Use the appropriate runner for building your source code. Ensure dev tools required to build your code are present and configured appropriately (MSBuild, Python, etc).
     runs-on: ubuntu-latest
     permissions:
@@ -69,8 +91,8 @@ jobs:
           FOD_TENANT: ${{secrets.FOD_TENANT}}              # Either tenant/user/password or client id/secret are required;
           FOD_USER: ${{secrets.FOD_USER}}                  # these should be configured through GitHub secrets.
           FOD_PASSWORD: ${{secrets.FOD_PAT}}
-          # FOD_CLIENT_ID: ${{secrets.FOD_CLIENT_ID}}
-          # FOD_CLIENT_SECRET: ${{secrets.FOD_CLIENT_SECRET}}
+          FOD_CLIENT_ID: ${{secrets.FOD_CLIENT_ID}}
+          FOD_CLIENT_SECRET: ${{secrets.FOD_CLIENT_SECRET}}
           ### Optional configuration
           # FOD_LOGIN_EXTRA_OPTS: --socket-timeout=60s     # Extra 'fcli fod session login' options
           # FOD_RELEASE: MyApp:MyRelease                   # FoD release name, default: <org>/<repo>:<branch>
