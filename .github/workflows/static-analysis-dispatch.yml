@@ -149,8 +149,15 @@ jobs:
         run: |
           ver=$(grep -oE 'pragma solidity[^;]+' work/Contract.sol | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
           ver=${ver:-0.8.24}
-          solc-select install "$ver"
-          solc-select use "$ver"
+          # binaries.soliditylang.org returns 403 on GitHub-hosted runners.
+          # Use the official Solidity GitHub release asset instead.
+          SOLC_DIR="$RUNNER_TEMP/solc/$ver"
+          mkdir -p "$SOLC_DIR"
+          curl --fail --location --retry 4 --retry-delay 3 --silent --show-error \
+            "https://github.com/ethereum/solidity/releases/download/v${ver}/solc-static-linux" \
+            --output "$SOLC_DIR/solc"
+          chmod +x "$SOLC_DIR/solc"
+          echo "$SOLC_DIR" >> "$GITHUB_PATH"
           solc --version > out/solc-version.txt 2>&1
           echo "version=$ver" >> "$GITHUB_OUTPUT"
           minor=$(echo "$ver" | cut -d. -f3)
