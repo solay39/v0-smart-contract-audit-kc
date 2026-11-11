@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.10"
       - name: Cache Foundry install
         uses: actions/cache@v4
         with:
@@ -28,23 +28,7 @@ jobs:
           key: foundry-${{ runner.os }}-v1
 
       - name: Install isolated analysis tools
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p reports
-          python -m venv "$RUNNER_TEMP/slither-tools"
-          "$RUNNER_TEMP/slither-tools/bin/python" -m pip install --upgrade pip setuptools wheel
-          "$RUNNER_TEMP/slither-tools/bin/python" -m pip install --upgrade slither-analyzer
-          export PATH="$RUNNER_TEMP/slither-tools/bin:$PATH"
-          echo "$RUNNER_TEMP/slither-tools/bin" >> "$GITHUB_PATH"
-          slither --version
-
-          python -m venv "$RUNNER_TEMP/mythril-tools"
-          "$RUNNER_TEMP/mythril-tools/bin/python" -m pip install --upgrade pip wheel mythril
-          "$RUNNER_TEMP/mythril-tools/bin/python" -m pip install 'setuptools<81'
-          export PATH="$RUNNER_TEMP/mythril-tools/bin:$PATH"
-          echo "$RUNNER_TEMP/mythril-tools/bin" >> "$GITHUB_PATH"
-          myth version
+        uses: ./.github/actions/security-tools
       - name: Install Foundry (try official action, tolerant)
         uses: foundry-rs/foundry-toolchain@v1
         with:
@@ -133,37 +117,27 @@ jobs:
           [ -d lib/openzeppelin-contracts/contracts ] || git clone -q --depth 1 --branch v5.0.2 https://github.com/OpenZeppelin/openzeppelin-contracts lib/openzeppelin-contracts
 
       - name: Run Forge tests
-        run: forge test -vvvv | tee reports/forge_output.txt
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          forge test -vvvv | tee reports/forge_output.txt
       - name: Run Forge coverage
         if: always()
         run: forge coverage --ir-minimum --report summary --report lcov | tee reports/coverage.txt || true
       - name: Run Slither
         shell: bash
         run: |
+          set -euo pipefail
           mkdir -p reports
-          slither . --config-file slither.config.json --json reports/slither-report.json > reports/slither_output.txt 2>&1
+          trap 'cat reports/slither_output.txt' EXIT
+          slither . --config-file slither.config.json --fail-high --json reports/slither-report.json > reports/slither_output.txt 2>&1
           test -s reports/slither-report.json
       - name: Fail on Slither high or critical findings
         if: always()
-        run: |
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          p = Path("reports/slither-report.json")
-          try:
-              data = json.loads(p.read_text())
-          except (OSError, json.JSONDecodeError) as exc:
-              raise SystemExit(f"Could not parse Slither report: {exc}")
-          results = data.get("results", [])
-          if isinstance(results, dict):
-              results = results.get("detectors", results.get("issues", []))
-          bad = [i for i in results if str(i.get("impact", i.get("severity", ""))).lower() in {"high", "critical"}]
-          if bad:
-              raise SystemExit(f"Slither found {len(bad)} high/critical finding(s)")
-          print("No Slither high/critical findings")
-          PY
+        run: python3 scripts/validate-scanner-reports.py slither reports
       - name: Run Mythril
         run: |
+          set -euo pipefail
           command -v myth
           for contract in contracts/Solay39EnterpriseRegistry.sol contracts/Solay39AuditRegistry.sol contracts/AuditRegistry.sol; do
             name="$(basename "$contract" .sol)"
@@ -172,28 +146,7 @@ jobs:
           done
       - name: Fail on Mythril high or critical findings
         if: always()
-        run: |
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          reports = list(Path("reports").glob("mythril-*.json"))
-          bad = []
-          invalid = []
-          for report in reports:
-              try:
-                  data = json.loads(report.read_text())
-              except (OSError, json.JSONDecodeError):
-                  invalid.append(report.name)
-                  continue
-              for issue in data.get("issues", []):
-                  if str(issue.get("severity", "")).lower() in {"high", "critical"}:
-                      bad.append((report.name, issue))
-          if bad:
-              raise SystemExit(f"Mythril found {len(bad)} high/critical finding(s)")
-          if invalid:
-              raise SystemExit(f"Invalid Mythril reports: {', '.join(invalid)}")
-          print("No Mythril high/critical findings")
-          PY
+        run: python3 scripts/validate-scanner-reports.py mythril reports
       - name: Run Echidna
         if: hashFiles('echidna/echidna.yaml', 'echidna/EchidnaHarness.sol') != ''
         uses: crytic/echidna-action@v2

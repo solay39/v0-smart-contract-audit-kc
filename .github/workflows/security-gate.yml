@@ -29,15 +29,7 @@ jobs:
       - name: Install JavaScript dependencies
         run: pnpm install --frozen-lockfile
       - name: Install isolated Slither and Mythril
-        run: |
-          python -m venv "$RUNNER_TEMP/security-tools"
-          "$RUNNER_TEMP/security-tools/bin/python" -m pip install --upgrade pip setuptools wheel
-          "$RUNNER_TEMP/security-tools/bin/python" -m pip install slither-analyzer
-          # Pin to a Python 3.10 wheel to avoid attempting the obsolete source build
-          # that fails with distutils.msvccompiler on current Python environments.
-          "$RUNNER_TEMP/security-tools/bin/python" -m pip install "numpy==1.26.4"
-          "$RUNNER_TEMP/security-tools/bin/python" -m pip install mythril
-          echo "$RUNNER_TEMP/security-tools/bin" >> "$GITHUB_PATH"
+        uses: ./.github/actions/security-tools
       - name: Required scanner preflight
         run: node scripts/require-security-tools.mjs
       - name: TypeScript build checks

@@ -1,0 +1,23 @@
+name: Isolated Solidity security tools
+description: Install incompatible scanner dependency trees in separate environments.
+runs:
+  using: composite
+  steps:
+    - name: Install and validate separate scanner environments
+      shell: bash
+      run: |
+        set -euo pipefail
+        python -m venv "$RUNNER_TEMP/slither-tools"
+        "$RUNNER_TEMP/slither-tools/bin/python" -m pip install --upgrade pip wheel "setuptools==80.9.0"
+        "$RUNNER_TEMP/slither-tools/bin/python" -m pip install "slither-analyzer==0.11.6"
+        "$RUNNER_TEMP/slither-tools/bin/python" -m pip check
+        "$RUNNER_TEMP/slither-tools/bin/slither" --version
+
+        python -m venv "$RUNNER_TEMP/mythril-tools"
+        "$RUNNER_TEMP/mythril-tools/bin/python" -m pip install --upgrade pip wheel "setuptools==80.9.0"
+        "$RUNNER_TEMP/mythril-tools/bin/python" -m pip install "numpy==1.26.4" "mythril==0.24.8"
+        "$RUNNER_TEMP/mythril-tools/bin/python" -m pip check
+        "$RUNNER_TEMP/mythril-tools/bin/myth" version
+
+        echo "$RUNNER_TEMP/slither-tools/bin" >> "$GITHUB_PATH"
+        echo "$RUNNER_TEMP/mythril-tools/bin" >> "$GITHUB_PATH"
